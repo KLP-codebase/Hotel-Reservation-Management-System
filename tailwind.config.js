@@ -56,10 +56,22 @@ module.exports = {
           500: "#d4a82a",
           600: "#b8890f",
         },
+        // SkyNest design tokens
+        ink: {
+          DEFAULT: "#0B2540",
+          faded: "#B7C2CC",
+        },
+        paper: "#FDFCFA",
+        skynest: {
+          accent: "#D9722C",
+          hairline: "#E4E1DA",
+        },
       },
       fontFamily: {
         sans: ["Inter", "system-ui", "sans-serif"],
         display: ["Outfit", "sans-serif"],
+        fraunces: ["var(--font-fraunces)", "Georgia", "serif"],
+        jakarta: ["var(--font-jakarta)", "system-ui", "sans-serif"],
       },
       borderRadius: {
         lg: "var(--radius)",
