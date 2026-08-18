@@ -1,0 +1,168 @@
+// ── Prisma Schema ─────────────────────────────────────────────────────────────
+// Hotel Reservation Management System
+// Provider: PostgreSQL (configured with the 'pg' Node.js driver)
+// ─────────────────────────────────────────────────────────────────────────────
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ── Enums ─────────────────────────────────────────────────────────────────────
+
+enum RoomType {
+  STANDARD
+  DELUXE
+  SUITE
+  PRESIDENTIAL
+}
+
+enum RoomStatus {
+  AVAILABLE
+  OCCUPIED
+  MAINTENANCE
+  RESERVED
+}
+
+enum BookingStatus {
+  PENDING
+  CONFIRMED
+  CHECKED_IN
+  CHECKED_OUT
+  CANCELLED
+}
+
+enum PaymentStatus {
+  PENDING
+  PAID
+  REFUNDED
+  FAILED
+}
+
+enum LoyaltyTier {
+  BRONZE
+  SILVER
+  GOLD
+  PLATINUM
+}
+
+enum BookingSource {
+  DIRECT
+  BOOKING_COM
+  AGODA
+  WALK_IN
+}
+
+enum UserRole {
+  ADMIN
+  MANAGER
+  RECEPTIONIST
+  HOUSEKEEPING
+}
+
+// ── Models ────────────────────────────────────────────────────────────────────
+
+model User {
+  id           String    @id @default(uuid())
+  email        String    @unique
+  passwordHash String
+  firstName    String
+  lastName     String
+  role         UserRole  @default(RECEPTIONIST)
+  isActive     Boolean   @default(true)
+  lastLoginAt  DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  @@map("users")
+}
+
+model Guest {
+  id             String      @id @default(uuid())
+  firstName      String
+  lastName       String
+  email          String      @unique
+  phone          String
+  nationality    String?
+  passportNumber String?     @unique
+  dateOfBirth    DateTime?
+  loyaltyTier    LoyaltyTier @default(BRONZE)
+  loyaltyPoints  Int         @default(0)
+  totalStays     Int         @default(0)
+  notes          String?
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+
+  bookings Booking[]
+
+  @@map("guests")
+}
+
+model Room {
+  id             String     @id @default(uuid())
+  number         String     @unique
+  type           RoomType
+  status         RoomStatus @default(AVAILABLE)
+  floor          Int
+  pricePerNight  Decimal    @db.Decimal(10, 2)
+  maxGuests      Int        @default(2)
+  amenities      String[]
+  description    String?
+  images         String[]
+  isActive       Boolean    @default(true)
+  createdAt      DateTime   @default(now())
+  updatedAt      DateTime   @updatedAt
+
+  bookings Booking[]
+
+  @@map("rooms")
+}
+
+model Booking {
+  id              String        @id @default(uuid())
+  bookingRef      String        @unique
+  guest           Guest         @relation(fields: [guestId], references: [id])
+  guestId         String
+  room            Room          @relation(fields: [roomId], references: [id])
+  roomId          String
+  checkIn         DateTime      @db.Date
+  checkOut        DateTime      @db.Date
+  status          BookingStatus @default(PENDING)
+  paymentStatus   PaymentStatus @default(PENDING)
+  adults          Int           @default(1)
+  children        Int           @default(0)
+  totalAmount     Decimal       @db.Decimal(10, 2)
+  specialRequests String?
+  source          BookingSource @default(DIRECT)
+  cancellationReason String?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  bill Bill?
+
+  @@index([guestId])
+  @@index([roomId])
+  @@index([checkIn, checkOut])
+  @@index([status])
+  @@map("bookings")
+}
+
+model Bill {
+  id              String   @id @default(uuid())
+  booking         Booking  @relation(fields: [bookingId], references: [id])
+  bookingId       String   @unique
+  subtotal        Decimal  @db.Decimal(10, 2)
+  taxAmount       Decimal  @db.Decimal(10, 2)
+  discountAmount  Decimal  @db.Decimal(10, 2)
+  loyaltyDiscount Decimal  @db.Decimal(10, 2)
+  total           Decimal  @db.Decimal(10, 2)
+  lineItems       Json
+  issuedAt        DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@map("bills")
+}

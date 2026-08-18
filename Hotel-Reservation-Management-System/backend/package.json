@@ -1,0 +1,61 @@
+{
+  "name": "hotel-rms-backend",
+  "version": "0.1.0",
+  "private": true,
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "scripts": {
+    "dev": "ts-node-dev --respawn --transpile-only src/server.ts",
+    "build": "tsc",
+    "start": "node dist/server.js",
+    "lint": "eslint src --ext .ts",
+    "type-check": "tsc --noEmit",
+    "test": "jest --passWithNoTests",
+    "test:coverage": "jest --coverage",
+    "db:migrate": "prisma migrate dev",
+    "db:generate": "prisma generate",
+    "db:seed": "ts-node src/config/seed.ts",
+    "db:studio": "prisma studio"
+  },
+  "dependencies": {
+    "express": "^4.19.2",
+    "@prisma/client": "^5.17.0",
+    "pg": "^8.12.0",
+    "bcryptjs": "^2.4.3",
+    "jsonwebtoken": "^9.0.2",
+    "zod": "^3.23.8",
+    "cors": "^2.8.5",
+    "helmet": "^7.1.0",
+    "morgan": "^1.10.0",
+    "express-rate-limit": "^7.3.1",
+    "dotenv": "^16.4.5",
+    "axios": "^1.7.3",
+    "date-fns": "^3.6.0",
+    "winston": "^3.13.0",
+    "express-validator": "^7.1.0",
+    "multer": "^1.4.5-lts.1",
+    "uuid": "^10.0.0"
+  },
+  "devDependencies": {
+    "@types/express": "^4.17.21",
+    "@types/bcryptjs": "^2.4.6",
+    "@types/jsonwebtoken": "^9.0.6",
+    "@types/cors": "^2.8.17",
+    "@types/morgan": "^1.9.9",
+    "@types/multer": "^1.4.11",
+    "@types/uuid": "^10.0.0",
+    "@types/node": "^20",
+    "typescript": "^5",
+    "ts-node-dev": "^2.0.0",
+    "prisma": "^5.17.0",
+    "eslint": "^8",
+    "@typescript-eslint/eslint-plugin": "^7",
+    "@typescript-eslint/parser": "^7",
+    "jest": "^29.7.0",
+    "@types/jest": "^29.5.12",
+    "ts-jest": "^29.2.3",
+    "supertest": "^7.0.0",
+    "@types/supertest": "^6.0.2"
+  }
+}
