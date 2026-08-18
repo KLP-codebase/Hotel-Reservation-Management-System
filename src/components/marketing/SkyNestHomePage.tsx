@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useRef, useState, useCallback } from "react";
+import gsap from "gsap";
+import { ScrollTrigger } from "gsap/ScrollTrigger";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -470,47 +472,98 @@ function HeroSection({
 }
 
 // ---------------------------------------------------------------------------
-// Cloud Transition — scrolls naturally OVER the pinned hero
+// Cloud Transition — GSAP ScrollTrigger scrub-driven cloud rise (60fps)
 // ---------------------------------------------------------------------------
 function CloudTransition() {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const wrap1Ref = useRef<HTMLDivElement>(null);
+  const wrap2Ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    gsap.registerPlugin(ScrollTrigger);
+
+    // Set initial state immediately (before paint) to avoid flash
+    gsap.set([wrap1Ref.current, wrap2Ref.current], { autoAlpha: 0 });
+    gsap.set(wrap1Ref.current, { y: "12%" });
+    gsap.set(wrap2Ref.current, { y: "20%" });
+
+    const ctx = gsap.context(() => {
+      const tl = gsap.timeline({
+        scrollTrigger: {
+          trigger: containerRef.current,
+          start: "top bottom",
+          end: "bottom bottom",
+          scrub: 2,            // higher = smoother lag feel
+        },
+        defaults: {
+          ease: "none",        // required for scrub — linear maps 1:1 to scroll
+          force3D: true,       // always use GPU matrix for transforms
+        },
+      });
+
+      // Layer 1 — base clouds rise and fade in
+      tl.to(wrap1Ref.current, { y: "0%", autoAlpha: 1 }, 0);
+
+      // Layer 2 — denser clouds, deeper parallax offset, slight delay in timeline
+      tl.to(wrap2Ref.current, { y: "0%", autoAlpha: 1 }, 0.12);
+    }, containerRef);
+
+    return () => ctx.revert();
+  }, []);
+
   return (
     <div
+      ref={containerRef}
       aria-hidden="true"
       className="relative z-10 h-[120dvh] pointer-events-none overflow-hidden"
     >
-      {/* Layer 1: 07_Clouds base — wispy top fade */}
-      <img
-        src="/07_Clouds.png"
-        alt=""
-        className="absolute bottom-0 left-1/2 object-cover object-bottom"
+      {/* Positioner 1 — CSS only handles X centering; GSAP handles Y + opacity */}
+      <div
+        ref={wrap1Ref}
+        className="absolute bottom-0 left-1/2 overflow-hidden"
         style={{
           width: "220%",
           height: "100%",
-          maxWidth: "none",
-          transform: "translateX(-50%)",
-          WebkitMaskImage:
-            "linear-gradient(to bottom, transparent 0%, rgba(0,0,0,0.2) 20%, rgba(0,0,0,0.7) 40%, black 60%)",
-          maskImage:
-            "linear-gradient(to bottom, transparent 0%, rgba(0,0,0,0.2) 20%, rgba(0,0,0,0.7) 40%, black 60%)",
+          marginLeft: "-110%",   // centers 220% wide div without transform conflict
+          willChange: "transform, opacity",
         }}
-      />
+      >
+        <img
+          src="/07_Clouds.png"
+          alt=""
+          className="w-full h-full object-cover object-bottom"
+          style={{
+            WebkitMaskImage:
+              "linear-gradient(to bottom, transparent 0%, rgba(0,0,0,0.2) 18%, rgba(0,0,0,0.7) 38%, black 58%)",
+            maskImage:
+              "linear-gradient(to bottom, transparent 0%, rgba(0,0,0,0.2) 18%, rgba(0,0,0,0.7) 38%, black 58%)",
+          }}
+        />
+      </div>
 
-      {/* Layer 2: Clouds 2 — denser, more solid cloud mass on top */}
-      <img
-        src="/Clouds 2.png"
-        alt=""
-        className="absolute bottom-0 left-1/2 object-cover object-bottom"
+      {/* Positioner 2 — Clouds 3, deeper parallax */}
+      <div
+        ref={wrap2Ref}
+        className="absolute bottom-0 left-1/2 overflow-hidden"
         style={{
           width: "220%",
           height: "85%",
-          maxWidth: "none",
-          transform: "translateX(-50%)",
-          WebkitMaskImage:
-            "linear-gradient(to bottom, transparent 0%, rgba(0,0,0,0.4) 25%, rgba(0,0,0,0.9) 50%, black 65%)",
-          maskImage:
-            "linear-gradient(to bottom, transparent 0%, rgba(0,0,0,0.4) 25%, rgba(0,0,0,0.9) 50%, black 65%)",
+          marginLeft: "-110%",
+          willChange: "transform, opacity",
         }}
-      />
+      >
+        <img
+          src="/Clouds 3.png"
+          alt=""
+          className="w-full h-full object-cover object-bottom"
+          style={{
+            WebkitMaskImage:
+              "linear-gradient(to bottom, transparent 0%, rgba(0,0,0,0.4) 22%, rgba(0,0,0,0.9) 48%, black 65%)",
+            maskImage:
+              "linear-gradient(to bottom, transparent 0%, rgba(0,0,0,0.4) 22%, rgba(0,0,0,0.9) 48%, black 65%)",
+          }}
+        />
+      </div>
 
       {/* Dense white fog at the bottom — blends into paper white */}
       <div
