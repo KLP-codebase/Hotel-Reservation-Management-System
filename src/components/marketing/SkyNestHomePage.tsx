@@ -246,22 +246,22 @@ function SkyNestNav({
             : "bg-transparent",
         ].join(" ")}
       >
-        <div className="flex items-stretch h-14 md:h-16">
-          {/* Left — nav links */}
-          <div className="hidden md:flex items-stretch">
-            {NAV_LINKS.map((link, i) => (
+        <div className="flex items-center justify-between h-14 md:h-16 px-6 md:px-8">
+          {/* Left — nav links as White Desert bordered buttons */}
+          <div className="hidden md:flex items-center gap-2.5">
+            {NAV_LINKS.map((link) => (
               <a
                 key={link.label}
                 href={link.href}
                 id={`nav-link-${link.label.toLowerCase()}`}
                 className={[
-                  "relative flex items-center px-7 text-[11px] font-jakarta font-medium tracking-[0.15em] uppercase",
-                  "transition-colors duration-300 ease-out",
-                  "text-white/75 hover:text-white",
-                  "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-white/50",
-                  i < NAV_LINKS.length - 1
-                    ? "border-r border-white/[0.12]"
-                    : "",
+                  "flex items-center px-6 py-2.5",
+                  "text-[11px] md:text-[12px] font-jakarta font-medium tracking-[0.12em] uppercase",
+                  "text-white/90 hover:text-white",
+                  "bg-white/[0.10] hover:bg-white/[0.20]",
+                  "border border-white/25 hover:border-white/50",
+                  "transition-all duration-200",
+                  "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white/50",
                 ].join(" ")}
               >
                 {link.label}
@@ -270,7 +270,7 @@ function SkyNestNav({
           </div>
 
           {/* Center — wordmark */}
-          <div className="flex-1 flex items-center justify-center gap-2 px-4">
+          <div className="absolute left-1/2 -translate-x-1/2 flex items-center">
             <a
               href="/"
               id="nav-wordmark"
@@ -284,26 +284,22 @@ function SkyNestNav({
             </a>
           </div>
 
-          {/* Right — CTA buttons */}
-          <div className="hidden md:flex items-stretch">
-            {(["Rates", "Book Now"] as const).map((label, i) => (
-              <a
-                key={label}
-                href={i === 0 ? "#rates" : "#booking"}
-                id={`nav-cta-${label.toLowerCase().replace(" ", "-")}`}
-                className={[
-                  "flex items-center px-7 text-[11px] font-jakarta font-medium tracking-[0.12em] uppercase",
-                  "border-l border-white/[0.12] text-white/75 hover:text-white",
-                  "transition-colors duration-300 ease-[cubic-bezier(0.32,0.72,0,1)]",
-                  "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-white/50",
-                  i === 1
-                    ? "bg-white/[0.06] hover:bg-white/[0.12]"
-                    : "",
-                ].join(" ")}
-              >
-                {label}
-              </a>
-            ))}
+          {/* Right — CTA buttons (same bordered style) */}
+          <div className="hidden md:flex items-center gap-2.5">
+            <a
+              href="#rates"
+              id="nav-cta-rates"
+              className="flex items-center px-6 py-2.5 text-[11px] md:text-[12px] font-jakarta font-medium tracking-[0.12em] uppercase text-white/90 hover:text-white bg-white/[0.10] hover:bg-white/[0.20] border border-white/25 hover:border-white/50 transition-all duration-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white/50"
+            >
+              Rates
+            </a>
+            <a
+              href="#booking"
+              id="nav-cta-book-now"
+              className="flex items-center px-6 py-2.5 text-[11px] md:text-[12px] font-jakarta font-semibold tracking-[0.12em] uppercase text-white bg-white/[0.20] hover:bg-white/[0.30] border border-white/40 hover:border-white/70 transition-all duration-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white/50"
+            >
+              Book Now
+            </a>
           </div>
 
           {/* Mobile hamburger */}
@@ -429,7 +425,7 @@ function HeroSection({
       <div className="relative flex items-start justify-between px-6 md:px-12 pt-24 md:pt-28 pb-0 z-10">
         {/* Eyebrow */}
         <p
-          className="font-fraunces italic text-white/75 text-[13px] md:text-[15px] leading-relaxed max-w-[200px] md:max-w-none"
+          className="font-playfair font-normal italic text-white/75 text-[13px] md:text-[15px] leading-relaxed max-w-[200px] md:max-w-none"
           style={{ fontStyle: "italic" }}
         >
           Three branches.
@@ -454,10 +450,10 @@ function HeroSection({
         className="relative z-10 flex-1 flex items-end justify-center overflow-hidden pointer-events-none select-none"
       >
         <span
-          className="font-jakarta font-extrabold leading-none text-white"
+          className="font-playfair font-normal leading-none text-white tracking-tight"
           style={{
             fontSize: "clamp(96px, 20vw, 280px)",
-            letterSpacing: "-0.01em",
+            letterSpacing: "-0.02em",
             width: "116%",
             textAlign: "center",
             marginLeft: "-8%",
@@ -648,22 +644,30 @@ function IntroSection({ reducedMotion }: { reducedMotion: boolean }) {
         ))}
       </div>
 
-      <div className="relative z-10 mx-auto max-w-[1400px] px-6 md:px-12 py-28 md:py-40">
-        <div className="grid grid-cols-1 md:grid-cols-[1fr_2fr] gap-16 md:gap-24 items-start">
+      <div className="relative z-10 mx-auto max-w-[1400px] px-6 md:px-16 py-24 md:py-36">
+        <div className="grid grid-cols-1 md:grid-cols-[200px_1px_1fr] gap-0 items-start">
 
-          {/* Left column — orbital + label */}
-          <div className="flex flex-col items-start gap-5 md:pt-4">
+          {/* Left column — metadata sidebar */}
+          <div className="flex flex-col gap-8 md:pr-12 md:pt-1 pb-12 md:pb-0">
             <OrbitalDecoration />
-            <p
-              className="font-fraunces italic text-ink/50 text-[13px] tracking-wide leading-relaxed"
-              style={{ fontStyle: "italic" }}
-            >
-              The SkyNest Standard
-            </p>
+
+            <div className="flex flex-col gap-1">
+              <span className="font-jakarta text-[9px] font-semibold tracking-[0.22em] uppercase text-ink/30">
+                Est. 2018
+              </span>
+              <p
+                className="font-fraunces italic text-ink/55 text-[13px] leading-snug mt-1"
+                style={{ fontStyle: "italic" }}
+              >
+                The SkyNest<br />Standard
+              </p>
+            </div>
+
             {/* Hairline rule */}
-            <div className="w-12 h-px bg-skynest-hairline" />
+            <div className="w-8 h-px bg-ink/15" />
+
             {/* Branches list */}
-            <ul className="space-y-3 mt-2" aria-label="SkyNest branch locations">
+            <ul className="flex flex-col gap-3" aria-label="SkyNest branch locations">
               {(
                 [
                   { city: "Colombo", code: "01" },
@@ -673,19 +677,20 @@ function IntroSection({ reducedMotion }: { reducedMotion: boolean }) {
               ).map(({ city, code }) => (
                 <li
                   key={city}
-                  className="flex items-center gap-3 font-jakarta text-[11px] tracking-[0.14em] uppercase text-ink/40"
+                  className="flex items-baseline gap-2.5"
                 >
-                  <span className="font-fraunces italic text-ink/25 text-[10px]">
-                    {code}
-                  </span>
-                  <span>{city}</span>
+                  <span className="font-jakarta text-[9px] tabular-nums text-ink/25 tracking-widest">{code}</span>
+                  <span className="font-jakarta text-[10px] font-medium tracking-[0.16em] uppercase text-ink/50">{city}</span>
                 </li>
               ))}
             </ul>
           </div>
 
+          {/* Vertical divider */}
+          <div className="hidden md:block w-px bg-ink/10 self-stretch mx-0" />
+
           {/* Right column — reveal headline */}
-          <div className="flex flex-col justify-center">
+          <div className="flex flex-col justify-center md:pl-14">
             <h1
               className="font-fraunces leading-[1.08] tracking-[-0.01em]"
               style={{

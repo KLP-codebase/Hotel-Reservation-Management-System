@@ -72,6 +72,7 @@ module.exports = {
         display: ["Outfit", "sans-serif"],
         fraunces: ["var(--font-fraunces)", "Georgia", "serif"],
         jakarta: ["var(--font-jakarta)", "system-ui", "sans-serif"],
+        playfair: ["var(--font-playfair)", "Georgia", "serif"],
       },
       borderRadius: {
         lg: "var(--radius)",
