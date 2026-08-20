@@ -165,53 +165,6 @@ function ChevronRight({ className = "" }: { className?: string }) {
   );
 }
 
-/** Plus icon for sticky booking tab */
-function PlusIcon({ className = "" }: { className?: string }) {
-  return (
-    <svg
-      aria-hidden="true"
-      viewBox="0 0 12 12"
-      fill="none"
-      className={className}
-      xmlns="http://www.w3.org/2000/svg"
-    >
-      <path
-        d="M6 1v10M1 6h10"
-        stroke="currentColor"
-        strokeWidth="1.25"
-        strokeLinecap="round"
-      />
-    </svg>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// Sticky Booking Tab
-// ---------------------------------------------------------------------------
-function StickyBookingTab() {
-  return (
-    <a
-      href="#how-booking-works"
-      id="sticky-booking-tab"
-      aria-label="How Booking Works — scroll to booking section"
-      className={[
-        "fixed right-0 top-1/2 -translate-y-1/2 z-40",
-        "flex flex-col items-center justify-center gap-2",
-        "bg-skynest-accent text-white",
-        "px-2.5 py-5 cursor-pointer",
-        "transition-opacity duration-300 ease-[cubic-bezier(0.32,0.72,0,1)]",
-        "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white",
-        "hover:opacity-90 active:scale-[0.98]",
-      ].join(" ")}
-      style={{ writingMode: "vertical-rl" }}
-    >
-      <span className="font-jakarta text-[10px] font-medium tracking-[0.18em] uppercase rotate-180 whitespace-nowrap">
-        How Booking Works
-      </span>
-      <PlusIcon className="w-2.5 h-2.5 rotate-180 mt-1" />
-    </a>
-  );
-}
 
 // ---------------------------------------------------------------------------
 // Navigation
@@ -444,20 +397,17 @@ function HeroSection({
         </a>
       </div>
 
-      {/* Giant ESCAPE wordmark — bleeds off edges */}
+      {/* Giant ESCAPE wordmark — centered horizontally, placed bottom */}
       <div
         aria-hidden="true"
-        className="relative z-10 flex-1 flex items-end justify-center overflow-hidden pointer-events-none select-none"
+        className="relative z-10 flex-1 flex items-end justify-center overflow-hidden pointer-events-none select-none w-full"
       >
         <span
-          className="font-playfair font-normal leading-none text-white tracking-tight"
+          className="font-playfair font-normal leading-[0.85] text-white tracking-tight text-center whitespace-nowrap block w-full"
           style={{
-            fontSize: "clamp(96px, 20vw, 280px)",
-            letterSpacing: "-0.02em",
-            width: "116%",
-            textAlign: "center",
-            marginLeft: "-8%",
-            paddingBottom: "clamp(24px, 4vw, 64px)",
+            fontSize: "clamp(100px, 21vw, 290px)",
+            letterSpacing: "-0.025em",
+            paddingBottom: "clamp(4px, 1.5vw, 16px)",
           }}
         >
           ESCAPE
@@ -853,8 +803,6 @@ export default function SkyNestHomePage() {
         Skip to content
       </a>
 
-      {/* Sticky booking tab */}
-      <StickyBookingTab />
 
       {/* Navigation */}
       <SkyNestNav scrolled={scrolled} />

@@ -396,17 +396,17 @@ function HeroSection({
         </a>
       </div>
 
-      {/* Giant ESCAPE wordmark — at bottom, horizontally centered */}
+      {/* Giant ESCAPE wordmark — centered horizontally, placed bottom */}
       <div
         aria-hidden="true"
         className="relative z-10 flex-1 flex items-end justify-center overflow-hidden pointer-events-none select-none w-full"
       >
         <span
-          className="font-playfair font-normal leading-none text-white tracking-tight text-center whitespace-nowrap block"
+          className="font-playfair font-normal leading-[0.85] text-white tracking-tight text-center whitespace-nowrap block w-full"
           style={{
-            fontSize: "clamp(80px, 20vw, 280px)",
-            letterSpacing: "-0.02em",
-            paddingBottom: "clamp(16px, 3vw, 48px)",
+            fontSize: "clamp(100px, 21vw, 290px)",
+            letterSpacing: "-0.025em",
+            paddingBottom: "clamp(4px, 1.5vw, 16px)",
           }}
         >
           ESCAPE
