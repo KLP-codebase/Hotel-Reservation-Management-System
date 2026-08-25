@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Inter, Outfit, Fraunces, Plus_Jakarta_Sans, Playfair_Display } from "next/font/google";
+import { Inter, Outfit, Fraunces, Plus_Jakarta_Sans, Playfair_Display, Cinzel } from "next/font/google";
 import "@/styles/globals.css";
 import { Providers } from "@/components/layout/Providers";
 
@@ -11,6 +11,12 @@ const inter = Inter({
 const outfit = Outfit({
   subsets: ["latin"],
   variable: "--font-outfit",
+});
+
+const cinzel = Cinzel({
+  subsets: ["latin"],
+  variable: "--font-cinzel",
+  weight: ["400", "500", "600", "700", "800", "900"],
 });
 
 const fraunces = Fraunces({
@@ -49,7 +55,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" className={`${inter.variable} ${outfit.variable} ${fraunces.variable} ${jakarta.variable} ${playfair.variable}`} suppressHydrationWarning>
+    <html lang="en" className={`${inter.variable} ${outfit.variable} ${cinzel.variable} ${fraunces.variable} ${jakarta.variable} ${playfair.variable}`} suppressHydrationWarning>
       <body className="min-h-screen bg-background font-sans antialiased">
         <Providers>{children}</Providers>
       </body>

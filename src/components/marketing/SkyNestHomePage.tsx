@@ -22,11 +22,11 @@ const NAV_LINKS: NavLink[] = [
 ];
 
 const STORY_LINES = [
-  "Sri Lanka has always demanded",
-  "an unhurried attention.",
-  "Three branches, three coastlines,",
-  "one uncompromising",
-  "standard of welcome.",
+  "SRI LANKA HAS ALWAYS DEMANDED",
+  "AN UNHURRIED ATTENTION —",
+  "THREE COASTLINES, THREE SANCTUARIES,",
+  "ONE UNCOMPROMISING",
+  "STANDARD OF WELCOME.",
 ];
 
 // ---------------------------------------------------------------------------
@@ -48,8 +48,87 @@ function usePrefersReducedMotion(): boolean {
 // Sub-components
 // ---------------------------------------------------------------------------
 
-/** Vertical hairline grid columns — purely decorative, aria-hidden */
-function HairlineGrid({ count = 5 }: { count?: number }) {
+/**
+ * GlobalGridOverlay — one fixed full-page SVG with 6 vertical lines.
+ * Each line is painted with a linearGradient that transitions the stroke colour
+ * from white (on dark hero/image sections) to a dark tint (on light paper sections)
+ * matching the actual page layout, including the cloud transition zone.
+ *
+ * Sections top→bottom (approximate % of total page height):
+ *  0–36%   Hero (dark image)  → white lines
+ *  36–46%  Cloud transition   → white→dark gradient
+ *  46–62%  Intro (paper)      → dark lines
+ *  62–80%  Kandy image        → dark→white gradient at top, white in middle
+ *  80–100% Footer (paper)     → dark lines
+ */
+function GlobalGridOverlay() {
+  const COLS = 6;
+  // x positions as percentages
+  const xs = Array.from({ length: COLS + 1 }, (_, i) =>
+    ((i / COLS) * 100).toFixed(4) + "%"
+  );
+
+  return (
+    <div
+      aria-hidden="true"
+      className="pointer-events-none fixed inset-0 z-[9999]"
+      style={{ isolation: "isolate" }}
+    >
+      <svg
+        xmlns="http://www.w3.org/2000/svg"
+        className="w-full h-full"
+        preserveAspectRatio="none"
+        style={{ display: "block" }}
+      >
+        <defs>
+          {/*
+           * Gradient that runs top→bottom across the full page.
+           * white   0–36%   (hero dark bg)
+           * white→dark  36–46%  (cloud transition, paper emerging)
+           * dark    46–62%  (intro paper bg)
+           * dark→white  62–70%  (top of Kandy image, feathered to sky)
+           * white   70–80%  (Kandy image dark sky fades, photo visible)
+           * white→dark  80–88%  (bottom of Kandy image back to paper)
+           * dark    88–100% (footer paper bg)
+           */}
+          <linearGradient id="grid-line-grad" x1="0" y1="0" x2="0" y2="1" gradientUnits="objectBoundingBox">
+            <stop offset="0%" stopColor="rgba(255,255,255,0.18)" />
+            <stop offset="36%" stopColor="rgba(255,255,255,0.18)" />
+            <stop offset="46%" stopColor="rgba(11,37,64,0.10)" />
+            <stop offset="62%" stopColor="rgba(11,37,64,0.10)" />
+            <stop offset="70%" stopColor="rgba(255,255,255,0.15)" />
+            <stop offset="80%" stopColor="rgba(255,255,255,0.15)" />
+            <stop offset="88%" stopColor="rgba(11,37,64,0.10)" />
+            <stop offset="100%" stopColor="rgba(11,37,64,0.10)" />
+          </linearGradient>
+        </defs>
+
+        {xs.map((x, i) => (
+          <line
+            key={i}
+            x1={x}
+            y1="0"
+            x2={x}
+            y2="100%"
+            stroke="url(#grid-line-grad)"
+            strokeWidth="0.6"
+          />
+        ))}
+      </svg>
+    </div>
+  );
+}
+
+/** Vertical hairline grid columns — purely decorative, aria-hidden.
+ *  @deprecated Use GlobalGridOverlay instead; kept only for sections that still reference it.
+ */
+function HairlineGrid({
+  count = 5,
+  color = "border-white/[0.07]",
+}: {
+  count?: number;
+  color?: string;
+}) {
   return (
     <div
       aria-hidden="true"
@@ -59,7 +138,7 @@ function HairlineGrid({ count = 5 }: { count?: number }) {
       {Array.from({ length: count + 1 }).map((_, i) => (
         <div
           key={i}
-          className="flex-1 border-l border-white/[0.07] last:border-r"
+          className={`flex-1 border-l ${color} last:border-r`}
         />
       ))}
     </div>
@@ -67,13 +146,14 @@ function HairlineGrid({ count = 5 }: { count?: number }) {
 }
 
 /** White Desert-style "mountain / roof peak" glyph as inline SVG */
-function MountainGlyph({ className = "" }: { className?: string }) {
+function MountainGlyph({ className = "", style }: { className?: string; style?: React.CSSProperties }) {
   return (
     <svg
       aria-hidden="true"
       viewBox="0 0 28 16"
       fill="none"
       className={className}
+      style={style}
       xmlns="http://www.w3.org/2000/svg"
     >
       <path
@@ -87,60 +167,105 @@ function MountainGlyph({ className = "" }: { className?: string }) {
   );
 }
 
-/** Orbital / orrery line-art decoration for intro section */
-function OrbitalDecoration() {
+/** Grand sweeping orbital emblem with SVG line-drawing scroll animation */
+function SweepingOrbitalEmblem({
+  label = "The SkyNest Standard",
+  reducedMotion = false,
+}: {
+  label?: string;
+  reducedMotion?: boolean;
+}) {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const path1Ref = useRef<SVGPathElement>(null);
+  const path2Ref = useRef<SVGEllipseElement>(null);
+  const labelRef = useRef<HTMLSpanElement>(null);
+
+  useEffect(() => {
+    gsap.registerPlugin(ScrollTrigger);
+
+    if (reducedMotion) {
+      if (path1Ref.current) gsap.set(path1Ref.current, { strokeDashoffset: 0 });
+      if (path2Ref.current) gsap.set(path2Ref.current, { strokeDashoffset: 0 });
+      if (labelRef.current) gsap.set(labelRef.current, { opacity: 1 });
+      return;
+    }
+
+    const p1 = path1Ref.current;
+    const p2 = path2Ref.current;
+    const lbl = labelRef.current;
+    if (!p1 || !p2 || !lbl || !containerRef.current) return;
+
+    // Calculate length or fallback
+    const len1 = p1.getTotalLength ? p1.getTotalLength() : 700;
+    const len2 = 600; // ellipse circumference approximation
+
+    gsap.set(p1, { strokeDasharray: len1, strokeDashoffset: len1 });
+    gsap.set(p2, { strokeDasharray: len2, strokeDashoffset: len2 });
+    gsap.set(lbl, { opacity: 0, scale: 0.95 });
+
+    const ctx = gsap.context(() => {
+      const tl = gsap.timeline({
+        scrollTrigger: {
+          trigger: containerRef.current,
+          start: "top 88%",
+          end: "top 45%",
+          scrub: 1.2,
+        },
+      });
+
+      // Path 1 sweeping line draws first
+      tl.to(p1, { strokeDashoffset: 0, ease: "power1.out" }, 0);
+      // Oval badge draws simultaneously/slightly staggered
+      tl.to(p2, { strokeDashoffset: 0, ease: "power1.out" }, 0.15);
+      // Label fades in gracefully
+      tl.to(lbl, { opacity: 1, scale: 1, ease: "power2.out" }, 0.35);
+    }, containerRef);
+
+    return () => ctx.revert();
+  }, [reducedMotion]);
+
   return (
-    <svg
-      aria-hidden="true"
-      viewBox="0 0 120 100"
-      fill="none"
-      className="w-28 h-auto"
-      xmlns="http://www.w3.org/2000/svg"
+    <div
+      ref={containerRef}
+      className="relative inline-flex items-center justify-start w-72 md:w-96 h-20 md:h-24 select-none mb-6 md:mb-8"
     >
-      {/* Main ellipse */}
-      <ellipse
-        cx="60"
-        cy="50"
-        rx="55"
-        ry="32"
-        stroke="#0B2540"
-        strokeWidth="0.75"
-        opacity="0.45"
-      />
-      {/* Cross-axis line */}
-      <line
-        x1="5"
-        y1="50"
-        x2="115"
-        y2="50"
-        stroke="#0B2540"
-        strokeWidth="0.5"
-        opacity="0.3"
-      />
-      {/* Vertical axis */}
-      <line
-        x1="60"
-        y1="18"
-        x2="60"
-        y2="82"
-        stroke="#0B2540"
-        strokeWidth="0.5"
-        opacity="0.3"
-      />
-      {/* Small orbit dot */}
-      <circle cx="97" cy="38" r="2.5" fill="#D9722C" opacity="0.7" />
-      {/* Diagonal slash – like an ecliptic */}
-      <line
-        x1="10"
-        y1="75"
-        x2="110"
-        y2="25"
-        stroke="#0B2540"
-        strokeWidth="0.4"
-        strokeDasharray="3 4"
-        opacity="0.25"
-      />
-    </svg>
+      <svg
+        aria-hidden="true"
+        viewBox="0 0 340 90"
+        fill="none"
+        xmlns="http://www.w3.org/2000/svg"
+        className="w-full h-full pointer-events-none overflow-visible"
+      >
+        {/* Sweeping extended tail & outer trajectory */}
+        <path
+          ref={path1Ref}
+          d="M 2 62 C 32 62, 110 62, 205 48 C 285 36, 310 10, 235 10 C 140 10, 24 32, 38 56 C 45 74, 125 82, 255 62"
+          stroke="#0B2540"
+          strokeWidth="0.45"
+          opacity="0.32"
+          strokeLinecap="round"
+        />
+        {/* Clean oval framing the text */}
+        <ellipse
+          ref={path2Ref}
+          cx="170"
+          cy="45"
+          rx="94"
+          ry="22"
+          stroke="#0B2540"
+          strokeWidth="0.42"
+          opacity="0.35"
+        />
+      </svg>
+      {/* Centered italic label */}
+      <span
+        ref={labelRef}
+        className="absolute left-[50%] top-[50%] -translate-x-1/2 -translate-y-1/2 font-cinzel italic text-[12px] md:text-[14px] tracking-[0.08em] text-ink/80 whitespace-nowrap"
+        style={{ fontStyle: "italic" }}
+      >
+        {label}
+      </span>
+    </div>
   );
 }
 
@@ -171,8 +296,11 @@ function ChevronRight({ className = "" }: { className?: string }) {
 // ---------------------------------------------------------------------------
 function SkyNestNav({
   scrolled,
+  navProgress,
 }: {
   scrolled: boolean;
+  /** 0 = fully over dark hero (white text), 1 = fully over light paper (dark text) */
+  navProgress: number;
 }) {
   const [menuOpen, setMenuOpen] = useState(false);
 
@@ -186,18 +314,69 @@ function SkyNestNav({
     };
   }, [menuOpen]);
 
+  /**
+   * lerp(a, b, t) — linearly interpolates between a and b by t (0..1)
+   * Used to blend every colour channel as navProgress changes continuously.
+   */
+  const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
+
+  // Colours:
+  //   t=0: over dark hero — white text, white borders, transparent bg
+  //   t=1: over paper — dark ink text, ink borders, frosted paper bg
+  const bgAlpha = lerp(0, 0.72, navProgress);
+  const blurAmt = lerp(0, 12, navProgress);   // px
+  const borderAlpha = lerp(0, 0.07, navProgress);
+
+  // Text colours  (interpolated)
+  const textR = lerp(255, 11, navProgress);
+  const textG = lerp(255, 37, navProgress);
+  const textB = lerp(255, 64, navProgress);
+  const textA = lerp(0.88, 0.72, navProgress);
+
+  // Border colours
+  const borderR = lerp(255, 11, navProgress);
+  const borderG = lerp(255, 37, navProgress);
+  const borderB = lerp(255, 64, navProgress);
+  const borderA = lerp(0.25, 0.18, navProgress);
+
+  // Button fill colours
+  const fillA = lerp(0.10, 0.04, navProgress);
+
+  const textColor = `rgba(${textR | 0},${textG | 0},${textB | 0},${textA.toFixed(2)})`;
+  const borderColor = `rgba(${borderR | 0},${borderG | 0},${borderB | 0},${borderA.toFixed(2)})`;
+  const fillColor = `rgba(${textR | 0},${textG | 0},${textB | 0},${fillA.toFixed(2)})`;
+
+  // paper colour = #FDFCFA → rgb(253,252,250)
+  const bgStyle: React.CSSProperties = menuOpen
+    ? { background: "transparent" }
+    : {
+      background: `rgba(253,252,250,${bgAlpha.toFixed(3)})`,
+      backdropFilter: `blur(${blurAmt.toFixed(1)}px)`,
+      WebkitBackdropFilter: `blur(${blurAmt.toFixed(1)}px)`,
+      borderBottom: `1px solid rgba(11,37,64,${borderAlpha.toFixed(3)})`,
+    };
+
+  const linkStyle: React.CSSProperties = {
+    color: textColor,
+    borderColor: borderColor,
+    background: fillColor,
+  };
+
+  const bookStyle: React.CSSProperties = {
+    color: textColor,
+    borderColor: `rgba(${borderR | 0},${borderG | 0},${borderB | 0},${(borderA * 1.4).toFixed(2)})`,
+    background: `rgba(${textR | 0},${textG | 0},${textB | 0},${(fillA * 1.8).toFixed(2)})`,
+  };
+
+  const wordmarkColor = `rgba(${textR | 0},${textG | 0},${textB | 0},${lerp(0.88, 0.80, navProgress).toFixed(2)})`;
+
   return (
     <>
       <nav
         id="skynest-nav"
         aria-label="SkyNest Hotels main navigation"
-        className={[
-          "fixed top-0 left-0 right-0 z-50",
-          "transition-all duration-700 ease-[cubic-bezier(0.32,0.72,0,1)]",
-          scrolled && !menuOpen
-            ? "bg-ink/95 backdrop-blur-sm border-b border-white/10 shadow-[0_1px_0_rgba(255,255,255,0.05)]"
-            : "bg-transparent",
-        ].join(" ")}
+        className="fixed top-0 left-0 right-0 z-50"
+        style={bgStyle}
       >
         <div className="flex items-center justify-between h-14 md:h-16 px-6 md:px-8">
           {/* Left — nav links as White Desert bordered buttons */}
@@ -207,15 +386,8 @@ function SkyNestNav({
                 key={link.label}
                 href={link.href}
                 id={`nav-link-${link.label.toLowerCase()}`}
-                className={[
-                  "flex items-center px-6 py-2.5",
-                  "text-[11px] md:text-[12px] font-jakarta font-medium tracking-[0.12em] uppercase",
-                  "text-white/90 hover:text-white",
-                  "bg-white/[0.10] hover:bg-white/[0.20]",
-                  "border border-white/25 hover:border-white/50",
-                  "transition-all duration-200",
-                  "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white/50",
-                ].join(" ")}
+                className="flex items-center px-6 py-2.5 text-[11px] md:text-[12px] font-jakarta font-medium tracking-[0.12em] uppercase border transition-[border-color,background-color] duration-200"
+                style={linkStyle}
               >
                 {link.label}
               </a>
@@ -230,8 +402,14 @@ function SkyNestNav({
               aria-label="SkyNest Hotels — homepage"
               className="flex flex-col items-center gap-0.5 group focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-white/50 rounded-sm"
             >
-              <MountainGlyph className="w-7 h-auto text-white/90 group-hover:text-white transition-colors duration-300" />
-              <span className="font-jakarta font-700 text-[11px] tracking-[0.35em] text-white uppercase select-none">
+              <MountainGlyph
+                className="w-7 h-auto"
+                style={{ color: wordmarkColor } as React.CSSProperties}
+              />
+              <span
+                className="font-jakarta font-700 text-[11px] tracking-[0.35em] uppercase select-none"
+                style={{ color: wordmarkColor }}
+              >
                 SKYNEST
               </span>
             </a>
@@ -242,14 +420,16 @@ function SkyNestNav({
             <a
               href="#rates"
               id="nav-cta-rates"
-              className="flex items-center px-6 py-2.5 text-[11px] md:text-[12px] font-jakarta font-medium tracking-[0.12em] uppercase text-white/90 hover:text-white bg-white/[0.10] hover:bg-white/[0.20] border border-white/25 hover:border-white/50 transition-all duration-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white/50"
+              className="flex items-center px-6 py-2.5 text-[11px] md:text-[12px] font-jakarta font-medium tracking-[0.12em] uppercase border transition-[border-color,background-color] duration-200"
+              style={linkStyle}
             >
               Rates
             </a>
             <a
               href="#booking"
               id="nav-cta-book-now"
-              className="flex items-center px-6 py-2.5 text-[11px] md:text-[12px] font-jakarta font-semibold tracking-[0.12em] uppercase text-white bg-white/[0.20] hover:bg-white/[0.30] border border-white/40 hover:border-white/70 transition-all duration-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white/50"
+              className="flex items-center px-6 py-2.5 text-[11px] md:text-[12px] font-jakarta font-semibold tracking-[0.12em] uppercase border transition-[border-color,background-color] duration-200"
+              style={bookStyle}
             >
               Book Now
             </a>
@@ -403,14 +583,15 @@ function HeroSection({
         className="relative z-10 flex-1 flex items-end justify-center overflow-hidden pointer-events-none select-none w-full"
       >
         <span
-          className="font-playfair font-normal leading-[0.85] text-white tracking-tight text-center whitespace-nowrap block w-full"
+          className="font-cinzel font-light leading-[0.85] text-white text-center whitespace-nowrap block w-full"
           style={{
-            fontSize: "clamp(100px, 21vw, 290px)",
-            letterSpacing: "-0.025em",
-            paddingBottom: "clamp(4px, 1.5vw, 16px)",
+            fontSize: "clamp(100px, 21vw, 260px)",
+            letterSpacing: "0.03em",
+            paddingBottom: "clamp(4px, 1.5vw, 8px)",
+            fontWeight: 300,
           }}
         >
-          ESCAPE
+          SKYNEST
         </span>
       </div>
     </section>
@@ -578,9 +759,9 @@ function IntroSection({ reducedMotion }: { reducedMotion: boolean }) {
     <section
       id="story"
       aria-label="SkyNest Hotels story"
-      className="relative bg-paper overflow-hidden"
+      className="relative bg-paper overflow-hidden py-14 md:py-20"
     >
-      {/* Hairline grid continues — now on light bg */}
+      {/* 6-column hairline grid */}
       <div
         aria-hidden="true"
         className="pointer-events-none absolute inset-0 flex"
@@ -589,62 +770,28 @@ function IntroSection({ reducedMotion }: { reducedMotion: boolean }) {
         {Array.from({ length: 6 }).map((_, i) => (
           <div
             key={i}
-            className="flex-1 border-l border-ink/[0.05] last:border-r"
+            className="flex-1 border-l border-ink/[0.06] last:border-r"
           />
         ))}
       </div>
 
-      <div className="relative z-10 mx-auto max-w-[1400px] px-6 md:px-16 py-24 md:py-36">
-        <div className="grid grid-cols-1 md:grid-cols-[200px_1px_1fr] gap-0 items-start">
+      <div className="relative z-10 w-full">
+        {/* 6-Column Layout perfectly locked to the 6 background hairline columns */}
+        <div className="grid grid-cols-1 md:grid-cols-6 items-start">
 
-          {/* Left column — metadata sidebar */}
-          <div className="flex flex-col gap-8 md:pr-12 md:pt-1 pb-12 md:pb-0">
-            <OrbitalDecoration />
+          {/* Columns 1 & 2 (Left of Line 3) — Clean margin space */}
+          <div className="hidden md:block md:col-start-1 md:col-end-3" />
 
-            <div className="flex flex-col gap-1">
-              <span className="font-jakarta text-[9px] font-semibold tracking-[0.22em] uppercase text-ink/30">
-                Est. 2018
-              </span>
-              <p
-                className="font-fraunces italic text-ink/55 text-[13px] leading-snug mt-1"
-                style={{ fontStyle: "italic" }}
-              >
-                The SkyNest<br />Standard
-              </p>
-            </div>
+          {/* Columns 3, 4, 5 (Starts flush ON Line 3 and ends ON Line 6) */}
+          <div className="md:col-start-3 md:col-end-6 pl-0 pr-4 md:pr-8 flex flex-col items-start">
+            {/* Animated SVG line-drawn emblem starting on Line 3 */}
+            <SweepingOrbitalEmblem label="The SkyNest Standard" reducedMotion={reducedMotion} />
 
-            {/* Hairline rule */}
-            <div className="w-8 h-px bg-ink/15" />
-
-            {/* Branches list */}
-            <ul className="flex flex-col gap-3" aria-label="SkyNest branch locations">
-              {(
-                [
-                  { city: "Colombo", code: "01" },
-                  { city: "Kandy", code: "02" },
-                  { city: "Galle", code: "03" },
-                ] as const
-              ).map(({ city, code }) => (
-                <li
-                  key={city}
-                  className="flex items-baseline gap-2.5"
-                >
-                  <span className="font-jakarta text-[9px] tabular-nums text-ink/25 tracking-widest">{code}</span>
-                  <span className="font-jakarta text-[10px] font-medium tracking-[0.16em] uppercase text-ink/50">{city}</span>
-                </li>
-              ))}
-            </ul>
-          </div>
-
-          {/* Vertical divider */}
-          <div className="hidden md:block w-px bg-ink/10 self-stretch mx-0" />
-
-          {/* Right column — reveal headline */}
-          <div className="flex flex-col justify-center md:pl-14">
             <h1
-              className="font-fraunces leading-[1.08] tracking-[-0.01em]"
+              className="font-cinzel font-light font-[300] uppercase leading-[1.12] tracking-[0.04em] text-ink w-full pl-0"
               style={{
-                fontSize: "clamp(32px, 4.5vw, 68px)",
+                fontSize: "clamp(24px, 3.2vw, 50px)",
+                fontWeight: 300,
               }}
               aria-label={STORY_LINES.join(" ")}
             >
@@ -655,9 +802,10 @@ function IntroSection({ reducedMotion }: { reducedMotion: boolean }) {
                     lineRefs.current[i] = el;
                   }}
                   aria-hidden="true"
-                  className="block transition-colors duration-700"
+                  className="block transition-colors duration-700 font-cinzel font-light font-[300] uppercase tracking-[0.035em]"
                   style={{
-                    color: visibleLines[i] ? "#0B2540" : "#B7C2CC",
+                    color: visibleLines[i] ? "#0B2540" : "#D4DCE3",
+                    fontWeight: 300,
                     transitionDelay: `${i * 80}ms`,
                   }}
                 >
@@ -666,50 +814,200 @@ function IntroSection({ reducedMotion }: { reducedMotion: boolean }) {
               ))}
             </h1>
 
-            {/* Sub-text */}
-            <p
-              className={[
-                "mt-10 md:mt-14 font-jakarta text-[13px] leading-[1.9] text-ink/55 max-w-sm",
-                "transition-opacity duration-1000",
-                reducedMotion || visibleLines[STORY_LINES.length - 1]
-                  ? "opacity-100 translate-y-0"
-                  : "opacity-0 translate-y-4",
-              ].join(" ")}
-              style={{ transitionDelay: "480ms" }}
+            {/* Sub-text & CTA inside the lines 3–6 boundary */}
+            <div className="mt-8 md:mt-10 flex flex-col sm:flex-row sm:items-baseline justify-between gap-4 pt-4 border-t border-ink/[0.08] w-full">
+              <p
+                className={[
+                  "font-jakarta text-[12px] md:text-[13px] leading-[1.8] text-ink/55 max-w-sm",
+                  "transition-opacity duration-1000",
+                  reducedMotion || visibleLines[STORY_LINES.length - 1]
+                    ? "opacity-100 translate-y-0"
+                    : "opacity-0 translate-y-3",
+                ].join(" ")}
+                style={{ transitionDelay: "450ms" }}
+              >
+                From the colonial harbour of Galle to the mist-veiled hills of Kandy, each SkyNest property is designed around its landscape.
+              </p>
+
+              <a
+                href="#branches"
+                id="intro-branches-link"
+                className={[
+                  "self-start sm:self-auto inline-flex items-center gap-2",
+                  "font-jakarta text-[10px] md:text-[11px] font-semibold tracking-[0.2em] uppercase text-ink whitespace-nowrap",
+                  "border-b border-ink/30 pb-0.5 hover:border-ink transition-colors duration-300",
+                  "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ink/40",
+                  "transition-opacity duration-700",
+                  reducedMotion || visibleLines[STORY_LINES.length - 1]
+                    ? "opacity-100"
+                    : "opacity-0",
+                ].join(" ")}
+                style={{ transitionDelay: "550ms" }}
+              >
+                View our branches
+                <ChevronRight className="w-3 h-3" />
+              </a>
+            </div>
+          </div>
+
+          {/* Column 6 (Right of Line 6) */}
+          <div className="hidden md:block md:col-start-6 md:col-end-7" />
+        </div>
+      </div>
+    </section>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Branches Section — full-bleed Kandy image, minimal text, per-element parallax
+// ---------------------------------------------------------------------------
+function BranchesSection({ reducedMotion }: { reducedMotion: boolean }) {
+  const sectionRef = useRef<HTMLElement>(null);
+  const imgRef = useRef<HTMLDivElement>(null);
+  const labelRef = useRef<HTMLSpanElement>(null);
+  const titleRef = useRef<HTMLHeadingElement>(null);
+  const lineRef = useRef<HTMLParagraphElement>(null);
+
+  useEffect(() => {
+    gsap.registerPlugin(ScrollTrigger);
+
+    if (reducedMotion) {
+      // Instantly visible, no motion
+      [labelRef, titleRef, lineRef].forEach((r) => {
+        if (r.current) gsap.set(r.current, { opacity: 1, y: 0 });
+      });
+      return;
+    }
+
+    const ctx = gsap.context(() => {
+      const st = {
+        trigger: sectionRef.current,
+        start: "top bottom",
+        end: "bottom top",
+        scrub: 1.8,
+      };
+
+      // Image — subtle gentle drift preserving full image framing
+      gsap.fromTo(imgRef.current, { y: 35, scale: 1.04 }, { y: -35, scale: 1.04, ease: "none", scrollTrigger: st });
+
+      // Label — fastest drift
+      gsap.fromTo(labelRef.current, { y: 0, opacity: 0 }, {
+        y: -90,
+        opacity: 1,
+        ease: "none",
+        scrollTrigger: { ...st, scrub: 1.2 },
+      });
+
+      // Title — medium drift
+      gsap.fromTo(titleRef.current, { y: 0, opacity: 0 }, {
+        y: -60,
+        opacity: 1,
+        ease: "none",
+        scrollTrigger: { ...st, scrub: 1.6 },
+      });
+
+      // Italic line — slowest drift, lingers
+      gsap.fromTo(lineRef.current, { y: 0, opacity: 0 }, {
+        y: -35,
+        opacity: 1,
+        ease: "none",
+        scrollTrigger: { ...st, scrub: 2.2 },
+      });
+    });
+
+    return () => ctx.revert();
+  }, [reducedMotion]);
+
+  return (
+    <section
+      ref={sectionRef}
+      id="branches"
+      aria-label="SkyNest Hotels branches"
+      className="relative bg-paper overflow-hidden w-full"
+    >
+      {/* Full-width container with true 3:2 aspect ratio matching the photo */}
+      <div className="relative w-full aspect-[3/2] overflow-hidden">
+        {/* Image wrapper with feathered sky-to-background blend */}
+        <div
+          ref={imgRef}
+          className="absolute inset-0 w-full h-full z-0"
+          style={{ willChange: "transform" }}
+        >
+          {/* Feathered top gradient mask that seamlessly melts the photo sky into the white background */}
+          <div
+            aria-hidden="true"
+            className="absolute inset-x-0 top-0 h-28 md:h-44 pointer-events-none z-[2]"
+            style={{
+              background: "linear-gradient(to bottom, #FDFCFA 0%, rgba(253,252,250,0.85) 25%, rgba(253,252,250,0.3) 65%, transparent 100%)",
+            }}
+          />
+
+          <img
+            src="/Kandy_hotel.jpg"
+            alt="SkyNest Kandy — tea-country terrace overlooking misty hill range"
+            className="w-full h-full object-cover object-center"
+          />
+        </div>
+
+        {/* Hairline vertical grid lines continuing from Hero & Story sections */}
+        <div className="absolute inset-0 pointer-events-none z-[5]">
+          <HairlineGrid count={5} color="border-white/[0.15] md:border-white/[0.12]" />
+        </div>
+
+        {/* Text overlay — positioned top-left with generous editorial spacing */}
+        <div
+          aria-hidden="false"
+          className="absolute inset-0 pointer-events-none z-10"
+        >
+          <div className="relative h-full mx-auto max-w-[1400px] px-6 md:px-16 flex flex-col justify-start pt-12 md:pt-20 gap-2.5 md:gap-4">
+
+            {/* Location label — smallest, drifts fastest */}
+            <span
+              ref={labelRef}
+              className="font-jakarta text-[11px] md:text-[12px] font-bold tracking-[0.3em] uppercase text-ink/80 drop-shadow-sm"
+              style={{
+                willChange: "transform, opacity",
+                opacity: reducedMotion ? 1 : 0,
+              }}
             >
-              From the colonial harbour of Galle to the mist-veiled hills of
-              Kandy, each SkyNest property is designed around its landscape —
-              never despite it.
+              02 &nbsp;/&nbsp; KANDY HIGHLANDS
+            </span>
+
+            {/* Property name — large Cinzel serif, medium parallax */}
+            <h2
+              ref={titleRef}
+              className="font-cinzel text-ink leading-[1.05] drop-shadow-sm"
+              style={{
+                fontSize: "clamp(32px, 4.8vw, 72px)",
+                willChange: "transform, opacity",
+                opacity: reducedMotion ? 1 : 0,
+              }}
+            >
+              SkyNest Kandy
+            </h2>
+
+            {/* Italic tagline — Cinzel italic, slowest parallax */}
+            <p
+              ref={lineRef}
+              className="font-cinzel italic text-ink/75 max-w-lg leading-relaxed text-sm md:text-lg drop-shadow-sm"
+              style={{
+                willChange: "transform, opacity",
+                opacity: reducedMotion ? 1 : 0,
+              }}
+            >
+              High in the hill country, where early morning mist meets endless emerald tea gardens.
             </p>
 
-            {/* CTA link */}
-            <a
-              href="#branches"
-              id="intro-branches-link"
-              className={[
-                "mt-8 self-start inline-flex items-center gap-2.5",
-                "font-jakarta text-[11px] font-semibold tracking-[0.18em] uppercase text-ink",
-                "border-b border-ink/25 pb-0.5 hover:border-ink transition-colors duration-300",
-                "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ink/40",
-                "transition-opacity duration-700",
-                reducedMotion || visibleLines[STORY_LINES.length - 1]
-                  ? "opacity-100"
-                  : "opacity-0",
-              ].join(" ")}
-              style={{ transitionDelay: "600ms" }}
-            >
-              View our branches
-              <ChevronRight className="w-3 h-3" />
-            </a>
           </div>
         </div>
       </div>
 
-      {/* Bottom hairline rule */}
+      {/* Bottom hairline */}
       <div className="border-b border-skynest-hairline" />
     </section>
   );
 }
+
 
 // ---------------------------------------------------------------------------
 // Sunset Showcase Section
@@ -786,15 +1084,32 @@ export default function SkyNestHomePage() {
   const reducedMotion = usePrefersReducedMotion();
 
   const [scrolled, setScrolled] = useState(false);
+  // navProgress: 0 = over dark hero (white nav), 1 = over light paper (dark nav)
+  // Ramps smoothly over a ~40dvh band around the hero→paper transition
+  const [navProgress, setNavProgress] = useState(0);
 
   useEffect(() => {
-    const handleScroll = () => setScrolled(window.scrollY > 24);
+    const handleScroll = () => {
+      const y = window.scrollY;
+      setScrolled(y > 24);
+      // Hero is 100dvh. Start fading at 60vh, fully transitioned at 100vh.
+      const vh = window.innerHeight;
+      const start = vh * 0.60;
+      const end = vh * 1.00;
+      const raw = (y - start) / (end - start);
+      // Clamp and ease with smoothstep for a natural feel
+      const t = Math.max(0, Math.min(1, raw));
+      const smooth = t * t * (3 - 2 * t); // smoothstep
+      setNavProgress(smooth);
+    };
     window.addEventListener("scroll", handleScroll, { passive: true });
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
   return (
     <div className="relative bg-paper">
+      {/* Single global adaptive grid — dark on light, white on dark, with gradient transitions */}
+      <GlobalGridOverlay />
       {/* Skip-to-content for keyboard users */}
       <a
         href="#story"
@@ -805,7 +1120,7 @@ export default function SkyNestHomePage() {
 
 
       {/* Navigation */}
-      <SkyNestNav scrolled={scrolled} />
+      <SkyNestNav scrolled={scrolled} navProgress={navProgress} />
 
       {/* Hero — pinned at top, stays static while you scroll */}
       <HeroSection heroRef={heroRef} />
@@ -815,6 +1130,9 @@ export default function SkyNestHomePage() {
 
       {/* Intro / Story — appears after the cloud covers everything */}
       <IntroSection reducedMotion={reducedMotion} />
+
+      {/* Branches — Kandy hotel sky-to-white bleed */}
+      <BranchesSection reducedMotion={reducedMotion} />
 
       {/* Sunset Showcase Section */}
       <SunsetShowcaseSection />

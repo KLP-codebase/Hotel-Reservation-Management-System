@@ -48,6 +48,34 @@
   }
 }
 
+@font-face {
+  font-family: 'Cardinal Classic Long';
+  src: local('Cardinal Classic Long Light'), local('CardinalClassicLong-Light'), local('Cardinal Classic Light'), local('Cardinal Classic Long'), local('Cardinal Classic');
+  font-weight: 300;
+  font-style: normal;
+}
+
+@font-face {
+  font-family: 'Cardinal Classic Long';
+  src: local('Cardinal Classic Long Thin'), local('CardinalClassicLong-Thin'), local('Cardinal Classic Thin'), local('Cardinal Classic Long Light'), local('Cardinal Classic Long');
+  font-weight: 200;
+  font-style: normal;
+}
+
+@font-face {
+  font-family: 'Cardinal Classic Long';
+  src: local('Cardinal Classic Long'), local('CardinalClassicLong-Regular'), local('Cardinal Classic'), local('CardinalClassic');
+  font-weight: 400;
+  font-style: normal;
+}
+
+@font-face {
+  font-family: 'Cardinal Classic Long';
+  src: local('Cardinal Classic Long Italic'), local('CardinalClassicLong-Italic'), local('Cardinal Classic Italic');
+  font-weight: 400;
+  font-style: italic;
+}
+
 /* ── Base Styles ────────────────────────────────────────────────────────────── */
 @layer base {
   * {
