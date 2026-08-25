@@ -69,7 +69,7 @@ module.exports = {
       },
       fontFamily: {
         sans: ["Inter", "system-ui", "sans-serif"],
-        display: ["Outfit", "sans-serif"],
+        display: ["var(--font-cinzel)", "Cinzel", "serif"],
         cinzel: ["var(--font-cinzel)", "Cinzel", "serif"],
         cardinal: ["var(--font-cinzel)", "Cinzel", "'Cardinal Classic Long'", "Georgia", "serif"],
         fraunces: ["var(--font-fraunces)", "Georgia", "serif"],

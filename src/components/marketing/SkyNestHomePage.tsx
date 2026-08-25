@@ -558,7 +558,7 @@ function HeroSection({
       <div className="relative flex items-start justify-between px-6 md:px-12 pt-24 md:pt-28 pb-0 z-10">
         {/* Eyebrow */}
         <p
-          className="font-playfair font-normal italic text-white/75 text-[13px] md:text-[15px] leading-relaxed max-w-[200px] md:max-w-none"
+          className="font-cinzel font-normal italic text-white/75 text-[13px] md:text-[15px] leading-relaxed max-w-[200px] md:max-w-none"
           style={{ fontStyle: "italic" }}
         >
           Three branches.
@@ -577,18 +577,17 @@ function HeroSection({
         </a>
       </div>
 
-      {/* Giant ESCAPE wordmark — centered horizontally, placed bottom */}
+      {/* Giant SKYNEST wordmark — centered horizontally, placed bottom */}
       <div
         aria-hidden="true"
         className="relative z-10 flex-1 flex items-end justify-center overflow-hidden pointer-events-none select-none w-full"
       >
         <span
-          className="font-cinzel font-light leading-[0.85] text-white text-center whitespace-nowrap block w-full"
+          className="font-cinzel font-normal leading-[0.85] text-white text-center whitespace-nowrap block w-full uppercase"
           style={{
             fontSize: "clamp(100px, 21vw, 260px)",
             letterSpacing: "0.03em",
             paddingBottom: "clamp(4px, 1.5vw, 8px)",
-            fontWeight: 300,
           }}
         >
           SKYNEST
@@ -788,10 +787,9 @@ function IntroSection({ reducedMotion }: { reducedMotion: boolean }) {
             <SweepingOrbitalEmblem label="The SkyNest Standard" reducedMotion={reducedMotion} />
 
             <h1
-              className="font-cinzel font-light font-[300] uppercase leading-[1.12] tracking-[0.04em] text-ink w-full pl-0"
+              className="font-cinzel font-normal uppercase leading-[1.12] tracking-[0.04em] text-ink w-full pl-0"
               style={{
                 fontSize: "clamp(24px, 3.2vw, 50px)",
-                fontWeight: 300,
               }}
               aria-label={STORY_LINES.join(" ")}
             >
@@ -802,10 +800,9 @@ function IntroSection({ reducedMotion }: { reducedMotion: boolean }) {
                     lineRefs.current[i] = el;
                   }}
                   aria-hidden="true"
-                  className="block transition-colors duration-700 font-cinzel font-light font-[300] uppercase tracking-[0.035em]"
+                  className="block transition-colors duration-700 font-cinzel font-normal uppercase tracking-[0.035em]"
                   style={{
                     color: visibleLines[i] ? "#0B2540" : "#D4DCE3",
-                    fontWeight: 300,
                     transitionDelay: `${i * 80}ms`,
                   }}
                 >
@@ -1026,7 +1023,7 @@ function SunsetShowcaseSection() {
             <span className="font-jakarta text-[10px] font-semibold tracking-[0.25em] uppercase text-skynest-accent">
               01 / SIGNATURE EXPERIENCE
             </span>
-            <h2 className="font-fraunces text-3xl md:text-5xl text-ink mt-2">
+            <h2 className="font-cinzel text-3xl md:text-5xl text-ink mt-2">
               Dusk at SkyNest Galle
             </h2>
           </div>
@@ -1050,10 +1047,10 @@ function SunsetShowcaseSection() {
             {/* Bottom Caption Overlay */}
             <div className="absolute inset-x-0 bottom-0 p-6 md:p-12 flex flex-col md:flex-row md:items-end justify-between gap-6 text-white z-10">
               <div>
-                <span className="font-fraunces italic text-white/75 text-xs md:text-sm">
+                <span className="font-cinzel italic text-white/75 text-xs md:text-sm">
                   Galle Fort Coastline
                 </span>
-                <h3 className="font-fraunces text-2xl md:text-4xl text-white mt-1">
+                <h3 className="font-cinzel text-2xl md:text-4xl text-white mt-1">
                   The Ocean Horizon Pool
                 </h3>
               </div>
