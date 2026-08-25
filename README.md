@@ -23,8 +23,8 @@ A full-stack hotel reservation and management platform built with **Next.js 14**
    └─────────────┘    └──────────────┘
                               │
                     ┌─────────────────┐
-                    │   PostgreSQL     │
-                    │  (Prisma ORM)   │
+                    │   PostgreSQL    │
+                    │  (Raw SQL / pg) │
                     └─────────────────┘
 ```
 
@@ -62,7 +62,7 @@ Hotel-Reservation-Management-System/
 │       └── config/                 # DB, env, logger config
 │
 ├── database/
-│   ├── prisma/                     # Prisma schema & client
+│   ├── schema.sql                  # PostgreSQL DDL schema & enums
 │   ├── functions/                  # PL/pgSQL functions
 │   │   └── function_Check_Room_Availability.sql
 │   ├── procedures/                 # Stored procedures
@@ -146,7 +146,7 @@ The CI/CD pipeline (`.github/workflows/`) handles automated deployment on push t
 
 ## 🛢️ Database
 
-PostgreSQL with Prisma ORM. Custom PL/pgSQL logic for:
+PostgreSQL with Raw SQL (`pg` connection pool). Custom PL/pgSQL logic for:
 - `function_Check_Room_Availability` — prevents double-booking
 - `sp_CreateBooking` — atomic booking creation with lock
 - `sp_Generate_Final_Bill` — calculates taxes, loyalty discounts

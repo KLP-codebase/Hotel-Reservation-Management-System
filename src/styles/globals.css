@@ -1,3 +1,28 @@
+@import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;500;600;700;800;900&display=swap');
+@import 'lenis/dist/lenis.css';
+
+/* ── Lenis Smooth Scroll Recommended Styles ───────────────────────────────── */
+html.lenis,
+html.lenis body {
+  height: auto;
+}
+
+.lenis.lenis-smooth {
+  scroll-behavior: auto !important;
+}
+
+.lenis.lenis-smooth [data-lenis-prevent] {
+  overscroll-behavior: contain;
+}
+
+.lenis.lenis-stopped {
+  overflow: hidden;
+}
+
+.lenis.lenis-smooth iframe {
+  pointer-events: none;
+}
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -8,44 +33,74 @@
     --radius: 0.625rem;
 
     /* Light mode */
-    --background:        0 0% 100%;
-    --foreground:        222 47% 11%;
-    --muted:             210 40% 96%;
-    --muted-foreground:  215 16% 47%;
-    --card:              0 0% 100%;
-    --card-foreground:   222 47% 11%;
-    --border:            214 32% 91%;
-    --input:             214 32% 91%;
-    --primary:           228 89% 56%;      /* brand-500 */
-    --primary-foreground:0 0% 100%;
-    --secondary:         210 40% 96%;
+    --background: 0 0% 100%;
+    --foreground: 222 47% 11%;
+    --muted: 210 40% 96%;
+    --muted-foreground: 215 16% 47%;
+    --card: 0 0% 100%;
+    --card-foreground: 222 47% 11%;
+    --border: 214 32% 91%;
+    --input: 214 32% 91%;
+    --primary: 228 89% 56%;
+    /* brand-500 */
+    --primary-foreground: 0 0% 100%;
+    --secondary: 210 40% 96%;
     --secondary-foreground: 222 47% 11%;
-    --accent:            43 75% 56%;       /* gold-400 */
+    --accent: 43 75% 56%;
+    /* gold-400 */
     --accent-foreground: 222 47% 11%;
-    --destructive:       0 84% 60%;
+    --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 100%;
-    --ring:              228 89% 56%;
+    --ring: 228 89% 56%;
   }
 
   .dark {
-    --background:        222 47% 8%;
-    --foreground:        210 40% 98%;
-    --muted:             217 33% 17%;
-    --muted-foreground:  215 20% 65%;
-    --card:              222 47% 11%;
-    --card-foreground:   210 40% 98%;
-    --border:            217 33% 17%;
-    --input:             217 33% 17%;
-    --primary:           228 89% 62%;
-    --primary-foreground:0 0% 100%;
-    --secondary:         217 33% 17%;
+    --background: 222 47% 8%;
+    --foreground: 210 40% 98%;
+    --muted: 217 33% 17%;
+    --muted-foreground: 215 20% 65%;
+    --card: 222 47% 11%;
+    --card-foreground: 210 40% 98%;
+    --border: 217 33% 17%;
+    --input: 217 33% 17%;
+    --primary: 228 89% 62%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 217 33% 17%;
     --secondary-foreground: 210 40% 98%;
-    --accent:            43 75% 56%;
+    --accent: 43 75% 56%;
     --accent-foreground: 222 47% 11%;
-    --destructive:       0 63% 55%;
+    --destructive: 0 63% 55%;
     --destructive-foreground: 0 0% 100%;
-    --ring:              228 89% 62%;
+    --ring: 228 89% 62%;
   }
+}
+
+@font-face {
+  font-family: 'Cardinal Classic Long';
+  src: local('Cardinal Classic Long Light'), local('CardinalClassicLong-Light'), local('Cardinal Classic Light'), local('Cardinal Classic Long'), local('Cardinal Classic');
+  font-weight: 300;
+  font-style: normal;
+}
+
+@font-face {
+  font-family: 'Cardinal Classic Long';
+  src: local('Cardinal Classic Long Thin'), local('CardinalClassicLong-Thin'), local('Cardinal Classic Thin'), local('Cardinal Classic Long Light'), local('Cardinal Classic Long');
+  font-weight: 200;
+  font-style: normal;
+}
+
+@font-face {
+  font-family: 'Cardinal Classic Long';
+  src: local('Cardinal Classic Long'), local('CardinalClassicLong-Regular'), local('Cardinal Classic'), local('CardinalClassic');
+  font-weight: 400;
+  font-style: normal;
+}
+
+@font-face {
+  font-family: 'Cardinal Classic Long';
+  src: local('Cardinal Classic Long Italic'), local('CardinalClassicLong-Italic'), local('Cardinal Classic Italic');
+  font-weight: 400;
+  font-style: italic;
 }
 
 /* ── Base Styles ────────────────────────────────────────────────────────────── */
@@ -59,7 +114,12 @@
     font-feature-settings: "rlig" 1, "calt" 1;
   }
 
-  h1, h2, h3, h4, h5, h6 {
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
     @apply font-display tracking-tight;
   }
 }

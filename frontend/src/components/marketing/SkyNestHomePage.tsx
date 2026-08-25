@@ -165,6 +165,7 @@ function ChevronRight({ className = "" }: { className?: string }) {
   );
 }
 
+
 // ---------------------------------------------------------------------------
 // Navigation
 // ---------------------------------------------------------------------------
@@ -192,7 +193,7 @@ function SkyNestNav({
         aria-label="SkyNest Hotels main navigation"
         className={[
           "fixed top-0 left-0 right-0 z-50",
-          "transition-all duration-700 ease-smooth",
+          "transition-all duration-700 ease-[cubic-bezier(0.32,0.72,0,1)]",
           scrolled && !menuOpen
             ? "bg-ink/95 backdrop-blur-sm border-b border-white/10 shadow-[0_1px_0_rgba(255,255,255,0.05)]"
             : "bg-transparent",
@@ -230,7 +231,7 @@ function SkyNestNav({
               className="flex flex-col items-center gap-0.5 group focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-white/50 rounded-sm"
             >
               <MountainGlyph className="w-7 h-auto text-white/90 group-hover:text-white transition-colors duration-300" />
-              <span className="font-jakarta font-bold text-[11px] tracking-[0.35em] text-white uppercase select-none">
+              <span className="font-jakarta font-700 text-[11px] tracking-[0.35em] text-white uppercase select-none">
                 SKYNEST
               </span>
             </a>
@@ -266,19 +267,19 @@ function SkyNestNav({
             <span className="relative w-5 h-4 flex flex-col justify-between">
               <span
                 className={[
-                  "block h-px bg-white origin-center transition-all duration-400 ease-smooth",
+                  "block h-px bg-white origin-center transition-all duration-400 ease-[cubic-bezier(0.32,0.72,0,1)]",
                   menuOpen ? "rotate-45 translate-y-[7.5px]" : "",
                 ].join(" ")}
               />
               <span
                 className={[
-                  "block h-px bg-white transition-all duration-300 ease-smooth",
+                  "block h-px bg-white transition-all duration-300 ease-[cubic-bezier(0.32,0.72,0,1)]",
                   menuOpen ? "opacity-0 scale-x-50" : "",
                 ].join(" ")}
               />
               <span
                 className={[
-                  "block h-px bg-white origin-center transition-all duration-400 ease-smooth",
+                  "block h-px bg-white origin-center transition-all duration-400 ease-[cubic-bezier(0.32,0.72,0,1)]",
                   menuOpen ? "-rotate-45 -translate-y-[7.5px]" : "",
                 ].join(" ")}
               />
@@ -297,7 +298,7 @@ function SkyNestNav({
           "fixed inset-0 z-40 md:hidden",
           "bg-ink/[0.97] backdrop-blur-2xl",
           "flex flex-col justify-center px-8",
-          "transition-opacity duration-500 ease-smooth",
+          "transition-opacity duration-500 ease-[cubic-bezier(0.32,0.72,0,1)]",
           menuOpen ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none",
         ].join(" ")}
       >
@@ -312,7 +313,7 @@ function SkyNestNav({
                 className={[
                   "block py-4 font-jakarta font-semibold text-3xl text-white/80 hover:text-white",
                   "border-b border-white/[0.08]",
-                  "transition-all duration-600 ease-smooth",
+                  "transition-all duration-600 ease-[cubic-bezier(0.32,0.72,0,1)]",
                   "focus-visible:outline-none focus-visible:text-white",
                   menuOpen
                     ? "translate-y-0 opacity-100"
@@ -374,7 +375,7 @@ function HeroSection({
       <HairlineGrid count={5} />
 
       {/* Top row: eyebrow left + explore right */}
-      <div className="relative flex items-start justify-between px-6 md:px-12 pt-24 md:pt-28 pb-0 z-20">
+      <div className="relative flex items-start justify-between px-6 md:px-12 pt-24 md:pt-28 pb-0 z-10">
         {/* Eyebrow */}
         <p
           className="font-playfair font-normal italic text-white/75 text-[13px] md:text-[15px] leading-relaxed max-w-[200px] md:max-w-none"
@@ -389,7 +390,7 @@ function HeroSection({
         <a
           href="#branches"
           id="hero-explore-cta"
-          className="flex items-center gap-2 font-jakarta text-[11px] md:text-[12px] font-medium tracking-[0.15em] uppercase text-white/80 hover:text-white border border-white/20 hover:border-white/40 px-4 py-2.5 transition-all duration-300 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white/60 pointer-events-auto"
+          className="flex items-center gap-2 font-jakarta text-[11px] md:text-[12px] font-medium tracking-[0.15em] uppercase text-white/80 hover:text-white border border-white/20 hover:border-white/40 px-4 py-2.5 transition-all duration-300 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white/60"
         >
           <span>Explore Branches</span>
           <ChevronRight className="w-3 h-3" />
@@ -425,15 +426,14 @@ function CloudTransition() {
   const wrap2Ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (!containerRef.current || !wrap1Ref.current || !wrap2Ref.current) return;
     gsap.registerPlugin(ScrollTrigger);
 
-    const ctx = gsap.context(() => {
-      // Set initial state immediately (before paint) to avoid flash
-      gsap.set([wrap1Ref.current, wrap2Ref.current], { autoAlpha: 0 });
-      gsap.set(wrap1Ref.current, { y: "12%" });
-      gsap.set(wrap2Ref.current, { y: "20%" });
+    // Set initial state immediately (before paint) to avoid flash
+    gsap.set([wrap1Ref.current, wrap2Ref.current], { autoAlpha: 0 });
+    gsap.set(wrap1Ref.current, { y: "12%" });
+    gsap.set(wrap2Ref.current, { y: "20%" });
 
+    const ctx = gsap.context(() => {
       const tl = gsap.timeline({
         scrollTrigger: {
           trigger: containerRef.current,
@@ -712,6 +712,117 @@ function IntroSection({ reducedMotion }: { reducedMotion: boolean }) {
 }
 
 // ---------------------------------------------------------------------------
+// Kandy Highlands / Our Season Section (Sky Nest Editorial Style)
+// ---------------------------------------------------------------------------
+function KandyHighlandsSection() {
+  return (
+    <section
+      id="kandy-season"
+      aria-label="SkyNest Kandy Season & Highlands"
+      className="relative bg-paper min-h-[100dvh] flex flex-col justify-between overflow-hidden border-t border-skynest-hairline"
+    >
+      {/* Hairline Grid Overlay spanning the full section width */}
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-0 flex"
+        style={{ zIndex: 2 }}
+      >
+        {Array.from({ length: 6 }).map((_, i) => (
+          <div
+            key={i}
+            className="flex-1 border-l border-ink/[0.06] last:border-r"
+          />
+        ))}
+      </div>
+
+      {/* Top Glass Pill Control / Sub-Nav Bar (exact match to screenshot) */}
+      <div className="relative z-10 mx-auto w-full max-w-[1440px] px-6 md:px-12 pt-8 md:pt-10 flex items-center justify-between">
+        {/* Left tabs */}
+        <div className="flex items-center gap-2.5">
+          {["Experience", "Operation", "About"].map((tab) => (
+            <button
+              key={tab}
+              type="button"
+              className="px-5 py-2.5 rounded-[4px] bg-ink/[0.05] hover:bg-[#ff7e15] hover:text-white border border-ink/15 hover:border-[#ff7e15] text-ink/80 text-[11px] md:text-[12px] font-jakarta font-medium tracking-[0.12em] uppercase transition-all duration-300 backdrop-blur-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-ink/30"
+            >
+              {tab}
+            </button>
+          ))}
+        </div>
+
+        {/* Right tabs */}
+        <div className="flex items-center gap-2.5">
+          <button
+            type="button"
+            className="px-5 py-2.5 rounded-[4px] bg-ink/[0.05] hover:bg-[#ff7e15] hover:text-white border border-ink/15 hover:border-[#ff7e15] text-ink/80 text-[11px] md:text-[12px] font-jakarta font-medium tracking-[0.12em] uppercase transition-all duration-300 backdrop-blur-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-ink/30"
+          >
+            Rates
+          </button>
+          <a
+            href="#booking"
+            className="px-5 py-2.5 rounded-[4px] bg-ink/[0.08] hover:bg-[#ff7e15] hover:text-white border border-ink/20 hover:border-[#ff7e15] text-ink font-semibold text-[11px] md:text-[12px] font-jakarta tracking-[0.12em] uppercase transition-all duration-300 backdrop-blur-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-ink/30"
+          >
+            Enquire
+          </a>
+        </div>
+      </div>
+
+      {/* Floating Orange Right-Edge Sticky Tab ("How it works ✦") */}
+      <a
+        href="#how-booking-works"
+        aria-label="How it works"
+        className="absolute right-0 top-1/2 -translate-y-1/2 z-30 bg-[#ff7e15] hover:bg-[#e06c0f] text-white px-2.5 md:px-3 py-6 rounded-l-md shadow-lg transition-all duration-300 group flex items-center justify-center cursor-pointer"
+        style={{
+          writingMode: "vertical-rl",
+          textOrientation: "mixed",
+          transform: "translateY(-50%) rotate(180deg)",
+        }}
+      >
+        <span className="flex items-center gap-2 text-[11px] md:text-[12px] font-jakarta font-semibold tracking-[0.18em] uppercase select-none">
+          <span>How it works</span>
+          <span className="text-[10px] group-hover:rotate-45 transition-transform duration-300">✦</span>
+        </span>
+      </a>
+
+      {/* Content Narrative Block on Left (matching screenshot position) */}
+      <div className="relative z-10 mx-auto w-full max-w-[1440px] px-6 md:px-12 my-auto py-12 md:py-16">
+        <div className="max-w-md md:max-w-lg lg:max-w-[420px]">
+          <h2 className="font-fraunces font-bold text-2xl md:text-3xl lg:text-4xl text-ink tracking-tight uppercase leading-tight mb-5 md:mb-6">
+            OUR SEASON
+          </h2>
+          <p className="font-jakarta text-[13px] md:text-[14.5px] leading-[1.8] text-ink/80 font-normal">
+            Between November and February, during the golden highland season, we welcome
+            guests and explorers to the mist-crowned tea estates of Kandy. Limited to
+            just 12 bespoke suites, our mountain sanctuary creates an experience that is
+            both intimate and immersive, while a team of over 100 on the ground works around
+            the clock to ensure your tranquility and comfort, high above the clouds.
+          </p>
+        </div>
+      </div>
+
+      {/* Background Kandy Hotel Landscape — fading seamlessly into white at top */}
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-x-0 bottom-0 h-[65vh] md:h-[80vh] w-full overflow-hidden"
+        style={{ zIndex: 1 }}
+      >
+        <img
+          src="/Kandy_hotel.jpg"
+          alt="SkyNest Kandy Mountain Terrace & Tea Plantations"
+          className="w-full h-full object-cover object-bottom"
+          style={{
+            WebkitMaskImage:
+              "linear-gradient(to bottom, transparent 0%, rgba(0,0,0,0.15) 12%, rgba(0,0,0,0.7) 35%, black 60%)",
+            maskImage:
+              "linear-gradient(to bottom, transparent 0%, rgba(0,0,0,0.15) 12%, rgba(0,0,0,0.7) 35%, black 60%)",
+          }}
+        />
+      </div>
+    </section>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // Sunset Showcase Section
 // ---------------------------------------------------------------------------
 function SunsetShowcaseSection() {
@@ -803,6 +914,7 @@ export default function SkyNestHomePage() {
         Skip to content
       </a>
 
+
       {/* Navigation */}
       <SkyNestNav scrolled={scrolled} />
 
@@ -814,6 +926,9 @@ export default function SkyNestHomePage() {
 
       {/* Intro / Story — appears after the cloud covers everything */}
       <IntroSection reducedMotion={reducedMotion} />
+
+      {/* Kandy Highlands / Our Season Section */}
+      <KandyHighlandsSection />
 
       {/* Sunset Showcase Section */}
       <SunsetShowcaseSection />
