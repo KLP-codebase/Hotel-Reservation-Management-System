@@ -1,0 +1,19 @@
+{
+  "$schema": "https://design-tokens.github.io/community-group/format/",
+  "sn": {
+    "motion": {
+      "easing": {
+        "out":    { "$value": "cubic-bezier(0.5, 1, 0.89, 1)",  "$type": "cubicBezier", "$description": "Micro-interactions: hover, focus. 0.3s." },
+        "expo":   { "$value": "cubic-bezier(0.16, 1, 0.3, 1)",  "$type": "cubicBezier", "$description": "Scroll reveals and transitions. 1.4s." },
+        "inout":  { "$value": "cubic-bezier(0.76, 0, 0.24, 1)", "$type": "cubicBezier", "$description": "Page transitions. 0.8s." }
+      },
+      "duration": {
+        "fast":   { "$value": "0.3s", "$type": "duration", "$description": "Micro-interactions" },
+        "mid":    { "$value": "0.6s", "$type": "duration", "$description": "Moderate transitions" },
+        "slow":   { "$value": "1.4s", "$type": "duration", "$description": "Reveals, hero enters" },
+        "page":   { "$value": "0.8s", "$type": "duration", "$description": "Page transitions" }
+      }
+    }
+  },
+  "_note": "IMPORTANT — known extraction issue: raw output said linear easing and 0ms durations. Both are wrong. Always use the cubic-bezier tokens above. Motion is a brand signature — slow and confident."
+}

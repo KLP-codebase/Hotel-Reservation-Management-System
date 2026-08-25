@@ -1,0 +1,67 @@
+{
+  "$schema": "https://design-tokens.github.io/community-group/format/",
+  "sn": {
+    "color": {
+      "bg": {
+        "$value": "#ffffff",
+        "$type": "color",
+        "$description": "Default page background. Light sections."
+      },
+      "bg-dark": {
+        "$value": "#0a0a0a",
+        "$type": "color",
+        "$description": "Inverted sections, footer, video overlays."
+      },
+      "surface": {
+        "$value": "#ededed",
+        "$type": "color",
+        "$description": "Cards, panels on a light background."
+      },
+      "surface-dark": {
+        "$value": "#12141a",
+        "$type": "color",
+        "$description": "Cards, panels on a dark background."
+      },
+      "text": {
+        "$value": "#1f2a44",
+        "$type": "color",
+        "$description": "Headings and body text on light sections."
+      },
+      "text-muted": {
+        "$value": "#535353",
+        "$type": "color",
+        "$description": "Captions, meta, placeholders on light."
+      },
+      "text-invert": {
+        "$value": "#ededed",
+        "$type": "color",
+        "$description": "Body text on dark sections."
+      },
+      "text-invert-muted": {
+        "$value": "#a8acb3",
+        "$type": "color",
+        "$description": "Muted text on dark sections."
+      },
+      "accent": {
+        "$value": "#ff7e15",
+        "$type": "color",
+        "$description": "Orange. Interaction color only — hover fills, active states, CTAs. Never use for large fills or body text."
+      },
+      "border": {
+        "$value": "#c0c0c0",
+        "$type": "color",
+        "$description": "Dividers, input borders on light background."
+      },
+      "border-dark": {
+        "$value": "#1f2330",
+        "$type": "color",
+        "$description": "Dividers on dark background."
+      },
+      "border-glass": {
+        "$value": "rgba(255,255,255,0.2)",
+        "$type": "color",
+        "$description": "Glass component hairline border."
+      }
+    }
+  }
+}
