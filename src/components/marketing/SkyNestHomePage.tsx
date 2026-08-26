@@ -38,6 +38,14 @@ const COASTAL_STORY_LINES = [
   "OF SOUTHERN TIDES.",
 ];
 
+const COLOMBO_STORY_LINES = [
+  "WHERE THE HARBOUR CITY",
+  "BREATHES WITH THE TIDES —",
+  "COLONIAL GRANDEUR REIMAGINED",
+  "FOR THE MODERN TRAVELLER,",
+  "AT THE HEART OF THE ISLAND.",
+];
+
 // ---------------------------------------------------------------------------
 // Utility — respect prefers-reduced-motion
 // ---------------------------------------------------------------------------
@@ -1212,6 +1220,216 @@ function GalleBranchSection({ reducedMotion }: { reducedMotion: boolean }) {
 }
 
 // ---------------------------------------------------------------------------
+// City Interlude Section (Between Galle and Colombo)
+// ---------------------------------------------------------------------------
+function ColomboCityInterludeSection({ reducedMotion }: { reducedMotion: boolean }) {
+  const { lineRefs, visibleLines } = useLineReveal(
+    COLOMBO_STORY_LINES.length,
+    reducedMotion
+  );
+
+  return (
+    <section
+      id="colombo-story"
+      aria-label="SkyNest Colombo city story"
+      className="relative bg-paper overflow-hidden py-14 md:py-20"
+    >
+      {/* 6-column hairline grid */}
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-0 flex"
+        style={{ zIndex: 1 }}
+      >
+        {Array.from({ length: 6 }).map((_, i) => (
+          <div
+            key={i}
+            className="flex-1 border-l border-ink/[0.06] last:border-r"
+          />
+        ))}
+      </div>
+
+      <div className="relative z-10 w-full">
+        <div className="grid grid-cols-1 md:grid-cols-6 items-start">
+          {/* Columns 1 & 2 */}
+          <div className="hidden md:block md:col-start-1 md:col-end-3" />
+
+          {/* Columns 3, 4, 5 */}
+          <div className="md:col-start-3 md:col-end-6 pl-0 pr-4 md:pr-8 flex flex-col items-start">
+            <SweepingOrbitalEmblem label="The Urban Sanctuary" reducedMotion={reducedMotion} />
+
+            <h2
+              className="font-cinzel font-normal uppercase leading-[1.12] tracking-[0.04em] text-ink w-full pl-0"
+              style={{
+                fontSize: "clamp(24px, 3.2vw, 45px)",
+              }}
+              aria-label={COLOMBO_STORY_LINES.join(" ")}
+            >
+              {COLOMBO_STORY_LINES.map((line, i) => (
+                <span
+                  key={i}
+                  ref={(el) => {
+                    lineRefs.current[i] = el;
+                  }}
+                  aria-hidden="true"
+                  className="block transition-colors duration-700 font-cinzel font-normal uppercase tracking-[0.035em]"
+                  style={{
+                    color: visibleLines[i] ? "#0B2540" : "#D4DCE3",
+                    transitionDelay: `${i * 80}ms`,
+                  }}
+                >
+                  {line}
+                </span>
+              ))}
+            </h2>
+          </div>
+
+          {/* Column 6 */}
+          <div className="hidden md:block md:col-start-6 md:col-end-7" />
+        </div>
+      </div>
+    </section>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Branches Section 03 (Colombo) — Full-Bleed Parallax with Smooth Scrub
+// ---------------------------------------------------------------------------
+function ColomboBranchSection({ reducedMotion }: { reducedMotion: boolean }) {
+  const sectionRef = useRef<HTMLElement>(null);
+  const imgRef = useRef<HTMLImageElement>(null);
+  const labelRef = useRef<HTMLSpanElement>(null);
+  const titleRef = useRef<HTMLHeadingElement>(null);
+  const lineRef = useRef<HTMLParagraphElement>(null);
+
+  useEffect(() => {
+    gsap.registerPlugin(ScrollTrigger);
+
+    if (reducedMotion) {
+      if (labelRef.current) gsap.set(labelRef.current, { opacity: 1, y: 0 });
+      if (titleRef.current) gsap.set(titleRef.current, { opacity: 1, y: 0 });
+      if (lineRef.current) gsap.set(lineRef.current, { opacity: 1, y: 0 });
+      return;
+    }
+
+    const img = imgRef.current;
+    const label = labelRef.current;
+    const title = titleRef.current;
+    const line = lineRef.current;
+    if (!img || !label || !title || !line || !sectionRef.current) return;
+
+    gsap.set(img, { scale: 1.1, y: 140 });
+    gsap.set(label, { y: 20, opacity: 0.4 });
+    gsap.set(title, { y: 15, opacity: 0.4 });
+    gsap.set(line, { y: 10, opacity: 0.4 });
+
+    const ctx = gsap.context(() => {
+      const tl = gsap.timeline({
+        scrollTrigger: {
+          trigger: sectionRef.current,
+          start: "top bottom",
+          end: "bottom top",
+          scrub: 1.5,
+        },
+        defaults: {
+          ease: "none",
+          force3D: true,
+        },
+      });
+
+      tl.to(img, { y: -30, scale: 1.0 }, 0);
+      tl.to(label, { y: -20, opacity: 1 }, 0);
+      tl.to(title, { y: -15, opacity: 1 }, 0);
+      tl.to(line, { y: -10, opacity: 1 }, 0);
+    }, sectionRef);
+
+    return () => ctx.revert();
+  }, [reducedMotion]);
+
+  return (
+    <section
+      ref={sectionRef}
+      id="colombo-branch"
+      aria-label="SkyNest Colombo branch"
+      className="relative bg-paper overflow-hidden w-full"
+    >
+      <div className="relative w-full aspect-[3/2] overflow-hidden">
+        {/* Parallax background image */}
+        <div className="absolute inset-0 w-full h-full z-0 overflow-hidden">
+          {/* Feathered top gradient */}
+          <div
+            aria-hidden="true"
+            className="absolute inset-x-0 top-0 h-40 md:h-64 pointer-events-none z-[2]"
+            style={{
+              background:
+                "linear-gradient(to bottom, #FDFCFA 0%, rgba(253,252,250,0.9) 30%, rgba(253,252,250,0.45) 62%, rgba(253,252,250,0.08) 88%, transparent 100%)",
+            }}
+          />
+
+          <img
+            ref={imgRef}
+            src="/Colombo.jpg"
+            alt="SkyNest Colombo — harbour city skyline meeting the Indian Ocean"
+            className="w-full h-full object-cover object-top"
+            style={{
+              willChange: "transform",
+            }}
+          />
+        </div>
+
+        {/* 6-column grid lines */}
+        <div className="absolute inset-0 pointer-events-none z-[5]">
+          <HairlineGrid count={5} color="border-white/[0.15] md:border-white/[0.12]" />
+        </div>
+
+        {/* Text overlay — left-aligned (mirrors Kandy) */}
+        <div
+          aria-hidden="false"
+          className="absolute inset-0 pointer-events-none z-10"
+        >
+          <div className="relative h-full mx-auto max-w-[1400px] px-6 md:px-16 flex flex-col justify-start pt-12 md:pt-20 gap-2.5 md:gap-4">
+            <span
+              ref={labelRef}
+              className="font-jakarta text-[11px] md:text-[12px] font-bold tracking-[0.3em] uppercase text-ink/80 drop-shadow-sm"
+              style={{
+                willChange: "transform, opacity",
+                opacity: reducedMotion ? 1 : 0,
+              }}
+            >
+              03 &nbsp;/&nbsp; COLOMBO CITY
+            </span>
+
+            <h2
+              ref={titleRef}
+              className="font-cinzel text-ink leading-[1.05] drop-shadow-sm uppercase tracking-[0.03em]"
+              style={{
+                fontSize: "clamp(32px, 4.8vw, 72px)",
+                willChange: "transform, opacity",
+                opacity: reducedMotion ? 1 : 0,
+              }}
+            >
+              SkyNest Colombo
+            </h2>
+
+            <p
+              ref={lineRef}
+              className="font-cinzel italic text-ink/75 max-w-lg leading-relaxed text-sm md:text-lg drop-shadow-sm"
+              style={{
+                willChange: "transform, opacity",
+                opacity: reducedMotion ? 1 : 0,
+              }}
+            >
+              Where the colonial harbour city pulses with life, a sanctuary of calm above the ocean horizon.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <div className="border-b border-skynest-hairline" />
+    </section>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // Main Page Component
 // ---------------------------------------------------------------------------
 export default function SkyNestHomePage() {
@@ -1270,6 +1488,12 @@ export default function SkyNestHomePage() {
 
       {/* Branch 02 — Galle Coastline */}
       <GalleBranchSection reducedMotion={reducedMotion} />
+
+      {/* Interlude / Story — Colombo City */}
+      <ColomboCityInterludeSection reducedMotion={reducedMotion} />
+
+      {/* Branch 03 — Colombo City */}
+      <ColomboBranchSection reducedMotion={reducedMotion} />
 
       {/* Premium Architectural Footer */}
       <SkyNestFooter />
