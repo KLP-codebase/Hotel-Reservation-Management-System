@@ -1,0 +1,59 @@
+version: "3.9"
+
+# ── Local development stack ────────────────────────────────────────────────────
+services:
+  postgres:
+    image: postgres:15-alpine
+    restart: unless-stopped
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: hotel_user
+      POSTGRES_PASSWORD: hotel_password
+      POSTGRES_DB: hotel_rms
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U hotel_user -d hotel_rms"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build:
+      context: ../../backend
+      dockerfile: ../infrastructure/docker/Dockerfile.backend
+    restart: unless-stopped
+    ports:
+      - "4000:4000"
+    environment:
+      DATABASE_URL: postgresql://hotel_user:hotel_password@postgres:5432/hotel_rms
+      NODE_ENV: development
+      PORT: 4000
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - ../../backend:/app
+      - /app/node_modules
+
+  frontend:
+    build:
+      context: ../../frontend
+      dockerfile: ../infrastructure/docker/Dockerfile.frontend
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      NEXT_PUBLIC_API_URL: http://localhost:4000/api/v1
+      NODE_ENV: development
+    depends_on:
+      - backend
+    volumes:
+      - ../../frontend:/app
+      - /app/node_modules
+      - /app/.next
+
+volumes:
+  postgres_data:

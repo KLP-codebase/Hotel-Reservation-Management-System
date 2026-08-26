@@ -1,0 +1,39 @@
+name = "hotel-rms-api-worker"
+main = "src/index.ts"
+compatibility_date = "2024-09-23"
+compatibility_flags = ["nodejs_compat"]
+
+# ── Account / Zone ─────────────────────────────────────────────────────────────
+# account_id = "your-cloudflare-account-id"   # set via CF_ACCOUNT_ID env var in CI
+
+# ── Environments ───────────────────────────────────────────────────────────────
+[env.staging]
+name = "hotel-rms-api-worker-staging"
+vars = { ENVIRONMENT = "staging" }
+
+[env.production]
+name = "hotel-rms-api-worker-production"
+vars = { ENVIRONMENT = "production" }
+
+# ── Routes ─────────────────────────────────────────────────────────────────────
+[[env.production.routes]]
+pattern = "api.yourdomain.com/*"
+zone_name = "yourdomain.com"
+
+# ── KV Namespaces (session cache, rate limiting) ───────────────────────────────
+[[kv_namespaces]]
+binding = "SESSION_CACHE"
+id      = "your-kv-namespace-id"
+
+# ── D1 Database (edge cache / read replicas) ──────────────────────────────────
+[[d1_databases]]
+binding  = "HOTEL_DB"
+database_name = "hotel-rms-edge-cache"
+database_id   = "your-d1-database-id"
+
+# ── Secrets (set via `wrangler secret put KEY`) ───────────────────────────────
+# JWT_SECRET
+# DATABASE_URL
+# PAYHERE_MERCHANT_SECRET
+# BOOKING_COM_API_KEY
+# AGODA_API_KEY
