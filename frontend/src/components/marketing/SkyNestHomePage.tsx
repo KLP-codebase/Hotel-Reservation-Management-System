@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
+import { SkyNestFooter } from "./SkyNestFooter";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -823,73 +824,6 @@ function KandyHighlandsSection() {
 }
 
 // ---------------------------------------------------------------------------
-// Sunset Showcase Section
-// ---------------------------------------------------------------------------
-function SunsetShowcaseSection() {
-  return (
-    <section
-      id="experience"
-      aria-label="SkyNest signature experience"
-      className="relative bg-paper py-20 md:py-32 px-6 md:px-12 overflow-hidden border-t border-skynest-hairline"
-    >
-      <div className="mx-auto max-w-[1400px]">
-        {/* Section header */}
-        <div className="flex flex-col md:flex-row md:items-end justify-between mb-10 md:mb-14 gap-6">
-          <div>
-            <span className="font-jakarta text-[10px] font-semibold tracking-[0.25em] uppercase text-skynest-accent">
-              01 / SIGNATURE EXPERIENCE
-            </span>
-            <h2 className="font-fraunces text-3xl md:text-5xl text-ink mt-2">
-              Dusk at SkyNest Galle
-            </h2>
-          </div>
-          <p className="font-jakarta text-xs md:text-sm text-ink/65 max-w-md leading-relaxed">
-            Perched above the southern ocean, our infinity pool mirrors the Sri Lankan sunset — crafted for unhurried evenings.
-          </p>
-        </div>
-
-        {/* Doppelrand Double-Bezel Frame */}
-        <div className="relative group p-2 md:p-3 rounded-[2rem] bg-ink/[0.03] border border-ink/10 transition-all duration-700 hover:border-ink/20 shadow-sm">
-          <div className="relative rounded-[calc(2rem-0.5rem)] overflow-hidden aspect-[16/9] md:aspect-[21/9] min-h-[360px]">
-            {/* Sunset image from /public */}
-            <img
-              src="/sunset-at-a-swimming-pool-during-a-vacation-on-a-t-2026-03-17-05-37-28-utc.jpg"
-              alt="Sunset at SkyNest Galle infinity pool"
-              className="w-full h-full object-cover transition-transform duration-1000 ease-out group-hover:scale-[1.03]"
-            />
-            {/* Gradient Overlay */}
-            <div className="absolute inset-0 bg-gradient-to-t from-ink/90 via-ink/25 to-transparent" />
-
-            {/* Bottom Caption Overlay */}
-            <div className="absolute inset-x-0 bottom-0 p-6 md:p-12 flex flex-col md:flex-row md:items-end justify-between gap-6 text-white z-10">
-              <div>
-                <span className="font-fraunces italic text-white/75 text-xs md:text-sm">
-                  Galle Fort Coastline
-                </span>
-                <h3 className="font-fraunces text-2xl md:text-4xl text-white mt-1">
-                  The Ocean Horizon Pool
-                </h3>
-              </div>
-              <div className="flex items-center gap-4">
-                <span className="hidden sm:inline-block font-jakarta text-[11px] tracking-[0.2em] text-white/70 uppercase">
-                  6.0535° N, 80.2210° E
-                </span>
-                <a
-                  href="#booking"
-                  className="px-6 py-3 rounded-full bg-white/15 hover:bg-white/25 backdrop-blur-md border border-white/30 text-white font-jakarta text-[11px] font-medium tracking-[0.14em] uppercase transition-all duration-300 focus-visible:outline focus-visible:outline-2 focus-visible:outline-white"
-                >
-                  Reserve Pavilion
-                </a>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </section>
-  );
-}
-
-// ---------------------------------------------------------------------------
 // Main Page Component
 // ---------------------------------------------------------------------------
 export default function SkyNestHomePage() {
@@ -914,7 +848,6 @@ export default function SkyNestHomePage() {
         Skip to content
       </a>
 
-
       {/* Navigation */}
       <SkyNestNav scrolled={scrolled} />
 
@@ -930,15 +863,8 @@ export default function SkyNestHomePage() {
       {/* Kandy Highlands / Our Season Section */}
       <KandyHighlandsSection />
 
-      {/* Sunset Showcase Section */}
-      <SunsetShowcaseSection />
-
-      {/* Placeholder anchor for booking section */}
-      <div id="how-booking-works" className="bg-paper py-8 px-6 md:px-12 border-t border-skynest-hairline">
-        <p className="font-jakarta text-[11px] tracking-[0.15em] uppercase text-ink/30 text-center">
-          — Booking flow coming soon —
-        </p>
-      </div>
+      {/* Premium Architectural Footer */}
+      <SkyNestFooter />
     </div>
   );
 }

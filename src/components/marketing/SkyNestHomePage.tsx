@@ -4,6 +4,8 @@ import { useEffect, useRef, useState, useCallback } from "react";
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import { useAuth } from "@/context/auth-context";
+import { SkyNestFooter } from "./SkyNestFooter";
+
 
 // ---------------------------------------------------------------------------
 // Types
@@ -28,6 +30,22 @@ const STORY_LINES = [
   "THREE COASTLINES, THREE SANCTUARIES,",
   "ONE UNCOMPROMISING",
   "STANDARD OF WELCOME.",
+];
+
+const COASTAL_STORY_LINES = [
+  "FROM MISTED HIGH PEAKS",
+  "DOWN TO OCEAN HORIZONS —",
+  "WHERE CENTURIES OF HERITAGE",
+  "MEET THE TIMELESS RHYTHM",
+  "OF SOUTHERN TIDES.",
+];
+
+const COLOMBO_STORY_LINES = [
+  "WHERE THE HARBOUR CITY",
+  "BREATHES WITH THE TIDES —",
+  "COLONIAL GRANDEUR REIMAGINED",
+  "FOR THE MODERN TRAVELLER,",
+  "AT THE HEART OF THE ISLAND.",
 ];
 
 // ---------------------------------------------------------------------------
@@ -317,11 +335,11 @@ function SkyNestNav({
   const bgStyle: React.CSSProperties = menuOpen
     ? { background: "transparent" }
     : {
-        background: `rgba(253,252,250,${bgAlpha.toFixed(3)})`,
-        backdropFilter: `blur(${blurAmt.toFixed(1)}px)`,
-        WebkitBackdropFilter: `blur(${blurAmt.toFixed(1)}px)`,
-        borderBottom: `1px solid rgba(11,37,64,${borderAlpha.toFixed(3)})`,
-      };
+      background: `rgba(253,252,250,${bgAlpha.toFixed(3)})`,
+      backdropFilter: `blur(${blurAmt.toFixed(1)}px)`,
+      WebkitBackdropFilter: `blur(${blurAmt.toFixed(1)}px)`,
+      borderBottom: `1px solid rgba(11,37,64,${borderAlpha.toFixed(3)})`,
+    };
 
   const linkStyle: React.CSSProperties = {
     color: textColor,
@@ -442,19 +460,19 @@ function SkyNestNav({
             <span className="relative w-5 h-4 flex flex-col justify-between">
               <span
                 className={[
-                  "block h-px bg-white origin-center transition-all duration-400 ease-[cubic-bezier(0.32,0.72,0,1)]",
+                  "block h-px bg-white origin-center transition-all duration-300 ease-out",
                   menuOpen ? "rotate-45 translate-y-[7.5px]" : "",
                 ].join(" ")}
               />
               <span
                 className={[
-                  "block h-px bg-white transition-all duration-300 ease-[cubic-bezier(0.32,0.72,0,1)]",
+                  "block h-px bg-white transition-all duration-300 ease-out",
                   menuOpen ? "opacity-0 scale-x-50" : "",
                 ].join(" ")}
               />
               <span
                 className={[
-                  "block h-px bg-white origin-center transition-all duration-400 ease-[cubic-bezier(0.32,0.72,0,1)]",
+                  "block h-px bg-white origin-center transition-all duration-300 ease-out",
                   menuOpen ? "-rotate-45 -translate-y-[7.5px]" : "",
                 ].join(" ")}
               />
@@ -473,7 +491,7 @@ function SkyNestNav({
           "fixed inset-0 z-40 md:hidden",
           "bg-ink/[0.97] backdrop-blur-2xl",
           "flex flex-col justify-center px-8",
-          "transition-opacity duration-500 ease-[cubic-bezier(0.32,0.72,0,1)]",
+          "transition-opacity duration-500 ease-out",
           menuOpen ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none",
         ].join(" ")}
       >
@@ -489,7 +507,7 @@ function SkyNestNav({
                 className={[
                   "block py-4 font-jakarta font-semibold text-3xl text-white/80 hover:text-white",
                   "border-b border-white/[0.08]",
-                  "transition-all duration-600 ease-[cubic-bezier(0.32,0.72,0,1)]",
+                  "transition-all duration-500 ease-out",
                   "focus-visible:outline-none focus-visible:text-white",
                   menuOpen
                     ? "translate-y-0 opacity-100"
@@ -575,7 +593,7 @@ function HeroSection({
           alt=""
           className="w-full h-full object-cover object-center"
           style={{
-            filter: "brightness(0.6) contrast(1.1)",
+            filter: "brightness(0.7) contrast(1.1)",
             willChange: "transform",
           }}
         />
@@ -747,58 +765,71 @@ function CloudTransition() {
 }
 
 // ---------------------------------------------------------------------------
-// Text reveal hook — IntersectionObserver per line
-// ---------------------------------------------------------------------------
-function useLineReveal(lineCount: number, reducedMotion: boolean) {
-  const lineRefs = useRef<(HTMLSpanElement | null)[]>([]);
-  const [visibleLines, setVisibleLines] = useState<boolean[]>(
-    Array(lineCount).fill(reducedMotion)
-  );
-
-  useEffect(() => {
-    if (reducedMotion) {
-      setVisibleLines(Array(lineCount).fill(true));
-      return;
-    }
-
-    const observers: IntersectionObserver[] = [];
-
-    lineRefs.current.forEach((el, i) => {
-      if (!el) return;
-      const obs = new IntersectionObserver(
-        ([entry]) => {
-          if (entry.isIntersecting) {
-            setVisibleLines((prev) => {
-              const next = [...prev];
-              next[i] = true;
-              return next;
-            });
-            obs.disconnect();
-          }
-        },
-        { threshold: 0.6 }
-      );
-      obs.observe(el);
-      observers.push(obs);
-    });
-
-    return () => observers.forEach((o) => o.disconnect());
-  }, [lineCount, reducedMotion]);
-
-  return { lineRefs, visibleLines };
-}
-
-// ---------------------------------------------------------------------------
 // Intro / Story Section
 // ---------------------------------------------------------------------------
 function IntroSection({ reducedMotion }: { reducedMotion: boolean }) {
-  const { lineRefs, visibleLines } = useLineReveal(
-    STORY_LINES.length,
-    reducedMotion
-  );
+  const sectionRef = useRef<HTMLElement>(null);
+  const titleRef = useRef<HTMLHeadingElement>(null);
+  const emblemRef = useRef<HTMLDivElement>(null);
+  const lineRefs = useRef<(HTMLSpanElement | null)[]>([]);
+  const subTextRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    gsap.registerPlugin(ScrollTrigger);
+
+    const section = sectionRef.current;
+    const title = titleRef.current;
+    const emblem = emblemRef.current;
+    const lines = lineRefs.current.filter(Boolean) as HTMLSpanElement[];
+    const subText = subTextRef.current;
+
+    if (reducedMotion) {
+      if (emblem) gsap.set(emblem, { opacity: 1, y: 0 });
+      gsap.set(lines, { opacity: 1, y: 0 });
+      if (subText) gsap.set(subText, { opacity: 1, y: 0 });
+      return;
+    }
+
+    if (!section || !title) return;
+
+    if (emblem) gsap.set(emblem, { opacity: 0, y: 25 });
+    gsap.set(lines, { opacity: 0, y: "110%" });
+    if (subText) gsap.set(subText, { opacity: 0, y: 20 });
+
+    const ctx = gsap.context(() => {
+      const tl = gsap.timeline({
+        scrollTrigger: {
+          trigger: title,
+          start: "top 82%",
+          toggleActions: "play none none none",
+        },
+      });
+
+      if (emblem) {
+        tl.to(emblem, { opacity: 1, y: 0, duration: 0.7, ease: "power2.out" });
+      }
+      tl.to(
+        lines,
+        {
+          opacity: 1,
+          y: "0%",
+          duration: 0.95,
+          stagger: 0.12,
+          ease: "power3.out",
+        },
+        emblem ? "-=0.3" : 0
+      );
+      if (subText) {
+        tl.to(subText, { opacity: 1, y: 0, duration: 0.8, ease: "power2.out" }, "-=0.3");
+      }
+    }, section);
+
+    return () => ctx.revert();
+  }, [reducedMotion]);
 
   return (
     <section
+      ref={sectionRef}
       id="story"
       aria-label="SkyNest Hotels story"
       className="relative bg-paper overflow-hidden py-14 md:py-20"
@@ -824,45 +855,39 @@ function IntroSection({ reducedMotion }: { reducedMotion: boolean }) {
 
           {/* Columns 3, 4, 5 */}
           <div className="md:col-start-3 md:col-end-6 pl-0 pr-4 md:pr-8 flex flex-col items-start">
-            <SweepingOrbitalEmblem label="The SkyNest Standard" reducedMotion={reducedMotion} />
+            <div ref={emblemRef}>
+              <SweepingOrbitalEmblem label="The SkyNest Standard" reducedMotion={reducedMotion} />
+            </div>
 
             <h1
+              ref={titleRef}
               className="font-cinzel font-normal uppercase leading-[1.12] tracking-[0.04em] text-ink w-full pl-0"
               style={{
-                fontSize: "clamp(24px, 3.2vw, 50px)",
+                fontSize: "clamp(24px, 3.2vw, 45px)",
               }}
               aria-label={STORY_LINES.join(" ")}
             >
               {STORY_LINES.map((line, i) => (
-                <span
-                  key={i}
-                  ref={(el) => {
-                    lineRefs.current[i] = el;
-                  }}
-                  aria-hidden="true"
-                  className="block transition-colors duration-700 font-cinzel font-normal uppercase tracking-[0.035em]"
-                  style={{
-                    color: visibleLines[i] ? "#0B2540" : "#D4DCE3",
-                    transitionDelay: `${i * 80}ms`,
-                  }}
-                >
-                  {line}
-                </span>
+                <div key={i} className="overflow-hidden block py-0.5">
+                  <span
+                    ref={(el) => {
+                      lineRefs.current[i] = el;
+                    }}
+                    aria-hidden="true"
+                    className="block font-cinzel font-normal uppercase tracking-[0.035em] text-ink will-change-transform"
+                  >
+                    {line}
+                  </span>
+                </div>
               ))}
             </h1>
 
             {/* Sub-text & CTA */}
-            <div className="mt-8 md:mt-10 flex flex-col sm:flex-row sm:items-baseline justify-between gap-4 pt-4 border-t border-ink/[0.08] w-full">
-              <p
-                className={[
-                  "font-jakarta text-[12px] md:text-[13px] leading-[1.8] text-ink/55 max-w-sm",
-                  "transition-opacity duration-1000",
-                  reducedMotion || visibleLines[STORY_LINES.length - 1]
-                    ? "opacity-100 translate-y-0"
-                    : "opacity-0 translate-y-3",
-                ].join(" ")}
-                style={{ transitionDelay: "450ms" }}
-              >
+            <div
+              ref={subTextRef}
+              className="mt-8 md:mt-10 flex flex-col sm:flex-row sm:items-baseline justify-between gap-4 pt-4 border-t border-ink/[0.08] w-full"
+            >
+              <p className="font-jakarta text-[12px] md:text-[13px] leading-[1.8] text-ink/55 max-w-sm">
                 From the colonial harbour of Galle to the mist-veiled hills of Kandy, each SkyNest property is designed around its landscape.
               </p>
 
@@ -886,9 +911,9 @@ function IntroSection({ reducedMotion }: { reducedMotion: boolean }) {
 }
 
 // ---------------------------------------------------------------------------
-// Branches Section — Full-Bleed Parallax with Smooth Scrub
+// Branches Section 01 (Kandy) — Full-Bleed Parallax with Smooth Scrub
 // ---------------------------------------------------------------------------
-function BranchesSection({ reducedMotion }: { reducedMotion: boolean }) {
+function KandyBranchSection({ reducedMotion }: { reducedMotion: boolean }) {
   const sectionRef = useRef<HTMLElement>(null);
   const imgRef = useRef<HTMLImageElement>(null);
   const labelRef = useRef<HTMLSpanElement>(null);
@@ -898,43 +923,51 @@ function BranchesSection({ reducedMotion }: { reducedMotion: boolean }) {
   useEffect(() => {
     gsap.registerPlugin(ScrollTrigger);
 
-    if (reducedMotion) {
-      if (labelRef.current) gsap.set(labelRef.current, { opacity: 1, y: 0 });
-      if (titleRef.current) gsap.set(titleRef.current, { opacity: 1, y: 0 });
-      if (lineRef.current) gsap.set(lineRef.current, { opacity: 1, y: 0 });
-      return;
-    }
-
     const img = imgRef.current;
     const label = labelRef.current;
     const title = titleRef.current;
     const line = lineRef.current;
-    if (!img || !label || !title || !line || !sectionRef.current) return;
+    const section = sectionRef.current;
+    if (!section || !img || !label || !title || !line) return;
+
+    if (reducedMotion) {
+      gsap.set([label, title, line], { opacity: 1, y: 0 });
+      return;
+    }
 
     gsap.set(img, { scale: 1.05, y: -30 });
-    gsap.set(label, { y: 20, opacity: 0.4 });
-    gsap.set(title, { y: 15, opacity: 0.4 });
-    gsap.set(line, { y: 10, opacity: 0.4 });
+    gsap.set(label, { y: 25, opacity: 0 });
+    gsap.set(title, { y: 25, opacity: 0 });
+    gsap.set(line, { y: 20, opacity: 0 });
 
     const ctx = gsap.context(() => {
-      const tl = gsap.timeline({
+      // Parallax scrub on image
+      gsap.to(img, {
+        y: 30,
+        scale: 1.0,
+        ease: "none",
         scrollTrigger: {
-          trigger: sectionRef.current,
+          trigger: section,
           start: "top bottom",
           end: "bottom top",
           scrub: 1.5,
         },
-        defaults: {
-          ease: "none",
-          force3D: true,
+      });
+
+      // Text entrance timeline triggered when section is reached
+      const textTl = gsap.timeline({
+        scrollTrigger: {
+          trigger: section,
+          start: "top 72%",
+          toggleActions: "play none none none",
         },
       });
 
-      tl.to(img, { y: 30, scale: 1.0 }, 0);
-      tl.to(label, { y: -20, opacity: 1 }, 0);
-      tl.to(title, { y: -15, opacity: 1 }, 0);
-      tl.to(line, { y: -10, opacity: 1 }, 0);
-    }, sectionRef);
+      textTl
+        .to(label, { opacity: 1, y: 0, duration: 0.6, ease: "power2.out" })
+        .to(title, { opacity: 1, y: 0, duration: 0.7, ease: "power2.out" }, "-=0.3")
+        .to(line, { opacity: 1, y: 0, duration: 0.7, ease: "power2.out" }, "-=0.3");
+    }, section);
 
     return () => ctx.revert();
   }, [reducedMotion]);
@@ -943,7 +976,7 @@ function BranchesSection({ reducedMotion }: { reducedMotion: boolean }) {
     <section
       ref={sectionRef}
       id="branches"
-      aria-label="SkyNest Hotels branches"
+      aria-label="SkyNest Kandy branch"
       className="relative bg-paper overflow-hidden w-full"
     >
       <div className="relative w-full aspect-[3/2] overflow-hidden">
@@ -986,10 +1019,9 @@ function BranchesSection({ reducedMotion }: { reducedMotion: boolean }) {
               className="font-jakarta text-[11px] md:text-[12px] font-bold tracking-[0.3em] uppercase text-ink/80 drop-shadow-sm"
               style={{
                 willChange: "transform, opacity",
-                opacity: reducedMotion ? 1 : 0,
               }}
             >
-              02 &nbsp;/&nbsp; KANDY HIGHLANDS
+              01 &nbsp;/&nbsp; KANDY HIGHLANDS
             </span>
 
             <h2
@@ -998,7 +1030,6 @@ function BranchesSection({ reducedMotion }: { reducedMotion: boolean }) {
               style={{
                 fontSize: "clamp(32px, 4.8vw, 72px)",
                 willChange: "transform, opacity",
-                opacity: reducedMotion ? 1 : 0,
               }}
             >
               SkyNest Kandy
@@ -1009,7 +1040,6 @@ function BranchesSection({ reducedMotion }: { reducedMotion: boolean }) {
               className="font-cinzel italic text-ink/75 max-w-lg leading-relaxed text-sm md:text-lg drop-shadow-sm"
               style={{
                 willChange: "transform, opacity",
-                opacity: reducedMotion ? 1 : 0,
               }}
             >
               High in the hill country, where early morning mist meets endless emerald tea gardens.
@@ -1024,36 +1054,57 @@ function BranchesSection({ reducedMotion }: { reducedMotion: boolean }) {
 }
 
 // ---------------------------------------------------------------------------
-// Sunset Showcase Section
+// Coastal Interlude Section (Between Kandy and Galle)
 // ---------------------------------------------------------------------------
-function SunsetShowcaseSection({ reducedMotion = false }: { reducedMotion?: boolean }) {
+function CoastalInterludeSection({ reducedMotion }: { reducedMotion: boolean }) {
   const sectionRef = useRef<HTMLElement>(null);
-  const imgRef = useRef<HTMLImageElement>(null);
+  const titleRef = useRef<HTMLHeadingElement>(null);
+  const emblemRef = useRef<HTMLDivElement>(null);
+  const lineRefs = useRef<(HTMLSpanElement | null)[]>([]);
 
   useEffect(() => {
     gsap.registerPlugin(ScrollTrigger);
 
-    if (reducedMotion) return;
-    const img = imgRef.current;
-    const sec = sectionRef.current;
-    if (!img || !sec) return;
+    const section = sectionRef.current;
+    const title = titleRef.current;
+    const emblem = emblemRef.current;
+    const lines = lineRefs.current.filter(Boolean) as HTMLSpanElement[];
 
-    gsap.set(img, { scale: 1.12, y: -25 });
+    if (reducedMotion) {
+      if (emblem) gsap.set(emblem, { opacity: 1, y: 0 });
+      gsap.set(lines, { opacity: 1, y: 0 });
+      return;
+    }
+
+    if (!section || !title) return;
+
+    if (emblem) gsap.set(emblem, { opacity: 0, y: 25 });
+    gsap.set(lines, { opacity: 0, y: "110%" });
 
     const ctx = gsap.context(() => {
-      gsap.to(img, {
-        y: 25,
-        scale: 1.02,
-        ease: "none",
-        force3D: true,
+      const tl = gsap.timeline({
         scrollTrigger: {
-          trigger: sec,
-          start: "top bottom",
-          end: "bottom top",
-          scrub: 1.2,
+          trigger: title,
+          start: "top 82%",
+          toggleActions: "play none none none",
         },
       });
-    }, sec);
+
+      if (emblem) {
+        tl.to(emblem, { opacity: 1, y: 0, duration: 0.7, ease: "power2.out" });
+      }
+      tl.to(
+        lines,
+        {
+          opacity: 1,
+          y: "0%",
+          duration: 0.95,
+          stagger: 0.12,
+          ease: "power3.out",
+        },
+        emblem ? "-=0.3" : 0
+      );
+    }, section);
 
     return () => ctx.revert();
   }, [reducedMotion]);
@@ -1061,62 +1112,472 @@ function SunsetShowcaseSection({ reducedMotion = false }: { reducedMotion?: bool
   return (
     <section
       ref={sectionRef}
-      id="experience"
-      aria-label="SkyNest signature experience"
-      className="relative bg-paper py-20 md:py-32 px-6 md:px-12 overflow-hidden border-t border-skynest-hairline"
+      id="coastal-story"
+      aria-label="SkyNest Southern Coast story"
+      className="relative bg-paper overflow-hidden py-14 md:py-20"
     >
-      <div className="mx-auto max-w-[1400px]">
-        {/* Section header */}
-        <div className="flex flex-col md:flex-row md:items-end justify-between mb-10 md:mb-14 gap-6">
-          <div>
-            <span className="font-jakarta text-[10px] font-semibold tracking-[0.25em] uppercase text-skynest-accent">
-              01 / SIGNATURE EXPERIENCE
-            </span>
-            <h2 className="font-cinzel text-3xl md:text-5xl text-ink mt-2">
-              Dusk at SkyNest Galle
+      {/* 6-column hairline grid */}
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-0 flex"
+        style={{ zIndex: 1 }}
+      >
+        {Array.from({ length: 6 }).map((_, i) => (
+          <div
+            key={i}
+            className="flex-1 border-l border-ink/[0.06] last:border-r"
+          />
+        ))}
+      </div>
+
+      <div className="relative z-10 w-full">
+        <div className="grid grid-cols-1 md:grid-cols-6 items-start">
+          {/* Columns 1 & 2 */}
+          <div className="hidden md:block md:col-start-1 md:col-end-3" />
+
+          {/* Columns 3, 4, 5 */}
+          <div className="md:col-start-3 md:col-end-6 pl-0 pr-4 md:pr-8 flex flex-col items-start">
+            <div ref={emblemRef}>
+              <SweepingOrbitalEmblem label="The Coastal Sanctuary" reducedMotion={reducedMotion} />
+            </div>
+
+            <h2
+              ref={titleRef}
+              className="font-cinzel font-normal uppercase leading-[1.12] tracking-[0.04em] text-ink w-full pl-0"
+              style={{
+                fontSize: "clamp(24px, 3.2vw, 45px)",
+              }}
+              aria-label={COASTAL_STORY_LINES.join(" ")}
+            >
+              {COASTAL_STORY_LINES.map((line, i) => (
+                <div key={i} className="overflow-hidden block py-0.5">
+                  <span
+                    ref={(el) => {
+                      lineRefs.current[i] = el;
+                    }}
+                    aria-hidden="true"
+                    className="block font-cinzel font-normal uppercase tracking-[0.035em] text-ink will-change-transform"
+                  >
+                    {line}
+                  </span>
+                </div>
+              ))}
             </h2>
           </div>
-          <p className="font-jakarta text-xs md:text-sm text-ink/65 max-w-md leading-relaxed">
-            Perched above the southern ocean, our infinity pool mirrors the Sri Lankan sunset — crafted for unhurried evenings.
-          </p>
+
+          {/* Column 6 */}
+          <div className="hidden md:block md:col-start-6 md:col-end-7" />
+        </div>
+      </div>
+    </section>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Branches Section 02 (Galle) — Full-Bleed Parallax with Smooth Scrub
+// ---------------------------------------------------------------------------
+function GalleBranchSection({ reducedMotion }: { reducedMotion: boolean }) {
+  const sectionRef = useRef<HTMLElement>(null);
+  const imgRef = useRef<HTMLImageElement>(null);
+  const labelRef = useRef<HTMLSpanElement>(null);
+  const titleRef = useRef<HTMLHeadingElement>(null);
+  const lineRef = useRef<HTMLParagraphElement>(null);
+
+  useEffect(() => {
+    gsap.registerPlugin(ScrollTrigger);
+
+    const img = imgRef.current;
+    const label = labelRef.current;
+    const title = titleRef.current;
+    const line = lineRef.current;
+    const section = sectionRef.current;
+    if (!section || !img || !label || !title || !line) return;
+
+    if (reducedMotion) {
+      gsap.set([label, title, line], { opacity: 1, y: 0 });
+      return;
+    }
+
+    gsap.set(img, { scale: 1.05, y: -30 });
+    gsap.set(label, { y: 25, opacity: 0 });
+    gsap.set(title, { y: 25, opacity: 0 });
+    gsap.set(line, { y: 20, opacity: 0 });
+
+    const ctx = gsap.context(() => {
+      // Parallax scrub on image
+      gsap.to(img, {
+        y: 30,
+        scale: 1.0,
+        ease: "none",
+        scrollTrigger: {
+          trigger: section,
+          start: "top bottom",
+          end: "bottom top",
+          scrub: 1.5,
+        },
+      });
+
+      // Text entrance timeline triggered when section is reached
+      const textTl = gsap.timeline({
+        scrollTrigger: {
+          trigger: section,
+          start: "top 72%",
+          toggleActions: "play none none none",
+        },
+      });
+
+      textTl
+        .to(label, { opacity: 1, y: 0, duration: 0.6, ease: "power2.out" })
+        .to(title, { opacity: 1, y: 0, duration: 0.7, ease: "power2.out" }, "-=0.3")
+        .to(line, { opacity: 1, y: 0, duration: 0.7, ease: "power2.out" }, "-=0.3");
+    }, section);
+
+    return () => ctx.revert();
+  }, [reducedMotion]);
+
+  return (
+    <section
+      ref={sectionRef}
+      id="galle-branch"
+      aria-label="SkyNest Galle branch"
+      className="relative bg-paper overflow-hidden w-full"
+    >
+      <div className="relative w-full aspect-[3/2] overflow-hidden">
+        {/* Parallax background image */}
+        <div className="absolute inset-0 w-full h-full z-0 overflow-hidden">
+          {/* Feathered top gradient */}
+          <div
+            aria-hidden="true"
+            className="absolute inset-x-0 top-0 h-28 md:h-44 pointer-events-none z-[2]"
+            style={{
+              background:
+                "linear-gradient(to bottom, #FDFCFA 0%, rgba(253,252,250,0.85) 25%, rgba(253,252,250,0.3) 65%, transparent 100%)",
+            }}
+          />
+
+          <img
+            ref={imgRef}
+            src="/Galle.jpg"
+            alt="SkyNest Galle — colonial harbour ramparts and southern coastline"
+            className="w-full h-full object-cover object-center"
+            style={{
+              willChange: "transform",
+            }}
+          />
         </div>
 
-        {/* Doppelrand Double-Bezel Frame */}
-        <div className="relative group p-2 md:p-3 rounded-[2rem] bg-ink/[0.03] border border-ink/10 transition-all duration-700 hover:border-ink/20 shadow-sm">
-          <div className="relative rounded-[calc(2rem-0.5rem)] overflow-hidden aspect-[16/9] md:aspect-[21/9] min-h-[360px]">
-            <img
-              ref={imgRef}
-              src="/sunset-at-a-swimming-pool-during-a-vacation-on-a-t-2026-03-17-05-37-28-utc.jpg"
-              alt="Sunset at SkyNest Galle infinity pool"
-              className="w-full h-full object-cover"
-              style={{ willChange: "transform" }}
-            />
-            <div className="absolute inset-0 bg-gradient-to-t from-ink/90 via-ink/25 to-transparent" />
+        {/* 6-column grid lines */}
+        <div className="absolute inset-0 pointer-events-none z-[5]">
+          <HairlineGrid count={5} color="border-white/[0.15] md:border-white/[0.12]" />
+        </div>
 
-            <div className="absolute inset-x-0 bottom-0 p-6 md:p-12 flex flex-col md:flex-row md:items-end justify-between gap-6 text-white z-10">
-              <div>
-                <span className="font-cinzel italic text-white/75 text-xs md:text-sm">
-                  Galle Fort Coastline
-                </span>
-                <h3 className="font-cinzel text-2xl md:text-4xl text-white mt-1">
-                  The Ocean Horizon Pool
-                </h3>
-              </div>
-              <div className="flex items-center gap-4">
-                <span className="hidden sm:inline-block font-jakarta text-[11px] tracking-[0.2em] text-white/70 uppercase">
-                  6.0535° N, 80.2210° E
-                </span>
-                <a
-                  href="#booking"
-                  className="px-6 py-3 rounded-full bg-white/15 hover:bg-white/25 backdrop-blur-md border border-white/30 text-white font-jakarta text-[11px] font-medium tracking-[0.14em] uppercase transition-all duration-300 focus-visible:outline focus-visible:outline-2 focus-visible:outline-white"
-                >
-                  Reserve Pavilion
-                </a>
-              </div>
-            </div>
+        {/* Text overlay */}
+        <div
+          aria-hidden="false"
+          className="absolute inset-0 pointer-events-none z-10"
+        >
+          <div className="relative h-full mx-auto max-w-[1400px] px-6 md:px-16 flex flex-col items-end justify-start pt-12 md:pt-20 gap-2.5 md:gap-4 text-right">
+            <span
+              ref={labelRef}
+              className="font-jakarta text-[11px] md:text-[12px] font-bold tracking-[0.3em] uppercase text-ink/80 drop-shadow-sm text-right"
+              style={{
+                willChange: "transform, opacity",
+              }}
+            >
+              02 &nbsp;/&nbsp; GALLE COASTLINE
+            </span>
+
+            <h2
+              ref={titleRef}
+              className="font-cinzel text-ink leading-[1.05] drop-shadow-sm uppercase tracking-[0.03em] text-right"
+              style={{
+                fontSize: "clamp(32px, 4.8vw, 72px)",
+                willChange: "transform, opacity",
+              }}
+            >
+              SkyNest Galle
+            </h2>
+
+            <p
+              ref={lineRef}
+              className="font-cinzel italic text-ink/75 max-w-lg leading-relaxed text-sm md:text-lg drop-shadow-sm text-right"
+              style={{
+                willChange: "transform, opacity",
+              }}
+            >
+              Perched above the southern ocean, where colonial ramparts meet the warmth of golden hour tides.
+            </p>
           </div>
         </div>
       </div>
+
+      <div className="border-b border-skynest-hairline" />
+    </section>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// City Interlude Section (Between Galle and Colombo)
+// ---------------------------------------------------------------------------
+function ColomboCityInterludeSection({ reducedMotion }: { reducedMotion: boolean }) {
+  const sectionRef = useRef<HTMLElement>(null);
+  const titleRef = useRef<HTMLHeadingElement>(null);
+  const emblemRef = useRef<HTMLDivElement>(null);
+  const lineRefs = useRef<(HTMLSpanElement | null)[]>([]);
+
+  useEffect(() => {
+    gsap.registerPlugin(ScrollTrigger);
+
+    const section = sectionRef.current;
+    const title = titleRef.current;
+    const emblem = emblemRef.current;
+    const lines = lineRefs.current.filter(Boolean) as HTMLSpanElement[];
+
+    if (reducedMotion) {
+      if (emblem) gsap.set(emblem, { opacity: 1, y: 0 });
+      gsap.set(lines, { opacity: 1, y: 0 });
+      return;
+    }
+
+    if (!section || !title) return;
+
+    if (emblem) gsap.set(emblem, { opacity: 0, y: 25 });
+    gsap.set(lines, { opacity: 0, y: "110%" });
+
+    const ctx = gsap.context(() => {
+      const tl = gsap.timeline({
+        scrollTrigger: {
+          trigger: title,
+          start: "top 82%",
+          toggleActions: "play none none none",
+        },
+      });
+
+      if (emblem) {
+        tl.to(emblem, { opacity: 1, y: 0, duration: 0.7, ease: "power2.out" });
+      }
+      tl.to(
+        lines,
+        {
+          opacity: 1,
+          y: "0%",
+          duration: 0.95,
+          stagger: 0.12,
+          ease: "power3.out",
+        },
+        emblem ? "-=0.3" : 0
+      );
+    }, section);
+
+    return () => ctx.revert();
+  }, [reducedMotion]);
+
+  return (
+    <section
+      ref={sectionRef}
+      id="colombo-story"
+      aria-label="SkyNest Colombo city story"
+      className="relative bg-paper overflow-hidden py-14 md:py-20"
+    >
+      {/* 6-column hairline grid */}
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-0 flex"
+        style={{ zIndex: 1 }}
+      >
+        {Array.from({ length: 6 }).map((_, i) => (
+          <div
+            key={i}
+            className="flex-1 border-l border-ink/[0.06] last:border-r"
+          />
+        ))}
+      </div>
+
+      <div className="relative z-10 w-full">
+        <div className="grid grid-cols-1 md:grid-cols-6 items-start">
+          {/* Columns 1 & 2 */}
+          <div className="hidden md:block md:col-start-1 md:col-end-3" />
+
+          {/* Columns 3, 4, 5 */}
+          <div className="md:col-start-3 md:col-end-6 pl-0 pr-4 md:pr-8 flex flex-col items-start">
+            <div ref={emblemRef}>
+              <SweepingOrbitalEmblem label="The Urban Sanctuary" reducedMotion={reducedMotion} />
+            </div>
+
+            <h2
+              ref={titleRef}
+              className="font-cinzel font-normal uppercase leading-[1.12] tracking-[0.04em] text-ink w-full pl-0"
+              style={{
+                fontSize: "clamp(24px, 3.2vw, 45px)",
+              }}
+              aria-label={COLOMBO_STORY_LINES.join(" ")}
+            >
+              {COLOMBO_STORY_LINES.map((line, i) => (
+                <div key={i} className="overflow-hidden block py-0.5">
+                  <span
+                    ref={(el) => {
+                      lineRefs.current[i] = el;
+                    }}
+                    aria-hidden="true"
+                    className="block font-cinzel font-normal uppercase tracking-[0.035em] text-ink will-change-transform"
+                  >
+                    {line}
+                  </span>
+                </div>
+              ))}
+            </h2>
+          </div>
+
+          {/* Column 6 */}
+          <div className="hidden md:block md:col-start-6 md:col-end-7" />
+        </div>
+      </div>
+    </section>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Branches Section 03 (Colombo) — Full-Bleed Parallax with Smooth Scrub
+// ---------------------------------------------------------------------------
+function ColomboBranchSection({ reducedMotion }: { reducedMotion: boolean }) {
+  const sectionRef = useRef<HTMLElement>(null);
+  const imgRef = useRef<HTMLImageElement>(null);
+  const labelRef = useRef<HTMLSpanElement>(null);
+  const titleRef = useRef<HTMLHeadingElement>(null);
+  const lineRef = useRef<HTMLParagraphElement>(null);
+
+  useEffect(() => {
+    gsap.registerPlugin(ScrollTrigger);
+
+    const img = imgRef.current;
+    const label = labelRef.current;
+    const title = titleRef.current;
+    const line = lineRef.current;
+    const section = sectionRef.current;
+    if (!section || !img || !label || !title || !line) return;
+
+    if (reducedMotion) {
+      gsap.set([label, title, line], { opacity: 1, y: 0 });
+      return;
+    }
+
+    gsap.set(img, { scale: 1.1, y: 140 });
+    gsap.set(label, { y: 25, opacity: 0 });
+    gsap.set(title, { y: 25, opacity: 0 });
+    gsap.set(line, { y: 20, opacity: 0 });
+
+    const ctx = gsap.context(() => {
+      // Parallax scrub on image
+      gsap.to(img, {
+        y: -30,
+        scale: 1.0,
+        ease: "none",
+        scrollTrigger: {
+          trigger: section,
+          start: "top bottom",
+          end: "bottom top",
+          scrub: 1.5,
+        },
+      });
+
+      // Text entrance timeline triggered when section is reached
+      const textTl = gsap.timeline({
+        scrollTrigger: {
+          trigger: section,
+          start: "top 72%",
+          toggleActions: "play none none none",
+        },
+      });
+
+      textTl
+        .to(label, { opacity: 1, y: 0, duration: 0.6, ease: "power2.out" })
+        .to(title, { opacity: 1, y: 0, duration: 0.7, ease: "power2.out" }, "-=0.3")
+        .to(line, { opacity: 1, y: 0, duration: 0.7, ease: "power2.out" }, "-=0.3");
+    }, section);
+
+    return () => ctx.revert();
+  }, [reducedMotion]);
+
+  return (
+    <section
+      ref={sectionRef}
+      id="colombo-branch"
+      aria-label="SkyNest Colombo branch"
+      className="relative bg-paper overflow-hidden w-full"
+    >
+      <div className="relative w-full aspect-[3/2] overflow-hidden">
+        {/* Parallax background image */}
+        <div className="absolute inset-0 w-full h-full z-0 overflow-hidden">
+          {/* Feathered top gradient */}
+          <div
+            aria-hidden="true"
+            className="absolute inset-x-0 top-0 h-40 md:h-64 pointer-events-none z-[2]"
+            style={{
+              background:
+                "linear-gradient(to bottom, #FDFCFA 0%, rgba(253,252,250,0.9) 30%, rgba(253,252,250,0.45) 62%, rgba(253,252,250,0.08) 88%, transparent 100%)",
+            }}
+          />
+
+          <img
+            ref={imgRef}
+            src="/Colombo.jpg"
+            alt="SkyNest Colombo — harbour city skyline meeting the Indian Ocean"
+            className="w-full h-full object-cover object-top"
+            style={{
+              willChange: "transform",
+            }}
+          />
+        </div>
+
+        {/* 6-column grid lines */}
+        <div className="absolute inset-0 pointer-events-none z-[5]">
+          <HairlineGrid count={5} color="border-white/[0.15] md:border-white/[0.12]" />
+        </div>
+
+        {/* Text overlay — left-aligned (mirrors Kandy) */}
+        <div
+          aria-hidden="false"
+          className="absolute inset-0 pointer-events-none z-10"
+        >
+          <div className="relative h-full mx-auto max-w-[1400px] px-6 md:px-16 flex flex-col justify-start pt-12 md:pt-20 gap-2.5 md:gap-4">
+            <span
+              ref={labelRef}
+              className="font-jakarta text-[11px] md:text-[12px] font-bold tracking-[0.3em] uppercase text-ink/80 drop-shadow-sm"
+              style={{
+                willChange: "transform, opacity",
+                opacity: reducedMotion ? 1 : 0,
+              }}
+            >
+              03 &nbsp;/&nbsp; COLOMBO CITY
+            </span>
+
+            <h2
+              ref={titleRef}
+              className="font-cinzel text-ink leading-[1.05] drop-shadow-sm uppercase tracking-[0.03em]"
+              style={{
+                fontSize: "clamp(32px, 4.8vw, 72px)",
+                willChange: "transform, opacity",
+                opacity: reducedMotion ? 1 : 0,
+              }}
+            >
+              SkyNest Colombo
+            </h2>
+
+            <p
+              ref={lineRef}
+              className="font-cinzel italic text-ink/75 max-w-lg leading-relaxed text-sm md:text-lg drop-shadow-sm"
+              style={{
+                willChange: "transform, opacity",
+                opacity: reducedMotion ? 1 : 0,
+              }}
+            >
+              Where the colonial harbour city pulses with life, a sanctuary of calm above the ocean horizon.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <div className="border-b border-skynest-hairline" />
     </section>
   );
 }
@@ -1172,18 +1633,23 @@ export default function SkyNestHomePage() {
       {/* Intro / Story — appears after the cloud covers everything */}
       <IntroSection reducedMotion={reducedMotion} />
 
-      {/* Branches — Kandy hotel sky-to-white bleed */}
-      <BranchesSection reducedMotion={reducedMotion} />
+      {/* Branch 01 — Kandy Highlands */}
+      <KandyBranchSection reducedMotion={reducedMotion} />
 
-      {/* Sunset Showcase Section */}
-      <SunsetShowcaseSection reducedMotion={reducedMotion} />
+      {/* Interlude / Story — Southern Coast */}
+      <CoastalInterludeSection reducedMotion={reducedMotion} />
 
-      {/* Placeholder anchor for booking section */}
-      <div id="how-booking-works" className="bg-paper py-8 px-6 md:px-12 border-t border-skynest-hairline">
-        <p className="font-jakarta text-[11px] tracking-[0.15em] uppercase text-ink/30 text-center">
-          — Booking flow coming soon —
-        </p>
-      </div>
+      {/* Branch 02 — Galle Coastline */}
+      <GalleBranchSection reducedMotion={reducedMotion} />
+
+      {/* Interlude / Story — Colombo City */}
+      <ColomboCityInterludeSection reducedMotion={reducedMotion} />
+
+      {/* Branch 03 — Colombo City */}
+      <ColomboBranchSection reducedMotion={reducedMotion} />
+
+      {/* Premium Architectural Footer */}
+      <SkyNestFooter />
     </div>
   );
 }
