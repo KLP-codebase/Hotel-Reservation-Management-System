@@ -11,8 +11,9 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
         {/* Brand */}
         <div className="text-center mb-10">
           <h1 className="text-2xl font-semibold text-amber-400 tracking-wide">Sky Nest</h1>
-          <p className="text-stone-500 text-sm mt-1">Hotel Management System</p>
+          <p className="text-stone-500 text-xs mt-1 uppercase tracking-widest font-medium">SkyNest Hotels</p>
         </div>
+
         {children}
       </div>
     </div>
