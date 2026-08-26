@@ -23,6 +23,21 @@ html.lenis body {
   pointer-events: none;
 }
 
+/* ── Hide scrollbars globally across all browsers ──────────────────────────── */
+html,
+body {
+  -ms-overflow-style: none; /* IE and Edge */
+  scrollbar-width: none; /* Firefox */
+}
+
+html::-webkit-scrollbar,
+body::-webkit-scrollbar,
+*::-webkit-scrollbar {
+  display: none;
+  width: 0;
+  height: 0;
+}
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;

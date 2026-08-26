@@ -733,58 +733,71 @@ function CloudTransition() {
 }
 
 // ---------------------------------------------------------------------------
-// Text reveal hook — IntersectionObserver per line
-// ---------------------------------------------------------------------------
-function useLineReveal(lineCount: number, reducedMotion: boolean) {
-  const lineRefs = useRef<(HTMLSpanElement | null)[]>([]);
-  const [visibleLines, setVisibleLines] = useState<boolean[]>(
-    Array(lineCount).fill(reducedMotion)
-  );
-
-  useEffect(() => {
-    if (reducedMotion) {
-      setVisibleLines(Array(lineCount).fill(true));
-      return;
-    }
-
-    const observers: IntersectionObserver[] = [];
-
-    lineRefs.current.forEach((el, i) => {
-      if (!el) return;
-      const obs = new IntersectionObserver(
-        ([entry]) => {
-          if (entry.isIntersecting) {
-            setVisibleLines((prev) => {
-              const next = [...prev];
-              next[i] = true;
-              return next;
-            });
-            obs.disconnect();
-          }
-        },
-        { threshold: 0.6 }
-      );
-      obs.observe(el);
-      observers.push(obs);
-    });
-
-    return () => observers.forEach((o) => o.disconnect());
-  }, [lineCount, reducedMotion]);
-
-  return { lineRefs, visibleLines };
-}
-
-// ---------------------------------------------------------------------------
 // Intro / Story Section
 // ---------------------------------------------------------------------------
 function IntroSection({ reducedMotion }: { reducedMotion: boolean }) {
-  const { lineRefs, visibleLines } = useLineReveal(
-    STORY_LINES.length,
-    reducedMotion
-  );
+  const sectionRef = useRef<HTMLElement>(null);
+  const titleRef = useRef<HTMLHeadingElement>(null);
+  const emblemRef = useRef<HTMLDivElement>(null);
+  const lineRefs = useRef<(HTMLSpanElement | null)[]>([]);
+  const subTextRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    gsap.registerPlugin(ScrollTrigger);
+
+    const section = sectionRef.current;
+    const title = titleRef.current;
+    const emblem = emblemRef.current;
+    const lines = lineRefs.current.filter(Boolean) as HTMLSpanElement[];
+    const subText = subTextRef.current;
+
+    if (reducedMotion) {
+      if (emblem) gsap.set(emblem, { opacity: 1, y: 0 });
+      gsap.set(lines, { opacity: 1, y: 0 });
+      if (subText) gsap.set(subText, { opacity: 1, y: 0 });
+      return;
+    }
+
+    if (!section || !title) return;
+
+    if (emblem) gsap.set(emblem, { opacity: 0, y: 25 });
+    gsap.set(lines, { opacity: 0, y: "110%" });
+    if (subText) gsap.set(subText, { opacity: 0, y: 20 });
+
+    const ctx = gsap.context(() => {
+      const tl = gsap.timeline({
+        scrollTrigger: {
+          trigger: title,
+          start: "top 82%",
+          toggleActions: "play none none none",
+        },
+      });
+
+      if (emblem) {
+        tl.to(emblem, { opacity: 1, y: 0, duration: 0.7, ease: "power2.out" });
+      }
+      tl.to(
+        lines,
+        {
+          opacity: 1,
+          y: "0%",
+          duration: 0.95,
+          stagger: 0.12,
+          ease: "power3.out",
+        },
+        emblem ? "-=0.3" : 0
+      );
+      if (subText) {
+        tl.to(subText, { opacity: 1, y: 0, duration: 0.8, ease: "power2.out" }, "-=0.3");
+      }
+    }, section);
+
+    return () => ctx.revert();
+  }, [reducedMotion]);
 
   return (
     <section
+      ref={sectionRef}
       id="story"
       aria-label="SkyNest Hotels story"
       className="relative bg-paper overflow-hidden py-14 md:py-20"
@@ -810,9 +823,12 @@ function IntroSection({ reducedMotion }: { reducedMotion: boolean }) {
 
           {/* Columns 3, 4, 5 */}
           <div className="md:col-start-3 md:col-end-6 pl-0 pr-4 md:pr-8 flex flex-col items-start">
-            <SweepingOrbitalEmblem label="The SkyNest Standard" reducedMotion={reducedMotion} />
+            <div ref={emblemRef}>
+              <SweepingOrbitalEmblem label="The SkyNest Standard" reducedMotion={reducedMotion} />
+            </div>
 
             <h1
+              ref={titleRef}
               className="font-cinzel font-normal uppercase leading-[1.12] tracking-[0.04em] text-ink w-full pl-0"
               style={{
                 fontSize: "clamp(24px, 3.2vw, 45px)",
@@ -820,35 +836,26 @@ function IntroSection({ reducedMotion }: { reducedMotion: boolean }) {
               aria-label={STORY_LINES.join(" ")}
             >
               {STORY_LINES.map((line, i) => (
-                <span
-                  key={i}
-                  ref={(el) => {
-                    lineRefs.current[i] = el;
-                  }}
-                  aria-hidden="true"
-                  className="block transition-colors duration-700 font-cinzel font-normal uppercase tracking-[0.035em]"
-                  style={{
-                    color: visibleLines[i] ? "#0B2540" : "#D4DCE3",
-                    transitionDelay: `${i * 80}ms`,
-                  }}
-                >
-                  {line}
-                </span>
+                <div key={i} className="overflow-hidden block py-0.5">
+                  <span
+                    ref={(el) => {
+                      lineRefs.current[i] = el;
+                    }}
+                    aria-hidden="true"
+                    className="block font-cinzel font-normal uppercase tracking-[0.035em] text-ink will-change-transform"
+                  >
+                    {line}
+                  </span>
+                </div>
               ))}
             </h1>
 
             {/* Sub-text & CTA */}
-            <div className="mt-8 md:mt-10 flex flex-col sm:flex-row sm:items-baseline justify-between gap-4 pt-4 border-t border-ink/[0.08] w-full">
-              <p
-                className={[
-                  "font-jakarta text-[12px] md:text-[13px] leading-[1.8] text-ink/55 max-w-sm",
-                  "transition-opacity duration-1000",
-                  reducedMotion || visibleLines[STORY_LINES.length - 1]
-                    ? "opacity-100 translate-y-0"
-                    : "opacity-0 translate-y-3",
-                ].join(" ")}
-                style={{ transitionDelay: "450ms" }}
-              >
+            <div
+              ref={subTextRef}
+              className="mt-8 md:mt-10 flex flex-col sm:flex-row sm:items-baseline justify-between gap-4 pt-4 border-t border-ink/[0.08] w-full"
+            >
+              <p className="font-jakarta text-[12px] md:text-[13px] leading-[1.8] text-ink/55 max-w-sm">
                 From the colonial harbour of Galle to the mist-veiled hills of Kandy, each SkyNest property is designed around its landscape.
               </p>
 
@@ -884,43 +891,51 @@ function KandyBranchSection({ reducedMotion }: { reducedMotion: boolean }) {
   useEffect(() => {
     gsap.registerPlugin(ScrollTrigger);
 
-    if (reducedMotion) {
-      if (labelRef.current) gsap.set(labelRef.current, { opacity: 1, y: 0 });
-      if (titleRef.current) gsap.set(titleRef.current, { opacity: 1, y: 0 });
-      if (lineRef.current) gsap.set(lineRef.current, { opacity: 1, y: 0 });
-      return;
-    }
-
     const img = imgRef.current;
     const label = labelRef.current;
     const title = titleRef.current;
     const line = lineRef.current;
-    if (!img || !label || !title || !line || !sectionRef.current) return;
+    const section = sectionRef.current;
+    if (!section || !img || !label || !title || !line) return;
+
+    if (reducedMotion) {
+      gsap.set([label, title, line], { opacity: 1, y: 0 });
+      return;
+    }
 
     gsap.set(img, { scale: 1.05, y: -30 });
-    gsap.set(label, { y: 20, opacity: 0.4 });
-    gsap.set(title, { y: 15, opacity: 0.4 });
-    gsap.set(line, { y: 10, opacity: 0.4 });
+    gsap.set(label, { y: 25, opacity: 0 });
+    gsap.set(title, { y: 25, opacity: 0 });
+    gsap.set(line, { y: 20, opacity: 0 });
 
     const ctx = gsap.context(() => {
-      const tl = gsap.timeline({
+      // Parallax scrub on image
+      gsap.to(img, {
+        y: 30,
+        scale: 1.0,
+        ease: "none",
         scrollTrigger: {
-          trigger: sectionRef.current,
+          trigger: section,
           start: "top bottom",
           end: "bottom top",
           scrub: 1.5,
         },
-        defaults: {
-          ease: "none",
-          force3D: true,
+      });
+
+      // Text entrance timeline triggered when section is reached
+      const textTl = gsap.timeline({
+        scrollTrigger: {
+          trigger: section,
+          start: "top 72%",
+          toggleActions: "play none none none",
         },
       });
 
-      tl.to(img, { y: 30, scale: 1.0 }, 0);
-      tl.to(label, { y: -20, opacity: 1 }, 0);
-      tl.to(title, { y: -15, opacity: 1 }, 0);
-      tl.to(line, { y: -10, opacity: 1 }, 0);
-    }, sectionRef);
+      textTl
+        .to(label, { opacity: 1, y: 0, duration: 0.6, ease: "power2.out" })
+        .to(title, { opacity: 1, y: 0, duration: 0.7, ease: "power2.out" }, "-=0.3")
+        .to(line, { opacity: 1, y: 0, duration: 0.7, ease: "power2.out" }, "-=0.3");
+    }, section);
 
     return () => ctx.revert();
   }, [reducedMotion]);
@@ -972,7 +987,6 @@ function KandyBranchSection({ reducedMotion }: { reducedMotion: boolean }) {
               className="font-jakarta text-[11px] md:text-[12px] font-bold tracking-[0.3em] uppercase text-ink/80 drop-shadow-sm"
               style={{
                 willChange: "transform, opacity",
-                opacity: reducedMotion ? 1 : 0,
               }}
             >
               01 &nbsp;/&nbsp; KANDY HIGHLANDS
@@ -984,7 +998,6 @@ function KandyBranchSection({ reducedMotion }: { reducedMotion: boolean }) {
               style={{
                 fontSize: "clamp(32px, 4.8vw, 72px)",
                 willChange: "transform, opacity",
-                opacity: reducedMotion ? 1 : 0,
               }}
             >
               SkyNest Kandy
@@ -995,7 +1008,6 @@ function KandyBranchSection({ reducedMotion }: { reducedMotion: boolean }) {
               className="font-cinzel italic text-ink/75 max-w-lg leading-relaxed text-sm md:text-lg drop-shadow-sm"
               style={{
                 willChange: "transform, opacity",
-                opacity: reducedMotion ? 1 : 0,
               }}
             >
               High in the hill country, where early morning mist meets endless emerald tea gardens.
@@ -1013,13 +1025,61 @@ function KandyBranchSection({ reducedMotion }: { reducedMotion: boolean }) {
 // Coastal Interlude Section (Between Kandy and Galle)
 // ---------------------------------------------------------------------------
 function CoastalInterludeSection({ reducedMotion }: { reducedMotion: boolean }) {
-  const { lineRefs, visibleLines } = useLineReveal(
-    COASTAL_STORY_LINES.length,
-    reducedMotion
-  );
+  const sectionRef = useRef<HTMLElement>(null);
+  const titleRef = useRef<HTMLHeadingElement>(null);
+  const emblemRef = useRef<HTMLDivElement>(null);
+  const lineRefs = useRef<(HTMLSpanElement | null)[]>([]);
+
+  useEffect(() => {
+    gsap.registerPlugin(ScrollTrigger);
+
+    const section = sectionRef.current;
+    const title = titleRef.current;
+    const emblem = emblemRef.current;
+    const lines = lineRefs.current.filter(Boolean) as HTMLSpanElement[];
+
+    if (reducedMotion) {
+      if (emblem) gsap.set(emblem, { opacity: 1, y: 0 });
+      gsap.set(lines, { opacity: 1, y: 0 });
+      return;
+    }
+
+    if (!section || !title) return;
+
+    if (emblem) gsap.set(emblem, { opacity: 0, y: 25 });
+    gsap.set(lines, { opacity: 0, y: "110%" });
+
+    const ctx = gsap.context(() => {
+      const tl = gsap.timeline({
+        scrollTrigger: {
+          trigger: title,
+          start: "top 82%",
+          toggleActions: "play none none none",
+        },
+      });
+
+      if (emblem) {
+        tl.to(emblem, { opacity: 1, y: 0, duration: 0.7, ease: "power2.out" });
+      }
+      tl.to(
+        lines,
+        {
+          opacity: 1,
+          y: "0%",
+          duration: 0.95,
+          stagger: 0.12,
+          ease: "power3.out",
+        },
+        emblem ? "-=0.3" : 0
+      );
+    }, section);
+
+    return () => ctx.revert();
+  }, [reducedMotion]);
 
   return (
     <section
+      ref={sectionRef}
       id="coastal-story"
       aria-label="SkyNest Southern Coast story"
       className="relative bg-paper overflow-hidden py-14 md:py-20"
@@ -1045,9 +1105,12 @@ function CoastalInterludeSection({ reducedMotion }: { reducedMotion: boolean }) 
 
           {/* Columns 3, 4, 5 */}
           <div className="md:col-start-3 md:col-end-6 pl-0 pr-4 md:pr-8 flex flex-col items-start">
-            <SweepingOrbitalEmblem label="The Coastal Sanctuary" reducedMotion={reducedMotion} />
+            <div ref={emblemRef}>
+              <SweepingOrbitalEmblem label="The Coastal Sanctuary" reducedMotion={reducedMotion} />
+            </div>
 
             <h2
+              ref={titleRef}
               className="font-cinzel font-normal uppercase leading-[1.12] tracking-[0.04em] text-ink w-full pl-0"
               style={{
                 fontSize: "clamp(24px, 3.2vw, 45px)",
@@ -1055,20 +1118,17 @@ function CoastalInterludeSection({ reducedMotion }: { reducedMotion: boolean }) 
               aria-label={COASTAL_STORY_LINES.join(" ")}
             >
               {COASTAL_STORY_LINES.map((line, i) => (
-                <span
-                  key={i}
-                  ref={(el) => {
-                    lineRefs.current[i] = el;
-                  }}
-                  aria-hidden="true"
-                  className="block transition-colors duration-700 font-cinzel font-normal uppercase tracking-[0.035em]"
-                  style={{
-                    color: visibleLines[i] ? "#0B2540" : "#D4DCE3",
-                    transitionDelay: `${i * 80}ms`,
-                  }}
-                >
-                  {line}
-                </span>
+                <div key={i} className="overflow-hidden block py-0.5">
+                  <span
+                    ref={(el) => {
+                      lineRefs.current[i] = el;
+                    }}
+                    aria-hidden="true"
+                    className="block font-cinzel font-normal uppercase tracking-[0.035em] text-ink will-change-transform"
+                  >
+                    {line}
+                  </span>
+                </div>
               ))}
             </h2>
           </div>
@@ -1094,43 +1154,51 @@ function GalleBranchSection({ reducedMotion }: { reducedMotion: boolean }) {
   useEffect(() => {
     gsap.registerPlugin(ScrollTrigger);
 
-    if (reducedMotion) {
-      if (labelRef.current) gsap.set(labelRef.current, { opacity: 1, y: 0 });
-      if (titleRef.current) gsap.set(titleRef.current, { opacity: 1, y: 0 });
-      if (lineRef.current) gsap.set(lineRef.current, { opacity: 1, y: 0 });
-      return;
-    }
-
     const img = imgRef.current;
     const label = labelRef.current;
     const title = titleRef.current;
     const line = lineRef.current;
-    if (!img || !label || !title || !line || !sectionRef.current) return;
+    const section = sectionRef.current;
+    if (!section || !img || !label || !title || !line) return;
+
+    if (reducedMotion) {
+      gsap.set([label, title, line], { opacity: 1, y: 0 });
+      return;
+    }
 
     gsap.set(img, { scale: 1.05, y: -30 });
-    gsap.set(label, { y: 20, opacity: 0.4 });
-    gsap.set(title, { y: 15, opacity: 0.4 });
-    gsap.set(line, { y: 10, opacity: 0.4 });
+    gsap.set(label, { y: 25, opacity: 0 });
+    gsap.set(title, { y: 25, opacity: 0 });
+    gsap.set(line, { y: 20, opacity: 0 });
 
     const ctx = gsap.context(() => {
-      const tl = gsap.timeline({
+      // Parallax scrub on image
+      gsap.to(img, {
+        y: 30,
+        scale: 1.0,
+        ease: "none",
         scrollTrigger: {
-          trigger: sectionRef.current,
+          trigger: section,
           start: "top bottom",
           end: "bottom top",
           scrub: 1.5,
         },
-        defaults: {
-          ease: "none",
-          force3D: true,
+      });
+
+      // Text entrance timeline triggered when section is reached
+      const textTl = gsap.timeline({
+        scrollTrigger: {
+          trigger: section,
+          start: "top 72%",
+          toggleActions: "play none none none",
         },
       });
 
-      tl.to(img, { y: 30, scale: 1.0 }, 0);
-      tl.to(label, { y: -20, opacity: 1 }, 0);
-      tl.to(title, { y: -15, opacity: 1 }, 0);
-      tl.to(line, { y: -10, opacity: 1 }, 0);
-    }, sectionRef);
+      textTl
+        .to(label, { opacity: 1, y: 0, duration: 0.6, ease: "power2.out" })
+        .to(title, { opacity: 1, y: 0, duration: 0.7, ease: "power2.out" }, "-=0.3")
+        .to(line, { opacity: 1, y: 0, duration: 0.7, ease: "power2.out" }, "-=0.3");
+    }, section);
 
     return () => ctx.revert();
   }, [reducedMotion]);
@@ -1182,7 +1250,6 @@ function GalleBranchSection({ reducedMotion }: { reducedMotion: boolean }) {
               className="font-jakarta text-[11px] md:text-[12px] font-bold tracking-[0.3em] uppercase text-ink/80 drop-shadow-sm text-right"
               style={{
                 willChange: "transform, opacity",
-                opacity: reducedMotion ? 1 : 0,
               }}
             >
               02 &nbsp;/&nbsp; GALLE COASTLINE
@@ -1194,7 +1261,6 @@ function GalleBranchSection({ reducedMotion }: { reducedMotion: boolean }) {
               style={{
                 fontSize: "clamp(32px, 4.8vw, 72px)",
                 willChange: "transform, opacity",
-                opacity: reducedMotion ? 1 : 0,
               }}
             >
               SkyNest Galle
@@ -1205,7 +1271,6 @@ function GalleBranchSection({ reducedMotion }: { reducedMotion: boolean }) {
               className="font-cinzel italic text-ink/75 max-w-lg leading-relaxed text-sm md:text-lg drop-shadow-sm text-right"
               style={{
                 willChange: "transform, opacity",
-                opacity: reducedMotion ? 1 : 0,
               }}
             >
               Perched above the southern ocean, where colonial ramparts meet the warmth of golden hour tides.
@@ -1223,13 +1288,61 @@ function GalleBranchSection({ reducedMotion }: { reducedMotion: boolean }) {
 // City Interlude Section (Between Galle and Colombo)
 // ---------------------------------------------------------------------------
 function ColomboCityInterludeSection({ reducedMotion }: { reducedMotion: boolean }) {
-  const { lineRefs, visibleLines } = useLineReveal(
-    COLOMBO_STORY_LINES.length,
-    reducedMotion
-  );
+  const sectionRef = useRef<HTMLElement>(null);
+  const titleRef = useRef<HTMLHeadingElement>(null);
+  const emblemRef = useRef<HTMLDivElement>(null);
+  const lineRefs = useRef<(HTMLSpanElement | null)[]>([]);
+
+  useEffect(() => {
+    gsap.registerPlugin(ScrollTrigger);
+
+    const section = sectionRef.current;
+    const title = titleRef.current;
+    const emblem = emblemRef.current;
+    const lines = lineRefs.current.filter(Boolean) as HTMLSpanElement[];
+
+    if (reducedMotion) {
+      if (emblem) gsap.set(emblem, { opacity: 1, y: 0 });
+      gsap.set(lines, { opacity: 1, y: 0 });
+      return;
+    }
+
+    if (!section || !title) return;
+
+    if (emblem) gsap.set(emblem, { opacity: 0, y: 25 });
+    gsap.set(lines, { opacity: 0, y: "110%" });
+
+    const ctx = gsap.context(() => {
+      const tl = gsap.timeline({
+        scrollTrigger: {
+          trigger: title,
+          start: "top 82%",
+          toggleActions: "play none none none",
+        },
+      });
+
+      if (emblem) {
+        tl.to(emblem, { opacity: 1, y: 0, duration: 0.7, ease: "power2.out" });
+      }
+      tl.to(
+        lines,
+        {
+          opacity: 1,
+          y: "0%",
+          duration: 0.95,
+          stagger: 0.12,
+          ease: "power3.out",
+        },
+        emblem ? "-=0.3" : 0
+      );
+    }, section);
+
+    return () => ctx.revert();
+  }, [reducedMotion]);
 
   return (
     <section
+      ref={sectionRef}
       id="colombo-story"
       aria-label="SkyNest Colombo city story"
       className="relative bg-paper overflow-hidden py-14 md:py-20"
@@ -1255,9 +1368,12 @@ function ColomboCityInterludeSection({ reducedMotion }: { reducedMotion: boolean
 
           {/* Columns 3, 4, 5 */}
           <div className="md:col-start-3 md:col-end-6 pl-0 pr-4 md:pr-8 flex flex-col items-start">
-            <SweepingOrbitalEmblem label="The Urban Sanctuary" reducedMotion={reducedMotion} />
+            <div ref={emblemRef}>
+              <SweepingOrbitalEmblem label="The Urban Sanctuary" reducedMotion={reducedMotion} />
+            </div>
 
             <h2
+              ref={titleRef}
               className="font-cinzel font-normal uppercase leading-[1.12] tracking-[0.04em] text-ink w-full pl-0"
               style={{
                 fontSize: "clamp(24px, 3.2vw, 45px)",
@@ -1265,20 +1381,17 @@ function ColomboCityInterludeSection({ reducedMotion }: { reducedMotion: boolean
               aria-label={COLOMBO_STORY_LINES.join(" ")}
             >
               {COLOMBO_STORY_LINES.map((line, i) => (
-                <span
-                  key={i}
-                  ref={(el) => {
-                    lineRefs.current[i] = el;
-                  }}
-                  aria-hidden="true"
-                  className="block transition-colors duration-700 font-cinzel font-normal uppercase tracking-[0.035em]"
-                  style={{
-                    color: visibleLines[i] ? "#0B2540" : "#D4DCE3",
-                    transitionDelay: `${i * 80}ms`,
-                  }}
-                >
-                  {line}
-                </span>
+                <div key={i} className="overflow-hidden block py-0.5">
+                  <span
+                    ref={(el) => {
+                      lineRefs.current[i] = el;
+                    }}
+                    aria-hidden="true"
+                    className="block font-cinzel font-normal uppercase tracking-[0.035em] text-ink will-change-transform"
+                  >
+                    {line}
+                  </span>
+                </div>
               ))}
             </h2>
           </div>
@@ -1304,43 +1417,51 @@ function ColomboBranchSection({ reducedMotion }: { reducedMotion: boolean }) {
   useEffect(() => {
     gsap.registerPlugin(ScrollTrigger);
 
-    if (reducedMotion) {
-      if (labelRef.current) gsap.set(labelRef.current, { opacity: 1, y: 0 });
-      if (titleRef.current) gsap.set(titleRef.current, { opacity: 1, y: 0 });
-      if (lineRef.current) gsap.set(lineRef.current, { opacity: 1, y: 0 });
-      return;
-    }
-
     const img = imgRef.current;
     const label = labelRef.current;
     const title = titleRef.current;
     const line = lineRef.current;
-    if (!img || !label || !title || !line || !sectionRef.current) return;
+    const section = sectionRef.current;
+    if (!section || !img || !label || !title || !line) return;
+
+    if (reducedMotion) {
+      gsap.set([label, title, line], { opacity: 1, y: 0 });
+      return;
+    }
 
     gsap.set(img, { scale: 1.1, y: 140 });
-    gsap.set(label, { y: 20, opacity: 0.4 });
-    gsap.set(title, { y: 15, opacity: 0.4 });
-    gsap.set(line, { y: 10, opacity: 0.4 });
+    gsap.set(label, { y: 25, opacity: 0 });
+    gsap.set(title, { y: 25, opacity: 0 });
+    gsap.set(line, { y: 20, opacity: 0 });
 
     const ctx = gsap.context(() => {
-      const tl = gsap.timeline({
+      // Parallax scrub on image
+      gsap.to(img, {
+        y: -30,
+        scale: 1.0,
+        ease: "none",
         scrollTrigger: {
-          trigger: sectionRef.current,
+          trigger: section,
           start: "top bottom",
           end: "bottom top",
           scrub: 1.5,
         },
-        defaults: {
-          ease: "none",
-          force3D: true,
+      });
+
+      // Text entrance timeline triggered when section is reached
+      const textTl = gsap.timeline({
+        scrollTrigger: {
+          trigger: section,
+          start: "top 72%",
+          toggleActions: "play none none none",
         },
       });
 
-      tl.to(img, { y: -30, scale: 1.0 }, 0);
-      tl.to(label, { y: -20, opacity: 1 }, 0);
-      tl.to(title, { y: -15, opacity: 1 }, 0);
-      tl.to(line, { y: -10, opacity: 1 }, 0);
-    }, sectionRef);
+      textTl
+        .to(label, { opacity: 1, y: 0, duration: 0.6, ease: "power2.out" })
+        .to(title, { opacity: 1, y: 0, duration: 0.7, ease: "power2.out" }, "-=0.3")
+        .to(line, { opacity: 1, y: 0, duration: 0.7, ease: "power2.out" }, "-=0.3");
+    }, section);
 
     return () => ctx.revert();
   }, [reducedMotion]);
