@@ -134,3 +134,90 @@ CREATE INDEX IF NOT EXISTS idx_bookings_guest_id ON bookings(guest_id);
 CREATE INDEX IF NOT EXISTS idx_bookings_room_id ON bookings(room_id);
 CREATE INDEX IF NOT EXISTS idx_bookings_dates ON bookings(check_in, check_out);
 CREATE INDEX IF NOT EXISTS idx_bookings_status ON bookings(status);
+
+-- ── New: account_type enum ─────────────────────────────────────────────────────
+
+DO $$ BEGIN
+    CREATE TYPE account_type AS ENUM (
+        'GUEST', 'RECEPTIONIST', 'SERVICE_STAFF', 'MANAGER', 'ADMINISTRATOR', 'DBA'
+    );
+EXCEPTION
+    WHEN duplicate_object THEN null;
+END $$;
+
+-- ── New: branches ──────────────────────────────────────────────────────────────
+
+CREATE TABLE IF NOT EXISTS branches (
+    branch_id   UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    branch_name VARCHAR(100) UNIQUE NOT NULL,
+    city        VARCHAR(100) NOT NULL,
+    address     TEXT,
+    phone       VARCHAR(50),
+    email       VARCHAR(255),
+    is_active   BOOLEAN DEFAULT true,
+    created_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- ── New: staff ─────────────────────────────────────────────────────────────────
+
+CREATE TABLE IF NOT EXISTS staff (
+    staff_id   UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    branch_id  UUID REFERENCES branches(branch_id) ON DELETE SET NULL,
+    first_name VARCHAR(100) NOT NULL,
+    last_name  VARCHAR(100) NOT NULL,
+    email      VARCHAR(255) UNIQUE NOT NULL,
+    phone      VARCHAR(50),
+    role       account_type NOT NULL,
+    is_active  BOOLEAN DEFAULT true,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- ── New: user_accounts ────────────────────────────────────────────────────────
+
+CREATE TABLE IF NOT EXISTS user_accounts (
+    user_account_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    staff_id        UUID UNIQUE REFERENCES staff(staff_id) ON DELETE CASCADE,
+    username        VARCHAR(100) UNIQUE NOT NULL,
+    password_hash   VARCHAR(255) NOT NULL,
+    account_type    account_type NOT NULL,
+    is_active       BOOLEAN DEFAULT true,
+    last_login_at   TIMESTAMP,
+    created_at      TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at      TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- ── New: audit_logs ───────────────────────────────────────────────────────────
+
+CREATE TABLE IF NOT EXISTS audit_logs (
+    audit_id    UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    actor_id    UUID,
+    entity_type VARCHAR(50) NOT NULL,
+    entity_id   UUID NOT NULL,
+    action      VARCHAR(50) NOT NULL,
+    old_value   JSONB,
+    new_value   JSONB,
+    ip_address  VARCHAR(45),
+    created_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- ── New: branch_id FK on rooms ────────────────────────────────────────────────
+
+ALTER TABLE rooms ADD COLUMN IF NOT EXISTS branch_id UUID REFERENCES branches(branch_id) ON DELETE SET NULL;
+
+-- ── New: indexes for new tables ───────────────────────────────────────────────
+
+CREATE INDEX IF NOT EXISTS idx_staff_branch_id      ON staff(branch_id);
+CREATE INDEX IF NOT EXISTS idx_staff_email          ON staff(email);
+CREATE INDEX IF NOT EXISTS idx_accounts_username    ON user_accounts(username);
+CREATE INDEX IF NOT EXISTS idx_accounts_staff_id    ON user_accounts(staff_id);
+CREATE INDEX IF NOT EXISTS idx_audit_entity         ON audit_logs(entity_type, entity_id);
+CREATE INDEX IF NOT EXISTS idx_audit_actor          ON audit_logs(actor_id);
+CREATE INDEX IF NOT EXISTS idx_audit_created        ON audit_logs(created_at DESC);
+
+-- GoF Singleton Pattern: Guarantee exactly ONE Administrator account instance
+CREATE UNIQUE INDEX IF NOT EXISTS uq_singleton_admin_account
+    ON user_accounts (account_type)
+    WHERE account_type = 'ADMINISTRATOR';
+

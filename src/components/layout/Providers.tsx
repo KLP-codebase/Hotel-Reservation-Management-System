@@ -5,6 +5,7 @@ import { SessionProvider } from "next-auth/react";
 import { Toaster } from "sonner";
 import { useState } from "react";
 import { SmoothScroll } from "./SmoothScroll";
+import { AuthProvider } from "@/context/auth-context";
 
 export function Providers({ children }: { children: React.ReactNode }) {
   const [queryClient] = useState(
@@ -20,14 +21,17 @@ export function Providers({ children }: { children: React.ReactNode }) {
   );
 
   return (
-    <SessionProvider>
-      <QueryClientProvider client={queryClient}>
-        <SmoothScroll>
-          {children}
-        </SmoothScroll>
-        <Toaster position="top-right" richColors closeButton />
-      </QueryClientProvider>
-    </SessionProvider>
+    <AuthProvider>
+      <SessionProvider>
+        <QueryClientProvider client={queryClient}>
+          <SmoothScroll>
+            {children}
+          </SmoothScroll>
+          <Toaster position="top-right" richColors closeButton />
+        </QueryClientProvider>
+      </SessionProvider>
+    </AuthProvider>
   );
 }
+
 
