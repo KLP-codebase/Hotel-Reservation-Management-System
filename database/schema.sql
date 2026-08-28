@@ -18,29 +18,8 @@ EXCEPTION
     WHEN duplicate_object THEN null;
 END $$;
 
-DO $$ BEGIN
-    CREATE TYPE booking_status AS ENUM ('PENDING', 'CONFIRMED', 'CHECKED_IN', 'CHECKED_OUT', 'CANCELLED');
-EXCEPTION
-    WHEN duplicate_object THEN null;
-END $$;
-
-DO $$ BEGIN
-    CREATE TYPE payment_status AS ENUM ('PENDING', 'PAID', 'REFUNDED', 'FAILED');
-EXCEPTION
-    WHEN duplicate_object THEN null;
-END $$;
-
-DO $$ BEGIN
-    CREATE TYPE loyalty_tier AS ENUM ('BRONZE', 'SILVER', 'GOLD', 'PLATINUM');
-EXCEPTION
-    WHEN duplicate_object THEN null;
-END $$;
-
-DO $$ BEGIN
-    CREATE TYPE booking_source AS ENUM ('DIRECT', 'BOOKING_COM', 'AGODA', 'WALK_IN');
-EXCEPTION
-    WHEN duplicate_object THEN null;
-END $$;
+-- booking_status, payment_status, loyalty_tier, booking_source removed —
+-- their tables (bookings, guests, bills) are managed by the Reservation & Billing modules.
 
 DO $$ BEGIN
     CREATE TYPE user_role AS ENUM ('ADMIN', 'MANAGER', 'RECEPTIONIST', 'HOUSEKEEPING');
