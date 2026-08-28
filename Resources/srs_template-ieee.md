@@ -166,7 +166,7 @@ System Boundaries \- Out of Scope:
 | IEEE Std 830-1998 | IEEE Recommended Practice for Software Requirements Specifications |
 | IEEE Std 1016-1998 | IEEE Recommended Practice for Software Design Descriptions |
 | ISO/IEC 25010:2011 | Systems and software Quality Requirements and Evaluation (SQuaRE) |
-| MySQL 8.0 Documentation | [MySQL Documentation](https://dev.mysql.com/doc/refman/8.0/en/) |
+| PostgreSQL 15 Documentation | [PostgreSQL Documentation](https://www.postgresql.org/docs/15/) |
 | OWASP Top 10 2021 | Security standards for web application development |
 | WCAG 2.1 Level AA | Web Content Accessibility Guidelines |
 | PCI DSS v3.2.1 | Payment Card Industry Data Security Standard |
@@ -239,15 +239,15 @@ The role of the database administrator is characterized abstractly by the follow
 | Category | Specification |
 | :---- | :---- |
 | Server OS | Ubuntu Server 22.04 LTS (or Windows Server 2022\) |
-| Database | MySQL 8.0 Community/Enterprise Edition |
-| Application Server | Node.js 20 LTS with Express.js framework (or PHP 8.2 with Laravel) |
+| Database | PostgreSQL 15 (containerized via Docker) |
+| Application Server | Node.js 20 LTS with Express.js v4 (backend API) and Next.js 14 (frontend) |
 | Client Browsers | Google Chrome 120+, Mozilla Firefox 120+, Microsoft Edge 120+ (latest stable releases) |
 | Client OS | Windows 10/11, macOS 13+, Ubuntu 20.04+ |
 | Mobile Support | Responsive web interface; no native mobile app required |
-| Network | Minimum 10 Mbps LAN; VPN for inter-branch communication; HTTPS required |
-| Minimum Server Hardware | 4-core CPU, 16 GB RAM |
+| Network | Minimum 10 Mbps LAN; HTTPS required |
+| Minimum Server Hardware | 2-core CPU, 4 GB RAM (Railway hobby plan) |
 | Client Workstation | Dual-core CPU, 4 GB RAM, 1366×768 display resolution minimum |
-| Cloud Platform | On-premises server with optional AWS/GCP deployment in future phases |
+| Cloud Platform | Railway (cloud deployment); Docker Compose (local development) |
 
 ## 
 
@@ -255,9 +255,9 @@ The role of the database administrator is characterized abstractly by the follow
 
 The design and implementation of the HRGSMS are governed by the following constraints:
 
-* **Database-First Architecture & ACID Compliance:** MySQL 8.0 is the backbone of the database centric design . All critical business logic—specifically check-ins, billing calculations, and double-booking checks—must be executed within MySQL using stored procedures, functions, and triggers. Application-layer code must not be the sole arbiter of system state.  
-* **Data Integrity & Normalization:** All database relations must be normalized to **Boyce-Codd Normal Form (BCNF)** to eliminate redundancy and prevent anomalies. Referential integrity must be strictly enforced at the schema level using Foreign Keys with explicit ON DELETE RESTRICT or ON DELETE CASCADE rules. Primary keys, unique constraints, and check constraints are mandatory throughout the schema.  
-* **Technical Stack:** Core database operations and critical business logic must be executed using SQL via MySQL 8.0 stored procedures and triggers to guarantee ACID compliance. The application-layer framework is fully centralized on a JavaScript/Node.js stack, specifically utilizing Node.js v20.x alongside Express.js and Next.js. This open-source architecture, paired with deployment on Cloudflare's serverless edge platform (Cloudflare Pages/Workers), is strictly utilized to minimize licensing costs while maximizing global scalability and eliminating cold start delays   
+* **Database-First Architecture & ACID Compliance:** PostgreSQL 15 is the backbone of the database-centric design. All critical business logic—specifically check-ins, billing calculations, and booking conflict checks—must be executed within PostgreSQL using stored procedures, functions, and triggers. Application-layer code must not be the sole arbiter of system state.  
+* **Data Integrity & Normalization:** All database relations must be normalized to at least **3NF** to eliminate redundancy and prevent anomalies. Referential integrity must be strictly enforced at the schema level using Foreign Keys with explicit ON DELETE RESTRICT or ON DELETE CASCADE rules. Primary keys, unique constraints, and check constraints are mandatory throughout the schema.  
+* **Technical Stack:** Core database operations use raw SQL via the `pg` npm package (no ORM). The application layer uses Node.js v20.x with Express.js (backend REST API) and Next.js 14 (frontend). The system is containerized with **Docker Compose** for local development and deployed to **Railway** for cloud hosting, minimizing infrastructure costs for a university-scale deployment.  
 * **Performance:**  
   * **Reporting:** Reports must complete within 10 seconds for data spanning up to 1 year.  
   * **Transactions:** Booking creation response times must be within 2 seconds.  
@@ -321,8 +321,8 @@ The design and implementation of the HRGSMS are governed by the following constr
   * The system depends on the PayHere Checkout API (and its webhook callbacks) to securely process credit/debit card transactions and validate final bills .  
   * Automated email dispatch depends on third-party SMTP gateways (e.g., Nodemailer, SendGrid, Resend) .  
 * **Technology Stack and Infrastructure:**  
-  * The system's core reliability is heavily dependent on MySQL 8.0; all critical business logic (billing calculations, overlap prevention) depends on database-level stored procedures, functions, and triggers executing correctly.  
-  * Application hosting and performance depend on Cloudflare Pages/Workers (V8 Edge Runtime) to handle global serverless computing, routing, and zero cold-start API executions.  
+  * The system's core reliability is heavily dependent on PostgreSQL 15; all critical business logic (billing calculations, booking conflict prevention) depends on database-level stored procedures, functions, and triggers executing correctly.  
+  * Application hosting depends on **Railway** (cloud) and **Docker Compose** (local). Each developer runs the full stack locally with a single `docker compose up` command.  
   * Changes to these chosen open-source technologies could impact system development timelines and performance.  
 * **Network and Infrastructure:**  
   * Continuous operation depends on reliable internet connectivity at the Colombo, Kandy, and Galle branches, maintaining a minimum 10 Mbps LAN connection to interface with the cloud backend.  
@@ -422,8 +422,8 @@ An extra column—**Interface ID**—has been added to strictly adhere to standa
 | **SI-01** | **Backend Runtime & API Framework** | Node.js v20.x \+ Express.js v4.19 / Next.js Server Actions | Core backend business logic, payment handling, check-in/out workflows, and billing calculations. | **In:** HTTP/HTTPS JSON requests, API tokens, webhook payloads. **Out:** JSON API responses, status codes, JWT tokens, billing reports. | Asynchronous event loop, HTTP request routing, RESTful API endpoints, background scheduled tasks. | Asynchronous HTTP/HTTPS REST API communication using JSON data payloads over TLS 1.3 encryption. |
 | **SI-02** | **Frontend UI & Web Application** | JavaScript / React v18.x (Next.js v14.x Client Components) | Dynamic, cross-platform user and management interfaces accessible across all screen sizes. | **In:** User inputs, form submissions, filter parameters. **Out:** DOM rendering, dynamic state updates, API request payloads. | Responsive layout rendering, client-side route handling, cross-browser compatibility. | Client-side execution via V8 Engine/Browser JS engines. HTTPS fetch/axios API calls to backend. |
 | **SI-03** | **CSS & Responsive Layout Engine** | Tailwind CSS v3.4.0 | Responsive web layout for seamless viewing on **Mobile** (iOS Safari, Android Chrome) and **Desktop** (Windows, macOS, Linux via Chrome, Firefox, Edge, Safari). | **In:** Screen dimensions, media query triggers, theme variables. **Out:** Compiled utility classes, breakpoint-adapted UI views. | Viewport adaptability, mobile touch-gesture support, cross-browser CSS normalization. | Client-side CSS execution compiled at build time. |
-| **SI-04** | **Relational Database Engine** | MySQL v8.0 (planned to host in cloud flare hyperdrive) | Core transactional engine, relational data persistence, and database-level enforcement of business rules and ACID compliance. | **In:** SQL execution queries, stored procedure calls, transaction blocks. **Out:** Relational record sets, execution status codes, trigger signals, exception errors. | InnoDB storage engine, ACID transaction isolation, stored procedures, functions, triggers, and B-Tree indexing. | Encrypted TCP/IP socket connection using standard MySQL wire protocol via Prisma ORM / mysql2 driver. |
-| **SI-05** | **Cloud Deployment Platform** | Cloudflare Pages / Cloudflare Workers (V8 Edge Runtime) | Serverless application hosting, static asset distribution, edge computing, and global DNS management. | **In:** Inbound web traffic requests, cached asset queries. **Out:** Serverless function executions, cached static HTML/JS/CSS assets. | Edge routing, global CDN caching, DDoS mitigation, Web Application Firewall (WAF), SSL/TLS termination. | Edge-level HTTPS request handling with automated HTTP/3 protocol negotiation. |
+| **SI-04** | **Relational Database Engine** | PostgreSQL 15-alpine (Docker container) | Core transactional engine, relational data persistence, and database-level enforcement of business rules and ACID compliance. | **In:** SQL execution queries, stored procedure calls, transaction blocks. **Out:** Relational record sets, execution status codes, trigger signals, exception errors. | MVCC transaction isolation, stored procedures, functions, triggers, and B-Tree/GIN indexing. | Encrypted TCP/IP socket connection using standard PostgreSQL wire protocol via the `pg` npm driver (no ORM). |
+| **SI-05** | **Cloud Deployment Platform** | Railway (cloud) + Docker Compose (local development) | Containerized application hosting for backend API, frontend, and PostgreSQL database. Railway provides automatic GitHub deployments, managed PostgreSQL, and environment variable management. | **In:** GitHub push events (CI/CD), inbound HTTPS requests. **Out:** Deployed container instances, public HTTPS endpoints, health check responses. | Docker container orchestration, environment variable injection, GitHub-integrated CI/CD pipeline, SSL/TLS termination. | HTTPS communication; Railway manages container networking and DNS. |
 | **SI-06** | **Payment Gateway Interface** | PayHere Checkout API / payhere.js (Sandbox Mode) | Processing simulated credit/debit card transactions, partial payments, and validating final bills for check-out. | **In:** MD5 hashed order ID, amount, currency (LKR), return URLs. **Out:** Server callback notification (notify\_url), payment status, verification checksum. | Onsite popup checkout, simulated payment processing, backend webhook verification. | Client-side JS initiation with secure Server-to-Server POST requests for callback validation. |
 | **SI-07** | **Automated Email Notification Engine** | Nodemailer v6.9 / SendGrid Node.js SDKOR  Resend/brevo | Sending transactional emails, registration offers, seasonal discounts, and tier-change notifications. | **In:** Recipient email, dynamic template parameters (Guest Name, Loyalty Points, Offer details). **Out:** SMTP delivery status, bounce/delivery logs. | Async email dispatch queue, HTML email template compilation, SMTP gateway routing. | Outbound SMTP / HTTPS API calls using OAuth2 / API Key authentication. |
 
@@ -479,7 +479,7 @@ Additionally s, if the hotels were to be listed under [booking.com](http://booki
   * **API Security:** These channel manager integrations require HMAC signature verification for API security.  
   * **Email Gateway API:** Outbound SMTP and HTTPS API communications using OAuth2/API Key authentication are required for sending transactional emails (e.g., tier-change notifications, invoices) via Nodemailer, SendGrid, Resend, or breVO.  
 * **Synchronization & Real-Time Communication:**  
-  * **Database Synchronization:** Database communication operates via an encrypted TCP/IP socket connection using the standard MySQL wire protocol. This is facilitated via Prisma ORM or the mysql2 driver to maintain consistent room availability across the Colombo, Kandy, and Galle branches.  
+  * **Database Synchronization:** Database communication operates via an encrypted TCP/IP socket connection using the standard PostgreSQL wire protocol. This is facilitated via the `pg` npm driver (no ORM) to maintain consistent room availability across the Colombo, Kandy, and Galle branches.  
   * **Payment Synchronization:** Server-to-server POST requests and webhook callbacks (notify\_url) via the PayHere Checkout API ensure immediate payment status verification, simulated partial payment processing, and final check-out bill validation.  
   * ***Inventory Synchronization:*** Automated webhook parsing and property ID mapping immediately synchronize room status updates and restriction rules across all systems to strictly enforce the prevention of double-booking
 
@@ -514,13 +514,13 @@ To ensure the functional requirements align directly with the database-centric d
   * **Constraints:** Maintains its state (`Available`, `Occupied`, `Cleaning`, `Temporarily Closed`). It is heavily read during availability checks but relies on the `Booking` object's ACID transaction locks to prevent concurrent modification errors.  
 * **The Booking Object:**  
   * **Role:** The central transactional hub linking a Guest, a Room, and a time period.  
-  * **Constraints:** Creation is strictly guarded by the `sp_CreateBooking` stored procedure to enforce zero double-bookings. It cannot transition to a `Checked-Out` state until the linked `Bill` object reflects a 0.00 outstanding balance.  
+  * **Constraints:** Creation is strictly guarded by booking conflict checks in the API layer and CHECK constraints in the database to enforce zero double-bookings. A `booking_room` cannot transition to `CHECKED_OUT` status until the linked `invoice` reflects a 0.00 outstanding balance.  
 * **The Service Object:**  
   * **Role:** Represents chargeable amenities (e.g., Laundry, Minibar).  
   * **Constraints:** When instantiated as a "Service Usage" log on a booking, it dynamically locks in the *current* catalogue price, immunizing historical guest bills from future catalogue price updates.  
 * **The Bill Object (Financial & Tax Ledger):**  
   * **Role:** Aggregates all financial data for a stay and acts as the strict enforcer of Sri Lankan statutory tax compliance.  
-  * **Constraints:** The object strictly relies on the database stored procedure (`sp_Generate_Final_Bill`) to calculate the progressive total. It guarantees the sequential application of mandatory levies on the base charge (Room \+ Services): **10% Service Charge (SC)**, **1% Tourism Development Levy (TDL)**, **2.5% Social Security Contribution Levy (SSCL)**, and **18% Value Added Tax (VAT)**. It also manages the subtraction of partial payments.  
+  * **Constraints:** Invoice generation is handled by the billing module, which reads active tax rates from `tax_configurations` and computes: **Service Charge**, **Social Security Contribution Levy (SSCL)**, and **18% Value Added Tax (VAT)**. Tax amounts are stored as frozen snapshots on the `invoices` table at generation time, ensuring historical accuracy even if tax rates change later. Partial payments are tracked via the `payments` table against the invoice.  
 * **The Guest Profile Object (Loyalty Ledger):**  
   * **Role:** Maintains the identity, contact preferences, and loyalty status of registered users.  
   * **Constraints:** Listens for completed payment events to dynamically increment points. It enforces the strict 1-year point expiration rule via a background CRON job, automatically downgrading tier statuses if points expire without recent stays.
