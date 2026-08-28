@@ -1,24 +1,33 @@
 version: "3.9"
 
-# ── Local development stack ────────────────────────────────────────────────────
+# ── Sky Nest Hotel — Local Development Stack ──────────────────────────────────
+# Usage:
+#   Start:  npm run docker:up   (or: docker compose -f infrastructure/docker/docker-compose.yml up -d)
+#   Stop:   npm run docker:down
+#   Logs:   npm run docker:logs
+# ──────────────────────────────────────────────────────────────────────────────
+
 services:
+  #--PostgreSQL Database
   postgres:
     image: postgres:15-alpine
     restart: unless-stopped
     ports:
       - "5432:5432"
     environment:
-      POSTGRES_USER: hotel_user
-      POSTGRES_PASSWORD: hotel_password
-      POSTGRES_DB: hotel_rms
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: skynest_dev
+      POSTGRES_DB: skynest
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./init.sql:/docker-entrypoint-initdb.d/init.sql
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U hotel_user -d hotel_rms"]
+      test: [ "CMD-SHELL", "pg_isready -U hotel_user -d hotel_rms" ]
       interval: 10s
       timeout: 5s
       retries: 5
+
+  #--Express Backend--
 
   backend:
     build:
@@ -28,9 +37,13 @@ services:
     ports:
       - "4000:4000"
     environment:
-      DATABASE_URL: postgresql://hotel_user:hotel_password@postgres:5432/hotel_rms
+      DATABASE_URL: ${DATABASE_URL} # reads from .env file
       NODE_ENV: development
       PORT: 4000
+      JWT_SECRET: ${JWT_SECRET} # reads from .env file
+      JWT_EXPIRES_IN: 8h
+      ALLOWED_ORIGINS: http://localhost:3000
+
     depends_on:
       postgres:
         condition: service_healthy
@@ -38,22 +51,20 @@ services:
       - ../../backend:/app
       - /app/node_modules
 
+  #--Nextjs Frontend--
   frontend:
     build:
-      context: ../../frontend
-      dockerfile: ../infrastructure/docker/Dockerfile.frontend
+      context: ../../
+      dockerfile: infrastructure/docker/Dockerfile.frontend
     restart: unless-stopped
     ports:
       - "3000:3000"
     environment:
       NEXT_PUBLIC_API_URL: http://localhost:4000/api/v1
-      NODE_ENV: development
+      NEXT_PUBLIC_APP_URL: http://localhost:3000
+      NODE_ENV: production
     depends_on:
       - backend
-    volumes:
-      - ../../frontend:/app
-      - /app/node_modules
-      - /app/.next
 
 volumes:
   postgres_data:
