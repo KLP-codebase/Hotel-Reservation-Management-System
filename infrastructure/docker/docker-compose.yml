@@ -22,7 +22,7 @@ services:
       - postgres_data:/var/lib/postgresql/data
       - ./init.sql:/docker-entrypoint-initdb.d/init.sql
     healthcheck:
-      test: [ "CMD-SHELL", "pg_isready -U hotel_user -d hotel_rms" ]
+      test: [ "CMD-SHELL", "pg_isready -U postgres -d skynest" ]
       interval: 10s
       timeout: 5s
       retries: 5
