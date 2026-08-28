@@ -45,36 +45,4 @@ CREATE OR REPLACE VIEW v_active_accounts AS
     WHERE ua.is_active = true
       AND s.is_active  = true;
 
--- ── View 3: booking summary (Facade over bookings + guests + rooms + bills) ───
-CREATE OR REPLACE VIEW v_booking_summary AS
-    SELECT
-        bk.id              AS booking_id,
-        bk.booking_ref,
-        bk.status          AS booking_status,
-        bk.payment_status,
-        bk.check_in,
-        bk.check_out,
-        bk.total_amount,
-        bk.source,
-        bk.adults,
-        bk.children,
-        bk.special_requests,
-        bk.created_at      AS booked_at,
-        g.id               AS guest_id,
-        g.first_name || ' ' || g.last_name AS guest_name,
-        g.email            AS guest_email,
-        g.phone            AS guest_phone,
-        g.loyalty_tier,
-        r.id               AS room_id,
-        r.number           AS room_number,
-        r.type             AS room_type,
-        r.floor,
-        r.price_per_night,
-        bl.total           AS billed_total,
-        bl.tax_amount,
-        bl.discount_amount,
-        bl.issued_at
-    FROM bookings bk
-    JOIN  guests g  ON bk.guest_id  = g.id
-    JOIN  rooms  r  ON bk.room_id   = r.id
-    LEFT JOIN bills bl ON bk.id     = bl.booking_id;
+-- v_booking_summary removed — depends on bookings, guests, bills, loyalty_tier (Reservation & Billing modules).

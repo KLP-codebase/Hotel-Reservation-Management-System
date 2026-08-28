@@ -18,8 +18,7 @@ DROP TRIGGER IF EXISTS trg_staff_updated_at        ON staff;
 DROP TRIGGER IF EXISTS trg_branches_updated_at     ON branches;
 DROP TRIGGER IF EXISTS trg_user_accounts_updated_at ON user_accounts;
 DROP TRIGGER IF EXISTS trg_rooms_updated_at        ON rooms;
-DROP TRIGGER IF EXISTS trg_bookings_updated_at     ON bookings;
-DROP TRIGGER IF EXISTS trg_bills_updated_at        ON bills;
+-- trg_bookings_updated_at and trg_bills_updated_at removed — managed by Reservation module.
 
 CREATE TRIGGER trg_staff_updated_at
     BEFORE UPDATE ON staff
@@ -37,13 +36,6 @@ CREATE TRIGGER trg_rooms_updated_at
     BEFORE UPDATE ON rooms
     FOR EACH ROW EXECUTE FUNCTION fn_set_updated_at();
 
-CREATE TRIGGER trg_bookings_updated_at
-    BEFORE UPDATE ON bookings
-    FOR EACH ROW EXECUTE FUNCTION fn_set_updated_at();
-
-CREATE TRIGGER trg_bills_updated_at
-    BEFORE UPDATE ON bills
-    FOR EACH ROW EXECUTE FUNCTION fn_set_updated_at();
 
 -- ── Trigger 2: audit staff mutations ─────────────────────────────────────────
 CREATE OR REPLACE FUNCTION fn_audit_staff_changes()
@@ -66,22 +58,4 @@ CREATE TRIGGER trg_audit_staff
     AFTER INSERT OR UPDATE OR DELETE ON staff
     FOR EACH ROW EXECUTE FUNCTION fn_audit_staff_changes();
 
--- ── Trigger 3: sync room status with booking state ───────────────────────────
-CREATE OR REPLACE FUNCTION fn_sync_room_status()
-RETURNS TRIGGER LANGUAGE plpgsql AS $$
-BEGIN
-    IF NEW.status = 'CHECKED_IN' THEN
-        UPDATE rooms SET status = 'OCCUPIED'  WHERE id = NEW.room_id;
-    ELSIF NEW.status IN ('CHECKED_OUT', 'CANCELLED') THEN
-        UPDATE rooms SET status = 'AVAILABLE' WHERE id = NEW.room_id;
-    ELSIF NEW.status = 'CONFIRMED' THEN
-        UPDATE rooms SET status = 'RESERVED'  WHERE id = NEW.room_id;
-    END IF;
-    RETURN NEW;
-END;
-$$;
-
-DROP TRIGGER IF EXISTS trg_sync_room_status ON bookings;
-CREATE TRIGGER trg_sync_room_status
-    AFTER UPDATE OF status ON bookings
-    FOR EACH ROW EXECUTE FUNCTION fn_sync_room_status();
+-- fn_sync_room_status and trg_sync_room_status removed — depends on bookings table (Reservation module).
