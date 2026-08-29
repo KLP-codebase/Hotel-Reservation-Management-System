@@ -1,19 +1,48 @@
 {
   "$schema": "https://design-tokens.github.io/community-group/format/",
+  "_note": "Motion is GSAP-driven for all scroll effects. CSS transitions are only for micro-interactions (hover, focus). Do not use CSS @keyframes for scroll animations.",
   "sn": {
     "motion": {
       "easing": {
-        "out":    { "$value": "cubic-bezier(0.5, 1, 0.89, 1)",  "$type": "cubicBezier", "$description": "Micro-interactions: hover, focus. 0.3s." },
-        "expo":   { "$value": "cubic-bezier(0.16, 1, 0.3, 1)",  "$type": "cubicBezier", "$description": "Scroll reveals and transitions. 1.4s." },
-        "inout":  { "$value": "cubic-bezier(0.76, 0, 0.24, 1)", "$type": "cubicBezier", "$description": "Page transitions. 0.8s." }
+        "css-micro":    { "$value": "cubic-bezier(0.5, 1, 0.89, 1)",  "$type": "cubicBezier", "$description": "CSS micro-interactions: hover, focus. 0.2–0.3s." },
+        "css-page":     { "$value": "cubic-bezier(0.76, 0, 0.24, 1)", "$type": "cubicBezier", "$description": "CSS page transitions. 0.8s." },
+        "gsap-reveal":  { "$value": "power2.out",                      "$type": "string",       "$description": "GSAP story reveals and element entrances." },
+        "gsap-draw":    { "$value": "power1.out",                      "$type": "string",       "$description": "GSAP SVG path draw (orbital emblem, decorative lines)." },
+        "gsap-scrub":   { "$value": "none",                            "$type": "string",       "$description": "GSAP scrub timelines. Linear is correct inside scrub." }
       },
       "duration": {
-        "fast":   { "$value": "0.3s", "$type": "duration", "$description": "Micro-interactions" },
-        "mid":    { "$value": "0.6s", "$type": "duration", "$description": "Moderate transitions" },
-        "slow":   { "$value": "1.4s", "$type": "duration", "$description": "Reveals, hero enters" },
-        "page":   { "$value": "0.8s", "$type": "duration", "$description": "Page transitions" }
+        "micro":  { "$value": "0.2s–0.3s", "$type": "duration", "$description": "CSS hover/focus transitions" },
+        "reveal": { "$value": "1.2s",      "$type": "duration", "$description": "GSAP story line reveals" },
+        "page":   { "$value": "0.8s",      "$type": "duration", "$description": "CSS page transitions" }
+      },
+      "scrub": {
+        "hero":   { "$value": "1.2",  "$type": "number", "$description": "Hero parallax scrub lag" },
+        "clouds": { "$value": "2",    "$type": "number", "$description": "Cloud transition scrub lag (slower = more momentum)" },
+        "emblem": { "$value": "1.2",  "$type": "number", "$description": "Orbital emblem SVG draw scrub lag" }
+      },
+      "scrollTrigger": {
+        "hero": {
+          "start": "top top",
+          "end": "+=120%",
+          "$description": "Hero parallax — covers the full sticky hero height"
+        },
+        "clouds": {
+          "start": "top bottom",
+          "end": "bottom bottom",
+          "$description": "Cloud transition — triggers as cloud section enters viewport"
+        },
+        "emblem": {
+          "start": "top 88%",
+          "end": "top 45%",
+          "$description": "Orbital emblem SVG draw — tight trigger window"
+        },
+        "story": {
+          "start": "top 75%",
+          "end": "top 25%",
+          "scrub": false,
+          "$description": "Story line stagger — fires once (not scrubbed)"
+        }
       }
     }
-  },
-  "_note": "IMPORTANT — known extraction issue: raw output said linear easing and 0ms durations. Both are wrong. Always use the cubic-bezier tokens above. Motion is a brand signature — slow and confident."
+  }
 }

@@ -1,64 +1,88 @@
 {
   "$schema": "https://design-tokens.github.io/community-group/format/",
+  "_note": "Corrected from landing page implementation (SkyNestHomePage.tsx). Font families are Cinzel (display, Google Fonts) and Plus Jakarta Sans (body/UI). Tailwind class names are font-cinzel and font-jakarta. NOT Cardinal Classic Long / Inter Tight.",
   "sn": {
     "font": {
       "family": {
         "display": {
-          "$value": "'Cardinal Classic Long', serif",
+          "$value": "Cinzel, serif",
           "$type": "fontFamily",
-          "$description": "Serif display face — headings, pull quotes, editorial titles only."
+          "$description": "Serif display face — headings, wordmarks, pull quotes, editorial story text. Tailwind: font-cinzel. Loaded from Google Fonts."
         },
         "body": {
-          "$value": "'Inter Tight', sans-serif",
+          "$value": "'Plus Jakarta Sans', sans-serif",
           "$type": "fontFamily",
-          "$description": "Sans-serif body face — body text, UI labels, captions, meta."
+          "$description": "Sans-serif body face — body text, UI labels, nav buttons, captions. Tailwind: font-jakarta. Loaded from Google Fonts."
         }
       },
       "size": {
+        "wordmark": {
+          "$value": "clamp(100px, 21vw, 260px)",
+          "$type": "dimension",
+          "$description": "Giant hero wordmark (SKYNEST). Cinzel. Unique to the hero section."
+        },
         "h1": {
           "$value": "clamp(2.5rem, 6vw, 5rem)",
           "$type": "dimension",
-          "$description": "Display / H1. Cardinal Classic Long."
+          "$description": "Display / H1. Cinzel italic. leading-[1.05]."
         },
         "h2": {
           "$value": "clamp(2rem, 4vw, 3.5rem)",
           "$type": "dimension",
-          "$description": "H2. Cardinal Classic Long."
+          "$description": "H2. Cinzel italic. leading-[1.1]."
         },
         "h3": {
           "$value": "clamp(1.5rem, 2.5vw, 2rem)",
           "$type": "dimension",
-          "$description": "H3. Cardinal Classic Long."
+          "$description": "H3 / card title. Cinzel italic. leading-[1.2]."
+        },
+        "story": {
+          "$value": "clamp(3rem, 8vw, 8rem)",
+          "$type": "dimension",
+          "$description": "Full-width story line text. Cinzel uppercase. leading-[0.9]."
+        },
+        "eyebrow": {
+          "$value": "13–15px",
+          "$type": "dimension",
+          "$description": "Eyebrow / subheading. Cinzel italic. Typically text-[13px] md:text-[15px]."
         },
         "body": {
           "$value": "1.0625rem",
           "$type": "dimension",
-          "$description": "Body text. 17px. Inter Tight."
+          "$description": "Body text. 17px. Plus Jakarta Sans."
         },
         "caption": {
           "$value": "1rem",
           "$type": "dimension",
-          "$description": "Caption / meta. 16px. Inter Tight."
+          "$description": "Caption / meta. 16px. Plus Jakarta Sans."
         },
         "label": {
-          "$value": "0.875rem",
+          "$value": "0.6875rem",
           "$type": "dimension",
-          "$description": "Button / nav label. 14px. Inter Tight weight 500."
+          "$description": "Button / nav label. 11px. Plus Jakarta Sans weight 500. tracking-[0.12em] uppercase."
         }
       },
       "weight": {
         "regular": { "$value": "400", "$type": "fontWeight" },
-        "medium":  { "$value": "500", "$type": "fontWeight" }
+        "medium":  { "$value": "500", "$type": "fontWeight" },
+        "semibold": { "$value": "600", "$type": "fontWeight" }
       },
       "lineHeight": {
-        "display": { "$value": "1.05", "$type": "number", "$description": "H1" },
+        "wordmark": { "$value": "0.85", "$type": "number", "$description": "Giant hero wordmark" },
+        "display":  { "$value": "1.05", "$type": "number", "$description": "H1" },
         "heading":  { "$value": "1.1",  "$type": "number", "$description": "H2" },
         "subhead":  { "$value": "1.2",  "$type": "number", "$description": "H3 / italic title" },
+        "story":    { "$value": "0.9",  "$type": "number", "$description": "Full-width story lines" },
         "body":     { "$value": "1.5",  "$type": "number" },
         "caption":  { "$value": "1.4",  "$type": "number" },
         "label":    { "$value": "1",    "$type": "number" }
+      },
+      "tracking": {
+        "nav-label":    { "$value": "0.12em", "$type": "dimension", "$description": "Nav link buttons" },
+        "wordmark-sub": { "$value": "0.35em", "$type": "dimension", "$description": "SKYNEST sub-label in nav" },
+        "eyebrow-label": { "$value": "0.08em", "$type": "dimension", "$description": "Footer headings, input labels" },
+        "orbital":      { "$value": "0.08em", "$type": "dimension", "$description": "Orbital emblem label" }
       }
     }
-  },
-  "_note": "IMPORTANT — known extraction issue: tokens/typography.json originally listed font filenames (CardinalClassicMidWeb-*) that are not bundled. Use src/design-system/assets/fonts.css which maps to the actual local() sources. Cardinal Classic Long is a commercial typeface; license before production."
+  }
 }

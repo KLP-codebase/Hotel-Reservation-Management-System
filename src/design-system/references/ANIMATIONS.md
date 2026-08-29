@@ -1,191 +1,212 @@
 # Sky Nest — Animations Reference
 
-> Scroll reveals, page transitions, video backgrounds, and parallax.
-> **This file is secondary** — where it conflicts with `sky-nest-design.md`, follow `sky-nest-design.md`.
+> GSAP ScrollTrigger patterns from `SkyNestHomePage.tsx`.
+> All scroll-driven effects use GSAP. CSS `@keyframes` are NOT used for scroll effects.
+> **This file is secondary** — where it conflicts with `.gemini/skills/sky-nest-design.md`, follow that file.
 
 ---
 
-## CSS Custom Properties (Motion Tokens)
+## Required Setup
 
-Always declare in `:root`. Do not hardcode durations or easing curves:
+Always register plugins inside the component. Always clean up with `ctx.revert()`:
 
-```css
-:root {
-  --ease-out:   cubic-bezier(0.5, 1, 0.89, 1);   /* Micro-interactions */
-  --ease-expo:  cubic-bezier(0.16, 1, 0.3, 1);   /* Scroll reveals */
-  --ease-inout: cubic-bezier(0.76, 0, 0.24, 1);  /* Page transitions */
+```tsx
+useEffect(() => {
+  gsap.registerPlugin(ScrollTrigger);
 
-  --dur-fast: 0.3s;   /* Hover, focus */
-  --dur-mid:  0.6s;   /* Moderate transitions */
-  --dur-slow: 1.4s;   /* Reveals, hero enters */
-  --dur-page: 0.8s;   /* Page transitions */
-}
+  const ctx = gsap.context(() => {
+    // ... all gsap.to / timelines go here
+  }, scopeRef); // scope to component ref
+
+  return () => ctx.revert(); // cleanup on unmount
+}, []);
 ```
 
-> ⚠️ Known extraction issue: raw output claimed `linear` easing and `0ms` durations. Both are wrong. Always use the cubic-bezier tokens.
+Respect reduced motion:
+```tsx
+const reducedMotion = usePrefersReducedMotion();
+
+useEffect(() => {
+  if (reducedMotion) {
+    // Set final state directly — skip animation
+    gsap.set(ref.current, { y: 0, opacity: 1 });
+    return;
+  }
+  // ... run GSAP
+}, [reducedMotion]);
+```
 
 ---
 
-## Scroll Reveal — `[data-reveal]`
+## Hero Parallax (Scrub)
 
-Elements rise from far below and fade in. The large `translateY(20rem)` is intentional — motion is a brand signature.
-
-```css
-[data-reveal] {
-  opacity: 0;
-  transform: translateY(20rem);
-  transition:
-    opacity  1.4s var(--ease-expo),
-    transform 1.4s var(--ease-expo);
-}
-
-[data-reveal].is-visible {
-  opacity: 1;
-  transform: translateY(0);
-}
-```
-
-### Stagger children
-
-Add `--reveal-delay` on each child for a cascade effect:
-
-```css
-[data-reveal-stagger] > * {
-  opacity: 0;
-  transform: translateY(4rem);
-  transition:
-    opacity  0.6s var(--ease-expo),
-    transform 0.6s var(--ease-expo);
-  transition-delay: var(--reveal-delay, 0ms);
-}
-
-[data-reveal-stagger].is-visible > *:nth-child(1) { --reveal-delay: 0ms;   opacity: 1; transform: none; }
-[data-reveal-stagger].is-visible > *:nth-child(2) { --reveal-delay: 80ms;  opacity: 1; transform: none; }
-[data-reveal-stagger].is-visible > *:nth-child(3) { --reveal-delay: 160ms; opacity: 1; transform: none; }
-[data-reveal-stagger].is-visible > *:nth-child(4) { --reveal-delay: 240ms; opacity: 1; transform: none; }
-```
-
-### IntersectionObserver (JS)
+The hero background image, wordmark, and eyebrow row all move independently as the user scrolls.
 
 ```js
-const io = new IntersectionObserver(
-  (entries) => {
-    entries.forEach((entry) => {
-      if (entry.isIntersecting) {
-        entry.target.classList.add("is-visible");
-        io.unobserve(entry.target); // fire once
-      }
-    });
+const tl = gsap.timeline({
+  scrollTrigger: {
+    trigger: heroRef.current,
+    start: "top top",
+    end: "+=120%",
+    scrub: 1.2,
   },
-  { threshold: 0.15 }
-);
+  defaults: { ease: "none", force3D: true },
+});
 
-document.querySelectorAll("[data-reveal], [data-reveal-stagger]").forEach((el) => io.observe(el));
+// Background image glides down and scales (kenburns momentum)
+tl.to(bgImgRef.current, { y: "18%", scale: 1.08 }, 0);
+
+// Wordmark sinks + fades
+tl.to(wordmarkRef.current, { y: "30%", opacity: 0.15 }, 0);
+
+// Eyebrow + CTA drift upward + fade
+tl.to(topRowRef.current, { y: "-35px", opacity: 0.1 }, 0);
+```
+
+> Always add `willChange: "transform"` to animated elements.
+
+---
+
+## Cloud Transition (Scrub)
+
+Cloud images rise from below and cover the hero as the user scrolls into the first light section. Two layers with different parallax depths for depth illusion.
+
+```js
+// Initial state
+gsap.set([wrap1Ref.current, wrap2Ref.current], { autoAlpha: 0 });
+gsap.set(wrap1Ref.current, { y: "12%" });
+gsap.set(wrap2Ref.current, { y: "20%" });
+
+const tl = gsap.timeline({
+  scrollTrigger: {
+    trigger: containerRef.current,
+    start: "top bottom",
+    end: "bottom bottom",
+    scrub: 2,             // Smooth lag momentum
+  },
+  defaults: { ease: "none", force3D: true },
+});
+
+// Layer 1 — base clouds
+tl.to(wrap1Ref.current, { y: "0%", autoAlpha: 1 }, 0);
+
+// Layer 2 — denser, deeper offset, slight timeline delay
+tl.to(wrap2Ref.current, { y: "0%", autoAlpha: 1 }, 0.12);
+```
+
+Cloud images use CSS `mask-image` (gradient fade-in at top):
+- Layer 1: `linear-gradient(to bottom, transparent 0%, rgba(0,0,0,0.2) 18%, rgba(0,0,0,0.7) 38%, black 58%)`
+- Layer 2: `linear-gradient(to bottom, transparent 0%, rgba(0,0,0,0.4) 22%, rgba(0,0,0,0.9) 48%, black 65%)`
+
+---
+
+## Orbital Emblem SVG Draw (Scrub)
+
+SVG paths are drawn using `strokeDasharray` + `strokeDashoffset` scrolled to 0 on scroll.
+
+```js
+const len1 = path1Ref.current.getTotalLength(); // ~700
+const len2 = 600; // ellipse estimate
+
+// Initial state — fully hidden
+gsap.set(path1Ref.current, { strokeDasharray: len1, strokeDashoffset: len1 });
+gsap.set(path2Ref.current, { strokeDasharray: len2, strokeDashoffset: len2 });
+gsap.set(labelRef.current, { opacity: 0, scale: 0.95 });
+
+const tl = gsap.timeline({
+  scrollTrigger: {
+    trigger: containerRef.current,
+    start: "top 88%",
+    end: "top 45%",
+    scrub: 1.2,
+  },
+});
+
+tl.to(path1Ref.current, { strokeDashoffset: 0, ease: "power1.out" }, 0);
+tl.to(path2Ref.current, { strokeDashoffset: 0, ease: "power1.out" }, 0.15);
+tl.to(labelRef.current, { opacity: 1, scale: 1, ease: "power2.out" }, 0.35);
 ```
 
 ---
 
-## Page Transitions
+## Story Line Reveal (Stagger)
 
-Wrap page content in a `.page-transition` element. Apply on route change or navigation:
+Lines animate from `y: 60, opacity: 0` to `y: 0, opacity: 1` with staggered delay.
+
+```js
+gsap.to(lineRefs.current, {
+  y: 0,
+  opacity: 1,
+  duration: 1.2,
+  ease: "power2.out",
+  stagger: 0.12,
+  scrollTrigger: {
+    trigger: containerRef.current,
+    start: "top 75%",
+    end: "top 25%",
+    scrub: false, // NOT scrubbed — fires and plays once
+    toggleActions: "play none none none",
+  },
+});
+```
+
+Initial state (set before GSAP fires):
+```js
+gsap.set(lineRefs.current, { y: 60, opacity: 0 });
+```
+
+Or via inline style on the element: `style={{ opacity: 0, transform: "translateY(60px)", willChange: "transform, opacity" }}`
+
+---
+
+## Page Transitions (CSS, not GSAP)
+
+Light enter/exit animation for route changes. Applied at the page wrapper level:
 
 ```css
-.page-transition {
-  animation: page-enter 0.8s var(--ease-inout) both;
+.page-enter {
+  animation: page-enter 0.8s cubic-bezier(0.76, 0, 0.24, 1) both;
 }
 
 @keyframes page-enter {
-  from {
-    opacity: 0;
-    transform: translateY(1.5rem);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-.page-transition-exit {
-  animation: page-exit 0.4s var(--ease-inout) both;
-}
-
-@keyframes page-exit {
-  to {
-    opacity: 0;
-    transform: translateY(-1rem);
-  }
+  from { opacity: 0; transform: translateY(1.5rem); }
+  to   { opacity: 1; transform: translateY(0); }
 }
 ```
+
+In Tailwind: `animate-[page-enter_0.8s_cubic-bezier(0.76,0,0.24,1)_both]`
 
 ---
 
-## Background Video
-
-Always include a poster frame. Video is always muted, autoplaying, looped.
-
-```html
-<div class="video-bg">
-  <video
-    class="video-bg_media"
-    autoplay
-    loop
-    muted
-    playsinline
-    poster="/images/hero-poster.jpg"
-  >
-    <source src="/video/hero.mp4" type="video/mp4" />
-    <source src="/video/hero.webm" type="video/webm" />
-  </video>
-  <div class="video-bg_overlay"></div>
-</div>
-```
+## Scrollbar Hiding (horizontal carousels)
 
 ```css
-.video-bg {
-  position: absolute;
-  inset: 0;
-  z-index: 1;
-  overflow: hidden;
-}
-
-.video-bg_media {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  object-position: center;
-}
-
-.video-bg_overlay {
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(
-    to bottom,
-    rgba(10, 10, 10, 0.3) 0%,
-    rgba(10, 10, 10, 0.5) 100%
-  );
-}
+.scroll-hide { scrollbar-width: none; }
+.scroll-hide::-webkit-scrollbar { display: none; }
 ```
 
 ---
 
-## Parallax (Subtle)
+## Nav Scroll Detection (JS, not GSAP)
 
-Tie to scroll position with JS. Keep the range small — this is editorial, not a 3D experience.
-
-```js
-const hero = document.querySelector(".hero_bg");
-
-window.addEventListener("scroll", () => {
-  const y = window.scrollY * 0.25; // 0.25× = subtle
-  hero.style.transform = `translateY(${y}px)`;
-}, { passive: true });
+```tsx
+useEffect(() => {
+  const THRESHOLD = 80;
+  const handleScroll = () => {
+    const progress = Math.min(window.scrollY / THRESHOLD, 1);
+    setNavProgress(progress);
+    setScrolled(window.scrollY > THRESHOLD);
+  };
+  window.addEventListener("scroll", handleScroll, { passive: true });
+  return () => window.removeEventListener("scroll", handleScroll);
+}, []);
 ```
 
 ---
 
 ## Reduced Motion Guard
 
-**Always close every animation file and component stylesheet with this block:**
+**Always apply — both in CSS and in the React `usePrefersReducedMotion()` hook.**
 
 ```css
 @media (prefers-reduced-motion: reduce) {
@@ -199,17 +220,51 @@ window.addEventListener("scroll", () => {
 }
 ```
 
+React hook:
+```tsx
+function usePrefersReducedMotion(): boolean {
+  const [reduced, setReduced] = useState(false);
+  useEffect(() => {
+    const mql = window.matchMedia("(prefers-reduced-motion: reduce)");
+    setReduced(mql.matches);
+    const handler = (e: MediaQueryListEvent) => setReduced(e.matches);
+    mql.addEventListener("change", handler);
+    return () => mql.removeEventListener("change", handler);
+  }, []);
+  return reduced;
+}
+```
+
+When `reducedMotion === true`:
+- Skip all GSAP setup
+- Immediately set final states: `gsap.set(el, { y: 0, opacity: 1, strokeDashoffset: 0 })`
+
+---
+
+## GSAP Easing Reference (Sky Nest usage)
+
+| Use case | GSAP ease | CSS equivalent |
+|---|---|---|
+| ScrollTrigger scrub | `"none"` | N/A (linear inside scrub is correct) |
+| Element reveal | `"power2.out"` | `cubic-bezier(0.16, 1, 0.3, 1)` |
+| Orbital draw | `"power1.out"` | `cubic-bezier(0.5, 1, 0.89, 1)` |
+| Label/overlay | `"power2.out"` | — |
+| Page transition (CSS) | — | `cubic-bezier(0.76, 0, 0.24, 1)` |
+| Micro-interactions (CSS) | — | `cubic-bezier(0.5, 1, 0.89, 1)` at `0.2–0.3s` |
+
 ---
 
 ## Z-Index Scale
 
-Use **only** these values. No arbitrary z-indices.
+Use **only** these values:
 
 | Value | Use |
 |---|---|
-| `1` | Base stacking context |
-| `2` | Slightly elevated (overlapping siblings) |
-| `10` | Floating elements (tooltips, dropdowns) |
-| `100` | Section overlays, gradients |
-| `1000` | Modal backdrops |
-| `9999` | Navigation, modals, toasts |
+| `0` | Hero (`z-0`) — lets content scroll over it |
+| `1` | Background layers inside hero |
+| `2` | Mid-layer stacking (overlapping siblings) |
+| `10` | Cloud transition layer |
+| `40` | Mobile menu overlay |
+| `50` | Navigation (`z-50`) |
+| `100` | Tooltips, dropdowns |
+| `9999` | GlobalGridOverlay (always on top, pointer-events-none) |

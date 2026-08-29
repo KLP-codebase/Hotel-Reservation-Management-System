@@ -1,13 +1,17 @@
 # Sky Nest — Layout Reference
 
-> Page-level structure, grids, containers, and section patterns.
-> **This file is secondary** — where it conflicts with `sky-nest-design.md`, follow `sky-nest-design.md`.
+> Page-level structure, grids, containers, and section patterns from `SkyNestHomePage.tsx`.
+> **This file is secondary** — where it conflicts with `.gemini/skills/sky-nest-design.md`, follow that file.
 
 ---
 
 ## Container
 
-```css
+```tsx
+// Tailwind equivalent:
+className="px-6 md:px-12 w-full max-w-[1440px] mx-auto"
+
+// Or with calc (CSS):
 .container {
   width: calc(100% - 120px);
   max-width: 1440px;
@@ -15,51 +19,11 @@
 }
 
 @media (max-width: 991px) {
-  .container {
-    width: calc(100% - 64px);
-  }
+  .container { width: calc(100% - 64px); }
 }
 
 @media (max-width: 540px) {
-  .container {
-    width: calc(100% - 32px);
-  }
-}
-```
-
-> ⚠️ Known extraction issue: raw docs listed `991px` as a container width. Correct value is `calc(100% - 120px)` with `max-width: 1440px`.
-
----
-
-## 12-Column Grid
-
-```css
-.grid {
-  display: grid;
-  grid-template-columns: repeat(12, 1fr);
-  gap: 24px 12px; /* row-gap column-gap */
-}
-
-/* Common span patterns */
-.col-12 { grid-column: span 12; }
-.col-10 { grid-column: span 10; }
-.col-8  { grid-column: span 8; }
-.col-6  { grid-column: span 6; }
-.col-4  { grid-column: span 4; }
-.col-3  { grid-column: span 3; }
-
-/* Centered narrow columns */
-.col-8.centered  { grid-column: 3 / span 8; }
-.col-10.centered { grid-column: 2 / span 10; }
-
-@media (max-width: 991px) {
-  .col-4  { grid-column: span 6; }
-  .col-3  { grid-column: span 6; }
-}
-
-@media (max-width: 768px) {
-  .grid   { grid-template-columns: repeat(4, 1fr); }
-  .col-4, .col-3, .col-6, .col-8, .col-10, .col-12 { grid-column: span 4; }
+  .container { width: calc(100% - 32px); }
 }
 ```
 
@@ -67,211 +31,183 @@
 
 ## Breakpoints
 
-Mobile-first. All media queries use `min-width` unless noted.
+Mobile-first. All media queries use `min-width`.
 
-| Name | Value | Use |
+| Tailwind | Value | Use |
 |---|---|---|
-| `xs` | `540px` | Small phones → landscape |
-| `sm` | `768px` | Tablets |
-| `md` | `991px` | Small desktops / landscape tablets |
-| `lg` | `1280px` | Standard desktop |
-| `xl` | `1560px` | Wide desktop |
+| `sm` | `640px` | Landscape phones |
+| `md` | `768px` | Tablets, primary mobile breakpoint |
+| `lg` | `1024px` | Standard desktop |
+| `xl` | `1280px` | Wide desktop |
+| `2xl` | `1536px` | Ultrawide |
+
+Custom breakpoints used in the landing page: `540px`, `991px`, `1280px`, `1560px`.
+
+---
+
+## Page-Level Layer Stack
+
+The landing page uses a **layered sticky/scroll** architecture:
+
+```
+z-[9999]  GlobalGridOverlay (pointer-events-none fixed SVG)
+z-50      Navigation (fixed top)
+z-40      Mobile menu overlay
+z-10      CloudTransition section (scrolls OVER the hero)
+z-0       Hero section (sticky top-0 — intentionally below cloud layer)
+          All other sections (standard document flow, scroll over hero)
+```
+
+> The hero is `sticky top-0 z-0`. Cloud and subsequent sections are at `z-10+` so they visually cover the hero on scroll.
 
 ---
 
 ## Section Structure
 
-### Light Section (default)
+### Light Section (paper background)
 
-```html
-<section class="section">
-  <div class="container">
-    <!-- content -->
+```tsx
+<section className="relative bg-paper text-ink py-24 md:py-32 overflow-hidden">
+  <div className="px-6 md:px-12 max-w-[1440px] mx-auto">
+    {/* content */}
   </div>
 </section>
-```
-
-```css
-.section {
-  padding-block: 96px 160px;
-  background: var(--sn-bg);
-  color: var(--sn-text);
-}
 ```
 
 ### Dark / Inverted Section
 
-```html
-<section class="section section--dark">
-  <div class="container">
-    <!-- content -->
+```tsx
+<section className="relative bg-ink text-white py-24 md:py-32 overflow-hidden">
+  <div className="px-6 md:px-12 max-w-[1440px] mx-auto">
+    {/* content */}
   </div>
 </section>
 ```
 
-```css
-.section--dark {
-  background: var(--sn-bg-dark);
-  color: var(--sn-text-invert);
-}
-```
+> Swap the **entire** color set. Do not mix `text-ink` on `bg-ink` sections.
 
-> Swap the **entire** color set — do not mix `--sn-text` onto `--sn-bg-dark`.
+### Hero Section (pinned full-viewport)
 
-### Hero Section
-
-```html
-<section class="hero">
-  <div class="video-bg"><!-- video background --></div>
-  <div class="hero_content container">
-    <h1 class="hero_title">A Place Apart</h1>
-    <p class="hero_sub">...</p>
-    <button class="btn btn-large" type="button">
-      <div class="btn-inner">
-        <span class="btn-text">Discover</span>
-      </div>
-    </button>
-  </div>
+```tsx
+<section className="sticky top-0 h-[100dvh] overflow-hidden flex flex-col bg-ink z-0">
+  {/* Background image fills entire viewport */}
+  {/* Content is positioned with flexbox (top row at top, wordmark at bottom) */}
 </section>
-```
-
-```css
-.hero {
-  position: relative;
-  min-height: 100svh;
-  display: flex;
-  align-items: flex-end;
-  padding-bottom: 96px;
-  overflow: hidden;
-  z-index: 1;
-}
-
-.hero_content {
-  position: relative;
-  z-index: 10;
-}
-
-.hero_title {
-  font-family: "Cardinal Classic Long", serif;
-  font-size: clamp(2.5rem, 6vw, 5rem);
-  font-style: italic;
-  line-height: 1.05;
-  color: var(--sn-text-invert);
-  max-width: 14ch;
-  margin-bottom: 24px;
-}
-
-.hero_sub {
-  font: 400 1.0625rem "Inter Tight", sans-serif;
-  color: var(--sn-text-invert-muted);
-  max-width: 44ch;
-  margin-bottom: 40px;
-}
 ```
 
 ---
 
 ## Section Spacing Reference
 
-| Context | Value |
-|---|---|
-| Section padding (min) | `64px` |
-| Section padding (typical) | `96px` |
-| Section padding (max / hero) | `160px` |
-| Hero top padding | `320px` |
-| Group gap (large) | `64px` |
-| Group gap (standard) | `32px–24px` |
-| Element gap | `12px–16px` |
-| Tight gap | `4px–8px` |
+| Context | Tailwind | Value |
+|---|---|---|
+| Tight section padding | `py-12` | 48px |
+| Standard section padding | `py-24 md:py-32` | 96px–128px |
+| Heavy section padding | `py-32 md:py-40` | 128px–160px |
+| Hero top content padding | `pt-24 md:pt-28` | 96px–112px (below fixed nav) |
+| Group gap (large) | `gap-16` | 64px |
+| Group gap (standard) | `gap-8 md:gap-12` | 32px–48px |
+| Element gap | `gap-3 gap-4` | 12px–16px |
+| Tight gap (icon-label) | `gap-1 gap-2` | 4px–8px |
+
+---
+
+## Grid
+
+12-column grid. Tailwind-based — use `grid grid-cols-12 gap-6`.
+
+```tsx
+<div className="grid grid-cols-12 gap-6">
+  <div className="col-span-12">     {/* Full width */}
+  <div className="col-span-6">      {/* Half width */}
+  <div className="col-span-4 md:col-span-12"> {/* Third → full on mobile */}
+</div>
+```
+
+Cards use a 3-column grid on desktop:
+```tsx
+<div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+```
 
 ---
 
 ## Footer
 
-```html
-<footer class="footer">
-  <div class="container">
-    <div class="footer_top grid">
-      <div class="col-4">
-        <span class="footer_brand">Sky Nest</span>
-        <p class="footer_tagline">A place apart.</p>
+Dark section. Brand name in Cinzel italic. Link columns in Plus Jakarta.
+
+```tsx
+<footer className="bg-ink text-white py-24 border-t border-white/10">
+  <div className="px-6 md:px-12 max-w-[1440px] mx-auto">
+    {/* Top: brand left, link columns right */}
+    <div className="grid grid-cols-1 md:grid-cols-4 gap-12 mb-24">
+      <div>
+        <span className="block font-cinzel italic text-2xl text-white mb-3">Sky Nest</span>
+        <p className="font-jakarta text-base text-white/50">A place apart.</p>
       </div>
-      <div class="col-8 grid">
-        <nav class="col-3" aria-label="Rooms">
-          <h4 class="footer_heading">Rooms</h4>
-          <ul class="footer_links" role="list">
-            <li><a href="/rooms/suites">Suites</a></li>
-            <li><a href="/rooms/villas">Villas</a></li>
-          </ul>
-        </nav>
-        <!-- more nav columns -->
-      </div>
+      {/* 3 link column navs */}
     </div>
-    <div class="footer_bottom">
-      <p class="footer_legal">© 2025 Sky Nest. All rights reserved.</p>
+    {/* Bottom: legal */}
+    <div className="border-t border-white/10 pt-6">
+      <p className="font-jakarta text-base text-white/40">© 2025 Sky Nest. All rights reserved.</p>
     </div>
   </div>
 </footer>
 ```
 
-```css
-.footer {
-  background: var(--sn-bg-dark);
-  color: var(--sn-text-invert);
-  padding-block: 96px 48px;
-  border-top: 1px solid var(--sn-border-dark);
-}
+Footer link style:
+```tsx
+className="font-jakarta text-base text-white/70 hover:text-white transition-colors duration-300"
+```
 
-.footer_brand {
-  font-family: "Cardinal Classic Long", serif;
-  font-size: 1.5rem;
-  font-style: italic;
-  color: var(--sn-text-invert);
-  display: block;
-  margin-bottom: 12px;
-}
+Footer heading (column title):
+```tsx
+className="font-jakarta font-medium text-[14px] uppercase tracking-[0.08em] text-white/40 mb-4"
+```
 
-.footer_tagline {
-  font: 400 1rem "Inter Tight", sans-serif;
-  color: var(--sn-text-invert-muted);
-}
+---
 
-.footer_heading {
-  font: 500 0.875rem "Inter Tight", sans-serif;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  color: var(--sn-text-invert-muted);
-  margin-bottom: 16px;
-}
+## HairlineGrid
 
-.footer_links {
-  list-style: none;
-  padding: 0;
-  margin: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
+Used inside individual sections for vertical column guides. NOT the same as GlobalGridOverlay (which is fixed across the entire page).
 
-.footer_links a {
-  font: 400 1rem "Inter Tight", sans-serif;
-  color: var(--sn-text-invert);
-  text-decoration: none;
-  transition: color 0.3s var(--ease-out);
+```tsx
+function HairlineGrid({ count = 5, color = "border-white/[0.07]" }) {
+  return (
+    <div aria-hidden="true" className="pointer-events-none absolute inset-0 flex" style={{ zIndex: 1 }}>
+      {Array.from({ length: count + 1 }).map((_, i) => (
+        <div key={i} className={`flex-1 border-l ${color} last:border-r`} />
+      ))}
+    </div>
+  );
 }
+```
 
-.footer_links a:hover {
-  color: var(--sn-accent);
-}
+Color by section type:
+- On dark sections / hero: `border-white/[0.07]`
+- On light sections: `border-ink/[0.06]`
 
-.footer_bottom {
-  margin-top: 96px;
-  padding-top: 24px;
-  border-top: 1px solid var(--sn-border-dark);
-}
+---
 
-.footer_legal {
-  font: 400 1rem "Inter Tight", sans-serif;
-  color: var(--sn-text-invert-muted);
-}
+## Story Section Layout
+
+Full-bleed text that takes up most of the viewport width. Lines are stacked vertically, aligned left or right alternately.
+
+```tsx
+<section className="relative bg-paper py-32 overflow-hidden">
+  <HairlineGrid count={5} color="border-ink/[0.06]" />
+  <div className="px-6 md:px-12 max-w-[1440px] mx-auto relative z-10">
+    <div className="space-y-0">
+      {STORY_LINES.map((line, i) => (
+        <div key={i} className="overflow-hidden">
+          <span
+            className="block font-cinzel uppercase text-ink"
+            style={{ fontSize: "clamp(3rem, 8vw, 8rem)", lineHeight: "0.9", letterSpacing: "0.02em" }}
+          >
+            {line}
+          </span>
+        </div>
+      ))}
+    </div>
+  </div>
+</section>
 ```
