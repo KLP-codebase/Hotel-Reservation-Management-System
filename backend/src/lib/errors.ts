@@ -14,7 +14,7 @@ export class AppError extends Error {
 export const Errors = {
   notFound:      (entity: string) => new AppError(404, 'NOT_FOUND', `${entity} not found`),
   unauthorized:  ()               => new AppError(401, 'UNAUTHORIZED', 'Authentication required'),
-  forbidden:     ()               => new AppError(403, 'FORBIDDEN', 'Insufficient permissions'),
+  forbidden:     (msg?: string)   => new AppError(403, 'FORBIDDEN', msg ?? 'Insufficient permissions'),
   badRequest:    (msg: string)    => new AppError(400, 'BAD_REQUEST', msg),
   conflict:      (msg: string)    => new AppError(409, 'CONFLICT', msg),
   invalidCreds:  ()               => new AppError(401, 'INVALID_CREDENTIALS', 'Invalid username or password'),

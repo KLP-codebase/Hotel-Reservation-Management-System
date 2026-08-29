@@ -18,6 +18,10 @@ export class StaffService {
   }
 
   async create(dto: CreateStaffDto, actorId?: string) {
+    if (dto.role === 'ADMINISTRATOR') {
+      throw Errors.forbidden('Forbidden: Creation of additional Administrator accounts is strictly prohibited.');
+    }
+
     const existing = await this.repo.findByEmail(dto.email);
     if (existing) throw Errors.conflict('A staff member with this email already exists');
 
@@ -38,6 +42,10 @@ export class StaffService {
     const existing = await this.repo.findById(staffId);
     if (!existing) throw Errors.notFound('Staff member');
 
+    if (existing.role === 'ADMINISTRATOR' && dto.role && dto.role !== 'ADMINISTRATOR') {
+      throw Errors.forbidden('Forbidden: The role of the fixed Administrator account cannot be modified.');
+    }
+
     const updated = await this.repo.update(staffId, dto);
 
     auditEmitter.emit('staff.updated', {
@@ -55,6 +63,10 @@ export class StaffService {
   async deactivate(staffId: string, actorId?: string) {
     const existing = await this.repo.findById(staffId);
     if (!existing) throw Errors.notFound('Staff member');
+
+    if (existing.role === 'ADMINISTRATOR') {
+      throw Errors.forbidden('Forbidden: The single Administrator account cannot be deactivated or deleted.');
+    }
 
     await this.repo.softDelete(staffId);
 

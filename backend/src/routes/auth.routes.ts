@@ -23,7 +23,7 @@ const RegisterSchema = z.object({
   lastName:  z.string().min(1).max(100),
   email:     z.string().email(),
   phone:     z.string().max(50).optional(),
-  role:      z.enum(['GUEST','RECEPTIONIST','SERVICE_STAFF','MANAGER','ADMINISTRATOR','DBA']),
+  role:      z.enum(['GUEST','RECEPTIONIST','SERVICE_STAFF','MANAGER','ADMINISTRATOR','DBA']).optional().default('GUEST'),
   username:  z.string().min(3).max(100),
   password:  z.string().min(8),
 });
@@ -37,6 +37,18 @@ router.post('/login', validate(LoginSchema), async (req: Request, res: Response)
 });
 
 router.post('/register', validate(RegisterSchema), async (req: Request, res: Response) => {
+  // Public registration security: only GUEST account creation is permitted.
+  // Privileged roles (ADMINISTRATOR, MANAGER, RECEPTIONIST, SERVICE_STAFF, DBA) cannot be created via public registration.
+  const requestedRole = req.body.role;
+  if (requestedRole && requestedRole !== 'GUEST') {
+    return res.status(403).json({
+      success: false,
+      message: `Public registration for role '${requestedRole}' is prohibited. Only Guest accounts can be created via public sign-up.`,
+      code: 'FORBIDDEN',
+    });
+  }
+
+  req.body.role = 'GUEST';
   const result = await service.register(req.body, req.user?.sub);
   res.status(201).json(result);
 });
