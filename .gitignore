@@ -56,3 +56,7 @@ infrastructure/terraform/*.tfstate
 infrastructure/terraform/*.tfstate.backup
 infrastructure/terraform/*.tfvars
 
+# ── Personal notes (do not commit) ─────────────────────────────────────────────
+MY_MODULE.md
+MY_LEARNING_GUIDE.md
+
