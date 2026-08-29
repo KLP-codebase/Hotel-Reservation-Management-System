@@ -81,12 +81,15 @@ export class AuthService {
   }
 
   async register(dto: RegisterDto, actorId?: string) {
-    // GoF Singleton Pattern: Ensure only ONE Administrator account instance exists
+    // GoF Singleton Pattern & Security Hardening:
+    // Creation of additional Administrator accounts is strictly prohibited.
     if (dto.role === 'ADMINISTRATOR') {
-      const existingAdmin = await this.repo.findAdminAccount();
-      if (existingAdmin) {
-        throw Errors.conflict('Singleton Violation: An Administrator account already exists. Only one Administrator instance is allowed.');
-      }
+      throw Errors.forbidden('Forbidden: Additional Administrator accounts cannot be created. The system is configured with a single fixed Administrator account.');
+    }
+
+    // Public/unauthenticated registration guard:
+    if (!actorId && dto.role !== 'GUEST') {
+      throw Errors.forbidden('Forbidden: Creation of Manager or Staff accounts from public registration is not permitted.');
     }
 
     const hash = await bcrypt.hash(dto.password, 10);
