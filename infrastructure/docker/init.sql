@@ -281,3 +281,177 @@ CREATE TABLE IF NOT EXISTS change_log (
 
 \echo '>>> ✅ All 17 tables created successfully!'
 \echo '>>> Sky Nest database is ready.'
+
+\echo '>>> [SEED] Seeding room_types...'
+INSERT INTO room_types (type_name, base_daily_rate, capacity, description) VALUES
+    ('Standard',     120.00, 2, 'Comfortable standard room with garden view'),
+    ('Deluxe',       220.00, 2, 'Spacious deluxe room with partial ocean view'),
+    ('Suite',        450.00, 4, 'Luxury suite with living area and full ocean view'),
+    ('Presidential', 950.00, 6, 'Top-floor presidential suite with private terrace')
+ON CONFLICT (type_name) DO NOTHING;
+
+\echo '>>> [SEED] Seeding meal_plans...'
+INSERT INTO meal_plans (plan_name, description, price_per_night) VALUES
+    ('Room Only',      'No meals included',                       0.00),
+    ('Bed & Breakfast','Breakfast included',                      25.00),
+    ('Half Board',     'Breakfast and dinner included',           55.00),
+    ('Full Board',     'All three meals included',                80.00)
+ON CONFLICT (plan_name) DO NOTHING;
+
+\echo '>>> [SEED] Seeding rooms...'
+INSERT INTO rooms (branch_id, room_type_id, room_number, floor, status) VALUES
+    -- Colombo (branch_id = 1)
+    (1, 1, '101', 1, 'AVAILABLE'),
+    (1, 2, '201', 2, 'AVAILABLE'),
+    (1, 3, '301', 3, 'AVAILABLE'),
+    (1, 4, '401', 4, 'AVAILABLE'),
+    (1, 1, '102', 1, 'AVAILABLE'),
+    -- Kandy (branch_id = 2)
+    (2, 1, '101', 1, 'AVAILABLE'),
+    (2, 2, '201', 2, 'AVAILABLE'),
+    (2, 3, '301', 3, 'AVAILABLE'),
+    (2, 1, '102', 1, 'AVAILABLE'),
+    (2, 2, '202', 2, 'AVAILABLE'),
+    -- Galle (branch_id = 3)
+    (3, 1, '101', 1, 'AVAILABLE'),
+    (3, 2, '201', 2, 'AVAILABLE'),
+    (3, 3, '301', 3, 'AVAILABLE'),
+    (3, 4, '401', 4, 'AVAILABLE'),
+    (3, 1, '102', 1, 'AVAILABLE')
+ON CONFLICT (branch_id, room_number) DO NOTHING;
+
+
+-- ═══════════════════════════════════════════════════════════════════
+\echo '>>> [GUARD] Adding double-booking prevention...'
+-- ═══════════════════════════════════════════════════════════════════
+
+-- btree_gist lets us use EXCLUDE on a mix of = and && (range overlap) operators
+CREATE EXTENSION IF NOT EXISTS btree_gist;
+
+ALTER TABLE booking_rooms
+    ADD CONSTRAINT no_double_booking
+    EXCLUDE USING gist (
+        room_id   WITH =,
+        daterange(check_in_date, check_out_date, '[)') WITH &&
+    )
+    WHERE (status <> 'CANCELLED');
+
+-- ═══════════════════════════════════════════════════════════════════
+\echo '>>> [INDEXES] Adding indexes for booking module...'
+-- ═══════════════════════════════════════════════════════════════════
+
+-- bookings table — common filter columns
+CREATE INDEX IF NOT EXISTS idx_bookings_branch    ON bookings(branch_id);
+CREATE INDEX IF NOT EXISTS idx_bookings_guest     ON bookings(booked_by_guest_id);
+CREATE INDEX IF NOT EXISTS idx_bookings_staff     ON bookings(booked_by_staff_id);
+CREATE INDEX IF NOT EXISTS idx_bookings_status    ON bookings(status);
+
+-- booking_rooms table — the most queried table in your module
+CREATE INDEX IF NOT EXISTS idx_brooms_booking    ON booking_rooms(booking_id);
+CREATE INDEX IF NOT EXISTS idx_brooms_room       ON booking_rooms(room_id);
+CREATE INDEX IF NOT EXISTS idx_brooms_guest      ON booking_rooms(primary_guest_id);
+CREATE INDEX IF NOT EXISTS idx_brooms_dates      ON booking_rooms(check_in_date, check_out_date);
+CREATE INDEX IF NOT EXISTS idx_brooms_status     ON booking_rooms(status);
+
+-- guests table — for fast search by email/name
+CREATE INDEX IF NOT EXISTS idx_guests_email      ON guests(email);
+CREATE INDEX IF NOT EXISTS idx_guests_name       ON guests(first_name, last_name);
+
+-- accompanying_guests — for lookup by booking_room
+CREATE INDEX IF NOT EXISTS idx_accompanying_broom ON accompanying_guests(booking_room_id);
+
+-- ═══════════════════════════════════════════════════════════════════
+\echo '>>> [FUNCTION] Creating fn_check_room_availability...'
+-- ═══════════════════════════════════════════════════════════════════
+
+CREATE OR REPLACE FUNCTION fn_check_room_availability(
+    p_room_id      INT,
+    p_check_in     DATE,
+    p_check_out    DATE,
+    p_exclude_booking_room_id UUID DEFAULT NULL  -- used when modifying an existing booking
+)
+RETURNS BOOLEAN
+LANGUAGE plpgsql
+AS $$
+DECLARE
+    v_conflict_count INT;
+BEGIN
+    -- Validate: check-out must be after check-in
+    IF p_check_out <= p_check_in THEN
+        RAISE EXCEPTION 'check_out_date must be after check_in_date';
+    END IF;
+
+    -- Count any active bookings on this room that overlap the requested dates
+    SELECT COUNT(*) INTO v_conflict_count
+    FROM booking_rooms
+    WHERE room_id        = p_room_id
+      AND status        <> 'CANCELLED'
+      AND booking_room_id <> COALESCE(p_exclude_booking_room_id, '00000000-0000-0000-0000-000000000000'::UUID)
+      AND check_in_date  < p_check_out   -- existing booking starts before new one ends
+      AND check_out_date > p_check_in;   -- existing booking ends after new one starts
+
+    -- Return TRUE (available) if no conflicts found
+    RETURN v_conflict_count = 0;
+END;
+$$;
+
+-- ═══════════════════════════════════════════════════════════════════
+\echo '>>> [VIEW] Creating v_booking_details...'
+-- ═══════════════════════════════════════════════════════════════════
+
+CREATE OR REPLACE VIEW v_booking_details AS
+SELECT
+    -- Booking header
+    b.booking_id,
+    b.status              AS booking_status,
+    b.notes,
+    b.created_at          AS booked_at,
+
+    -- Branch
+    br.branch_id,
+    br.branch_name,
+    br.city               AS branch_city,
+
+    -- Who made the booking
+    g_booker.guest_id     AS booker_guest_id,
+    g_booker.first_name   AS booker_first_name,
+    g_booker.last_name    AS booker_last_name,
+    g_booker.email        AS booker_email,
+    g_booker.phone        AS booker_phone,
+
+    -- Room line item
+    br_room.booking_room_id,
+    br_room.check_in_date,
+    br_room.check_out_date,
+    (br_room.check_out_date - br_room.check_in_date) AS nights,
+    br_room.rate_at_booking,
+    (br_room.check_out_date - br_room.check_in_date)
+        * br_room.rate_at_booking    AS room_total,
+    br_room.status        AS room_status,
+
+    -- Room details
+    r.room_id,
+    r.room_number,
+    r.floor,
+
+    -- Room type
+    rt.type_name          AS room_type,
+    rt.capacity,
+
+    -- Meal plan
+    mp.plan_name          AS meal_plan,
+    mp.price_per_night    AS meal_price_per_night,
+
+    -- Primary guest on this room
+    g_primary.guest_id    AS primary_guest_id,
+    g_primary.first_name  AS primary_guest_first_name,
+    g_primary.last_name   AS primary_guest_last_name
+
+FROM bookings b
+JOIN branches   br         ON b.branch_id           = br.branch_id
+LEFT JOIN guests g_booker  ON b.booked_by_guest_id  = g_booker.guest_id
+JOIN booking_rooms br_room ON b.booking_id           = br_room.booking_id
+JOIN rooms         r       ON br_room.room_id        = r.room_id
+JOIN room_types    rt      ON br_room.room_type_id   = rt.room_type_id
+JOIN meal_plans    mp      ON br_room.plan_id        = mp.plan_id
+JOIN guests  g_primary     ON br_room.primary_guest_id = g_primary.guest_id;

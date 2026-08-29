@@ -1,66 +1,67 @@
 {
   "$schema": "https://design-tokens.github.io/community-group/format/",
+  "_note": "Corrected from landing page implementation (SkyNestHomePage.tsx). Accent is #D9722C (burnt orange), NOT #ff7e15. Base dark is ink (#0B2540), NOT #0a0a0a. Light base is paper (#FDFCFA), NOT #ffffff.",
   "sn": {
     "color": {
       "bg": {
-        "$value": "#ffffff",
+        "$value": "#FDFCFA",
         "$type": "color",
-        "$description": "Default page background. Light sections."
+        "$description": "Default page background (paper white). Light sections. Tailwind: bg-paper."
       },
       "bg-dark": {
-        "$value": "#0a0a0a",
+        "$value": "#0B2540",
         "$type": "color",
-        "$description": "Inverted sections, footer, video overlays."
+        "$description": "Inverted sections, hero fill, footer, dark overlays. Tailwind: bg-ink."
       },
       "surface": {
-        "$value": "#ededed",
+        "$value": "#F3F1EC",
         "$type": "color",
         "$description": "Cards, panels on a light background."
       },
       "surface-dark": {
-        "$value": "#12141a",
+        "$value": "#122033",
         "$type": "color",
         "$description": "Cards, panels on a dark background."
       },
       "text": {
-        "$value": "#1f2a44",
+        "$value": "#0B2540",
         "$type": "color",
-        "$description": "Headings and body text on light sections."
+        "$description": "Primary text on light sections. Tailwind: text-ink."
       },
       "text-muted": {
-        "$value": "#535353",
+        "$value": "#B7C2CC",
         "$type": "color",
-        "$description": "Captions, meta, placeholders on light."
+        "$description": "Captions, meta, placeholders on light. Tailwind: text-ink-faded."
       },
       "text-invert": {
-        "$value": "#ededed",
+        "$value": "#FFFFFF",
         "$type": "color",
-        "$description": "Body text on dark sections."
+        "$description": "Body text on dark sections. Tailwind: text-white."
       },
       "text-invert-muted": {
-        "$value": "#a8acb3",
+        "$value": "rgba(255,255,255,0.5)",
         "$type": "color",
-        "$description": "Muted text on dark sections."
+        "$description": "Muted text on dark sections. Tailwind: text-white/50."
       },
       "accent": {
-        "$value": "#ff7e15",
+        "$value": "#D9722C",
         "$type": "color",
-        "$description": "Orange. Interaction color only — hover fills, active states, CTAs. Never use for large fills or body text."
+        "$description": "Burnt orange. Interaction color only — hover fills, active states, CTA underlines. Never use for large fills or body text. Tailwind: text-skynest-accent / bg-skynest-accent."
       },
       "border": {
-        "$value": "#c0c0c0",
+        "$value": "#E4E1DA",
         "$type": "color",
-        "$description": "Dividers, input borders on light background."
+        "$description": "Dividers, hairlines on light background. Tailwind: border-skynest-hairline."
       },
       "border-dark": {
-        "$value": "#1f2330",
+        "$value": "rgba(255,255,255,0.10)",
         "$type": "color",
-        "$description": "Dividers on dark background."
+        "$description": "Dividers on dark background. Tailwind: border-white/10."
       },
       "border-glass": {
-        "$value": "rgba(255,255,255,0.2)",
+        "$value": "rgba(255,255,255,0.20)",
         "$type": "color",
-        "$description": "Glass component hairline border."
+        "$description": "Glass component hairline border. Tailwind: border-white/20."
       }
     }
   }

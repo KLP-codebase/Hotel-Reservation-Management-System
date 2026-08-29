@@ -1,373 +1,320 @@
 # Sky Nest — Component Reference
 
-> Raw component DOM and CSS extracted from the live site. **This file is secondary.**
-> Where it conflicts with `sky-nest-design.md`, follow `sky-nest-design.md`.
+> Exact DOM structures and class patterns from `SkyNestHomePage.tsx`.
+> **This file is secondary** — where it conflicts with `.gemini/skills/sky-nest-design.md`, follow that file.
 
 ---
 
-## Button — `.btn`
+## Navigation — `#skynest-nav`
 
-Base variant. Used on hero overlays and dark sections.
+Fixed top bar. Transparent over hero. Frosted glass on scroll via JS interpolation (not a CSS class toggle).
 
-```html
-<button class="btn" type="button">
-  <div class="btn-inner">
-    <span class="btn-text">Enquire</span>
-    <div class="btn-icon">
-      <!-- 11×11 SVG arrow, stroke-width 0.5, no fill -->
-      <svg width="11" height="11" viewBox="0 0 11 11" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <path d="M1 10L10 1M10 1H3M10 1V8" stroke="currentColor" stroke-width="0.5"/>
-      </svg>
-    </div>
-  </div>
-</button>
+```tsx
+// State
+const navProgress = 0 → 1 as user scrolls past 80px
+
+// Computed inline styles:
+const bgAlpha = lerp(0, 0.72, navProgress);
+const blurAmt  = lerp(0, 12,   navProgress);
+
+// Applied to <nav>:
+style={{
+  background: `rgba(253,252,250,${bgAlpha})`,
+  backdropFilter: `blur(${blurAmt}px)`,
+  WebkitBackdropFilter: `blur(${blurAmt}px)`,
+  borderBottom: `1px solid rgba(11,37,64,${lerp(0, 0.07, navProgress)})`,
+}}
 ```
 
-```css
-.btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  padding: 12px 24px;
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  border-radius: 4px;
-  background: rgba(31, 42, 68, 0.2);
-  color: var(--sn-text-invert);
-  font: 500 0.875rem "Inter Tight", sans-serif;
-  cursor: pointer;
-  transition: background 0.3s cubic-bezier(0.5, 1, 0.89, 1),
-              border-color 0.3s cubic-bezier(0.5, 1, 0.89, 1);
-}
-.btn:hover {
-  background: var(--sn-accent);
-  border-color: var(--sn-accent);
-}
-.btn:focus-visible {
-  outline: 1px auto currentColor;
-}
+### Nav Link (White Desert bordered button style)
 
-.btn-inner {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
+```tsx
+<a
+  href={href}
+  className="flex items-center px-6 py-2.5 text-[11px] md:text-[12px] font-jakarta font-medium tracking-[0.12em] uppercase border transition-[border-color,background-color] duration-200"
+  style={{ color: textColor, borderColor: borderColor, background: fillColor }}
+>
+  {label}
+</a>
 ```
 
-### Variants
+`textColor`, `borderColor`, `fillColor` are interpolated from white (at hero) to navy (scrolled).
 
-| Class | Notes |
-|---|---|
-| `.btn-tab` | Tab-bar item; smaller padding `8px 16px`; active state fills with `--sn-accent` |
-| `.btn-large` | Hero CTA; `padding: 16px 32px`; larger label text `1rem` |
-| `.btn-mobile` | Full-width on mobile; `width: 100%`; `justify-content: center` |
-| `.btn-image` | Sits over card imagery; uses glass surface treatment (`backdrop-filter: blur(12px)`) |
+### Wordmark
+
+```tsx
+// Center of nav bar, absolute positioned
+<a href="/" className="absolute left-1/2 -translate-x-1/2 flex flex-col items-center gap-0.5 group">
+  <MountainGlyph className="w-7 h-auto" style={{ color: wordmarkColor }} />
+  <span className="font-jakarta font-700 text-[11px] tracking-[0.35em] uppercase select-none"
+    style={{ color: wordmarkColor }}>
+    SKYNEST
+  </span>
+</a>
+```
+
+### Book Now / Sign In buttons
+
+```tsx
+// Sign In / Dashboard (amber tint)
+className="... text-amber-400 border-amber-500/30 hover:border-amber-400 bg-amber-500/10 hover:bg-amber-500/20"
+
+// Log Out (red tint)
+className="... text-red-400 border-red-500/30 hover:border-red-400 bg-red-500/10 hover:bg-red-500/20"
+```
+
+### Mobile Hamburger Menu
+
+Full-screen overlay on mobile. `bg-ink/[0.97] backdrop-blur-2xl`. Nav links are `font-jakarta font-semibold text-3xl text-white/80`. Animates in with staggered `transitionDelay` per item.
 
 ---
 
-## Glass Surface — `.glass`
+## Hero Section — `#hero`
 
-The system's signature material. A translucent panel with an inset specular highlight.
+**Pinned full-viewport.** Subsequent sections scroll over it. Background image with radial navy overlay. Giant wordmark at bottom. GSAP parallax on scroll.
 
-```html
-<div class="glass">
-  <!-- content -->
-</div>
+```tsx
+<section
+  id="hero"
+  className="sticky top-0 h-[100dvh] overflow-hidden flex flex-col bg-ink z-0"
+>
+  {/* Background image + overlay */}
+  <div className="absolute inset-0 pointer-events-none z-0 overflow-hidden">
+    <img
+      ref={bgImgRef}
+      src="/sunset-at-a-swimming-pool-during-a-vacation-on-a-t-2026-03-17-05-37-28-utc.jpg"
+      alt=""
+      className="w-full h-full object-cover object-center"
+      style={{ filter: "brightness(0.7) contrast(1.1)", willChange: "transform" }}
+    />
+    <div className="absolute inset-0" style={{
+      background: "radial-gradient(ellipse 120% 70% at 50% 30%, rgba(11,37,64,0.35) 0%, rgba(7,28,48,0.6) 60%, rgba(11,37,64,0.85) 100%)"
+    }} />
+  </div>
+
+  {/* Hairline column grid */}
+  <HairlineGrid count={5} />
+
+  {/* Top row: eyebrow + CTA */}
+  <div ref={topRowRef} className="relative flex items-start justify-between px-6 md:px-12 pt-24 md:pt-28 z-10">
+    <p className="font-cinzel font-normal italic text-white/75 text-[13px] md:text-[15px] leading-relaxed">
+      Three branches.<br />One standard of hospitality.
+    </p>
+    <a href="#branches" className="flex items-center gap-2 font-jakarta text-[11px] md:text-[12px] font-medium tracking-[0.15em] uppercase text-white/80 hover:text-white border border-white/20 hover:border-white/40 px-4 py-2.5 transition-all duration-300">
+      <span>Explore Branches</span>
+      <ChevronRight className="w-3 h-3" />
+    </a>
+  </div>
+
+  {/* Giant wordmark — bottom-aligned */}
+  <div ref={wordmarkRef} className="relative z-10 flex-1 flex items-end justify-center overflow-hidden pointer-events-none select-none w-full">
+    <span
+      className="font-cinzel font-normal leading-[0.85] text-white text-center whitespace-nowrap block w-full uppercase"
+      style={{ fontSize: "clamp(100px, 21vw, 260px)", letterSpacing: "0.03em", paddingBottom: "clamp(4px, 1.5vw, 8px)" }}
+    >
+      SKYNEST
+    </span>
+  </div>
+</section>
 ```
 
-```css
-.glass {
-  position: relative;
-  border: 1px solid var(--sn-border-glass);   /* rgba(255,255,255,.2) */
-  border-radius: 4px;
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  box-shadow:
-    inset 0.35px 0.35px 0 rgba(255, 255, 255, 0.2),
-    inset 0 0 1.75px rgba(255, 255, 255, 0.2);
-  --glass-opacity: 0.05;
-  --glass-scale: 0.35;
-}
-
-/* Pseudo-element background layer */
-.glass::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  border-radius: inherit;
-  background: rgba(255, 255, 255, var(--glass-opacity));
-  pointer-events: none;
-}
+GSAP parallax on the hero:
+```js
+// bgImgRef: y: "18%", scale: 1.08
+// wordmarkRef: y: "30%", opacity: 0.15
+// topRowRef: y: "-35px", opacity: 0.1
+// scrollTrigger: start "top top", end "+=120%", scrub: 1.2
 ```
-
-> ⚠️ Known extraction issue: raw docs claimed "no blur effects". This is false. `backdrop-filter` is a core part of the glass material and is intentional.
 
 ---
 
-## Card — `.card` / `.card-flick_*`
+## Cloud Transition
 
-Image-led card. Content is revealed via hover overlay.
+Positioned immediately after the hero. Uses a `h-[120dvh]` div so the hero has room to be "covered". Two cloud image layers rise from bottom on scroll with different parallax depths.
 
-### Standard Card
-
-```html
-<div class="card">
-  <div class="card_image">
-    <img src="..." alt="Room name" loading="lazy" />
+```tsx
+<div ref={containerRef} className="relative z-10 h-[120dvh] pointer-events-none overflow-hidden">
+  <div ref={wrap1Ref} className="absolute bottom-0 left-1/2"
+    style={{ width: "220%", height: "100%", marginLeft: "-110%", willChange: "transform, opacity" }}>
+    <img src="/07_Clouds.png" alt="" className="w-full h-full object-cover object-bottom"
+      style={{ maskImage: "linear-gradient(to bottom, transparent 0%, rgba(0,0,0,0.2) 18%, rgba(0,0,0,0.7) 38%, black 58%)" }} />
   </div>
-  <div class="card_overlay"></div>
-  <div class="card_content">
-    <h3 class="card_title">Suite Name</h3>
-    <div class="card_meta">
-      <span>From $420 / night</span>
-      <span>2 guests</span>
-    </div>
-  </div>
-</div>
-```
-
-```css
-.card {
-  position: relative;
-  overflow: hidden;
-  border-radius: 4px;
-}
-
-.card_image {
-  width: 100%;
-  height: 100%;
-}
-
-.card_image img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  transition: transform 0.6s cubic-bezier(0.16, 1, 0.3, 1);
-}
-
-.card:hover .card_image img {
-  transform: scale(1.03);
-}
-
-.card_overlay {
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(to top, rgba(10, 10, 10, 0.7), transparent 60%);
-  opacity: 0;
-  transition: opacity 0.4s cubic-bezier(0.5, 1, 0.89, 1);
-}
-
-.card:hover .card_overlay {
-  opacity: 1;
-}
-
-.card_content {
-  position: absolute;
-  inset-inline: 0;
-  bottom: 0;
-  padding: 24px;
-}
-
-.card_title {
-  font-family: "Cardinal Classic Long", serif;
-  font-style: italic;
-  font-size: clamp(1.5rem, 2.5vw, 2rem);
-  color: var(--sn-text-invert);
-  margin-bottom: 8px;
-}
-
-.card_meta {
-  display: flex;
-  gap: 12px;
-  font: 400 1rem "Inter Tight", sans-serif;
-  color: var(--sn-text-invert-muted);
-}
-```
-
-### Flick Card (`.card-flick_*`)
-
-Carousel-style card with side-scroll interaction.
-
-```html
-<div class="card-flick">
-  <div class="card-flick_track">
-    <div class="card-flick_item card">
-      <!-- standard card content -->
-    </div>
-    <!-- more items -->
+  <div ref={wrap2Ref} className="absolute bottom-0 left-1/2"
+    style={{ width: "220%", height: "85%", marginLeft: "-110%", willChange: "transform, opacity" }}>
+    <img src="/Clouds 3.png" alt="" className="w-full h-full object-cover object-bottom"
+      style={{ maskImage: "linear-gradient(to bottom, transparent 0%, rgba(0,0,0,0.4) 22%, rgba(0,0,0,0.9) 48%, black 65%)" }} />
   </div>
 </div>
 ```
 
-```css
-.card-flick {
-  overflow: hidden;
-}
-
-.card-flick_track {
-  display: flex;
-  gap: 24px;
-  overflow-x: auto;
-  scroll-snap-type: x mandatory;
-  -webkit-overflow-scrolling: touch;
-  scrollbar-width: none;
-}
-
-.card-flick_track::-webkit-scrollbar {
-  display: none;
-}
-
-.card-flick_item {
-  flex: 0 0 calc(33.333% - 16px);
-  scroll-snap-align: start;
-  min-width: 280px;
-}
-
-@media (max-width: 768px) {
-  .card-flick_item {
-    flex: 0 0 calc(85% - 12px);
-  }
-}
+GSAP config:
+```js
+// wrap1: y: "12%" → "0%", autoAlpha: 0 → 1 at position 0
+// wrap2: y: "20%" → "0%", autoAlpha: 0 → 1 at position 0.12
+// scrollTrigger: start "top bottom", end "bottom bottom", scrub: 2
 ```
 
 ---
 
-## Input — `.input`
+## GlobalGridOverlay
 
-Underline-only input. No box border, no background fill.
+One fixed full-page SVG mounted once at page root. 6 vertical lines using `linearGradient` that transitions stroke from white (on dark hero/image sections) to navy-tint (on light paper sections).
 
-```html
-<div class="input-group">
-  <label class="input-label" for="guest-name">Full Name</label>
-  <input class="input" id="guest-name" type="text" placeholder="e.g. Jane Smith" />
+```tsx
+<div aria-hidden="true" className="pointer-events-none fixed inset-0 z-[9999]" style={{ isolation: "isolate" }}>
+  <svg xmlns="http://www.w3.org/2000/svg" className="w-full h-full" preserveAspectRatio="none">
+    <defs>
+      <linearGradient id="grid-line-grad" x1="0" y1="0" x2="0" y2="1" gradientUnits="objectBoundingBox">
+        <stop offset="0%"   stopColor="rgba(255,255,255,0.18)" />
+        <stop offset="36%"  stopColor="rgba(255,255,255,0.18)" />
+        <stop offset="46%"  stopColor="rgba(11,37,64,0.10)" />
+        <stop offset="62%"  stopColor="rgba(11,37,64,0.10)" />
+        <stop offset="70%"  stopColor="rgba(255,255,255,0.15)" />
+        <stop offset="80%"  stopColor="rgba(255,255,255,0.15)" />
+        <stop offset="88%"  stopColor="rgba(11,37,64,0.10)" />
+        <stop offset="100%" stopColor="rgba(11,37,64,0.10)" />
+      </linearGradient>
+    </defs>
+    {/* 7 vertical lines spanning 0%–100% width */}
+  </svg>
 </div>
 ```
 
-```css
-.input-group {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
+---
 
-.input-label {
-  font: 500 0.875rem "Inter Tight", sans-serif;
-  color: var(--sn-text-muted);
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-}
+## MountainGlyph
 
-.input {
-  padding: 12px 16px;
-  background: transparent;
-  border: 0;
-  border-bottom: 1px solid var(--sn-border);
-  border-radius: 0;
-  color: var(--sn-text);
-  font: 400 1.0625rem "Inter Tight", sans-serif;
-  transition: border-color 0.3s cubic-bezier(0.5, 1, 0.89, 1);
-  width: 100%;
-}
+White Desert-style mountain icon used in nav wordmark.
 
-.input:focus {
-  border-color: var(--sn-accent);
-  outline: none;
-}
-
-.input::placeholder {
-  color: var(--sn-text-muted);
-}
-
-/* Dark section variant */
-.section--dark .input {
-  border-bottom-color: var(--sn-border-dark);
-  color: var(--sn-text-invert);
-}
-
-.section--dark .input:focus {
-  border-bottom-color: var(--sn-accent);
-}
+```tsx
+<svg viewBox="0 0 28 16" fill="none">
+  <path d="M1 15 L10 3 L14 8 L18 2 L27 15"
+    stroke="currentColor" strokeWidth="1.5"
+    strokeLinecap="round" strokeLinejoin="round" />
+</svg>
 ```
 
 ---
 
-## Navigation — `.nav`
+## SweepingOrbitalEmblem
 
-Fixed top navigation. Transparent over hero, opaque on scroll.
+Editorial ornament. Used on section breaks. SVG path + ellipse drawn via `strokeDashoffset` animation (scrubbed with ScrollTrigger). Cinzel italic label in the center.
 
-```html
-<nav class="nav" id="site-nav">
-  <div class="nav_container">
-    <a class="nav_logo" href="/">Sky Nest</a>
-    <ul class="nav_links" role="list">
-      <li><a class="nav_link" href="/rooms">Rooms</a></li>
-      <li><a class="nav_link" href="/dining">Dining</a></li>
-      <li><a class="nav_link" href="/experiences">Experiences</a></li>
-    </ul>
-    <button class="btn btn-large nav_cta" type="button">
-      <div class="btn-inner">
-        <span class="btn-text">Book Now</span>
+```tsx
+<svg viewBox="0 0 340 90" fill="none">
+  <path
+    ref={path1Ref}
+    d="M 2 62 C 32 62, 110 62, 205 48 C 285 36, 310 10, 235 10 C 140 10, 24 32, 38 56 C 45 74, 125 82, 255 62"
+    stroke="#0B2540" strokeWidth="0.45" opacity="0.32" strokeLinecap="round"
+  />
+  <ellipse ref={path2Ref} cx="170" cy="45" rx="94" ry="22"
+    stroke="#0B2540" strokeWidth="0.42" opacity="0.35" />
+</svg>
+<span
+  ref={labelRef}
+  className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 font-cinzel italic text-[12px] md:text-[14px] tracking-[0.08em] text-ink/80 whitespace-nowrap"
+>
+  The SkyNest Standard
+</span>
+```
+
+GSAP:
+```js
+// Start: strokeDasharray=length, strokeDashoffset=length (invisible)
+// End: strokeDashoffset=0 (fully drawn)
+// scrollTrigger: start "top 88%", end "top 45%", scrub: 1.2
+// Label: opacity: 0, scale: 0.95 → opacity: 1, scale: 1 at 0.35
+```
+
+---
+
+## Card — Image-led with Hover Overlay
+
+```tsx
+<div className="relative overflow-hidden rounded-[4px] group cursor-pointer">
+  <div className="relative w-full aspect-[3/4]">
+    <img
+      src={imageSrc}
+      alt={altText}
+      className="w-full h-full object-cover transition-transform duration-700 ease-out group-hover:scale-[1.03]"
+      style={{ willChange: "transform" }}
+    />
+    {/* Gradient overlay revealed on hover */}
+    <div className="absolute inset-0 bg-gradient-to-t from-ink/70 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-400" />
+    {/* Card content — pinned to bottom */}
+    <div className="absolute inset-x-0 bottom-0 p-6">
+      <h3 className="font-cinzel italic text-white mb-2" style={{ fontSize: "clamp(1.5rem, 2.5vw, 2rem)" }}>
+        Suite Name
+      </h3>
+      <div className="flex gap-3 font-jakarta text-white/60 text-sm">
+        <span>From $420 / night</span>
+        <span>2 guests</span>
       </div>
-    </button>
+    </div>
   </div>
-</nav>
+</div>
 ```
 
-```css
-.nav {
-  position: fixed;
-  inset-inline: 0;
-  top: 0;
-  z-index: 9999;
-  transition: background 0.3s cubic-bezier(0.5, 1, 0.89, 1);
-}
+---
 
-.nav.is-scrolled {
-  background: var(--sn-bg);
-  box-shadow: 0 1px 0 var(--sn-border);
-}
+## Input (Underline-only)
 
-.nav_container {
-  width: calc(100% - 120px);
-  max-width: 1440px;
-  margin-inline: auto;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding-block: 24px;
-}
+```tsx
+<div className="flex flex-col gap-2">
+  <label className="font-jakarta font-medium text-[14px] uppercase tracking-[0.08em] text-ink-faded">
+    Full Name
+  </label>
+  <input
+    type="text"
+    placeholder="e.g. Jane Smith"
+    className="w-full px-4 py-3 bg-transparent border-0 border-b border-skynest-hairline font-jakarta text-[17px] text-ink placeholder-ink-faded focus:border-skynest-accent focus:outline-none transition-colors duration-300"
+  />
+</div>
+```
 
-.nav_logo {
-  font-family: "Cardinal Classic Long", serif;
-  font-size: 1.5rem;
-  color: var(--sn-text-invert);
-  text-decoration: none;
-  transition: color 0.3s;
-}
+On dark sections: `border-b border-white/20 text-white placeholder-white/40 focus:border-skynest-accent`
 
-.nav.is-scrolled .nav_logo {
-  color: var(--sn-text);
-}
+---
 
-.nav_links {
-  display: flex;
-  gap: 32px;
-  list-style: none;
-  margin: 0;
-  padding: 0;
-}
+## Glass Surface
 
-.nav_link {
-  font: 500 0.875rem "Inter Tight", sans-serif;
-  color: var(--sn-text-invert);
-  text-decoration: none;
-  transition: color 0.3s cubic-bezier(0.5, 1, 0.89, 1);
-}
+```tsx
+className="relative backdrop-blur-[12px] border border-white/20 rounded-[4px]"
+style={{
+  boxShadow: "inset 0.35px 0.35px 0 rgba(255,255,255,0.2), inset 0 0 1.75px rgba(255,255,255,0.2)"
+}}
+// Pseudo-layer if needed:
+// ::before { background: rgba(255,255,255,0.05) }
+```
 
-.nav.is-scrolled .nav_link {
-  color: var(--sn-text);
-}
+---
 
-.nav_link:hover {
-  color: var(--sn-accent);
-}
+## Story Section (Full-width animated text)
+
+Each story section has lines of ALL-CAPS Cinzel text that animate line-by-line on scroll via GSAP stagger.
+
+```tsx
+{STORY_LINES.map((line, i) => (
+  <div
+    key={i}
+    ref={(el) => { lineRefs.current[i] = el; }}
+    className="overflow-hidden"
+    style={{ opacity: 0, transform: "translateY(60px)", willChange: "transform, opacity" }}
+  >
+    <span className="block font-cinzel uppercase text-ink"
+      style={{ fontSize: "clamp(3rem, 8vw, 8rem)", lineHeight: "0.9", letterSpacing: "0.02em" }}>
+      {line}
+    </span>
+  </div>
+))}
+```
+
+GSAP stagger:
+```js
+gsap.to(lineRefs.current, {
+  y: 0, opacity: 1,
+  duration: 1.2, ease: "power2.out",
+  stagger: 0.12,
+  scrollTrigger: { trigger: container, start: "top 75%", end: "top 25%", scrub: false }
+});
 ```
