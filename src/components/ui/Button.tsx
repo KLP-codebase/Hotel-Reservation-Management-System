@@ -18,10 +18,10 @@ const variantStyles: Record<Variant, string> = {
   outline: 'border border-white/20 text-stone-200 hover:bg-white/8 hover:border-white/40',
 };
 
-const sizeStyles: Record<Size, string> = {
-  sm: 'px-3 py-1.5 text-xs rounded-lg',
-  md: 'px-4 py-2   text-sm rounded-xl',
-  lg: 'px-6 py-3   text-base rounded-xl',
+const sizeStyles: Record<NonNullable<ButtonProps['size']>, string> = {
+  sm: 'px-3 py-1.5 text-xs rounded-none',
+  md: 'px-4 py-2   text-sm rounded-none',
+  lg: 'px-6 py-3   text-base rounded-none',
 };
 
 export const Button = forwardRef<HTMLButtonElement, ButtonProps>(

@@ -103,13 +103,13 @@ export default function BranchesPage() {
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
         {loading ? (
           Array.from({ length: 3 }).map((_, i) => (
-            <div key={i} className="h-44 rounded-2xl bg-white/3 border border-white/8 animate-pulse" />
+            <div key={i} className="h-44 rounded-none bg-white/3 border border-white/8 animate-pulse" />
           ))
         ) : branches.map(b => (
           <Card key={b.branch_id} className="flex flex-col gap-4">
             <div className="flex items-start justify-between">
               <div className="flex items-center gap-3">
-                <div className="w-9 h-9 rounded-xl bg-amber-700/20 flex items-center justify-center text-amber-400">
+                <div className="w-9 h-9 rounded-none bg-amber-700/20 flex items-center justify-center text-amber-400">
                   <Building2 size={16} />
                 </div>
                 <div>
@@ -151,7 +151,7 @@ export default function BranchesPage() {
               <Input label="Phone"       error={errors.phone?.message}      {...register('phone')} />
               <Input label="Email" type="email" error={errors.email?.message} {...register('email')} />
 
-              {error && <p className="text-xs text-red-400 bg-red-500/8 border border-red-500/20 rounded-xl px-4 py-3">{error}</p>}
+              {error && <p className="text-xs text-red-400 bg-red-500/8 border border-red-500/20 rounded-none px-4 py-3">{error}</p>}
               <div className="flex gap-3 pt-2">
                 <Button type="button" variant="ghost" className="flex-1" onClick={() => setDrawerOpen(false)}>Cancel</Button>
                 <Button type="submit" loading={isSubmitting} className="flex-1">{editing ? 'Save' : 'Create'}</Button>

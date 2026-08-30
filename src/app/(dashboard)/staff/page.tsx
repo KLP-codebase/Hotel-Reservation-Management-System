@@ -129,7 +129,7 @@ export default function StaffPage() {
           value={search}
           onChange={e => setSearch(e.target.value)}
           placeholder="Search by name or email…"
-          className="w-full bg-white/4 border border-white/10 rounded-xl pl-8 pr-4 py-2 text-sm text-stone-200 placeholder:text-stone-600 outline-none focus:border-amber-500/50 transition-colors"
+          className="w-full bg-white/4 border border-white/10 rounded-none pl-8 pr-4 py-2 text-sm text-stone-200 placeholder:text-stone-600 outline-none focus:border-amber-500/50 transition-colors"
         />
       </div>
 
@@ -153,7 +153,7 @@ export default function StaffPage() {
                 <tr key={s.staff_id} className="hover:bg-white/3 transition-colors">
                   <td className="px-6 py-4">
                     <div className="flex items-center gap-3">
-                      <div className="w-7 h-7 rounded-full bg-stone-800 flex items-center justify-center text-xs font-bold text-stone-300 uppercase">
+                      <div className="w-7 h-7 rounded-none bg-stone-800 flex items-center justify-center text-xs font-bold text-stone-300 uppercase">
                         {s.first_name[0]}{s.last_name[0]}
                       </div>
                       <div>
@@ -201,20 +201,20 @@ export default function StaffPage() {
 
               <div className="flex flex-col gap-1.5">
                 <label className="text-xs font-medium text-stone-400 uppercase tracking-widest">Role</label>
-                <select className="bg-stone-900 border border-white/10 rounded-xl px-3 py-2 text-sm text-stone-200 outline-none focus:border-amber-500 transition-colors" {...register('role')}>
+                <select className="bg-stone-900 border border-white/10 rounded-none px-3 py-2 text-sm text-stone-200 outline-none focus:border-amber-500 transition-colors" {...register('role')}>
                   {ROLES.map(r => <option key={r} value={r}>{r.replace('_',' ')}</option>)}
                 </select>
               </div>
 
               <div className="flex flex-col gap-1.5">
                 <label className="text-xs font-medium text-stone-400 uppercase tracking-widest">Branch</label>
-                <select className="bg-stone-900 border border-white/10 rounded-xl px-3 py-2 text-sm text-stone-200 outline-none focus:border-amber-500 transition-colors" {...register('branchId')}>
+                <select className="bg-stone-900 border border-white/10 rounded-none px-3 py-2 text-sm text-stone-200 outline-none focus:border-amber-500 transition-colors" {...register('branchId')}>
                   <option value="">— None —</option>
                   {branches.map(b => <option key={b.branch_id} value={b.branch_id}>{b.branch_name}</option>)}
                 </select>
               </div>
 
-              {error && <p className="text-xs text-red-400 bg-red-500/8 border border-red-500/20 rounded-xl px-4 py-3">{error}</p>}
+              {error && <p className="text-xs text-red-400 bg-red-500/8 border border-red-500/20 rounded-none px-4 py-3">{error}</p>}
 
               <div className="flex gap-3 pt-2">
                 <Button type="button" variant="ghost" className="flex-1" onClick={() => setDrawerOpen(false)}>Cancel</Button>
