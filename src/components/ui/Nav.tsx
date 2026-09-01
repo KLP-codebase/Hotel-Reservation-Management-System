@@ -47,7 +47,7 @@ export function Nav() {
               key={item.href}
               href={item.href}
               className={[
-                'flex items-center gap-3 px-3 py-2 rounded-xl text-sm transition-all duration-150 group',
+                'flex items-center gap-3 px-3 py-2 rounded-none text-sm transition-all duration-150 group',
                 active
                   ? 'bg-amber-600/15 text-amber-400 font-medium'
                   : 'text-stone-400 hover:text-stone-200 hover:bg-white/5',
@@ -67,7 +67,7 @@ export function Nav() {
       {user && (
         <div className="px-4 py-4 border-t border-white/8">
           <div className="flex items-center gap-3 mb-3">
-            <div className="w-8 h-8 rounded-full bg-amber-700/40 flex items-center justify-center text-amber-300 text-xs font-bold uppercase">
+            <div className="w-8 h-8 rounded-none bg-amber-700/40 flex items-center justify-center text-amber-300 text-xs font-bold uppercase">
               {user.firstName[0]}{user.lastName[0]}
             </div>
             <div className="min-w-0">
@@ -77,7 +77,7 @@ export function Nav() {
           </div>
           <button
             onClick={logout}
-            className="w-full flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs text-stone-500 hover:text-red-400 hover:bg-red-500/8 transition-all"
+            className="w-full flex items-center gap-2 px-3 py-1.5 rounded-none text-xs text-stone-500 hover:text-red-400 hover:bg-red-500/8 transition-all"
           >
             <LogOut size={13} />
             Sign out

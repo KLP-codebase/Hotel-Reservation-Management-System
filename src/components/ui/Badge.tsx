@@ -28,7 +28,7 @@ interface BadgeProps {
 export function Badge({ role, className = '' }: BadgeProps) {
   return (
     <span className={[
-      'inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium',
+      'inline-flex items-center px-2.5 py-0.5 rounded-none text-xs font-medium',
       roleStyles[role] ?? 'bg-stone-700/60 text-stone-300',
       className,
     ].join(' ')}>

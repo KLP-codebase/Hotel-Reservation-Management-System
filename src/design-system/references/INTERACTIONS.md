@@ -1,189 +1,228 @@
 # Sky Nest — Interactions Reference
 
-> Hover states, focus rings, and micro-interaction patterns.
-> **This file is secondary** — where it conflicts with `sky-nest-design.md`, follow `sky-nest-design.md`.
+> Hover states, focus rings, micro-interaction patterns, and nav interpolation.
+> **This file is secondary** — where it conflicts with `.gemini/skills/sky-nest-design.md`, follow that file.
 
 ---
 
 ## Easing Quick Reference
 
-All interactions use `0.3s var(--ease-out)` for micro-interactions:
+All CSS micro-interactions use `duration-200` or `duration-300` with default Tailwind easing:
 
 ```css
---ease-out: cubic-bezier(0.5, 1, 0.89, 1);
+transition-[border-color,background-color] duration-200
+transition-all duration-300
+transition-colors duration-300
 ```
 
-> ⚠️ Known extraction issue: raw docs said `linear`. Never use `linear` or bare `ease` for this system.
+For branded custom easing in CSS:
+```css
+transition: ... 0.3s cubic-bezier(0.5, 1, 0.89, 1);
+```
+
+> Do NOT use `ease-linear`, `ease-in`, or bare `ease` for branded interactions.
+
+---
+
+## Nav Scroll Interpolation
+
+The nav transitions from transparent → frosted-glass via JS `lerp()`, NOT by toggling a CSS class.
+
+```tsx
+// navProgress: 0 = at hero top, 1 = after 80px scroll
+
+const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
+
+// Text: white (hero) → navy (scrolled)
+const textColor = `rgba(${lerp(255,11,p)|0},${lerp(255,37,p)|0},${lerp(255,64,p)|0},${lerp(0.88,0.72,p).toFixed(2)})`;
+
+// Border: white/25 → navy/18
+const borderColor = `rgba(${lerp(255,11,p)|0},${lerp(255,37,p)|0},${lerp(255,64,p)|0},${lerp(0.25,0.18,p).toFixed(2)})`;
+
+// Fill: white/10 → navy/04
+const fillColor = `rgba(${lerp(255,11,p)|0},${lerp(255,37,p)|0},${lerp(255,64,p)|0},${lerp(0.10,0.04,p).toFixed(2)})`;
+
+// Background: transparent → paper/72 with blur
+const bgStyle = {
+  background: `rgba(253,252,250,${lerp(0, 0.72, p).toFixed(3)})`,
+  backdropFilter: `blur(${lerp(0, 12, p).toFixed(1)}px)`,
+  borderBottom: `1px solid rgba(11,37,64,${lerp(0, 0.07, p).toFixed(3)})`,
+};
+```
 
 ---
 
 ## Hover States
 
-### Link / Nav
+### Nav Link (White Desert bordered button)
 
-```css
-.nav_link {
-  color: var(--sn-text-invert);
-  transition: color 0.3s var(--ease-out);
-}
-.nav_link:hover { color: var(--sn-accent); }
-
-/* On scrolled / light nav */
-.nav.is-scrolled .nav_link {
-  color: var(--sn-text);
-}
-.nav.is-scrolled .nav_link:hover { color: var(--sn-accent); }
+The border and background color are driven by `navProgress`-interpolated inline styles. On hover, the border intensifies:
+```tsx
+className="... transition-[border-color,background-color] duration-200"
+// Hover effect built into the linkStyle inline style (border gets slightly more opaque)
 ```
 
-### Button
+For nav sign-in / dashboard (amber tint):
+```tsx
+className="... hover:border-amber-400 hover:bg-amber-500/20"
+```
 
-```css
-.btn {
-  background: rgba(31, 42, 68, 0.2);
-  border-color: rgba(255, 255, 255, 0.2);
-  transition: background 0.3s var(--ease-out), border-color 0.3s var(--ease-out);
-}
-.btn:hover {
-  background: var(--sn-accent);
-  border-color: var(--sn-accent);
-}
+### Hero CTA Button (Explore Branches)
+
+```tsx
+className="... text-white/80 hover:text-white border border-white/20 hover:border-white/40 transition-all duration-300"
 ```
 
 ### Card Image Zoom
 
-```css
-.card_image img {
-  transition: transform 0.6s var(--ease-expo);
-}
-.card:hover .card_image img {
-  transform: scale(1.03);
-}
+```tsx
+// Parent card needs: className="group"
+// Image: className="... transition-transform duration-700 ease-out group-hover:scale-[1.03]"
 ```
 
 ### Card Overlay Reveal
 
-```css
-.card_overlay {
-  opacity: 0;
-  transition: opacity 0.4s var(--ease-out);
-}
-.card:hover .card_overlay {
-  opacity: 1;
-}
+```tsx
+// Overlay: className="... opacity-0 group-hover:opacity-100 transition-opacity duration-400"
 ```
 
 ### Footer Links
 
-```css
-.footer_links a {
-  transition: color 0.3s var(--ease-out);
-}
-.footer_links a:hover {
-  color: var(--sn-accent);
-}
+```tsx
+className="font-jakarta text-base text-white/70 hover:text-white transition-colors duration-300"
 ```
 
 ### Input Focus
 
-```css
-.input {
-  border-bottom-color: var(--sn-border);
-  transition: border-color 0.3s var(--ease-out);
-}
-.input:focus {
-  border-bottom-color: var(--sn-accent);
-  outline: none;
-}
+```tsx
+className="... border-b border-skynest-hairline focus:border-skynest-accent focus:outline-none transition-colors duration-300"
+```
+
+On dark sections:
+```tsx
+className="... border-b border-white/20 focus:border-skynest-accent focus:outline-none"
 ```
 
 ---
 
 ## Focus Rings
 
-Accessible focus rings. Use `focus-visible` — not `focus` — to avoid mouse focus rings:
+Use `focus-visible` — never bare `focus` — to avoid mouse focus rings:
 
-```css
-/* Default: respect browser ring */
-:focus-visible {
-  outline: 2px solid var(--sn-accent);
-  outline-offset: 4px;
-}
+```tsx
+// General interactive elements:
+className="focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-white/50"
 
-/* Button: current color, looks correct on any background */
-.btn:focus-visible {
-  outline: 1px auto currentColor;
-}
+// Nav wordmark:
+className="... focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-white/50 rounded-sm"
 
-/* Input: no extra ring, the border handles it */
-.input:focus-visible {
-  outline: none;
-}
+// Hamburger button:
+className="... focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-white/50"
 
-/* Nav links */
-.nav_link:focus-visible {
-  outline: 1px solid var(--sn-accent);
-  outline-offset: 4px;
-  border-radius: 2px;
-}
+// Input — no ring (underline border handles it):
+className="focus-visible:outline-none"
 ```
 
----
-
-## Pointer Cursor
-
-Apply `cursor: pointer` only to interactive elements. Do not add it to non-interactive divs.
-
+CSS accent-based ring (for light sections):
 ```css
-button, [role="button"], a, label[for], .card-flick_item { cursor: pointer; }
+:focus-visible {
+  outline: 2px solid #D9722C;
+  outline-offset: 4px;
+}
 ```
 
 ---
 
 ## Active / Selected States
 
-Use `--sn-accent` for active tab, selected filter, or current nav item. Never use it as a large fill:
+Use `skynest-accent` (`#D9722C`) for active tabs, current page, selected filters. Never as large fill:
 
-```css
-.btn-tab.is-active {
-  background: var(--sn-accent);
-  border-color: var(--sn-accent);
-  color: #ffffff;
-}
+```tsx
+// Active tab
+className={`... ${isActive ? "border-skynest-accent text-skynest-accent bg-skynest-accent/10" : ""}`}
 
-.nav_link[aria-current="page"] {
-  color: var(--sn-accent);
-}
+// Current nav link
+aria-current="page" // CSS: [aria-current="page"] { color: #D9722C }
+
+// Amber variant used for Sign In
+className="text-amber-400 border-amber-500/30 bg-amber-500/10"
 ```
 
 ---
 
 ## Disabled States
 
-```css
-.btn:disabled,
-.btn[aria-disabled="true"] {
-  opacity: 0.4;
-  cursor: not-allowed;
-  pointer-events: none;
-}
+```tsx
+// Button disabled
+className="... disabled:opacity-40 disabled:cursor-not-allowed disabled:pointer-events-none"
 
-.input:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
+// Input disabled
+className="... disabled:opacity-50 disabled:cursor-not-allowed"
 ```
 
 ---
 
-## Scroll-Triggered Class Toggle (JS)
+## Mobile Hamburger Animation
 
-For the sticky nav transparency change:
+Three-line → X morphing hamburger:
 
-```js
-const nav = document.getElementById("site-nav");
-const SCROLL_THRESHOLD = 80;
+```tsx
+// Line 1: rotates +45° and shifts down
+className={["block h-px bg-white origin-center transition-all duration-300 ease-out",
+  menuOpen ? "rotate-45 translate-y-[7.5px]" : ""].join(" ")}
 
-window.addEventListener("scroll", () => {
-  nav.classList.toggle("is-scrolled", window.scrollY > SCROLL_THRESHOLD);
-}, { passive: true });
+// Line 2: fades and shrinks horizontally
+className={["block h-px bg-white transition-all duration-300 ease-out",
+  menuOpen ? "opacity-0 scale-x-50" : ""].join(" ")}
+
+// Line 3: rotates -45° and shifts up
+className={["block h-px bg-white origin-center transition-all duration-300 ease-out",
+  menuOpen ? "-rotate-45 -translate-y-[7.5px]" : ""].join(" ")}
+```
+
+---
+
+## Mobile Menu Overlay Entrance
+
+```tsx
+// Overlay container
+className={["fixed inset-0 z-40 md:hidden bg-ink/[0.97] backdrop-blur-2xl flex flex-col justify-center px-8",
+  "transition-opacity duration-500 ease-out",
+  menuOpen ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"].join(" ")}
+
+// Each nav link — staggers in with transitionDelay
+style={{ transitionDelay: menuOpen ? `${i * 60 + 100}ms` : "0ms" }}
+```
+
+---
+
+## Pointer Cursor
+
+Apply `cursor-pointer` only to interactive elements. Do not add it to non-interactive divs:
+
+```tsx
+// These need cursor-pointer:
+button, a, [role="button"], label[for]
+```
+
+---
+
+## Scroll Locking (for modal/menu overlays)
+
+When the mobile menu is open, lock the scroll and pause Lenis smooth scroll:
+
+```tsx
+useEffect(() => {
+  if (menuOpen) {
+    document.body.style.overflow = "hidden";
+    window.__lenis?.stop();
+  } else {
+    document.body.style.overflow = "";
+    window.__lenis?.start();
+  }
+  return () => {
+    document.body.style.overflow = "";
+    window.__lenis?.start();
+  };
+}, [menuOpen]);
 ```

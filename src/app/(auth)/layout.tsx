@@ -52,7 +52,7 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
       <header className="absolute top-6 left-6 right-6 flex items-center justify-between z-20">
         <Link
           href="/"
-          className="inline-flex items-center gap-2 text-[11px] font-jakarta font-medium uppercase tracking-[0.15em] text-white/70 hover:text-white border border-white/15 hover:border-white/40 px-4 py-2 rounded-full backdrop-blur-md bg-black/20 transition-all duration-200"
+          className="inline-flex items-center gap-2 text-[11px] font-jakarta font-medium uppercase tracking-[0.15em] text-white/70 hover:text-white border border-white/15 hover:border-white/40 px-4 py-2 rounded-none backdrop-blur-md bg-black/20 transition-all duration-200"
         >
           <span>← SkyNest Home</span>
         </Link>

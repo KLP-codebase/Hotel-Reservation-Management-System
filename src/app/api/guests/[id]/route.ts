@@ -3,10 +3,11 @@ import { query } from "@/lib/db";
 
 export async function GET(
   _request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const guestResult = await query("SELECT * FROM guests WHERE id = $1 LIMIT 1", [params.id]);
+    const { id } = await params;
+    const guestResult = await query("SELECT * FROM guests WHERE id = $1 LIMIT 1", [id]);
 
     if (guestResult.rows.length === 0) {
       return NextResponse.json({ success: false, error: "Guest not found" }, { status: 404 });
@@ -14,7 +15,7 @@ export async function GET(
 
     const bookingsResult = await query(
       "SELECT b.*, r.number as room_number FROM bookings b JOIN rooms r ON b.room_id = r.id WHERE b.guest_id = $1 ORDER BY b.created_at DESC",
-      [params.id]
+      [id]
     );
 
     const guest = {
@@ -31,9 +32,10 @@ export async function GET(
 
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
     const body = await request.json();
     const fields = Object.keys(body);
 
@@ -42,7 +44,7 @@ export async function PATCH(
     }
 
     const setClauses = fields.map((field, idx) => `${field} = $${idx + 2}`).join(", ");
-    const values = [params.id, ...Object.values(body)];
+    const values = [id, ...Object.values(body)];
 
     const sql = `UPDATE guests SET ${setClauses}, updated_at = CURRENT_TIMESTAMP WHERE id = $1 RETURNING *`;
     const result = await query(sql, values);
