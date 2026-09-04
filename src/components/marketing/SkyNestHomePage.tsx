@@ -411,7 +411,7 @@ function SkyNestNav({
               Rates
             </a>
             <a
-              href="#booking"
+              href="/book"
               id="nav-cta-book-now"
               className="flex items-center px-6 py-2.5 text-[11px] md:text-[12px] font-jakarta font-semibold tracking-[0.12em] uppercase border transition-[border-color,background-color] duration-200"
               style={bookStyle}
@@ -498,7 +498,7 @@ function SkyNestNav({
         ].join(" ")}
       >
         <div className="space-y-1 pt-16">
-          {[...NAV_LINKS, { label: "Rates", href: "#rates" }, { label: "Book Now", href: "#booking" }, { label: "Sign In", href: "/login" }].map(
+          {[...NAV_LINKS, { label: "Rates", href: "#rates" }, { label: "Book Now", href: "/book" }, { label: "Sign In", href: "/login" }].map(
 
             (link, i) => (
               <a
