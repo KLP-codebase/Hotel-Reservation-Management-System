@@ -12,6 +12,22 @@ export function middleware(req: NextRequest) {
   const isProtected = path === '/dashboard' || path.startsWith('/dashboard/') || path === '/staff' || path === '/branches';
   const isAuthPage  = path === '/login' || path === '/register';
 
+  let role = '';
+  if (token) {
+    try {
+      const parts = token.split('.');
+      if (parts.length === 3) {
+        const payloadStr = atob(parts[1].replace(/-/g, '+').replace(/_/g, '/'));
+        const payload = JSON.parse(payloadStr);
+        role = payload.role || '';
+      }
+    } catch {
+      // fallback if token decoding fails
+    }
+  }
+
+  const isGuest = role.toUpperCase() === 'GUEST';
+
   if (!token && isProtected) {
     const loginUrl = new URL('/login', req.url);
     const res = NextResponse.redirect(loginUrl);
@@ -21,8 +37,16 @@ export function middleware(req: NextRequest) {
     return res;
   }
 
+  if (token && isGuest && isProtected) {
+    const mainPageUrl = new URL('/', req.url);
+    const res = NextResponse.redirect(mainPageUrl);
+    res.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+    return res;
+  }
+
   if (token && isAuthPage) {
-    const res = NextResponse.redirect(new URL('/dashboard', req.url));
+    const targetUrl = isGuest ? new URL('/', req.url) : new URL('/dashboard', req.url);
+    const res = NextResponse.redirect(targetUrl);
     res.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
     return res;
   }

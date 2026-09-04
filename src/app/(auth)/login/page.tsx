@@ -17,6 +17,7 @@ type FormData = z.infer<typeof schema>;
 export default function LoginPage() {
   const { login }  = useAuth();
   const [apiError, setApiError] = useState<string | null>(null);
+  const [selectedRole, setSelectedRole] = useState<string | null>(null);
   const [showPassword, setShowPassword] = useState(false);
 
   const { register, handleSubmit, setValue, formState: { errors, isSubmitting } } = useForm<FormData>({
@@ -28,6 +29,7 @@ export default function LoginPage() {
   });
 
   const fillCredentials = (user: string, pass: string) => {
+    setSelectedRole(user);
     setValue('username', user, { shouldValidate: true });
     setValue('password', pass, { shouldValidate: true });
     setApiError(null);
@@ -36,8 +38,12 @@ export default function LoginPage() {
   const onSubmit = async (data: FormData) => {
     setApiError(null);
     try {
-      await login(data);
-      window.location.replace('/dashboard');
+      const user = await login(data);
+      if (user?.role?.toUpperCase() === 'GUEST') {
+        window.location.replace('/');
+      } else {
+        window.location.replace('/dashboard');
+      }
     } catch (err) {
       if (err instanceof ApiError) {
         setApiError(err.message);
@@ -65,28 +71,44 @@ export default function LoginPage() {
           <button
             type="button"
             onClick={() => fillCredentials('admin', 'admin2025')}
-            className="px-3 py-1.5 rounded-none border border-amber-500/40 bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 text-[11px] font-jakarta font-medium uppercase tracking-wider transition-colors"
+            className={`px-3 py-1.5 rounded-none border text-[11px] font-jakarta font-medium uppercase tracking-wider transition-colors ${
+              selectedRole === 'admin'
+                ? 'border-amber-400 bg-amber-500/25 text-amber-300 shadow-sm shadow-amber-500/20 font-semibold'
+                : 'border-white/15 bg-white/5 hover:bg-white/10 text-stone-300'
+            }`}
           >
             Admin
           </button>
           <button
             type="button"
-            onClick={() => fillCredentials('manager', 'admin2025')}
-            className="px-3 py-1.5 rounded-none border border-white/15 bg-white/5 hover:bg-white/10 text-stone-300 text-[11px] font-jakarta font-medium uppercase tracking-wider transition-colors"
+            onClick={() => fillCredentials('manager', 'SkyNest2025!')}
+            className={`px-3 py-1.5 rounded-none border text-[11px] font-jakarta font-medium uppercase tracking-wider transition-colors ${
+              selectedRole === 'manager'
+                ? 'border-amber-400 bg-amber-500/25 text-amber-300 shadow-sm shadow-amber-500/20 font-semibold'
+                : 'border-white/15 bg-white/5 hover:bg-white/10 text-stone-300'
+            }`}
           >
             Manager
           </button>
           <button
             type="button"
-            onClick={() => fillCredentials('receptionist', 'admin2025')}
-            className="px-3 py-1.5 rounded-none border border-white/15 bg-white/5 hover:bg-white/10 text-stone-300 text-[11px] font-jakarta font-medium uppercase tracking-wider transition-colors"
+            onClick={() => fillCredentials('receptionist', 'SkyNest2025!')}
+            className={`px-3 py-1.5 rounded-none border text-[11px] font-jakarta font-medium uppercase tracking-wider transition-colors ${
+              selectedRole === 'receptionist'
+                ? 'border-amber-400 bg-amber-500/25 text-amber-300 shadow-sm shadow-amber-500/20 font-semibold'
+                : 'border-white/15 bg-white/5 hover:bg-white/10 text-stone-300'
+            }`}
           >
             Staff
           </button>
           <button
             type="button"
-            onClick={() => fillCredentials('guest', 'admin2025')}
-            className="px-3 py-1.5 rounded-none border border-white/15 bg-white/5 hover:bg-white/10 text-stone-300 text-[11px] font-jakarta font-medium uppercase tracking-wider transition-colors"
+            onClick={() => fillCredentials('guest', 'SkyNest2025!')}
+            className={`px-3 py-1.5 rounded-none border text-[11px] font-jakarta font-medium uppercase tracking-wider transition-colors ${
+              selectedRole === 'guest'
+                ? 'border-amber-400 bg-amber-500/25 text-amber-300 shadow-sm shadow-amber-500/20 font-semibold'
+                : 'border-white/15 bg-white/5 hover:bg-white/10 text-stone-300'
+            }`}
           >
             Guest
           </button>

@@ -11,7 +11,7 @@ import { authClient, UserProfile, LoginDto } from '../lib/auth-client';
 interface AuthContextValue {
   user:    UserProfile | null;
   loading: boolean;
-  login:   (dto: LoginDto) => Promise<void>;
+  login:   (dto: LoginDto) => Promise<UserProfile>;
   logout:  () => Promise<void>;
 }
 
@@ -29,9 +29,10 @@ export function AuthProvider({ children }: PropsWithChildren) {
       .finally(() => setLoading(false));
   }, []);
 
-  const login = useCallback(async (dto: LoginDto) => {
+  const login = useCallback(async (dto: LoginDto): Promise<UserProfile> => {
     const profile = await authClient.login(dto);
     setUser(profile); // Notifies all useAuth() Observers
+    return profile;
   }, []);
 
   const logout = useCallback(async () => {
