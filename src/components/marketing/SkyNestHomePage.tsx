@@ -421,13 +421,15 @@ function SkyNestNav({
 
             {user ? (
               <>
-                <a
-                  href="/dashboard"
-                  id="nav-cta-dashboard"
-                  className="flex items-center px-6 py-2.5 text-[11px] md:text-[12px] font-jakarta font-semibold tracking-[0.12em] uppercase border transition-[border-color,background-color] duration-200 text-amber-400 border-amber-500/30 hover:border-amber-400 bg-amber-500/10 hover:bg-amber-500/20"
-                >
-                  Dashboard
-                </a>
+                {user.role?.toUpperCase() !== 'GUEST' && (
+                  <a
+                    href="/dashboard"
+                    id="nav-cta-dashboard"
+                    className="flex items-center px-6 py-2.5 text-[11px] md:text-[12px] font-jakarta font-semibold tracking-[0.12em] uppercase border transition-[border-color,background-color] duration-200 text-amber-400 border-amber-500/30 hover:border-amber-400 bg-amber-500/10 hover:bg-amber-500/20"
+                  >
+                    Dashboard
+                  </a>
+                )}
                 <button
                   onClick={logout}
                   id="nav-cta-logout"

@@ -49,18 +49,33 @@ CREATE TABLE IF NOT EXISTS user_accounts (
 -- Layered validation on top of base table definitions.
 -- These hold even if the API is bypassed (e.g., direct DB access).
 
-ALTER TABLE bookings
-    ADD CONSTRAINT IF NOT EXISTS chk_checkout_after_checkin CHECK (check_out > check_in),
-    ADD CONSTRAINT IF NOT EXISTS chk_total_non_negative     CHECK (total_amount >= 0),
-    ADD CONSTRAINT IF NOT EXISTS chk_adults_positive        CHECK (adults >= 1);
+DO $$ BEGIN
+    ALTER TABLE bookings ADD CONSTRAINT chk_checkout_after_checkin CHECK (check_out > check_in);
+EXCEPTION WHEN undefined_table THEN null; WHEN duplicate_object THEN null; END $$;
 
-ALTER TABLE rooms
-    ADD CONSTRAINT IF NOT EXISTS chk_price_positive         CHECK (price_per_night > 0),
-    ADD CONSTRAINT IF NOT EXISTS chk_max_guests_positive    CHECK (max_guests >= 1);
+DO $$ BEGIN
+    ALTER TABLE bookings ADD CONSTRAINT chk_total_non_negative CHECK (total_amount >= 0);
+EXCEPTION WHEN undefined_table THEN null; WHEN duplicate_object THEN null; END $$;
 
-ALTER TABLE bills
-    ADD CONSTRAINT IF NOT EXISTS chk_bill_total_non_negative CHECK (total >= 0),
-    ADD CONSTRAINT IF NOT EXISTS chk_tax_non_negative        CHECK (tax_amount >= 0);
+DO $$ BEGIN
+    ALTER TABLE bookings ADD CONSTRAINT chk_adults_positive CHECK (adults >= 1);
+EXCEPTION WHEN undefined_table THEN null; WHEN duplicate_object THEN null; END $$;
+
+DO $$ BEGIN
+    ALTER TABLE rooms ADD CONSTRAINT chk_price_positive CHECK (price_per_night > 0);
+EXCEPTION WHEN undefined_table THEN null; WHEN duplicate_object THEN null; END $$;
+
+DO $$ BEGIN
+    ALTER TABLE rooms ADD CONSTRAINT chk_max_guests_positive CHECK (max_guests >= 1);
+EXCEPTION WHEN undefined_table THEN null; WHEN duplicate_object THEN null; END $$;
+
+DO $$ BEGIN
+    ALTER TABLE bills ADD CONSTRAINT chk_bill_total_non_negative CHECK (total >= 0);
+EXCEPTION WHEN undefined_table THEN null; WHEN duplicate_object THEN null; END $$;
+
+DO $$ BEGIN
+    ALTER TABLE bills ADD CONSTRAINT chk_tax_non_negative CHECK (tax_amount >= 0);
+EXCEPTION WHEN undefined_table THEN null; WHEN duplicate_object THEN null; END $$;
 
 -- ── GoF Singleton Pattern: Administrator Uniqueness Constraint ─────────────────
 -- Guarantees at the database engine level that only ONE single Administrator
@@ -86,7 +101,7 @@ DECLARE
     v_admin_staff_id        UUID;
     v_dba_staff_id          UUID;
 
-    v_seed_hash  TEXT := '$2b$10$xJ7xH9kLmQpVsR3TuN8oYeWZd1aB4cF6gH8iJ0kL2mN4oP6qR8sT0';
+    v_seed_hash  TEXT := '$2a$10$gfnZjAQKOiHC440DClg.Wu0PkHb.vJ959HHZmZ3eEQP117LE.jZ.2'; -- SkyNest2025!
     v_admin_hash TEXT := '$2a$10$xm85S0x8C/4XYA6KxrX3eeGZ3N1eifAuxcsKMZYAjMuKz5lidYt8K'; -- admin2025
 BEGIN
     SELECT branch_id INTO v_colombo_id FROM branches WHERE branch_name = 'Sky Nest Colombo';

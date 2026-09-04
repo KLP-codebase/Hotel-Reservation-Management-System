@@ -32,9 +32,11 @@ CREATE TRIGGER trg_user_accounts_updated_at
     BEFORE UPDATE ON user_accounts
     FOR EACH ROW EXECUTE FUNCTION fn_set_updated_at();
 
-CREATE TRIGGER trg_rooms_updated_at
-    BEFORE UPDATE ON rooms
-    FOR EACH ROW EXECUTE FUNCTION fn_set_updated_at();
+DO $$ BEGIN
+    CREATE TRIGGER trg_rooms_updated_at
+        BEFORE UPDATE ON rooms
+        FOR EACH ROW EXECUTE FUNCTION fn_set_updated_at();
+EXCEPTION WHEN undefined_table THEN null; END $$;
 
 
 -- ── Trigger 2: audit staff mutations ─────────────────────────────────────────

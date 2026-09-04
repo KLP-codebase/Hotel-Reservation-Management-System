@@ -457,3 +457,81 @@ JOIN rooms         r       ON br_room.room_id        = r.room_id
 JOIN room_types    rt      ON br_room.room_type_id   = rt.room_type_id
 JOIN meal_plans    mp      ON br_room.plan_id        = mp.plan_id
 JOIN guests  g_primary     ON br_room.primary_guest_id = g_primary.guest_id;
+
+-- ═══════════════════════════════════════════════════════════════════
+\echo '>>> [17/17] Seeding Staff & User Accounts...'
+-- ═══════════════════════════════════════════════════════════════════
+
+DO $$
+DECLARE
+    v_colombo_id UUID;
+    v_kandy_id   UUID;
+    v_galle_id   UUID;
+
+    v_guest_staff_id        UUID;
+    v_receptionist_staff_id UUID;
+    v_service_staff_id      UUID;
+    v_manager_staff_id      UUID;
+    v_admin_staff_id        UUID;
+    v_dba_staff_id          UUID;
+
+    -- Valid bcrypt hashes generated with cost 10:
+    -- SkyNest2025! -> $2a$10$gfnZjAQKOiHC440DClg.Wu0PkHb.vJ959HHZmZ3eEQP117LE.jZ.2
+    -- admin2025    -> $2a$10$xm85S0x8C/4XYA6KxrX3eeGZ3N1eifAuxcsKMZYAjMuKz5lidYt8K
+    v_seed_hash  TEXT := '$2a$10$gfnZjAQKOiHC440DClg.Wu0PkHb.vJ959HHZmZ3eEQP117LE.jZ.2';
+    v_admin_hash TEXT := '$2a$10$xm85S0x8C/4XYA6KxrX3eeGZ3N1eifAuxcsKMZYAjMuKz5lidYt8K';
+BEGIN
+    SELECT branch_id INTO v_colombo_id FROM branches WHERE branch_name = 'Sky Nest Colombo';
+    SELECT branch_id INTO v_kandy_id   FROM branches WHERE branch_name = 'Sky Nest Kandy';
+    SELECT branch_id INTO v_galle_id   FROM branches WHERE branch_name = 'Sky Nest Galle';
+
+    -- Guest
+    INSERT INTO staff (first_name, last_name, email, role)
+    VALUES ('Guest', 'User', 'guest@skynest.lk', 'GUEST')
+    ON CONFLICT (email) DO NOTHING;
+
+    -- Receptionist — Colombo
+    INSERT INTO staff (branch_id, first_name, last_name, email, phone, role)
+    VALUES (v_colombo_id, 'Amara', 'Perera', 'receptionist@skynest.lk', '+94 77 100 0001', 'RECEPTIONIST')
+    ON CONFLICT (email) DO NOTHING;
+
+    -- Service Staff — Kandy
+    INSERT INTO staff (branch_id, first_name, last_name, email, phone, role)
+    VALUES (v_kandy_id, 'Nuwan', 'Silva', 'service@skynest.lk', '+94 77 100 0002', 'SERVICE_STAFF')
+    ON CONFLICT (email) DO NOTHING;
+
+    -- Manager — Galle
+    INSERT INTO staff (branch_id, first_name, last_name, email, phone, role)
+    VALUES (v_galle_id, 'Dilshan', 'Fernando', 'manager@skynest.lk', '+94 77 100 0003', 'MANAGER')
+    ON CONFLICT (email) DO NOTHING;
+
+    -- Administrator — Colombo
+    INSERT INTO staff (branch_id, first_name, last_name, email, phone, role)
+    VALUES (v_colombo_id, 'Kavindi', 'Jayawardena', 'admin@skynest.lk', '+94 77 100 0004', 'ADMINISTRATOR')
+    ON CONFLICT (email) DO NOTHING;
+
+    -- DBA
+    INSERT INTO staff (first_name, last_name, email, phone, role)
+    VALUES ('System', 'DBA', 'dba@skynest.lk', '+94 77 100 0005', 'DBA')
+    ON CONFLICT (email) DO NOTHING;
+
+    SELECT staff_id INTO v_guest_staff_id        FROM staff WHERE email = 'guest@skynest.lk';
+    SELECT staff_id INTO v_receptionist_staff_id FROM staff WHERE email = 'receptionist@skynest.lk';
+    SELECT staff_id INTO v_service_staff_id      FROM staff WHERE email = 'service@skynest.lk';
+    SELECT staff_id INTO v_manager_staff_id      FROM staff WHERE email = 'manager@skynest.lk';
+    SELECT staff_id INTO v_admin_staff_id        FROM staff WHERE email = 'admin@skynest.lk';
+    SELECT staff_id INTO v_dba_staff_id          FROM staff WHERE email = 'dba@skynest.lk';
+
+    INSERT INTO user_accounts (staff_id, username, password_hash, account_type) VALUES
+        (v_guest_staff_id,        'guest',        v_seed_hash,  'GUEST'),
+        (v_receptionist_staff_id, 'receptionist', v_seed_hash,  'RECEPTIONIST'),
+        (v_service_staff_id,      'service',      v_seed_hash,  'SERVICE_STAFF'),
+        (v_manager_staff_id,      'manager',      v_seed_hash,  'MANAGER'),
+        (v_admin_staff_id,        'admin',        v_admin_hash, 'ADMINISTRATOR'),
+        (v_dba_staff_id,          'dba',          v_seed_hash,  'DBA')
+    ON CONFLICT (username) DO NOTHING;
+END;
+$$;
+
+\echo '>>> ✅ Database initialization complete!'
+
