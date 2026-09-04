@@ -1,0 +1,40 @@
+import { Router, Request, Response } from 'express';
+import { z } from 'zod';
+import { db } from '../config/db';
+import { BookingRepository } from '../repositories/booking.repository';
+import { Errors } from '../lib/errors';
+
+const router = Router();
+const repo = new BookingRepository(db);
+
+const AccompanyingGuestSchema = z.object({
+    first_name: z.string().min(1, 'First name is required'),
+    last_name: z.string().min(1, 'Last name is required'),
+    id_passport_no: z.string().min(1, 'ID or Passport number is required'),
+});
+
+// POST /api/v1/booking-rooms/:id/accompanying-guests — add accompanying guest to a room
+router.post('/:id/accompanying-guests', async (req: Request, res: Response) => {
+    const bookingRoomId = req.params.id;
+
+    // 1. Check if the booking room exists
+    const room = await repo.findBookingRoomById(bookingRoomId);
+    if (!room) throw Errors.notFound('Booking Room');
+
+    // 2. Validate request body
+    const parsed = AccompanyingGuestSchema.safeParse(req.body);
+    if (!parsed.success) {
+        res.status(422).json({ success: false, errors: parsed.error.flatten().fieldErrors });
+        return;
+    }
+
+    // 3. Insert into database
+    const guest = await repo.addAccompanyingGuest({
+        booking_room_id: bookingRoomId,
+        ...parsed.data,
+    });
+
+    res.status(201).json({ success: true, data: guest });
+});
+
+export default router;

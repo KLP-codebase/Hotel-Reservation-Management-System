@@ -8,6 +8,10 @@ import staffRoutes from './routes/staff.routes';
 import branchRoutes from './routes/branches.routes';
 import guestRoutes from './routes/guests.routes';
 import roomTypeRoutes from './routes/room-types.routes';
+import availabilityRoutes from './routes/availability.routes';
+import bookingRoutes from './routes/bookings.routes';
+import bookingRoomRoutes from './routes/booking-rooms.routes';
+
 
 // ── GoF: Chain of Responsibility ──────────────────────────────────────────────
 // Each middleware added here is a node in the chain.
@@ -36,6 +40,10 @@ app.use('/api/v1/staff', staffRoutes);
 app.use('/api/v1/branches', branchRoutes);
 app.use('/api/v1/guests', guestRoutes);
 app.use('/api/v1/room-types', roomTypeRoutes);
+app.use('/api/v1/availability', availabilityRoutes);
+app.use('/api/v1/bookings', bookingRoutes);
+app.use('/api/v1/booking-rooms', bookingRoomRoutes);
+
 
 // ── 404 handler ────────────────────────────────────────────────────────────────
 app.use((_req, res) => {
