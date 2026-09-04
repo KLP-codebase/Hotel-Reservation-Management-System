@@ -1,4 +1,4 @@
-﻿# SkyNest Hotels — Reservation and Guest Services Management System (HRGSMS)
+# SkyNest Hotels — Reservation and Guest Services Management System (HRGSMS)
 ## Relational Database Design — Full Academic & Implementation Report
 
 ---
@@ -15,23 +15,23 @@ The design adopts a **simplified, implementation-ready schema** that meets 3NF t
 
 | # | Rule | DB Design Implication |
 |---|------|------------------------|
-| B1 | Multiple branches, each with its own rooms | ooms.branch_id FK → ranches |
-| B2 | Room has a type, each type has a base daily rate | oom_types.base_daily_rate; rate stored on type, not on individual room |
-| B3 | A room is assigned at physical check-in, not at booking | ooking_rooms.room_id is nullable at booking time |
-| B4 | One booking can contain multiple room reservations | ookings (header) 1—N ooking_rooms (line items) |
-| B5 | Each room in a booking has its own primary guest | ooking_rooms.primary_guest_id FK → guests |
-| B6 | Additional guests per room must be verified at check-in | ccompanying_guests table with is_verified flag |
-| B7 | Meal plan choice is per room reservation, not per booking | ooking_rooms.plan_id FK → meal_plans |
-| B8 | Rate at time of booking must be frozen (historical integrity) | ooking_rooms.rate_at_booking — snapshot at booking time |
-| B9 | Chargeable services are tracked per room stay | service_usage.booking_room_id FK → ooking_rooms |
+| B1 | Multiple branches, each with its own rooms | rooms.branch_id FK → branches |
+| B2 | Room has a type, each type has a base daily rate | room_types.base_daily_rate; rate stored on type, not on individual room |
+| B3 | A room is assigned at physical check-in, not at booking | booking_rooms.room_id is nullable at booking time |
+| B4 | One booking can contain multiple room reservations | bookings (header) 1—N booking_rooms (line items) |
+| B5 | Each room in a booking has its own primary guest | booking_rooms.primary_guest_id FK → guests |
+| B6 | Additional guests per room must be verified at check-in | accompanying_guests table with is_verified flag |
+| B7 | Meal plan choice is per room reservation, not per booking | booking_rooms.plan_id FK → meal_plans |
+| B8 | Rate at time of booking must be frozen (historical integrity) | booking_rooms.rate_at_booking — snapshot at booking time |
+| B9 | Chargeable services are tracked per room stay | service_usage.booking_room_id FK → booking_rooms |
 | B10 | Service catalogue price can change; historical usage price must be frozen | service_usage.price_at_usage — immutable snapshot |
-| B11 | One invoice per room stay; invoice stores pre-computed tax amounts | invoices 1:1 with ooking_rooms; tax fields frozen at generation time |
+| B11 | One invoice per room stay; invoice stores pre-computed tax amounts | invoices 1:1 with booking_rooms; tax fields frozen at generation time |
 | B12 | Multiple partial payments per invoice | payments N:1 invoices |
-| B13 | Tax rates come from a versioned, per-tax configuration table | 	ax_configurations with effective_from/effective_to |
+| B13 | Tax rates come from a versioned, per-tax configuration table | tax_configurations with effective_from/effective_to |
 | B14 | Staff operate under role-based access | staff.role column; role determines permission level |
-| B15 | Either a guest or a staff member may initiate a booking | ookings.booked_by_guest_id and ookings.booked_by_staff_id — one is nullable |
+| B15 | Either a guest or a staff member may initiate a booking | bookings.booked_by_guest_id and bookings.booked_by_staff_id — one is nullable |
 | B16 | System must log all data changes for audit compliance | change_log table with old/new JSON snapshots |
-| B17 | Management reports are pre-generated and cached as snapshots | eport_snapshots table with JSONB payload |
+| B17 | Management reports are pre-generated and cached as snapshots | report_snapshots table with JSONB payload |
 
 ---
 
@@ -67,9 +67,9 @@ The design adopts a **simplified, implementation-ready schema** that meets 3NF t
 
 **booking_rooms**(booking_room_id, booking_id, primary_guest_id, room_type_id, room_id, plan_id, check_in_date, check_out_date, rate_at_booking)
 - FD1: booking_room_id → all other attributes
-- ate_at_booking depends on booking_room_id (its snapshot value), not on room_type_id alone — no transitive dependency because the rate is deliberately a frozen copy, not a derivable value from room_types.
+- rate_at_booking depends on booking_room_id (its snapshot value), not on room_type_id alone — no transitive dependency because the rate is deliberately a frozen copy, not a derivable value from room_types.
 
-**invoices**(invoice_id, booking_room_id, room_charges, service_charges, discount_amount, vat_amount, ssc_amount, service_charge_tax, generated_at)
+**invoices**(invoice_id, booking_room_id, room_charges, service_charges, discount_amount, service_charge_tax, tdl_amount, ssc_amount, vat_amount, total_amount, generated_at)
 - FD1: invoice_id → all other attributes
 - FD2: booking_room_id → all other attributes (UNIQUE — 1:1 with booking_rooms)
 - Two candidate keys; both are superkeys — no BCNF violation.
@@ -106,14 +106,14 @@ The design adopts a **simplified, implementation-ready schema** that meets 3NF t
 
 ## 6. Normalization Analysis
 
-**1NF** — Every relation stores only atomic, single-valued attributes. No repeating groups, no comma-separated values, no arrays. Services are stored in service_catalogue and linked to room stays via service_usage. Accompanying guests are stored in ccompanying_guests, not as columns on ooking_rooms.
+**1NF** — Every relation stores only atomic, single-valued attributes. No repeating groups, no comma-separated values, no arrays. Services are stored in service_catalogue and linked to room stays via service_usage. Accompanying guests are stored in accompanying_guests, not as columns on booking_rooms.
 
 **2NF** — Every relation has a single-column primary key (except no composite-key relations with non-key attributes), so partial dependencies are structurally impossible in all tables.
 
 **3NF** — Checked per relation:
-- ooking_rooms.rate_at_booking is deliberately a frozen snapshot (not derivable from oom_types.base_daily_rate) — this is an intentional historical snapshot, not a redundancy.
+- booking_rooms.rate_at_booking is deliberately a frozen snapshot (not derivable from room_types.base_daily_rate) — this is an intentional historical snapshot, not a redundancy.
 - service_usage.price_at_usage is similarly a frozen snapshot of service_catalogue.base_price.
-- invoices stores frozen tax amounts — these depend on invoice_id, not transitively on 	ax_configurations rows, because they are snapshots at generation time.
+- invoices stores frozen tax amounts — these depend on invoice_id, not transitively on tax_configurations rows, because they are snapshots at generation time.
 - All other non-key attributes in every relation depend on the whole key and only on the key.
 
 **BCNF** — All relations satisfy BCNF. Every determinant in every relation is a superkey.
@@ -122,31 +122,31 @@ The design adopts a **simplified, implementation-ready schema** that meets 3NF t
 
 ## 7. Design Decisions
 
-### 7.1 Why ookings + ooking_rooms instead of a single table
+### 7.1 Why bookings + booking_rooms instead of a single table
 
 A single Booking table mixing header and room-line data would require repeating guest and rate data for each room — a 1NF violation (repeating groups). The header/line-item pattern gives:
-- ookings = immutable booking header (one per checkout session)
-- ooking_rooms = one row per room-stay, with its own check-in/out dates and rate
+- bookings = immutable booking header (one per checkout session)
+- booking_rooms = one row per room-stay, with its own check-in/out dates and rate
 
-### 7.2 Why oom_id is nullable in ooking_rooms
+### 7.2 Why room_id is nullable in booking_rooms
 
-Per business rule B3, a specific physical room is not assigned until the guest physically arrives at the front desk (check-in). At booking time only a oom_type_id is chosen. oom_id is populated when staff performs check-in. This avoids premature room lock-in for future availability.
+Per business rule B3, a specific physical room is not assigned until the guest physically arrives at the front desk (check-in). At booking time only a room_type_id is chosen. room_id is populated when staff performs check-in. This avoids premature room lock-in for future availability.
 
-### 7.3 Why ate_at_booking is a frozen snapshot
+### 7.3 Why rate_at_booking is a frozen snapshot
 
-oom_types.base_daily_rate can be updated by management. If invoices were computed from the live rate, historical bookings would silently reprice — a financial integrity failure. Storing ate_at_booking at booking creation time isolates each booking from future price changes.
+room_types.base_daily_rate can be updated by management. If invoices were computed from the live rate, historical bookings would silently reprice — a financial integrity failure. Storing rate_at_booking at booking creation time isolates each booking from future price changes.
 
 ### 7.4 Why invoices stores pre-computed tax amounts
 
 Sri Lankan tax law requires four cascading charges (VAT, SSC, Service Charge, etc.). Storing the computed amounts at invoice generation time means: (a) the invoice is legally reproducible even if tax rates change later, and (b) no re-computation is needed when displaying an invoice.
 
-### 7.5 Why 	ax_configurations has one row per tax type
+### 7.5 Why tax_configurations has one row per tax type
 
 Rather than a single TaxConfig row with four columns (one per tax type), each row represents one named tax, making it easy to version individual taxes independently as laws change, and to sync rates from an external tax authority API.
 
-### 7.6 Why change_log uses ecord_id varchar instead of an FK
+### 7.6 Why change_log uses record_id varchar instead of an FK
 
-A polymorphic audit log cannot have a typed FK to every table it audits. ecord_id stores the PK value as text (which covers both INT and UUID PKs). The 	able_name column identifies the target table. This is the standard pattern for application-level audit trails.
+A polymorphic audit log cannot have a typed FK to every table it audits. record_id stores the PK value as text (which covers both INT and UUID PKs). The table_name column identifies the target table. This is the standard pattern for application-level audit trails.
 
 ---
 
@@ -317,9 +317,10 @@ CHECK constraint: (booked_by_guest_id IS NOT NULL OR booked_by_staff_id IS NOT N
 | room_charges | NUMERIC(12,2) | NOT NULL | rate_at_booking × nights |
 | service_charges | NUMERIC(12,2) | NOT NULL, DEFAULT 0 | sum of service_usage lines |
 | discount_amount | NUMERIC(12,2) | NOT NULL, DEFAULT 0 | |
-| service_charge_tax | NUMERIC(12,2) | NOT NULL, DEFAULT 0 | frozen snapshot |
-| ssc_amount | NUMERIC(12,2) | NOT NULL, DEFAULT 0 | frozen snapshot |
-| vat_amount | NUMERIC(12,2) | NOT NULL, DEFAULT 0 | frozen snapshot |
+| service_charge_tax | NUMERIC(12,2) | NOT NULL, DEFAULT 0 | frozen snapshot (10% Service Charge) |
+| tdl_amount | NUMERIC(12,2) | NOT NULL, DEFAULT 0 | frozen snapshot (1% Tourism Development Levy) |
+| ssc_amount | NUMERIC(12,2) | NOT NULL, DEFAULT 0 | frozen snapshot (2.5% SSC Levy) |
+| vat_amount | NUMERIC(12,2) | NOT NULL, DEFAULT 0 | frozen snapshot (18% VAT) |
 | total_amount | NUMERIC(12,2) | NOT NULL | final amount due |
 | generated_at | TIMESTAMP | NOT NULL, DEFAULT CURRENT_TIMESTAMP | |
 | status | VARCHAR(50) | NOT NULL, DEFAULT 'OPEN' | OPEN/PARTIALLY_PAID/PAID/CANCELLED |
@@ -524,10 +525,10 @@ erDiagram
 | Team Member | Module | Tables Owned |
 |---|---|---|
 | Member 1 | Auth & Staff | user_accounts, guests, staff |
-| Member 2 | Room & Branch Management | ranches, oom_types, ooms, meal_plans, service_catalogue, 	ax_configurations |
-| Member 3 | Reservation & Booking Engine | ookings, ooking_rooms, ccompanying_guests |
+| Member 2 | Room & Branch Management | branches, room_types, rooms, meal_plans, service_catalogue, tax_configurations |
+| Member 3 | Reservation & Booking Engine | bookings, booking_rooms, accompanying_guests |
 | Member 4 | Billing & Payments | service_usage, invoices, payments |
-| Member 5 | Reports & Audit | eport_snapshots, change_log |
+| Member 5 | Reports & Audit | report_snapshots, change_log |
 
 ---
 
@@ -536,7 +537,7 @@ erDiagram
 | Pattern | Implementation |
 |---|---|
 | **Observer** | change_log table — triggers on mutation events write to the log (PostgreSQL-level Observer) |
-| **Facade** | Database views (e.g., _booking_summary) — hide multi-table JOIN complexity behind a single SELECT |
+| **Facade** | Database views (e.g., v_booking_details) — hide multi-table JOIN complexity behind a single SELECT |
 | **Template Method** | Stored procedures/functions enforce fixed billing calculation steps: room charges → service charges → tax cascade → discount → total |
 | **Singleton** | UNIQUE constraint on user_accounts for the ADMINISTRATOR role — at most one admin account exists |
 | **Decorator** | CHECK constraints layered on tables — add validation behaviour on top of base table definitions |
