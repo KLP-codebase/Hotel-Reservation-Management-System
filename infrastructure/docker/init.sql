@@ -156,6 +156,7 @@ CREATE TABLE IF NOT EXISTS tax_configurations (
 INSERT INTO tax_configurations (tax_name, tax_percentage, is_active, effective_from) VALUES
     ('VAT',            0.1800, TRUE, '2024-01-01'),
     ('Service Charge', 0.1000, TRUE, '2024-01-01'),
+    ('TDL',            0.0100, TRUE, '2024-01-01'),
     ('SSC Levy',       0.0250, TRUE, '2024-01-01')
 ON CONFLICT (tax_name, effective_from) DO NOTHING;
 
@@ -232,6 +233,7 @@ CREATE TABLE IF NOT EXISTS invoices (
     service_charges     NUMERIC(12,2) NOT NULL DEFAULT 0,
     discount_amount     NUMERIC(12,2) NOT NULL DEFAULT 0,
     service_charge_tax  NUMERIC(12,2) NOT NULL DEFAULT 0,
+    tdl_amount          NUMERIC(12,2) NOT NULL DEFAULT 0,
     ssc_amount          NUMERIC(12,2) NOT NULL DEFAULT 0,
     vat_amount          NUMERIC(12,2) NOT NULL DEFAULT 0,
     total_amount        NUMERIC(12,2) NOT NULL DEFAULT 0,

@@ -13,6 +13,8 @@ Everything you need for standard component work is in this file. Load a referenc
 
 | File | Read it when |
 |---|---|
+| `Resources/SkyNest_Site_Map_and_Content_Copy.md` | Implementing or styling any of the 15 functional application screens (`/book`, `/book/[roomTypeId]`, `/dashboard/bookings`, etc.) for exact copy, form field labels, empty states, and validation warnings |
+| `Resources/ARCHITECTURE.md` | Reviewing system architecture, 17-table schema, REST API contracts, and concurrency rules |
 | `src/design-system/references/COMPONENTS.md` | Rebuilding a specific extracted component (buttons, cards, nav) and you need its exact DOM structure and class names |
 | `src/design-system/references/ANIMATIONS.md` | Implementing GSAP ScrollTrigger parallax, cloud transition, page transitions, or scroll reveals |
 | `src/design-system/references/LAYOUT.md` | Building page-level structure, grids, or section padding |
@@ -287,13 +289,14 @@ Z-index scale — use only: `0, 1, 2, 10, 40, 50, 100, 9999`. Hero is `z-0`. Clo
 
 ## Workflow
 
-1. Identify whether the section is light (`bg-paper text-ink`) or dark (`bg-ink text-white`), then pick the matching color set.
-2. Set type: `font-cinzel` display (often italic), `font-jakarta` body, sizes from the scale.
-3. Lay out on the 4px grid inside the container, with generous section padding.
-4. Reuse a component above before inventing one.
-5. Add motion with GSAP context — always `ctx.revert()` on cleanup. Use scrub for scroll-linked effects.
-6. Add `usePrefersReducedMotion()` guard — set final states synchronously when reduced.
-7. Audit: every color traces to a Tailwind token. No magic hex values in JSX.
+1. Consult [`Resources/SkyNest_Site_Map_and_Content_Copy.md`](file:///f:/Third%20Sem/DB/Project/Github%20Repo/Hotel-Reservation-Management-System/Resources/SkyNest_Site_Map_and_Content_Copy.md) for the screen's exact editorial copy, form labels, empty states, and validation messages.
+2. Identify whether the section is light (`bg-paper text-ink`) or dark (`bg-ink text-white`), then pick the matching color set.
+3. Set type: `font-cinzel` display (often italic), `font-jakarta` body, sizes from the scale.
+4. Lay out on the 4px grid inside the container, with generous section padding.
+5. Reuse a component above before inventing one.
+6. Add motion with GSAP context — always `ctx.revert()` on cleanup. Use scrub for scroll-linked effects.
+7. Add `usePrefersReducedMotion()` guard — set final states synchronously when reduced.
+8. Audit: every color traces to a Tailwind token. No magic hex values in JSX.
 
 ## Known issues (do not repeat these mistakes)
 

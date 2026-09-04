@@ -404,10 +404,10 @@ The system shall interface with the following physical hardware components:
    1. The responsive web interface accommodates standard mobile hardware (touchscreens) on iOS and Android devices, dynamically scaling to fit various viewport dimensions.  
 8. **Networking Hardware:**  
    1. The application relies on standard local area network (LAN) hardware (routers, switches, firewalls) at the Colombo, Kandy, and Galle branches to maintain an active internet connection.  
-   2. The network hardware must sustain a minimum bandwidth of 10 Mbps LAN to guarantee uninterrupted transmission of HTTPS requests to the Cloudflare edge network.  
+   2. The network hardware must sustain a minimum bandwidth of 10 Mbps LAN to guarantee uninterrupted transmission of HTTPS requests to the Railway cloud platform.  
 9. **Server Infrastructure:**  
-   1. Physical application server hardware is entirely abstracted by Cloudflare’s global edge network infrastructure.  
-   2. The underlying host hardware for the MySQL database must meet the minimum physical server requirements of a 4-core CPU and 16 GB RAM to process concurrent transactions and analytical reporting queries
+   1. Physical application server hardware is containerized and managed via the Railway cloud infrastructure.  
+   2. The underlying host hardware for the PostgreSQL database must meet the minimum physical server requirements of a 4-core CPU and 16 GB RAM to process concurrent transactions and analytical reporting queries
 
 ## 
 
@@ -415,7 +415,7 @@ The system shall interface with the following physical hardware components:
 
 Below is the updated and expanded **Software Interfaces** table for Section 3.3 of your IEEE Software Requirements Specification (SRS).
 
-An extra column—**Interface ID**—has been added to strictly adhere to standard IEEE SRS traceability practices, allowing functional requirements to map directly to specific software interfaces. The stack is fully centered on **JavaScript/Node.js**, includes cross-platform browser support, incorporates the Cloudflare edge deployment platform, and defines the OTA integration components for Booking.com and Agoda.
+An extra column—**Interface ID**—has been added to strictly adhere to standard IEEE SRS traceability practices, allowing functional requirements to map directly to specific software interfaces. The stack is fully centered on **JavaScript/Node.js**, includes cross-platform browser support, incorporates the Railway cloud deployment platform, and defines the OTA integration components for Booking.com and Agoda.
 
 | Interface ID | Software Component | Name and Version | Connection Purpose | Data Items / Messages In and Out | Services Needed | Nature of Communication |
 | :---- | :---- | :---- | :---- | :---- | :---- | :---- |
@@ -424,44 +424,29 @@ An extra column—**Interface ID**—has been added to strictly adhere to standa
 | **SI-03** | **CSS & Responsive Layout Engine** | Tailwind CSS v3.4.0 | Responsive web layout for seamless viewing on **Mobile** (iOS Safari, Android Chrome) and **Desktop** (Windows, macOS, Linux via Chrome, Firefox, Edge, Safari). | **In:** Screen dimensions, media query triggers, theme variables. **Out:** Compiled utility classes, breakpoint-adapted UI views. | Viewport adaptability, mobile touch-gesture support, cross-browser CSS normalization. | Client-side CSS execution compiled at build time. |
 | **SI-04** | **Relational Database Engine** | PostgreSQL 15-alpine (Docker container) | Core transactional engine, relational data persistence, and database-level enforcement of business rules and ACID compliance. | **In:** SQL execution queries, stored procedure calls, transaction blocks. **Out:** Relational record sets, execution status codes, trigger signals, exception errors. | MVCC transaction isolation, stored procedures, functions, triggers, and B-Tree/GIN indexing. | Encrypted TCP/IP socket connection using standard PostgreSQL wire protocol via the `pg` npm driver (no ORM). |
 | **SI-05** | **Cloud Deployment Platform** | Railway (cloud) + Docker Compose (local development) | Containerized application hosting for backend API, frontend, and PostgreSQL database. Railway provides automatic GitHub deployments, managed PostgreSQL, and environment variable management. | **In:** GitHub push events (CI/CD), inbound HTTPS requests. **Out:** Deployed container instances, public HTTPS endpoints, health check responses. | Docker container orchestration, environment variable injection, GitHub-integrated CI/CD pipeline, SSL/TLS termination. | HTTPS communication; Railway manages container networking and DNS. |
-| **SI-06** | **Payment Gateway Interface** | PayHere Checkout API / payhere.js (Sandbox Mode) | Processing simulated credit/debit card transactions, partial payments, and validating final bills for check-out. | **In:** MD5 hashed order ID, amount, currency (LKR), return URLs. **Out:** Server callback notification (notify\_url), payment status, verification checksum. | Onsite popup checkout, simulated payment processing, backend webhook verification. | Client-side JS initiation with secure Server-to-Server POST requests for callback validation. |
-| **SI-07** | **Automated Email Notification Engine** | Nodemailer v6.9 / SendGrid Node.js SDKOR  Resend/brevo | Sending transactional emails, registration offers, seasonal discounts, and tier-change notifications. | **In:** Recipient email, dynamic template parameters (Guest Name, Loyalty Points, Offer details). **Out:** SMTP delivery status, bounce/delivery logs. | Async email dispatch queue, HTML email template compilation, SMTP gateway routing. | Outbound SMTP / HTTPS API calls using OAuth2 / API Key authentication. |
-
-### 
-
-### 
-
-### 
-
-### 
-
-### 
-
-### 
-
-### 
+| **SI-06** | **Payment Gateway Interface** | PayHere Checkout API / payhere.js (Sandbox Mode)  | Processing simulated credit/debit card transactions, partial payments, and validating final bills for check-out. | **In:** MD5 hashed order ID, amount, currency (LKR), return URLs. **Out:** Server callback notification (notify\_url), payment status, verification checksum. | Onsite popup checkout, simulated payment processing, backend webhook verification. | Client-side JS initiation with secure Server-to-Server POST requests for callback validation. |
+| **SI-07** | **Automated Email Notification Engine** | Nodemailer v6.9 / SendGrid Node.js SDK OR   Resend/brevo | Sending transactional emails, registration offers, seasonal discounts, and tier-change notifications. | **In:** Recipient email, dynamic template parameters (Guest Name, Loyalty Points, Offer details). **Out:** SMTP delivery status, bounce/delivery logs. | Async email dispatch queue, HTML email template compilation, SMTP gateway routing. | Outbound SMTP / HTTPS API calls using OAuth2 / API Key authentication. |
 
 ### 
 
 ### The following software interfaces were chosen to keep in compliance with the place of deployment of the product.
 
-### **Architectural Justification: Why Cloudflare was Chosen for Deployment**
+### **Architectural Justification: Why Railway was Chosen for Deployment**
 
-Deploying the SkyNest Hotel Reservation and Guest Services Management System (HRGSMS) on **Cloudflare (Cloudflare Pages / Workers)** provides significant technical and operational advantages over traditional monolithic cloud hosting:
+Deploying the SkyNest Hotel Reservation and Guest Services Management System (HRGSMS) on **Railway (Containerized Cloud Platform & Managed PostgreSQL)** provides significant technical and operational advantages:
 
-1. **Ultra-Low Latency via Edge Proximity (Sri Lanka & Global Reach):**  
-   * Traditional cloud servers are anchored to specific physical data centers (e.g., AWS Singapore or India). Cloudflare runs code on an extensive global edge network spanning over 300 cities worldwide (including local edge infrastructure in Colombo, Sri Lanka).  
-   * This ensures that both local hotel staff in Colombo, Kandy, and Galle, as well as international guests accessing the system via Agoda or Booking.com, experience near-instantaneous page load speeds (FCP $\< 0.5\\text{ seconds}$).  
-2. **Serverless Node.js Compatibility & Zero Cold Starts:**  
-   * Cloudflare Workers utilize lightweight V8 isolate engines rather than heavy container virtualizations. This eliminates "cold start" delays, ensuring that JavaScript/Node.js API routes (such as immediate room availability checks or billing calculations) execute in milliseconds under high concurrent traffic.  
-3. **Enterprise Security & DDoS Protection at No Extra Cost:**  
-   * Hotel booking platforms are high-value targets for automated scraping, credential stuffing, and Distributed Denial of Service (DDoS) attacks. Cloudflare provides built-in Layer 3/4/7 DDoS mitigation, Web Application Firewall (WAF) rules, and automated SSL/TLS termination, shielding the underlying backend database from direct public exposure.  
-4. **High Availability and Infinite Scalability for Seasonal Peaks:**  
-   * During peak tourist seasons or promotional campaigns, booking traffic can spike unexpectedly. Cloudflare's serverless infrastructure scales compute resources dynamically across its global network without requiring manual server provisioning, infrastructure management, or downtime. 
+1. **Native Long-Lived Node.js/Express & PostgreSQL Wire Protocol Support:**  
+   * Unlike serverless edge isolate environments which restrict standard Node.js APIs and raw TCP sockets, Railway natively runs standard containerized Node.js v20 runtimes. This allows our Express backend to maintain persistent connection pooling (`pg.Pool`) directly to PostgreSQL without connection dropouts or complex proxy wrappers.  
+2. **Managed PostgreSQL 15 with Extension Support:**  
+   * Railway provisions dedicated, managed PostgreSQL 15 instances supporting standard SQL extensions, specifically `btree_gist` and `uuid-ossp`, which are mandatory for our database-level double-booking exclusion constraints (`EXCLUDE USING gist`) and UUID primary keys.  
+3. **Unified Full-Stack Deployment & Zero-Configuration CI/CD:**  
+   * Railway enables running the Next.js frontend, Express API backend, and PostgreSQL database within a unified deployment environment connected directly to our GitHub repository with automated git-push builds.  
+4. **Isolated Networking & Cost-Effective Academic Operations:**  
+   * Service-to-service communication between the Express API and PostgreSQL operates over private internal networking (not exposed to the public internet), enhancing data protection for guest records while remaining well within predictable, cost-effective resource budgets.
 
 Additionally s, if the hotels were to be listed under [booking.com](http://booking.com) or agoda as per request of skynest hotels, the following Software interface would be utilized.
 
-| SI-06 |  External OTA Channel Integration | Channel Manager API / Node.js OTA Webhooks (Booking.com & Agoda Open APIs) | Automated two-way inventory and reservation synchronization with external booking engines. | In: Booking notifications, guest stay details, cancellation webhooks from Agoda/Booking.com. Out: Real-time room availability counts, daily rate updates, restriction rules. | Automated webhook parsing, property ID mapping, inventory conflict checks to prevent double-bookings. | Bi-directional HTTPS REST/XML Webhooks with HMAC signature verification for API security. |
+| SI-08 |  External OTA Channel Integration | Channel Manager API / Node.js OTA Webhooks (Booking.com & Agoda Open APIs) | Automated two-way inventory and reservation synchronization with external booking engines. | In: Booking notifications, guest stay details, cancellation webhooks from Agoda/Booking.com. Out: Real-time room availability counts, daily rate updates, restriction rules. | Automated webhook parsing, property ID mapping, inventory conflict checks to prevent double-bookings. | Bi-directional HTTPS REST/XML Webhooks with HMAC signature verification for API security. |
 | :---- | :---- | :---- | :---- | :---- | :---- | :---- |
 
 ## 
@@ -469,10 +454,10 @@ Additionally s, if the hotels were to be listed under [booking.com](http://booki
 ### **3.4 Communications Interfaces**
 
 * ***N*****etwork Protocols:**  
-  * **HTTP/HTTPS & HTTP/3:** Asynchronous HTTP/HTTPS is the primary protocol for REST API communication between the React/Next.js frontend interfaces and the Node.js backend services.  
-  * **Edge Routing:** HTTPS is mandatory for all connections to ensure guest data privacy, leveraging Cloudflare's automated HTTP/3 protocol negotiation.  
+  * **HTTP/HTTPS & HTTP/2:** Asynchronous HTTP/HTTPS is the primary protocol for REST API communication between the React/Next.js frontend interfaces and the Node.js backend services.  
+  * **Edge Routing:** HTTPS is mandatory for all connections to ensure guest data privacy, leveraging Railway's automated SSL/TLS termination.  
 * **Security Protocols & Compliance:**  
-  * **TLS/SSL:** All data in transit must be encrypted utilizing Transport Layer Security (TLS) 1.2 or higher. This is actively managed via Cloudflare’s edge-level SSL/TLS termination.  
+  * **TLS/SSL:** All data in transit must be encrypted utilizing Transport Layer Security (TLS) 1.2 or higher. This is actively managed via Railway's edge-level SSL/TLS termination.  
   * **Regulatory Compliance:** Payment processing and data handling must strictly comply with Payment Card Industry Data Security Standards (PCI DSS v3.2.1) .  
   * **Local Privacy Laws:** All guest personal information communication must comply with the Sri Lanka Personal Data Protection Act No. 9 of 2022\.  
 * **Web Services & External APIs:**  
