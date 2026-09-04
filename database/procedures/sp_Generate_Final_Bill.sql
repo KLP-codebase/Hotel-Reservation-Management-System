@@ -1,120 +1,127 @@
 -- ═══════════════════════════════════════════════════════════════════════════════
--- sp_Generate_Final_Bill
+-- sp_generate_final_bill (PL/pgSQL Function / Procedure)
 -- ═══════════════════════════════════════════════════════════════════════════════
--- Generates (or regenerates) the final bill for a booking.
--- Applies:
---   - Government tax (VAT 8%)
---   - Loyalty tier discount (BRONZE 0%, SILVER 5%, GOLD 10%, PLATINUM 15%)
---   - Additional service charges from extra_charges JSONB column (if present)
+-- Reconciled for SkyNest HRGSMS 17-table IEEE SRS compliant schema.
+-- Calculates the final invoice for a room stay (booking_rooms line item).
+-- Enforces:
+--   1. Frozen room rate (rate_at_booking × nights)
+--   2. Frozen service usage prices (quantity × price_at_usage)
+--   3. Versioned statutory Sri Lankan 4-tax cascade:
+--        - Service Charge (10%)
+--        - Tourism Development Levy (TDL) (1%)
+--        - Social Security Contribution Levy (SSCL) (2.5%)
+--        - Value Added Tax (VAT) (18%) on (Base + TDL + SSCL)
+--   4. Atomic upsert into the 1:1 invoices table (status: 'OPEN')
 --
 -- Parameters:
---   p_booking_id   UUID  - The booking to bill
---   p_regenerate   BOOL  - If TRUE, deletes existing bill and recreates it
---
--- Returns: bill_id UUID, total NUMERIC
+--   p_booking_room_id UUID - The specific room stay reservation
+-- Returns:
+--   UUID - The generated/updated invoice_id
 -- ═══════════════════════════════════════════════════════════════════════════════
 
-CREATE OR REPLACE PROCEDURE sp_Generate_Final_Bill(
-  IN  p_booking_id  UUID,
-  IN  p_regenerate  BOOLEAN DEFAULT FALSE,
-  OUT p_bill_id     UUID,
-  OUT p_total       NUMERIC
-)
+CREATE OR REPLACE FUNCTION sp_generate_final_bill(p_booking_room_id UUID)
+RETURNS UUID
 LANGUAGE plpgsql
 AS $$
 DECLARE
-  v_booking         RECORD;
-  v_guest           RECORD;
-  v_subtotal        NUMERIC;
-  v_tax_rate        NUMERIC := 0.08;   -- 8% VAT
-  v_tax_amount      NUMERIC;
-  v_loyalty_rate    NUMERIC;
-  v_loyalty_discount NUMERIC;
-  v_discount_amount  NUMERIC := 0;
-  v_line_items      JSONB;
+  v_nights           INT;
+  v_rate             NUMERIC(10,2);
+  v_room_charges     NUMERIC(12,2);
+  v_service_charges  NUMERIC(12,2);
+  v_base             NUMERIC(12,2);
+  v_sc_pct           NUMERIC(5,4);
+  v_tdl_pct          NUMERIC(5,4);
+  v_sscl_pct         NUMERIC(5,4);
+  v_vat_pct          NUMERIC(5,4);
+  v_sc_amt           NUMERIC(12,2);
+  v_tdl_amt          NUMERIC(12,2);
+  v_sscl_amt         NUMERIC(12,2);
+  v_vat_amt          NUMERIC(12,2);
+  v_total            NUMERIC(12,2);
+  v_invoice_id       UUID;
 BEGIN
-  -- Fetch booking
-  SELECT b.*, r.price_per_night,
-         (b.check_out - b.check_in) AS nights
-  INTO v_booking
-  FROM bookings b
-  JOIN rooms r ON r.id = b.room_id
-  WHERE b.id = p_booking_id;
+  -- 1. Calculate room charges (frozen rate_at_booking x nights)
+  SELECT (check_out_date - check_in_date), rate_at_booking
+    INTO v_nights, v_rate
+  FROM booking_rooms
+  WHERE booking_room_id = p_booking_room_id;
 
   IF NOT FOUND THEN
-    RAISE EXCEPTION 'Booking % not found', p_booking_id;
+    RAISE EXCEPTION 'booking_room % not found', p_booking_room_id;
   END IF;
 
-  IF v_booking.status NOT IN ('CHECKED_OUT', 'CONFIRMED', 'CHECKED_IN') THEN
-    RAISE EXCEPTION 'Cannot bill booking with status %', v_booking.status;
+  v_room_charges := v_nights * v_rate;
+
+  -- 2. Calculate service charges (frozen price_at_usage, already snapshotted per B10)
+  SELECT COALESCE(SUM(quantity * price_at_usage), 0)
+    INTO v_service_charges
+  FROM service_usage
+  WHERE booking_room_id = p_booking_room_id;
+
+  v_base := v_room_charges + v_service_charges;
+
+  -- 3. Pull currently-effective statutory tax rates (B13: versioned configuration)
+  SELECT tax_percentage INTO v_sc_pct FROM tax_configurations
+   WHERE UPPER(tax_name) IN ('SERVICE CHARGE', 'SERVICE_CHARGE') AND is_active
+     AND CURRENT_DATE >= effective_from AND (effective_to IS NULL OR CURRENT_DATE <= effective_to)
+   ORDER BY effective_from DESC LIMIT 1;
+
+  SELECT tax_percentage INTO v_tdl_pct FROM tax_configurations
+   WHERE UPPER(tax_name) IN ('TDL', 'TOURISM DEVELOPMENT LEVY') AND is_active
+     AND CURRENT_DATE >= effective_from AND (effective_to IS NULL OR CURRENT_DATE <= effective_to)
+   ORDER BY effective_from DESC LIMIT 1;
+
+  SELECT tax_percentage INTO v_sscl_pct FROM tax_configurations
+   WHERE UPPER(tax_name) IN ('SSCL', 'SSC LEVY', 'SOCIAL SECURITY CONTRIBUTION LEVY') AND is_active
+     AND CURRENT_DATE >= effective_from AND (effective_to IS NULL OR CURRENT_DATE <= effective_to)
+   ORDER BY effective_from DESC LIMIT 1;
+
+  SELECT tax_percentage INTO v_vat_pct FROM tax_configurations
+   WHERE UPPER(tax_name) IN ('VAT', 'VALUE ADDED TAX') AND is_active
+     AND CURRENT_DATE >= effective_from AND (effective_to IS NULL OR CURRENT_DATE <= effective_to)
+   ORDER BY effective_from DESC LIMIT 1;
+
+  IF v_sc_pct IS NULL OR v_tdl_pct IS NULL OR v_sscl_pct IS NULL OR v_vat_pct IS NULL THEN
+    RAISE EXCEPTION 'One or more active tax_configurations rows missing for booking_room %', p_booking_room_id;
   END IF;
 
-  -- Handle regeneration
-  IF p_regenerate THEN
-    DELETE FROM bills WHERE booking_id = p_booking_id;
-  ELSIF EXISTS (SELECT 1 FROM bills WHERE booking_id = p_booking_id) THEN
-    RAISE EXCEPTION 'Bill already exists for booking %. Use p_regenerate=TRUE to regenerate.', p_booking_id;
-  END IF;
+  -- Normalize tax percentages if stored as whole numbers (e.g., 10 vs 0.10)
+  IF v_sc_pct > 1 THEN v_sc_pct := v_sc_pct / 100; END IF;
+  IF v_tdl_pct > 1 THEN v_tdl_pct := v_tdl_pct / 100; END IF;
+  IF v_sscl_pct > 1 THEN v_sscl_pct := v_sscl_pct / 100; END IF;
+  IF v_vat_pct > 1 THEN v_vat_pct := v_vat_pct / 100; END IF;
 
-  -- Fetch guest loyalty tier
-  SELECT loyalty_tier INTO v_guest FROM guests WHERE id = v_booking.guest_id;
+  -- 4. Execute Template Method statutory tax cascade
+  v_sc_amt   := ROUND(v_base * v_sc_pct, 2);
+  v_tdl_amt  := ROUND(v_base * v_tdl_pct, 2);
+  v_sscl_amt := ROUND(v_base * v_sscl_pct, 2);
+  v_vat_amt  := ROUND((v_base + v_tdl_amt + v_sscl_amt) * v_vat_pct, 2);
+  v_total    := v_base + v_sc_amt + v_tdl_amt + v_sscl_amt + v_vat_amt;
 
-  -- Determine loyalty discount rate
-  v_loyalty_rate := CASE v_guest.loyalty_tier
-    WHEN 'BRONZE'   THEN 0.00
-    WHEN 'SILVER'   THEN 0.05
-    WHEN 'GOLD'     THEN 0.10
-    WHEN 'PLATINUM' THEN 0.15
-    ELSE 0.00
-  END;
-
-  -- Calculate subtotal (room charges)
-  v_subtotal := v_booking.price_per_night * v_booking.nights;
-
-  -- Build line items JSON
-  v_line_items := jsonb_build_array(
-    jsonb_build_object(
-      'description', FORMAT('Room %s × %s night(s)', v_booking.room_id, v_booking.nights),
-      'quantity',    v_booking.nights,
-      'unit_price',  v_booking.price_per_night,
-      'total',       v_subtotal
-    )
-  );
-
-  -- Apply loyalty discount to subtotal
-  v_loyalty_discount := ROUND(v_subtotal * v_loyalty_rate, 2);
-  v_subtotal         := v_subtotal - v_loyalty_discount;
-
-  -- Calculate tax on discounted subtotal
-  v_tax_amount := ROUND(v_subtotal * v_tax_rate, 2);
-
-  -- Final total
-  p_total := v_subtotal + v_tax_amount - v_discount_amount;
-
-  -- Insert bill
-  p_bill_id := gen_random_uuid();
-
-  INSERT INTO bills (
-    id, booking_id, subtotal, tax_amount,
-    discount_amount, loyalty_discount, total,
-    line_items, issued_at, updated_at
+  -- 5. Upsert the 1:1 invoice record (B11)
+  INSERT INTO invoices (
+    booking_room_id, room_charges, service_charges,
+    service_charge_tax, tdl_amount, ssc_amount, vat_amount,
+    total_amount, status, generated_at
   ) VALUES (
-    p_bill_id, p_booking_id, v_subtotal, v_tax_amount,
-    v_discount_amount, v_loyalty_discount, p_total,
-    v_line_items, NOW(), NOW()
-  );
+    p_booking_room_id, v_room_charges, v_service_charges,
+    v_sc_amt, v_tdl_amt, v_sscl_amt, v_vat_amt,
+    v_total, 'OPEN', CURRENT_TIMESTAMP
+  )
+  ON CONFLICT (booking_room_id) DO UPDATE SET
+    room_charges       = EXCLUDED.room_charges,
+    service_charges    = EXCLUDED.service_charges,
+    service_charge_tax = EXCLUDED.service_charge_tax,
+    tdl_amount         = EXCLUDED.tdl_amount,
+    ssc_amount         = EXCLUDED.ssc_amount,
+    vat_amount         = EXCLUDED.vat_amount,
+    total_amount       = EXCLUDED.total_amount,
+    generated_at       = CURRENT_TIMESTAMP
+  RETURNING invoice_id INTO v_invoice_id;
 
-  -- Update loyalty points (1 point per dollar spent)
-  UPDATE guests
-  SET loyalty_points = loyalty_points + FLOOR(p_total),
-      updated_at     = NOW()
-  WHERE id = v_booking.guest_id;
-
-EXCEPTION
-  WHEN OTHERS THEN
-    RAISE;
+  RETURN v_invoice_id;
 END;
 $$;
 
-COMMENT ON PROCEDURE sp_Generate_Final_Bill IS
-  'Generates the final bill applying tax and loyalty discounts. Awards loyalty points on completion.';
+COMMENT ON FUNCTION sp_generate_final_bill IS
+  'Generates or recalculates the final bill for a room stay, computing the 4-tier Sri Lankan statutory tax cascade and upserting the invoice.';
