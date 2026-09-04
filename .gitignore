@@ -11,6 +11,7 @@ build/
 .turbo/
 .vercel/
 next-env.d.ts
+*.tsbuildinfo
 
 # ── Environment variables ──────────────────────────────────────────────────────
 .env
