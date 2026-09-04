@@ -411,7 +411,7 @@ function SkyNestNav({
               Rates
             </a>
             <a
-              href="#booking"
+              href="/book"
               id="nav-cta-book-now"
               className="flex items-center px-6 py-2.5 text-[11px] md:text-[12px] font-jakarta font-semibold tracking-[0.12em] uppercase border transition-[border-color,background-color] duration-200"
               style={bookStyle}
