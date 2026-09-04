@@ -420,8 +420,8 @@ function BookingConfirmContent() {
                       key={plan.id}
                       onClick={() => setSelectedPlanId(plan.id)}
                       className={`p-5 rounded-none cursor-pointer border transition-all duration-200 flex flex-col justify-between ${isSelected
-                          ? 'border-skynest-accent bg-skynest-accent/[0.04] shadow-[0_4px_16px_rgba(217,114,44,0.08)]'
-                          : 'border-skynest-hairline bg-[#FDFCFA] hover:border-ink/30'
+                        ? 'border-skynest-accent bg-skynest-accent/[0.04] shadow-[0_4px_16px_rgba(217,114,44,0.08)]'
+                        : 'border-skynest-hairline bg-[#FDFCFA] hover:border-ink/30'
                         }`}
                     >
                       <div>

@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
+import { ShaderBackground } from '@/components/ui/adisyon-shader';
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -215,21 +216,20 @@ export default function BookPage() {
 
       {/* ── Architectural Nav (Fully Transparent initially, Frosted Glass on scroll) ── */}
       <nav
-        className={`fixed top-0 left-0 right-0 z-50 flex items-center justify-between px-6 md:px-12 h-16 transition-all duration-300 ${
-          scrolled
-            ? 'border-b border-ink/[0.08] bg-[#FDFCFA]/40 shadow-[0_4px_20px_rgba(11,37,64,0.04)]'
-            : 'border-b border-transparent bg-transparent'
-        }`}
+        className={`fixed top-0 left-0 right-0 z-50 flex items-center justify-between px-6 md:px-12 h-16 transition-all duration-300 ${scrolled
+          ? 'border-b border-ink/[0.08] bg-[#FDFCFA]/40 shadow-[0_4px_20px_rgba(11,37,64,0.04)]'
+          : 'border-b border-transparent bg-transparent'
+          }`}
         style={
           scrolled
             ? {
-                backdropFilter: 'blur(16px)',
-                WebkitBackdropFilter: 'blur(16px)',
-              }
+              backdropFilter: 'blur(16px)',
+              WebkitBackdropFilter: 'blur(16px)',
+            }
             : {
-                backdropFilter: 'none',
-                WebkitBackdropFilter: 'none',
-              }
+              backdropFilter: 'none',
+              WebkitBackdropFilter: 'none',
+            }
         }
       >
         {/* Brand Wordmark with Mountain Glyph */}
@@ -243,11 +243,10 @@ export default function BookPage() {
         {/* Square bordered action button */}
         <Link
           href="/"
-          className={`flex items-center px-5 py-2 text-[11px] md:text-[12px] font-jakarta font-medium tracking-[0.14em] uppercase border transition-all duration-200 rounded-none ${
-            scrolled
-              ? 'border-ink/20 text-ink hover:border-ink hover:bg-ink/5'
-              : 'border-white/30 text-white hover:border-white hover:bg-white/10'
-          }`}
+          className={`flex items-center px-5 py-2 text-[11px] md:text-[12px] font-jakarta font-medium tracking-[0.14em] uppercase border transition-all duration-200 rounded-none ${scrolled
+            ? 'border-ink/20 text-ink hover:border-ink hover:bg-ink/5'
+            : 'border-white/30 text-white hover:border-white hover:bg-white/10'
+            }`}
         >
           ← Return to Home
         </Link>
@@ -313,205 +312,215 @@ export default function BookPage() {
         </div>
       </section>
 
-      {/* ── Search Form (Crisp Square Architectural Box) ───────────────────── */}
-      <section className="relative z-20 px-6 max-w-4xl mx-auto -mt-10 mb-20">
-        <form
-          ref={formRef}
-          onSubmit={handleSearch}
-          className="rounded-none p-6 md:p-10 border border-skynest-hairline shadow-[0_16px_40px_rgba(11,37,64,0.06)]"
-          style={{ backgroundColor: '#FFFFFF' }}
-        >
-          <div className="flex items-center justify-between pb-6 mb-8 border-b border-skynest-hairline">
-            <h2 className="font-cinzel text-lg font-medium uppercase tracking-[0.08em] text-ink">
-              Check Room Availability
-            </h2>
-            <span className="font-jakarta text-[10px] tracking-[0.25em] uppercase text-ink/50 font-semibold">
-              Best Rates Guaranteed
-            </span>
-          </div>
+      {/* ── Cards & Booking Engine Area (with Animated Shader Waves behind cards) ── */}
+      <div className="relative overflow-hidden min-h-[600px]">
+        {/* WebGL Waves/Cloud Shader Canvas positioned behind all cards */}
+        <div className="absolute inset-0 z-0 pointer-events-none">
+          <ShaderBackground className="w-full h-full" />
+          {/* Subtle luminous mist overlay so the clouds and sunset glow shine through while cards remain crisp */}
+          <div className="absolute inset-0 bg-gradient-to-b from-[#FDFCFA]/50 via-transparent to-[#FDFCFA]/60 pointer-events-none" />
+        </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-
-            {/* Branch selector */}
-            <div className="flex flex-col gap-2">
-              <label className="font-jakarta text-[11px] font-bold tracking-[0.18em] uppercase text-ink/70">
-                Hotel Location <span className="text-skynest-accent">*</span>
-              </label>
-              <div className="relative">
-                <select
-                  name="branch_id"
-                  value={params.branch_id}
-                  onChange={handleChange}
-                  className="w-full appearance-none pl-4 pr-11 py-3.5 rounded-none font-jakarta text-sm border border-skynest-hairline bg-[#FDFCFA] text-ink outline-none focus:border-skynest-accent transition-colors duration-200 cursor-pointer"
-                >
-                  <option value="">Select a hotel location…</option>
-                  {BRANCHES.map(b => (
-                    <option key={b.id} value={b.id}>{b.name}</option>
-                  ))}
-                </select>
-                <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-4 text-ink/40">
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M19 9l-7 7-7-7" />
-                  </svg>
-                </div>
-              </div>
-            </div>
-
-            {/* Room type selector */}
-            <div className="flex flex-col gap-2">
-              <label className="font-jakarta text-[11px] font-bold tracking-[0.18em] uppercase text-ink/70">
-                Room Type <span className="text-skynest-accent">*</span>
-              </label>
-              <div className="relative">
-                <select
-                  name="room_type_id"
-                  value={params.room_type_id}
-                  onChange={handleChange}
-                  className="w-full appearance-none pl-4 pr-11 py-3.5 rounded-none font-jakarta text-sm border border-skynest-hairline bg-[#FDFCFA] text-ink outline-none focus:border-skynest-accent transition-colors duration-200 cursor-pointer"
-                >
-                  <option value="">Select room type…</option>
-                  {ROOM_TYPES.map(r => (
-                    <option key={r.id} value={r.id}>{r.name} Room</option>
-                  ))}
-                </select>
-                <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-4 text-ink/40">
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M19 9l-7 7-7-7" />
-                  </svg>
-                </div>
-              </div>
-            </div>
-
-            {/* Check-in Date */}
-            <div className="flex flex-col gap-2">
-              <label className="font-jakarta text-[11px] font-bold tracking-[0.18em] uppercase text-ink/70">
-                Check-in Date <span className="text-skynest-accent">*</span>
-              </label>
-              <input
-                type="date"
-                name="check_in"
-                value={params.check_in}
-                onChange={handleChange}
-                min={today}
-                className="w-full px-4 py-3.5 rounded-none font-jakarta text-sm border border-skynest-hairline bg-[#FDFCFA] text-ink outline-none focus:border-skynest-accent transition-colors duration-200"
-              />
-            </div>
-
-            {/* Check-out Date */}
-            <div className="flex flex-col gap-2">
-              <label className="font-jakarta text-[11px] font-bold tracking-[0.18em] uppercase text-ink/70">
-                Check-out Date <span className="text-skynest-accent">*</span>
-              </label>
-              <input
-                type="date"
-                name="check_out"
-                value={params.check_out}
-                onChange={handleChange}
-                min={params.check_in || today}
-                className="w-full px-4 py-3.5 rounded-none font-jakarta text-sm border border-skynest-hairline bg-[#FDFCFA] text-ink outline-none focus:border-skynest-accent transition-colors duration-200"
-              />
-            </div>
-          </div>
-
-          {/* Validation Error Banner (Square) */}
-          {error && (
-            <div className="mb-6 p-4 rounded-none border border-red-300 bg-red-50/60 text-red-700 font-jakarta text-xs flex items-center gap-2.5">
-              <span className="font-bold">Notice:</span>
-              <span>{error}</span>
-            </div>
-          )}
-
-          {/* Submit Button */}
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full py-4 rounded-none font-jakarta font-semibold text-xs tracking-[0.22em] uppercase transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed border border-ink bg-ink text-paper hover:bg-skynest-accent hover:border-skynest-accent cursor-pointer"
+        {/* ── Search Form (Crisp Square Architectural Box) ───────────────────── */}
+        <section className="relative z-10 px-6 max-w-4xl mx-auto mt-16 mb-20">
+          <form
+            ref={formRef}
+            onSubmit={handleSearch}
+            className="rounded-none p-6 md:p-10 shadow-[0_20px_50px_rgba(11,37,64,0.08)]"
+            style={{ backgroundColor: '#FFFFFF' }}
           >
-            {loading ? 'Searching Available Rooms…' : 'Search Available Rooms'}
-          </button>
-        </form>
-      </section>
-
-      {/* ── Results Section ───────────────────────────────────────────────── */}
-      {searched && (
-        <section ref={resultsRef} className="relative z-10 px-6 pb-32 max-w-4xl mx-auto scroll-mt-24">
-
-          {/* Result Heading */}
-          <div className="flex flex-col sm:flex-row sm:items-end justify-between mb-8 pb-4 border-b border-skynest-hairline gap-2">
-            <div>
-              <p className="font-jakarta text-[10px] tracking-[0.25em] uppercase text-skynest-accent font-bold mb-1">
-                Available Rooms
-              </p>
-              <h2 className="font-cinzel text-2xl md:text-3xl font-normal uppercase tracking-[0.04em] text-ink">
-                {loading
-                  ? 'Checking Availability…'
-                  : rooms.length > 0
-                    ? `${rooms.length} Room${rooms.length > 1 ? 's' : ''} Available`
-                    : 'No Rooms Available'}
+            <div className="flex items-center justify-between pb-6 mb-8 border-b border-skynest-hairline">
+              <h2 className="font-cinzel text-lg font-medium uppercase tracking-[0.08em] text-ink">
+                Check Room Availability
               </h2>
+              <span className="font-jakarta text-[10px] tracking-[0.25em] uppercase text-ink/50 font-semibold">
+                Best Rates Guaranteed
+              </span>
             </div>
-            {!loading && selectedBranch && selectedRoomType && (
-              <p className="font-jakarta text-xs tracking-wider uppercase text-ink/60">
-                {selectedRoomType.name} Room · {selectedBranch.name} · {params.check_in} → {params.check_out}
-              </p>
-            )}
-          </div>
 
-          {/* Loading skeletons (Square) */}
-          {loading && (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-              {[1, 2, 3, 4].map(i => (
-                <div key={i} className="h-40 rounded-none border border-skynest-hairline bg-black/[0.04] animate-pulse" />
-              ))}
-            </div>
-          )}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
 
-          {/* Available Room Cards (Square, Architectural) */}
-          {!loading && rooms.length > 0 && (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-              {rooms.map(room => (
-                <div
-                  key={room.room_id}
-                  className="sn-room-card rounded-none p-6 md:p-8 flex items-center justify-between border border-skynest-hairline bg-white transition-all duration-300 hover:border-skynest-accent hover:shadow-[0_8px_24px_rgba(217,114,44,0.08)] group"
-                >
-                  <div>
-                    <span className="inline-block font-jakarta text-[10px] font-bold tracking-[0.24em] uppercase text-skynest-accent mb-1.5">
-                      {selectedRoomType?.name ?? 'Standard'} Room
-                    </span>
-                    <h3 className="font-cinzel text-2xl font-normal uppercase tracking-[0.03em] text-ink">
-                      Room {room.room_number}
-                    </h3>
-                    <p className="font-jakarta text-xs text-ink/50 mt-1 tracking-wider uppercase">
-                      Floor {room.floor} · {selectedBranch?.name}
-                    </p>
-                  </div>
-
-                  {/* Sharp Square Book Button */}
-                  <button
-                    onClick={() => handleBook(room)}
-                    className="ml-4 flex-shrink-0 px-6 py-3 rounded-none font-jakarta font-semibold text-xs tracking-[0.16em] uppercase border border-ink text-ink bg-transparent hover:bg-skynest-accent hover:border-skynest-accent hover:text-white transition-all duration-200 cursor-pointer"
+              {/* Branch selector */}
+              <div className="flex flex-col gap-2">
+                <label className="font-jakarta text-[11px] font-bold tracking-[0.18em] uppercase text-ink/70">
+                  Hotel Location <span className="text-skynest-accent">*</span>
+                </label>
+                <div className="relative">
+                  <select
+                    name="branch_id"
+                    value={params.branch_id}
+                    onChange={handleChange}
+                    className="w-full appearance-none pl-4 pr-11 py-3.5 rounded-none font-jakarta text-sm border border-skynest-hairline bg-[#FDFCFA] text-ink outline-none focus:border-skynest-accent transition-colors duration-200 cursor-pointer"
                   >
-                    Book Now
-                  </button>
+                    <option value="">Select a hotel location…</option>
+                    {BRANCHES.map(b => (
+                      <option key={b.id} value={b.id}>{b.name}</option>
+                    ))}
+                  </select>
+                  <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-4 text-ink/40">
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M19 9l-7 7-7-7" />
+                    </svg>
+                  </div>
                 </div>
-              ))}
-            </div>
-          )}
+              </div>
 
-          {/* Empty state (Square, Editorial) */}
-          {!loading && searched && rooms.length === 0 && !error && (
-            <div className="text-center py-20 border border-skynest-hairline bg-white p-10 rounded-none">
-              <MountainGlyph className="w-10 h-auto mx-auto mb-4 text-ink/20" />
-              <h3 className="font-cinzel text-xl uppercase tracking-[0.06em] text-ink mb-2">
-                No Rooms Available for These Dates
-              </h3>
-              <p className="font-jakarta text-xs tracking-wider uppercase text-ink/50 max-w-md mx-auto leading-relaxed">
-                We couldn&apos;t find available rooms for your chosen dates. Please try different dates, another room category, or another Sky Nest location.
-              </p>
+              {/* Room type selector */}
+              <div className="flex flex-col gap-2">
+                <label className="font-jakarta text-[11px] font-bold tracking-[0.18em] uppercase text-ink/70">
+                  Room Type <span className="text-skynest-accent">*</span>
+                </label>
+                <div className="relative">
+                  <select
+                    name="room_type_id"
+                    value={params.room_type_id}
+                    onChange={handleChange}
+                    className="w-full appearance-none pl-4 pr-11 py-3.5 rounded-none font-jakarta text-sm border border-skynest-hairline bg-[#FDFCFA] text-ink outline-none focus:border-skynest-accent transition-colors duration-200 cursor-pointer"
+                  >
+                    <option value="">Select room type…</option>
+                    {ROOM_TYPES.map(r => (
+                      <option key={r.id} value={r.id}>{r.name} Room</option>
+                    ))}
+                  </select>
+                  <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-4 text-ink/40">
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M19 9l-7 7-7-7" />
+                    </svg>
+                  </div>
+                </div>
+              </div>
+
+              {/* Check-in Date */}
+              <div className="flex flex-col gap-2">
+                <label className="font-jakarta text-[11px] font-bold tracking-[0.18em] uppercase text-ink/70">
+                  Check-in Date <span className="text-skynest-accent">*</span>
+                </label>
+                <input
+                  type="date"
+                  name="check_in"
+                  value={params.check_in}
+                  onChange={handleChange}
+                  min={today}
+                  className="w-full px-4 py-3.5 rounded-none font-jakarta text-sm border border-skynest-hairline bg-[#FDFCFA] text-ink outline-none focus:border-skynest-accent transition-colors duration-200"
+                />
+              </div>
+
+              {/* Check-out Date */}
+              <div className="flex flex-col gap-2">
+                <label className="font-jakarta text-[11px] font-bold tracking-[0.18em] uppercase text-ink/70">
+                  Check-out Date <span className="text-skynest-accent">*</span>
+                </label>
+                <input
+                  type="date"
+                  name="check_out"
+                  value={params.check_out}
+                  onChange={handleChange}
+                  min={params.check_in || today}
+                  className="w-full px-4 py-3.5 rounded-none font-jakarta text-sm border border-skynest-hairline bg-[#FDFCFA] text-ink outline-none focus:border-skynest-accent transition-colors duration-200"
+                />
+              </div>
             </div>
-          )}
+
+            {/* Validation Error Banner (Square) */}
+            {error && (
+              <div className="mb-6 p-4 rounded-none border border-red-300 bg-red-50/60 text-red-700 font-jakarta text-xs flex items-center gap-2.5">
+                <span className="font-bold">Notice:</span>
+                <span>{error}</span>
+              </div>
+            )}
+
+            {/* Submit Button */}
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full py-4 rounded-none font-jakarta font-semibold text-xs tracking-[0.22em] uppercase transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed border border-ink bg-ink text-paper hover:bg-skynest-accent hover:border-skynest-accent cursor-pointer"
+            >
+              {loading ? 'Searching Available Rooms…' : 'Search Available Rooms'}
+            </button>
+          </form>
         </section>
-      )}
+
+        {/* ── Results Section ───────────────────────────────────────────────── */}
+        {searched && (
+          <section ref={resultsRef} className="relative z-10 px-6 pb-32 max-w-4xl mx-auto scroll-mt-24">
+
+            {/* Result Heading */}
+            <div className="flex flex-col sm:flex-row sm:items-end justify-between mb-8 pb-4 border-b border-skynest-hairline gap-2 bg-white/70 backdrop-blur-sm p-4 rounded-none">
+              <div>
+                <p className="font-jakarta text-[10px] tracking-[0.25em] uppercase text-skynest-accent font-bold mb-1">
+                  Available Rooms
+                </p>
+                <h2 className="font-cinzel text-2xl md:text-3xl font-normal uppercase tracking-[0.04em] text-ink">
+                  {loading
+                    ? 'Checking Availability…'
+                    : rooms.length > 0
+                      ? `${rooms.length} Room${rooms.length > 1 ? 's' : ''} Available`
+                      : 'No Rooms Available'}
+                </h2>
+              </div>
+              {!loading && selectedBranch && selectedRoomType && (
+                <p className="font-jakarta text-xs tracking-wider uppercase text-ink/60">
+                  {selectedRoomType.name} Room · {selectedBranch.name} · {params.check_in} → {params.check_out}
+                </p>
+              )}
+            </div>
+
+            {/* Loading skeletons (Square) */}
+            {loading && (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                {[1, 2, 3, 4].map(i => (
+                  <div key={i} className="h-40 rounded-none bg-white/80 animate-pulse shadow-[0_4px_16px_rgba(11,37,64,0.04)]" />
+                ))}
+              </div>
+            )}
+
+            {/* Available Room Cards (Square, Architectural) */}
+            {!loading && rooms.length > 0 && (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                {rooms.map(room => (
+                  <div
+                    key={room.room_id}
+                    className="sn-room-card rounded-none p-6 md:p-8 flex items-center justify-between bg-white shadow-[0_10px_30px_rgba(11,37,64,0.07)] transition-all duration-300 hover:shadow-[0_16px_36px_rgba(217,114,44,0.14)] group"
+                  >
+                    <div>
+                      <span className="inline-block font-jakarta text-[10px] font-bold tracking-[0.24em] uppercase text-skynest-accent mb-1.5">
+                        {selectedRoomType?.name ?? 'Standard'} Room
+                      </span>
+                      <h3 className="font-cinzel text-2xl font-normal uppercase tracking-[0.03em] text-ink">
+                        Room {room.room_number}
+                      </h3>
+                      <p className="font-jakarta text-xs text-ink/50 mt-1 tracking-wider uppercase">
+                        Floor {room.floor} · {selectedBranch?.name}
+                      </p>
+                    </div>
+
+                    {/* Sharp Square Book Button */}
+                    <button
+                      onClick={() => handleBook(room)}
+                      className="ml-4 flex-shrink-0 px-6 py-3 rounded-none font-jakarta font-semibold text-xs tracking-[0.16em] uppercase border border-ink text-ink bg-transparent hover:bg-skynest-accent hover:border-skynest-accent hover:text-white transition-all duration-200 cursor-pointer"
+                    >
+                      Book Now
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Empty state (Square, Editorial) */}
+            {!loading && searched && rooms.length === 0 && !error && (
+              <div className="text-center py-20 bg-white p-10 rounded-none shadow-[0_16px_40px_rgba(11,37,64,0.06)]">
+                <MountainGlyph className="w-10 h-auto mx-auto mb-4 text-ink/20" />
+                <h3 className="font-cinzel text-xl uppercase tracking-[0.06em] text-ink mb-2">
+                  No Rooms Available for These Dates
+                </h3>
+                <p className="font-jakarta text-xs tracking-wider uppercase text-ink/50 max-w-md mx-auto leading-relaxed">
+                  We couldn&apos;t find available rooms for your chosen dates. Please try different dates, another room category, or another Sky Nest location.
+                </p>
+              </div>
+            )}
+          </section>
+        )}
+      </div>
     </div>
   );
 }
