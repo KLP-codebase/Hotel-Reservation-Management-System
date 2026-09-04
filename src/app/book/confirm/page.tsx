@@ -20,11 +20,33 @@ const ROOM_TYPES = [
 ];
 
 const MEAL_PLANS = [
-  { id: 1, name: 'Room Only', description: 'No meals included', price: 0 },
-  { id: 2, name: 'Bed & Breakfast', description: 'Breakfast buffet included', price: 25 },
-  { id: 3, name: 'Half Board', description: 'Breakfast and gourmet dinner included', price: 55 },
-  { id: 4, name: 'Full Board', description: 'All three meals included daily', price: 80 },
+  { id: 1, name: 'Room Only', description: 'Exclusive accommodation, meals à la carte', price: 0 },
+  { id: 2, name: 'Bed & Breakfast', description: 'Artisanal morning breakfast banquet included daily', price: 25 },
+  { id: 3, name: 'Half Board', description: 'Breakfast banquet and gourmet evening course included', price: 55 },
+  { id: 4, name: 'Full Board', description: 'Breakfast, luncheon, and four-course dinner included daily', price: 80 },
 ];
+
+// ── Mountain Glyph Emblem (Matching Landing Page) ────────────────────────────
+function MountainGlyph({ className = "", style }: { className?: string; style?: React.CSSProperties }) {
+  return (
+    <svg
+      aria-hidden="true"
+      viewBox="0 0 28 16"
+      fill="none"
+      className={className}
+      style={style}
+      xmlns="http://www.w3.org/2000/svg"
+    >
+      <path
+        d="M1 15 L10 3 L14 8 L18 2 L27 15"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
 
 // ── Types ───────────────────────────────────────────────────────────────────
 interface ConfirmedBookingDetails {
@@ -82,8 +104,8 @@ function BookingConfirmContent() {
       gsap.from('.sn-animate-card', {
         opacity: 0,
         y: 24,
-        duration: 0.8,
-        stagger: 0.15,
+        duration: 0.55,
+        stagger: 0.08,
         ease: 'power3.out',
       });
     }, containerRef);
@@ -101,22 +123,22 @@ function BookingConfirmContent() {
   const mealCost = selectedPlan.price * nights;
   const totalCost = roomCost + mealCost;
 
-  // ── Missing parameters guard ──────────────────────────────────────────────
+  // ── Missing parameters guard (Square) ─────────────────────────────────────
   if (!roomIdStr || !roomTypeIdStr || !branchIdStr || !checkIn || !checkOut) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center px-6" style={{ backgroundColor: '#FDFCFA' }}>
-        <h2 className="font-cinzel text-2xl font-semibold mb-3" style={{ color: '#0B2540' }}>
-          Incomplete Booking Information
+        <MountainGlyph className="w-12 h-auto text-ink/30 mb-6" />
+        <h2 className="font-cinzel text-2xl font-normal uppercase tracking-[0.06em] mb-3 text-ink">
+          Incomplete Reservation Parameters
         </h2>
-        <p className="font-jakarta text-sm mb-6 text-center" style={{ color: '#64748b' }}>
-          Please start your reservation from our room availability search page.
+        <p className="font-jakarta text-xs tracking-wider uppercase text-ink/50 mb-8 text-center max-w-md">
+          Please initiate your reservation directly from our sanctuary search directory.
         </p>
         <Link
           href="/book"
-          className="px-6 py-3 rounded-lg font-jakarta font-semibold text-sm transition-all"
-          style={{ backgroundColor: '#D9722C', color: '#fff' }}
+          className="px-8 py-3.5 rounded-none font-jakarta font-semibold text-xs tracking-[0.2em] uppercase border border-ink bg-ink text-paper hover:bg-skynest-accent hover:border-skynest-accent transition-all duration-200"
         >
-          Search Rooms
+          Search Available Residences
         </Link>
       </div>
     );
@@ -128,98 +150,105 @@ function BookingConfirmContent() {
     // ── TODO: Enter your handleSubmit logic here ──
   }
 
-  // ── Render Confirmation Receipt State ─────────────────────────────────────
+  // ── Render Confirmation Receipt State (Square Architectural) ──────────────
   if (confirmed) {
     return (
-      <div ref={containerRef} className="min-h-screen py-24 px-6" style={{ backgroundColor: '#FDFCFA' }}>
-        <div className="sn-animate-card max-w-2xl mx-auto p-8 md:p-12 rounded-2xl border"
-          style={{ backgroundColor: '#fff', borderColor: '#E4E1DA', boxShadow: '0 20px 48px rgba(11,37,64,0.06)' }}>
+      <div ref={containerRef} className="min-h-screen py-24 px-6 md:px-12 relative" style={{ backgroundColor: '#FDFCFA' }}>
 
-          {/* Success Badge */}
-          <div className="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-6"
-            style={{ backgroundColor: 'rgba(217,114,44,0.1)' }}>
-            <span className="text-2xl" style={{ color: '#D9722C' }}>✓</span>
+        {/* Architectural hairline grid */}
+        <div aria-hidden="true" className="pointer-events-none fixed inset-0 flex z-0">
+          {Array.from({ length: 6 }).map((_, i) => (
+            <div key={i} className="flex-1 border-l border-ink/[0.04] last:border-r" />
+          ))}
+        </div>
+
+        <div className="sn-animate-card relative z-10 max-w-2xl mx-auto p-8 md:p-14 rounded-none border border-skynest-hairline bg-white shadow-[0_20px_50px_rgba(11,37,64,0.06)]">
+
+          {/* Square Badge */}
+          <div className="w-14 h-14 rounded-none border border-skynest-accent/40 bg-skynest-accent/10 flex items-center justify-center mx-auto mb-6">
+            <span className="text-xl text-skynest-accent font-bold">✓</span>
           </div>
 
-          <p className="font-jakarta text-xs font-bold tracking-widest text-center uppercase mb-2" style={{ color: '#D9722C' }}>
+          <p className="font-jakarta text-[10px] font-bold tracking-[0.32em] text-center uppercase mb-2 text-skynest-accent">
             Reservation Confirmed
           </p>
-          <h1 className="font-cinzel text-3xl font-semibold text-center mb-4" style={{ color: '#0B2540' }}>
-            We Look Forward to Welcoming You
+          <h1 className="font-cinzel text-3xl md:text-4xl font-normal uppercase tracking-[0.04em] text-center mb-3 text-ink">
+            Thank You for Your Reservation
           </h1>
-          <p className="font-jakarta text-sm text-center mb-8" style={{ color: '#64748b' }}>
-            A confirmation email and stay details have been logged for your arrival.
+          <p className="font-cinzel italic text-ink/70 text-sm text-center mb-10 max-w-md mx-auto">
+            Your stay has been confirmed and logged. We look forward to welcoming you to Sky Nest.
           </p>
 
-          {/* Reservation Card Details */}
-          <div className="rounded-xl p-6 mb-8" style={{ backgroundColor: '#FDFCFA', border: '1px solid #E4E1DA' }}>
-            <div className="flex items-center justify-between pb-4 border-b" style={{ borderColor: '#E4E1DA' }}>
+          {/* Reservation Card Details (Square) */}
+          <div className="rounded-none p-6 md:p-8 mb-8 border border-skynest-hairline bg-[#FDFCFA]">
+            <div className="flex items-center justify-between pb-5 border-b border-skynest-hairline">
               <div>
-                <p className="font-jakarta text-xs uppercase tracking-wider" style={{ color: '#64748b' }}>Booking Reference</p>
-                <p className="font-mono text-xs font-medium mt-1 select-all" style={{ color: '#0B2540' }}>
+                <p className="font-jakarta text-[10px] uppercase tracking-[0.2em] text-ink/50">Booking Reference</p>
+                <p className="font-mono text-xs font-semibold mt-1 text-ink select-all">
                   {confirmed.bookingId}
                 </p>
               </div>
-              <span className="px-3 py-1 rounded-full text-xs font-semibold"
-                style={{ backgroundColor: 'rgba(217,114,44,0.12)', color: '#D9722C' }}>
+              <span className="px-3.5 py-1.5 rounded-none text-[10px] font-bold tracking-widest uppercase border border-skynest-accent/40 bg-skynest-accent/10 text-skynest-accent">
                 CONFIRMED
               </span>
             </div>
 
-            <div className="grid grid-cols-2 gap-4 py-4 border-b" style={{ borderColor: '#E4E1DA' }}>
+            <div className="grid grid-cols-2 gap-6 py-6 border-b border-skynest-hairline">
               <div>
-                <p className="font-jakarta text-xs uppercase tracking-wider" style={{ color: '#64748b' }}>Destination</p>
-                <p className="font-cinzel font-semibold mt-1" style={{ color: '#0B2540' }}>{confirmed.branchName}</p>
+                <p className="font-jakarta text-[10px] uppercase tracking-[0.2em] text-ink/50">Hotel Location</p>
+                <p className="font-cinzel text-base font-normal uppercase mt-1 text-ink">{confirmed.branchName}</p>
               </div>
               <div>
-                <p className="font-jakarta text-xs uppercase tracking-wider" style={{ color: '#64748b' }}>Accommodation</p>
-                <p className="font-cinzel font-semibold mt-1" style={{ color: '#0B2540' }}>{confirmed.roomTypeName}</p>
+                <p className="font-jakarta text-[10px] uppercase tracking-[0.2em] text-ink/50">Room Type</p>
+                <p className="font-cinzel text-base font-normal uppercase mt-1 text-ink">{confirmed.roomTypeName}</p>
               </div>
               <div>
-                <p className="font-jakarta text-xs uppercase tracking-wider" style={{ color: '#64748b' }}>Check-in</p>
-                <p className="font-jakarta text-sm font-medium mt-1" style={{ color: '#0B2540' }}>{confirmed.checkIn}</p>
+                <p className="font-jakarta text-[10px] uppercase tracking-[0.2em] text-ink/50">Check-in</p>
+                <p className="font-jakarta text-xs font-semibold mt-1 text-ink">{confirmed.checkIn}</p>
               </div>
               <div>
-                <p className="font-jakarta text-xs uppercase tracking-wider" style={{ color: '#64748b' }}>Check-out</p>
-                <p className="font-jakarta text-sm font-medium mt-1" style={{ color: '#0B2540' }}>{confirmed.checkOut}</p>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-4 pt-4">
-              <div>
-                <p className="font-jakarta text-xs uppercase tracking-wider" style={{ color: '#64748b' }}>Meal Plan</p>
-                <p className="font-jakarta text-sm font-semibold mt-1" style={{ color: '#0B2540' }}>{confirmed.planName}</p>
-              </div>
-              <div>
-                <p className="font-jakarta text-xs uppercase tracking-wider" style={{ color: '#64748b' }}>Guest</p>
-                <p className="font-jakarta text-sm font-semibold mt-1" style={{ color: '#0B2540' }}>{confirmed.guestName}</p>
+                <p className="font-jakarta text-[10px] uppercase tracking-[0.2em] text-ink/50">Check-out</p>
+                <p className="font-jakarta text-xs font-semibold mt-1 text-ink">{confirmed.checkOut}</p>
               </div>
             </div>
 
-            <div className="mt-6 pt-4 border-t flex items-center justify-between" style={{ borderColor: '#E4E1DA' }}>
-              <span className="font-jakarta text-sm font-medium" style={{ color: '#64748b' }}>
-                Estimated Total ({confirmed.nights} night{confirmed.nights > 1 ? 's' : ''})
-              </span>
-              <span className="font-cinzel text-2xl font-bold" style={{ color: '#D9722C' }}>
+            <div className="grid grid-cols-2 gap-6 pt-6">
+              <div>
+                <p className="font-jakarta text-[10px] uppercase tracking-[0.2em] text-ink/50">Meal Plan</p>
+                <p className="font-jakarta text-xs font-semibold mt-1 text-ink">{confirmed.planName}</p>
+              </div>
+              <div>
+                <p className="font-jakarta text-[10px] uppercase tracking-[0.2em] text-ink/50">Primary Guest</p>
+                <p className="font-jakarta text-xs font-semibold mt-1 text-ink">{confirmed.guestName}</p>
+              </div>
+            </div>
+
+            <div className="mt-8 pt-6 border-t border-skynest-hairline flex items-center justify-between">
+              <div>
+                <span className="font-jakarta text-xs tracking-wider uppercase text-ink/50">
+                  Total Due ({confirmed.nights} Night{confirmed.nights > 1 ? 's' : ''})
+                </span>
+                <p className="font-jakarta text-[10px] text-ink/40">Includes room stay and daily dining</p>
+              </div>
+              <span className="font-cinzel text-3xl font-normal text-skynest-accent">
                 ${confirmed.totalEstimated.toLocaleString()}
               </span>
             </div>
           </div>
 
+          {/* Action Buttons (Square) */}
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Link
               href="/"
-              className="px-6 py-3 rounded-lg text-center font-jakarta font-semibold text-sm transition-all"
-              style={{ backgroundColor: '#0B2540', color: '#fff' }}
+              className="px-8 py-4 rounded-none text-center font-jakarta font-semibold text-xs tracking-[0.2em] uppercase border border-ink bg-ink text-paper hover:bg-skynest-accent hover:border-skynest-accent transition-all"
             >
               Return to Home
             </Link>
             <Link
               href="/book"
-              className="px-6 py-3 rounded-lg text-center font-jakarta font-semibold text-sm transition-all"
-              style={{ border: '1px solid #0B2540', color: '#0B2540' }}
+              className="px-8 py-4 rounded-none text-center font-jakarta font-semibold text-xs tracking-[0.2em] uppercase border border-ink text-ink bg-transparent hover:bg-ink hover:text-paper transition-all"
             >
-              Book Another Room
+              Book Another Sanctuary
             </Link>
           </div>
         </div>
@@ -227,64 +256,81 @@ function BookingConfirmContent() {
     );
   }
 
-  // ── Render Booking Form State ─────────────────────────────────────────────
+  // ── Render Booking Form State (Square Architectural) ──────────────────────
   return (
-    <div ref={containerRef} className="min-h-screen py-24 px-6 md:px-12" style={{ backgroundColor: '#FDFCFA' }}>
+    <div ref={containerRef} className="min-h-screen py-24 px-6 md:px-12 relative" style={{ backgroundColor: '#FDFCFA' }}>
 
-      {/* Top Navigation Bar */}
-      <nav className="fixed top-0 left-0 right-0 z-50 flex items-center justify-between px-6 md:px-12 h-16"
-        style={{ backgroundColor: 'rgba(253,252,250,0.92)', backdropFilter: 'blur(12px)', borderBottom: '1px solid #E4E1DA' }}>
-        <Link href="/" className="font-cinzel text-lg font-semibold tracking-wide" style={{ color: '#0B2540' }}>
-          Sky Nest
+      {/* 6-column architectural hairline grid */}
+      <div aria-hidden="true" className="pointer-events-none fixed inset-0 flex z-0">
+        {Array.from({ length: 6 }).map((_, i) => (
+          <div key={i} className="flex-1 border-l border-ink/[0.04] last:border-r" />
+        ))}
+      </div>
+
+      {/* Top Architectural Navigation Bar (Square Corners, Frosted Glass) */}
+      <nav className="fixed top-0 left-0 right-0 z-50 flex items-center justify-between px-6 md:px-12 h-16 border-b border-ink/[0.08]"
+        style={{ backgroundColor: 'rgba(253,252,250,0.45)', backdropFilter: 'blur(16px)', WebkitBackdropFilter: 'blur(16px)' }}>
+
+        <Link href="/" className="flex items-center gap-2.5 group">
+          <MountainGlyph className="w-6 h-auto text-ink transition-transform duration-300 group-hover:scale-105" />
+          <span className="font-jakarta font-bold text-[11px] tracking-[0.35em] uppercase text-ink">
+            SKYNEST
+          </span>
         </Link>
-        <Link href="/book" className="font-jakarta text-sm font-medium hover:opacity-75 transition-opacity" style={{ color: '#0B2540' }}>
-          ← Change Room Selection
+
+        <Link
+          href="/book"
+          className="flex items-center px-5 py-2 text-[11px] md:text-[12px] font-jakarta font-medium tracking-[0.14em] uppercase border border-ink/20 text-ink hover:border-ink hover:bg-ink/5 transition-all duration-200 rounded-none"
+        >
+          ← Change Room
         </Link>
       </nav>
 
-      <div className="max-w-5xl mx-auto">
+      <div className="relative z-10 max-w-5xl mx-auto pt-6">
         {/* Header */}
         <div className="mb-10 text-center md:text-left">
-          <p className="font-jakarta text-xs font-bold uppercase tracking-widest mb-2" style={{ color: '#D9722C' }}>
-            Complete Your Stay
-          </p>
-          <h1 className="font-cinzel text-3xl md:text-4xl font-semibold" style={{ color: '#0B2540' }}>
+          <span className="font-jakarta text-[11px] font-bold uppercase tracking-[0.32em] text-skynest-accent block mb-2">
+            Final Step
+          </span>
+          <h1 className="font-cinzel text-3xl md:text-5xl font-normal uppercase tracking-[0.04em] text-ink">
             Confirm Your Reservation
           </h1>
-          <p className="font-jakarta text-sm mt-2" style={{ color: '#64748b' }}>
-            Enter your details and review your selected itinerary below.
+          <p className="font-cinzel italic text-sm md:text-base text-ink/70 mt-2">
+            Review your stay details, select your dining preferences, and provide guest contact information.
           </p>
         </div>
 
-        {/* Error Alert */}
+        {/* Error Alert (Square) */}
         {error && (
-          <div className="mb-8 p-4 rounded-xl font-jakarta text-sm border flex items-center gap-3"
-            style={{ backgroundColor: 'rgba(239,68,68,0.06)', borderColor: 'rgba(239,68,68,0.3)', color: '#dc2626' }}>
-            <span>⚠️</span>
+          <div className="mb-8 p-4 rounded-none border border-red-300 bg-red-50/70 text-red-700 font-jakarta text-xs flex items-center gap-3">
+            <span className="font-bold">Notice:</span>
             <span>{error}</span>
           </div>
         )}
 
         <form onSubmit={handleSubmit} className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
 
-          {/* Left Column: Form Details (8 Cols) */}
+          {/* Left Column: Form Details (7 Cols) */}
           <div className="lg:col-span-7 space-y-8">
 
-            {/* Section 1: Guest Information */}
-            <div className="sn-animate-card p-6 md:p-8 rounded-2xl border"
-              style={{ backgroundColor: '#fff', borderColor: '#E4E1DA' }}>
-              <h2 className="font-cinzel text-xl font-semibold mb-6 flex items-center gap-3" style={{ color: '#0B2540' }}>
-                <span className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold text-white"
-                  style={{ backgroundColor: '#0B2540' }}>
-                  1
+            {/* Section 1: Guest Information (Square) */}
+            <div className="sn-animate-card p-6 md:p-10 rounded-none border border-skynest-hairline bg-white shadow-[0_12px_32px_rgba(11,37,64,0.04)]">
+              <div className="flex items-center justify-between pb-6 mb-8 border-b border-skynest-hairline">
+                <h2 className="font-cinzel text-lg font-medium uppercase tracking-[0.08em] text-ink flex items-center gap-3">
+                  <span className="w-6 h-6 rounded-none flex items-center justify-center text-[10px] font-bold text-white bg-ink">
+                    01
+                  </span>
+                  Guest Contact Details
+                </h2>
+                <span className="font-jakarta text-[10px] tracking-[0.2em] uppercase text-ink/40 font-semibold">
+                  Required
                 </span>
-                Primary Guest Information
-              </h2>
+              </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 mb-5">
                 <div>
-                  <label className="block font-jakarta text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: '#0B2540' }}>
-                    First Name <span style={{ color: '#D9722C' }}>*</span>
+                  <label className="block font-jakarta text-[11px] font-bold uppercase tracking-[0.16em] mb-2 text-ink/70">
+                    First Name <span className="text-skynest-accent">*</span>
                   </label>
                   <input
                     type="text"
@@ -292,13 +338,12 @@ function BookingConfirmContent() {
                     value={firstName}
                     onChange={e => setFirstName(e.target.value)}
                     placeholder="e.g. Eleanor"
-                    className="w-full px-4 py-3 rounded-lg font-jakarta text-sm outline-none transition-all"
-                    style={{ border: '1px solid #E4E1DA', backgroundColor: '#FDFCFA', color: '#0B2540' }}
+                    className="w-full px-4 py-3.5 rounded-none font-jakarta text-sm border border-skynest-hairline bg-[#FDFCFA] text-ink outline-none focus:border-skynest-accent transition-colors duration-200"
                   />
                 </div>
                 <div>
-                  <label className="block font-jakarta text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: '#0B2540' }}>
-                    Last Name <span style={{ color: '#D9722C' }}>*</span>
+                  <label className="block font-jakarta text-[11px] font-bold uppercase tracking-[0.16em] mb-2 text-ink/70">
+                    Last Name <span className="text-skynest-accent">*</span>
                   </label>
                   <input
                     type="text"
@@ -306,16 +351,15 @@ function BookingConfirmContent() {
                     value={lastName}
                     onChange={e => setLastName(e.target.value)}
                     placeholder="e.g. Vance"
-                    className="w-full px-4 py-3 rounded-lg font-jakarta text-sm outline-none transition-all"
-                    style={{ border: '1px solid #E4E1DA', backgroundColor: '#FDFCFA', color: '#0B2540' }}
+                    className="w-full px-4 py-3.5 rounded-none font-jakarta text-sm border border-skynest-hairline bg-[#FDFCFA] text-ink outline-none focus:border-skynest-accent transition-colors duration-200"
                   />
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 mb-5">
                 <div>
-                  <label className="block font-jakarta text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: '#0B2540' }}>
-                    Email Address <span style={{ color: '#D9722C' }}>*</span>
+                  <label className="block font-jakarta text-[11px] font-bold uppercase tracking-[0.16em] mb-2 text-ink/70">
+                    Email Address <span className="text-skynest-accent">*</span>
                   </label>
                   <input
                     type="email"
@@ -323,12 +367,11 @@ function BookingConfirmContent() {
                     value={email}
                     onChange={e => setEmail(e.target.value)}
                     placeholder="eleanor@example.com"
-                    className="w-full px-4 py-3 rounded-lg font-jakarta text-sm outline-none transition-all"
-                    style={{ border: '1px solid #E4E1DA', backgroundColor: '#FDFCFA', color: '#0B2540' }}
+                    className="w-full px-4 py-3.5 rounded-none font-jakarta text-sm border border-skynest-hairline bg-[#FDFCFA] text-ink outline-none focus:border-skynest-accent transition-colors duration-200"
                   />
                 </div>
                 <div>
-                  <label className="block font-jakarta text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: '#0B2540' }}>
+                  <label className="block font-jakarta text-[11px] font-bold uppercase tracking-[0.16em] mb-2 text-ink/70">
                     Phone Number
                   </label>
                   <input
@@ -336,37 +379,38 @@ function BookingConfirmContent() {
                     value={phone}
                     onChange={e => setPhone(e.target.value)}
                     placeholder="+94 77 123 4567"
-                    className="w-full px-4 py-3 rounded-lg font-jakarta text-sm outline-none transition-all"
-                    style={{ border: '1px solid #E4E1DA', backgroundColor: '#FDFCFA', color: '#0B2540' }}
+                    className="w-full px-4 py-3.5 rounded-none font-jakarta text-sm border border-skynest-hairline bg-[#FDFCFA] text-ink outline-none focus:border-skynest-accent transition-colors duration-200"
                   />
                 </div>
               </div>
 
               <div>
-                <label className="block font-jakarta text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: '#0B2540' }}>
-                  Special Requests / Notes
+                <label className="block font-jakarta text-[11px] font-bold uppercase tracking-[0.16em] mb-2 text-ink/70">
+                  Special Requests & Dietary Preferences
                 </label>
                 <textarea
                   rows={3}
                   value={notes}
                   onChange={e => setNotes(e.target.value)}
-                  placeholder="Late check-in, high floor preference, dietary notes..."
-                  className="w-full px-4 py-3 rounded-lg font-jakarta text-sm outline-none transition-all"
-                  style={{ border: '1px solid #E4E1DA', backgroundColor: '#FDFCFA', color: '#0B2540' }}
+                  placeholder="Late check-in, quiet room preference, dietary instructions..."
+                  className="w-full px-4 py-3.5 rounded-none font-jakarta text-sm border border-skynest-hairline bg-[#FDFCFA] text-ink outline-none focus:border-skynest-accent transition-colors duration-200"
                 />
               </div>
             </div>
 
-            {/* Section 2: Meal Plan Selection */}
-            <div className="sn-animate-card p-6 md:p-8 rounded-2xl border"
-              style={{ backgroundColor: '#fff', borderColor: '#E4E1DA' }}>
-              <h2 className="font-cinzel text-xl font-semibold mb-6 flex items-center gap-3" style={{ color: '#0B2540' }}>
-                <span className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold text-white"
-                  style={{ backgroundColor: '#0B2540' }}>
-                  2
+            {/* Section 2: Meal Plan Selection (Square Architectural Cards) */}
+            <div className="sn-animate-card p-6 md:p-10 rounded-none border border-skynest-hairline bg-white shadow-[0_12px_32px_rgba(11,37,64,0.04)]">
+              <div className="flex items-center justify-between pb-6 mb-8 border-b border-skynest-hairline">
+                <h2 className="font-cinzel text-lg font-medium uppercase tracking-[0.08em] text-ink flex items-center gap-3">
+                  <span className="w-6 h-6 rounded-none flex items-center justify-center text-[10px] font-bold text-white bg-ink">
+                    02
+                  </span>
+                  Choose Meal Plan
+                </h2>
+                <span className="font-jakarta text-[10px] tracking-[0.2em] uppercase text-skynest-accent font-semibold">
+                  Optional Dining
                 </span>
-                Dining & Meal Plan
-              </h2>
+              </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 {MEAL_PLANS.map(plan => {
@@ -375,33 +419,34 @@ function BookingConfirmContent() {
                     <div
                       key={plan.id}
                       onClick={() => setSelectedPlanId(plan.id)}
-                      className="p-5 rounded-xl cursor-pointer border transition-all duration-200 flex flex-col justify-between"
-                      style={{
-                        backgroundColor: isSelected ? 'rgba(217,114,44,0.04)' : '#FDFCFA',
-                        borderColor: isSelected ? '#D9722C' : '#E4E1DA',
-                        boxShadow: isSelected ? '0 4px 16px rgba(217,114,44,0.12)' : 'none',
-                      }}
+                      className={`p-5 rounded-none cursor-pointer border transition-all duration-200 flex flex-col justify-between ${isSelected
+                          ? 'border-skynest-accent bg-skynest-accent/[0.04] shadow-[0_4px_16px_rgba(217,114,44,0.08)]'
+                          : 'border-skynest-hairline bg-[#FDFCFA] hover:border-ink/30'
+                        }`}
                     >
                       <div>
                         <div className="flex items-center justify-between mb-2">
-                          <h3 className="font-cinzel font-semibold text-base" style={{ color: '#0B2540' }}>
+                          <h3 className="font-cinzel font-medium text-base uppercase tracking-[0.04em] text-ink">
                             {plan.name}
                           </h3>
-                          <span className="font-jakarta text-xs font-bold" style={{ color: isSelected ? '#D9722C' : '#64748b' }}>
+                          <span className={`font-jakarta text-xs font-bold tracking-wider ${isSelected ? 'text-skynest-accent' : 'text-ink/60'}`}>
                             {plan.price === 0 ? 'Included' : `+$${plan.price}/night`}
                           </span>
                         </div>
-                        <p className="font-jakarta text-xs" style={{ color: '#64748b' }}>
+                        <p className="font-jakarta text-xs text-ink/50 leading-relaxed">
                           {plan.description}
                         </p>
                       </div>
 
-                      <div className="mt-4 flex items-center gap-2">
-                        <div className="w-4 h-4 rounded-full border flex items-center justify-center"
-                          style={{ borderColor: isSelected ? '#D9722C' : '#CBD5E1' }}>
-                          {isSelected && <div className="w-2 h-2 rounded-full" style={{ backgroundColor: '#D9722C' }} />}
+                      {/* Square selector mark */}
+                      <div className="mt-5 flex items-center gap-2">
+                        <div
+                          className={`w-3.5 h-3.5 rounded-none border flex items-center justify-center ${isSelected ? 'border-skynest-accent bg-skynest-accent' : 'border-ink/30'
+                            }`}
+                        >
+                          {isSelected && <div className="w-1.5 h-1.5 bg-white" />}
                         </div>
-                        <span className="font-jakarta text-xs font-medium" style={{ color: isSelected ? '#D9722C' : '#64748b' }}>
+                        <span className={`font-jakarta text-[10px] font-bold tracking-[0.16em] uppercase ${isSelected ? 'text-skynest-accent' : 'text-ink/40'}`}>
                           {isSelected ? 'Selected' : 'Select'}
                         </span>
                       </div>
@@ -412,78 +457,71 @@ function BookingConfirmContent() {
             </div>
           </div>
 
-          {/* Right Column: Order Summary (5 Cols) */}
+          {/* Right Column: Order Summary (5 Cols, Square) */}
           <div className="lg:col-span-5 sn-animate-card">
-            <div className="p-6 md:p-8 rounded-2xl border sticky top-24"
-              style={{ backgroundColor: '#fff', borderColor: '#E4E1DA', boxShadow: '0 12px 32px rgba(11,37,64,0.04)' }}>
+            <div className="p-6 md:p-10 rounded-none border border-skynest-hairline bg-white shadow-[0_16px_40px_rgba(11,37,64,0.06)] sticky top-24">
 
-              <h2 className="font-cinzel text-xl font-semibold mb-6" style={{ color: '#0B2540' }}>
+              <h2 className="font-cinzel text-lg font-medium uppercase tracking-[0.08em] text-ink pb-6 mb-6 border-b border-skynest-hairline">
                 Reservation Summary
               </h2>
 
-              <div className="space-y-4 pb-6 border-b" style={{ borderColor: '#E4E1DA' }}>
-                <div className="flex justify-between">
-                  <span className="font-jakarta text-xs uppercase tracking-wider" style={{ color: '#64748b' }}>Location</span>
-                  <span className="font-jakarta text-sm font-semibold text-right" style={{ color: '#0B2540' }}>{branch?.name}</span>
+              <div className="space-y-4 pb-6 border-b border-skynest-hairline">
+                <div className="flex justify-between items-center">
+                  <span className="font-jakarta text-[10px] uppercase tracking-[0.2em] text-ink/50">Location</span>
+                  <span className="font-cinzel text-sm uppercase text-ink font-medium">{branch?.name}</span>
                 </div>
-                <div className="flex justify-between">
-                  <span className="font-jakarta text-xs uppercase tracking-wider" style={{ color: '#64748b' }}>Room</span>
-                  <span className="font-jakarta text-sm font-semibold text-right" style={{ color: '#0B2540' }}>{roomType?.name}</span>
+                <div className="flex justify-between items-center">
+                  <span className="font-jakarta text-[10px] uppercase tracking-[0.2em] text-ink/50">Room</span>
+                  <span className="font-cinzel text-sm uppercase text-ink font-medium">{roomType?.name}</span>
                 </div>
-                <div className="flex justify-between">
-                  <span className="font-jakarta text-xs uppercase tracking-wider" style={{ color: '#64748b' }}>Dates</span>
-                  <span className="font-jakarta text-sm font-medium text-right" style={{ color: '#0B2540' }}>
+                <div className="flex justify-between items-center">
+                  <span className="font-jakarta text-[10px] uppercase tracking-[0.2em] text-ink/50">Dates</span>
+                  <span className="font-jakarta text-xs font-semibold text-ink">
                     {checkIn} → {checkOut}
                   </span>
                 </div>
-                <div className="flex justify-between">
-                  <span className="font-jakarta text-xs uppercase tracking-wider" style={{ color: '#64748b' }}>Duration</span>
-                  <span className="font-jakarta text-sm font-medium" style={{ color: '#0B2540' }}>
-                    {nights} night{nights > 1 ? 's' : ''}
+                <div className="flex justify-between items-center">
+                  <span className="font-jakarta text-[10px] uppercase tracking-[0.2em] text-ink/50">Duration</span>
+                  <span className="font-jakarta text-xs font-semibold text-ink">
+                    {nights} Night{nights > 1 ? 's' : ''}
                   </span>
                 </div>
               </div>
 
               {/* Price Breakdown */}
-              <div className="py-6 space-y-3 border-b" style={{ borderColor: '#E4E1DA' }}>
-                <div className="flex justify-between font-jakarta text-sm">
-                  <span style={{ color: '#64748b' }}>Room ({nights} × ${baseRate})</span>
-                  <span className="font-medium" style={{ color: '#0B2540' }}>${roomCost.toLocaleString()}</span>
+              <div className="py-6 space-y-3.5 border-b border-skynest-hairline">
+                <div className="flex justify-between font-jakarta text-xs">
+                  <span className="text-ink/60 uppercase tracking-wider">Stay ({nights} × ${baseRate})</span>
+                  <span className="font-semibold text-ink">${roomCost.toLocaleString()}</span>
                 </div>
-                <div className="flex justify-between font-jakarta text-sm">
-                  <span style={{ color: '#64748b' }}>{selectedPlan.name} ({nights} × ${selectedPlan.price})</span>
-                  <span className="font-medium" style={{ color: '#0B2540' }}>${mealCost.toLocaleString()}</span>
+                <div className="flex justify-between font-jakarta text-xs">
+                  <span className="text-ink/60 uppercase tracking-wider">{selectedPlan.name} ({nights} × ${selectedPlan.price})</span>
+                  <span className="font-semibold text-ink">${mealCost.toLocaleString()}</span>
                 </div>
               </div>
 
-              {/* Total */}
-              <div className="pt-6 pb-8 flex items-center justify-between">
+              {/* Total Due */}
+              <div className="pt-6 pb-8 flex items-baseline justify-between">
                 <div>
-                  <p className="font-cinzel text-lg font-bold" style={{ color: '#0B2540' }}>Total Due</p>
-                  <p className="font-jakarta text-xs" style={{ color: '#64748b' }}>Inclusive of nightly stay & dining</p>
+                  <p className="font-cinzel text-base font-normal uppercase tracking-wider text-ink">Total Estimate</p>
+                  <p className="font-jakarta text-[10px] uppercase tracking-wider text-ink/40">Includes room stay and meals</p>
                 </div>
-                <p className="font-cinzel text-2xl font-bold" style={{ color: '#D9722C' }}>
+                <p className="font-cinzel text-3xl font-normal text-skynest-accent">
                   ${totalCost.toLocaleString()}
                 </p>
               </div>
 
-              {/* Confirm Button */}
+              {/* Square Confirm Button */}
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full py-4 rounded-xl font-jakarta font-semibold text-sm tracking-wide transition-all duration-300 flex items-center justify-center gap-2"
-                style={{
-                  backgroundColor: loading ? '#B7C2CC' : '#D9722C',
-                  color: '#fff',
-                  cursor: loading ? 'not-allowed' : 'pointer',
-                  boxShadow: loading ? 'none' : '0 8px 24px rgba(217,114,44,0.3)',
-                }}
+                className="w-full py-4 rounded-none font-jakarta font-semibold text-xs tracking-[0.22em] uppercase transition-all duration-300 flex items-center justify-center gap-2 border border-ink bg-ink text-paper hover:bg-skynest-accent hover:border-skynest-accent cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {loading ? 'Confirming Reservation…' : 'Complete Reservation'}
+                {loading ? 'Confirming Reservation…' : 'Confirm Reservation'}
               </button>
 
-              <p className="font-jakarta text-xs text-center mt-4" style={{ color: '#64748b' }}>
-                Guaranteed reservation · Instant confirmation
+              <p className="font-jakarta text-[10px] tracking-wider uppercase text-center text-ink/40 mt-4">
+                Instant Confirmation · Best Rate Guaranteed
               </p>
             </div>
           </div>
@@ -498,9 +536,9 @@ export default function BookingConfirmPage() {
   return (
     <Suspense
       fallback={
-        <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: '#FDFCFA' }}>
-          <p className="font-cinzel text-lg font-semibold" style={{ color: '#0B2540' }}>
-            Loading reservation details…
+        <div className="min-h-screen flex items-center justify-center bg-paper">
+          <p className="font-cinzel text-sm uppercase tracking-[0.2em] text-ink">
+            Accessing Reservation Ledger…
           </p>
         </div>
       }

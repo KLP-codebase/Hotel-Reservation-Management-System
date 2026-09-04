@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
@@ -36,13 +36,36 @@ const ROOM_TYPES = [
   { id: '4', name: 'Presidential' },
 ];
 
+// ── Mountain Glyph Emblem (Matching Landing Page) ────────────────────────────
+function MountainGlyph({ className = "", style }: { className?: string; style?: React.CSSProperties }) {
+  return (
+    <svg
+      aria-hidden="true"
+      viewBox="0 0 28 16"
+      fill="none"
+      className={className}
+      style={style}
+      xmlns="http://www.w3.org/2000/svg"
+    >
+      <path
+        d="M1 15 L10 3 L14 8 L18 2 L27 15"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
 // ── Page Component ─────────────────────────────────────────────────────────────
 export default function BookPage() {
   const router = useRouter();
   const heroRef = useRef<HTMLDivElement>(null);
   const formRef = useRef<HTMLFormElement>(null);
+  const resultsRef = useRef<HTMLElement>(null);
 
-  // ── State (LOGIC — understand these) ─────────────────────────────────────
+  // ── State (LOGIC) ─────────────────────────────────────────────────────────
   const [params, setParams] = useState<SearchParams>({
     branch_id: '',
     room_type_id: '',
@@ -53,51 +76,77 @@ export default function BookPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [searched, setSearched] = useState(false);
+  const [scrolled, setScrolled] = useState(false);
 
-  // ── GSAP Animations (AI handles) ─────────────────────────────────────────
+  // ── Scroll Listener for Transparent Navbar ──────────────────────────────
   useEffect(() => {
-    const ctx = gsap.context(() => {
-      // Hero lines rise up on page load
-      gsap.from('.sn-hero-line', {
-        yPercent: 120,
-        opacity: 0,
-        duration: 1.1,
-        ease: 'power4.out',
-        stagger: 0.12,
-        delay: 0.1,
-      });
-      // Form card floats up
-      gsap.from(formRef.current, {
-        y: 48,
-        opacity: 0,
-        duration: 1.0,
-        ease: 'power3.out',
-        delay: 0.55,
-      });
-    });
-    return () => ctx.revert(); // cleanup on unmount
+    const handleScroll = () => {
+      setScrolled(window.scrollY > 30);
+    };
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    handleScroll();
+    return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
-  // Animate room cards in when results appear
+  // ── GSAP Animations (AI handles — crisp, snappy entrance) ───────────────
+  useEffect(() => {
+    const ctx = gsap.context(() => {
+      // Hero lines rise up quickly on load
+      gsap.from('.sn-hero-line', {
+        yPercent: 100,
+        opacity: 0,
+        duration: 0.7,
+        ease: 'power3.out',
+        stagger: 0.08,
+        delay: 0.05,
+      });
+      // Form card floats up promptly
+      gsap.from(formRef.current, {
+        y: 28,
+        opacity: 0,
+        duration: 0.65,
+        ease: 'power3.out',
+        delay: 0.18,
+      });
+    });
+    return () => ctx.revert();
+  }, []);
+
+  // Animate room cards in rapidly when results appear
   useEffect(() => {
     if (!searched || loading || rooms.length === 0) return;
     gsap.from('.sn-room-card', {
-      y: 56,
+      y: 28,
       opacity: 0,
-      duration: 0.65,
+      duration: 0.45,
       ease: 'power3.out',
-      stagger: 0.09,
+      stagger: 0.06,
     });
   }, [rooms, loading, searched]);
 
-  // ── Handlers (LOGIC — understand these) ──────────────────────────────────
+  // ── Smooth Scroll Helper ──────────────────────────────────────────────────
+  function scrollToResults() {
+    setTimeout(() => {
+      if (resultsRef.current) {
+        if (typeof window !== 'undefined' && window.__lenis) {
+          window.__lenis.scrollTo(resultsRef.current, {
+            offset: -84,
+            duration: 1.1,
+          });
+        } else {
+          const y = resultsRef.current.getBoundingClientRect().top + window.pageYOffset - 84;
+          window.scrollTo({ top: y, behavior: 'smooth' });
+        }
+      }
+    }, 100);
+  }
 
-  // Runs every time a form field changes
+  // ── Handlers (LOGIC) ─────────────────────────────────────────────────────
+
   function handleChange(e: React.ChangeEvent<HTMLSelectElement | HTMLInputElement>) {
     setParams(prev => ({ ...prev, [e.target.name]: e.target.value }));
   }
 
-  // Runs when user clicks "Search Available Rooms"
   async function handleSearch(e: React.FormEvent) {
     e.preventDefault();
 
@@ -115,6 +164,7 @@ export default function BookPage() {
     setLoading(true);
     setError(null);
     setSearched(true);
+    scrollToResults();
 
     try {
       const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000';
@@ -136,7 +186,6 @@ export default function BookPage() {
     }
   }
 
-  // Runs when user clicks "Book" on a room card
   function handleBook(room: Room) {
     const qs = new URLSearchParams({
       room_id: String(room.room_id),
@@ -155,190 +204,309 @@ export default function BookPage() {
 
   // ── Render ────────────────────────────────────────────────────────────────
   return (
-    <div className="min-h-screen" style={{ backgroundColor: '#FDFCFA' }}>
+    <div className="min-h-screen bg-paper relative selection:bg-skynest-accent selection:text-white" style={{ backgroundColor: '#FDFCFA' }}>
 
-      {/* ── Minimal Nav ─────────────────────────────────────────────────── */}
-      <nav className="fixed top-0 left-0 right-0 z-50 flex items-center justify-between px-6 md:px-12 h-16"
-        style={{ backgroundColor: 'rgba(253,252,250,0.85)', backdropFilter: 'blur(12px)', borderBottom: '1px solid #E4E1DA' }}>
-        <Link href="/" className="font-cinzel text-lg font-semibold tracking-wide" style={{ color: '#0B2540' }}>
-          Sky Nest
+      {/* ── 6-column architectural hairline grid (Matching Landing Page) ───── */}
+      <div aria-hidden="true" className="pointer-events-none fixed inset-0 flex z-0">
+        {Array.from({ length: 6 }).map((_, i) => (
+          <div key={i} className="flex-1 border-l border-ink/[0.04] last:border-r" />
+        ))}
+      </div>
+
+      {/* ── Architectural Nav (Fully Transparent initially, Frosted Glass on scroll) ── */}
+      <nav
+        className={`fixed top-0 left-0 right-0 z-50 flex items-center justify-between px-6 md:px-12 h-16 transition-all duration-300 ${
+          scrolled
+            ? 'border-b border-ink/[0.08] bg-[#FDFCFA]/40 shadow-[0_4px_20px_rgba(11,37,64,0.04)]'
+            : 'border-b border-transparent bg-transparent'
+        }`}
+        style={
+          scrolled
+            ? {
+                backdropFilter: 'blur(16px)',
+                WebkitBackdropFilter: 'blur(16px)',
+              }
+            : {
+                backdropFilter: 'none',
+                WebkitBackdropFilter: 'none',
+              }
+        }
+      >
+        {/* Brand Wordmark with Mountain Glyph */}
+        <Link href="/" className="flex items-center gap-2.5 group">
+          <MountainGlyph className={`w-6 h-auto transition-colors duration-300 group-hover:scale-105 ${scrolled ? 'text-ink' : 'text-white'}`} />
+          <span className={`font-jakarta font-bold text-[11px] tracking-[0.35em] uppercase transition-colors duration-300 ${scrolled ? 'text-ink' : 'text-white'}`}>
+            SKYNEST
+          </span>
         </Link>
-        <Link href="/" className="font-jakarta text-sm font-medium hover:opacity-60 transition-opacity" style={{ color: '#0B2540' }}>
-          ← Back to Home
+
+        {/* Square bordered action button */}
+        <Link
+          href="/"
+          className={`flex items-center px-5 py-2 text-[11px] md:text-[12px] font-jakarta font-medium tracking-[0.14em] uppercase border transition-all duration-200 rounded-none ${
+            scrolled
+              ? 'border-ink/20 text-ink hover:border-ink hover:bg-ink/5'
+              : 'border-white/30 text-white hover:border-white hover:bg-white/10'
+          }`}
+        >
+          ← Return to Home
         </Link>
       </nav>
 
-      {/* ── Hero ─────────────────────────────────────────────────────────── */}
-      <section ref={heroRef}
-        className="flex flex-col items-center justify-center px-6 pt-40 pb-24 text-center relative overflow-hidden"
-        style={{ background: 'linear-gradient(165deg, #0B2540 0%, #122d4a 55%, #0d2035 100%)' }}>
+      {/* ── Hero Section with Booking.jpg Background ──────────────────────── */}
+      <section
+        ref={heroRef}
+        className="relative z-10 flex flex-col items-center justify-center px-6 pt-36 pb-28 md:pt-40 md:pb-32 text-center overflow-hidden border-b border-skynest-hairline bg-ink"
+      >
+        {/* Background Image */}
+        <div
+          aria-hidden="true"
+          className="absolute inset-0 pointer-events-none z-0 overflow-hidden"
+        >
+          <img
+            src="/Booking.jpg"
+            alt=""
+            className="w-full h-full object-cover scale-105"
+            style={{
+              filter: "brightness(0.74) contrast(1.05)",
+              objectPosition: "center 65%",
+            }}
+          />
+          {/* Subtle translucent Navy overlay for clarity while letting the image shine through */}
+          <div
+            className="absolute inset-0"
+            style={{
+              background:
+                "linear-gradient(to bottom, rgba(11,37,64,0.30) 0%, rgba(11,37,64,0.42) 50%, rgba(11,37,64,0.65) 100%)",
+            }}
+          />
+          {/* Subtle radial warmth glow */}
+          <div
+            className="absolute inset-0"
+            style={{ background: 'radial-gradient(ellipse 70% 50% at 50% 0%, rgba(217,114,44,0.12) 0%, transparent 75%)' }}
+          />
+        </div>
 
-        {/* Orange radial glow accent */}
-        <div className="absolute inset-0 pointer-events-none"
-          style={{ background: 'radial-gradient(ellipse 60% 50% at 50% -10%, rgba(217,114,44,0.25) 0%, transparent 70%)' }} />
+        {/* Hero grid overlay */}
+        <div aria-hidden="true" className="pointer-events-none absolute inset-0 flex z-[1]">
+          {Array.from({ length: 6 }).map((_, i) => (
+            <div key={i} className="flex-1 border-l border-white/[0.08] last:border-r" />
+          ))}
+        </div>
 
-        <div className="relative z-10 max-w-2xl mx-auto">
+        <div className="relative z-10 max-w-3xl mx-auto drop-shadow-[0_2px_12px_rgba(0,0,0,0.45)]">
           <div className="overflow-hidden mb-3">
-            <p className="sn-hero-line font-jakarta text-xs font-semibold tracking-[0.3em] uppercase" style={{ color: '#D9722C' }}>
-              Reserve Your Stay
-            </p>
+            <span className="sn-hero-line block font-jakarta text-[11px] md:text-[12px] font-bold tracking-[0.32em] uppercase text-[#ff944d] drop-shadow-sm">
+              Online Reservations
+            </span>
           </div>
           <div className="overflow-hidden mb-5">
-            <h1 className="sn-hero-line font-cinzel text-4xl md:text-6xl font-semibold leading-tight" style={{ color: '#FDFCFA' }}>
-              Find Your Room
+            <h1 className="sn-hero-line font-cinzel text-3xl md:text-5xl lg:text-6xl font-normal tracking-[0.04em] uppercase text-white leading-[1.1] drop-shadow-md">
+              Find Your Perfect Stay
             </h1>
           </div>
           <div className="overflow-hidden">
-            <p className="sn-hero-line font-jakarta text-base leading-relaxed" style={{ color: '#B7C2CC' }}>
-              Pick your branch, room type, and dates — we'll show you what's available instantly.
+            <p className="sn-hero-line font-cinzel italic text-white/90 text-sm md:text-base max-w-xl mx-auto leading-relaxed drop-shadow-sm">
+              Experience the best of Sri Lanka across Colombo, Galle, and Kandy. Choose your destination and travel dates to check available rooms.
             </p>
           </div>
         </div>
       </section>
 
-      {/* ── Search Form (floats up over the hero bottom) ──────────────── */}
-      <section className="px-6 max-w-4xl mx-auto -mt-10 mb-16 relative z-10">
-        <form ref={formRef} onSubmit={handleSearch}
-          className="rounded-2xl p-6 md:p-8 shadow-2xl"
-          style={{ backgroundColor: '#fff', border: '1px solid #E4E1DA' }}>
+      {/* ── Search Form (Crisp Square Architectural Box) ───────────────────── */}
+      <section className="relative z-20 px-6 max-w-4xl mx-auto -mt-10 mb-20">
+        <form
+          ref={formRef}
+          onSubmit={handleSearch}
+          className="rounded-none p-6 md:p-10 border border-skynest-hairline shadow-[0_16px_40px_rgba(11,37,64,0.06)]"
+          style={{ backgroundColor: '#FFFFFF' }}
+        >
+          <div className="flex items-center justify-between pb-6 mb-8 border-b border-skynest-hairline">
+            <h2 className="font-cinzel text-lg font-medium uppercase tracking-[0.08em] text-ink">
+              Check Room Availability
+            </h2>
+            <span className="font-jakarta text-[10px] tracking-[0.25em] uppercase text-ink/50 font-semibold">
+              Best Rates Guaranteed
+            </span>
+          </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mb-5">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
 
             {/* Branch selector */}
             <div className="flex flex-col gap-2">
-              <label className="font-jakarta text-xs font-semibold tracking-widest uppercase" style={{ color: 'rgba(11,37,64,0.5)' }}>
-                Branch
+              <label className="font-jakarta text-[11px] font-bold tracking-[0.18em] uppercase text-ink/70">
+                Hotel Location <span className="text-skynest-accent">*</span>
               </label>
-              <select name="branch_id" value={params.branch_id} onChange={handleChange}
-                className="w-full px-4 py-3 rounded-lg font-jakarta text-sm focus:outline-none transition-colors duration-200"
-                style={{ border: '1px solid #E4E1DA', backgroundColor: '#FDFCFA', color: '#0B2540' }}>
-                <option value="">Select a branch…</option>
-                {BRANCHES.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
-              </select>
+              <div className="relative">
+                <select
+                  name="branch_id"
+                  value={params.branch_id}
+                  onChange={handleChange}
+                  className="w-full appearance-none pl-4 pr-11 py-3.5 rounded-none font-jakarta text-sm border border-skynest-hairline bg-[#FDFCFA] text-ink outline-none focus:border-skynest-accent transition-colors duration-200 cursor-pointer"
+                >
+                  <option value="">Select a hotel location…</option>
+                  {BRANCHES.map(b => (
+                    <option key={b.id} value={b.id}>{b.name}</option>
+                  ))}
+                </select>
+                <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-4 text-ink/40">
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M19 9l-7 7-7-7" />
+                  </svg>
+                </div>
+              </div>
             </div>
 
             {/* Room type selector */}
             <div className="flex flex-col gap-2">
-              <label className="font-jakarta text-xs font-semibold tracking-widest uppercase" style={{ color: 'rgba(11,37,64,0.5)' }}>
-                Room Type
+              <label className="font-jakarta text-[11px] font-bold tracking-[0.18em] uppercase text-ink/70">
+                Room Type <span className="text-skynest-accent">*</span>
               </label>
-              <select name="room_type_id" value={params.room_type_id} onChange={handleChange}
-                className="w-full px-4 py-3 rounded-lg font-jakarta text-sm focus:outline-none transition-colors duration-200"
-                style={{ border: '1px solid #E4E1DA', backgroundColor: '#FDFCFA', color: '#0B2540' }}>
-                <option value="">Select room type…</option>
-                {ROOM_TYPES.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
-              </select>
+              <div className="relative">
+                <select
+                  name="room_type_id"
+                  value={params.room_type_id}
+                  onChange={handleChange}
+                  className="w-full appearance-none pl-4 pr-11 py-3.5 rounded-none font-jakarta text-sm border border-skynest-hairline bg-[#FDFCFA] text-ink outline-none focus:border-skynest-accent transition-colors duration-200 cursor-pointer"
+                >
+                  <option value="">Select room type…</option>
+                  {ROOM_TYPES.map(r => (
+                    <option key={r.id} value={r.id}>{r.name} Room</option>
+                  ))}
+                </select>
+                <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-4 text-ink/40">
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M19 9l-7 7-7-7" />
+                  </svg>
+                </div>
+              </div>
             </div>
 
-            {/* Check-in */}
+            {/* Check-in Date */}
             <div className="flex flex-col gap-2">
-              <label className="font-jakarta text-xs font-semibold tracking-widest uppercase" style={{ color: 'rgba(11,37,64,0.5)' }}>
-                Check-in Date
+              <label className="font-jakarta text-[11px] font-bold tracking-[0.18em] uppercase text-ink/70">
+                Check-in Date <span className="text-skynest-accent">*</span>
               </label>
-              <input type="date" name="check_in" value={params.check_in} onChange={handleChange} min={today}
-                className="w-full px-4 py-3 rounded-lg font-jakarta text-sm focus:outline-none transition-colors duration-200"
-                style={{ border: '1px solid #E4E1DA', backgroundColor: '#FDFCFA', color: '#0B2540' }} />
+              <input
+                type="date"
+                name="check_in"
+                value={params.check_in}
+                onChange={handleChange}
+                min={today}
+                className="w-full px-4 py-3.5 rounded-none font-jakarta text-sm border border-skynest-hairline bg-[#FDFCFA] text-ink outline-none focus:border-skynest-accent transition-colors duration-200"
+              />
             </div>
 
-            {/* Check-out */}
+            {/* Check-out Date */}
             <div className="flex flex-col gap-2">
-              <label className="font-jakarta text-xs font-semibold tracking-widest uppercase" style={{ color: 'rgba(11,37,64,0.5)' }}>
-                Check-out Date
+              <label className="font-jakarta text-[11px] font-bold tracking-[0.18em] uppercase text-ink/70">
+                Check-out Date <span className="text-skynest-accent">*</span>
               </label>
-              <input type="date" name="check_out" value={params.check_out} onChange={handleChange}
+              <input
+                type="date"
+                name="check_out"
+                value={params.check_out}
+                onChange={handleChange}
                 min={params.check_in || today}
-                className="w-full px-4 py-3 rounded-lg font-jakarta text-sm focus:outline-none transition-colors duration-200"
-                style={{ border: '1px solid #E4E1DA', backgroundColor: '#FDFCFA', color: '#0B2540' }} />
+                className="w-full px-4 py-3.5 rounded-none font-jakarta text-sm border border-skynest-hairline bg-[#FDFCFA] text-ink outline-none focus:border-skynest-accent transition-colors duration-200"
+              />
             </div>
           </div>
 
-          {/* Error message */}
+          {/* Validation Error Banner (Square) */}
           {error && (
-            <div className="mb-5 px-4 py-3 rounded-lg font-jakarta text-sm"
-              style={{ backgroundColor: '#fff1f0', border: '1px solid #ffccc7', color: '#cf1322' }}>
-              {error}
+            <div className="mb-6 p-4 rounded-none border border-red-300 bg-red-50/60 text-red-700 font-jakarta text-xs flex items-center gap-2.5">
+              <span className="font-bold">Notice:</span>
+              <span>{error}</span>
             </div>
           )}
 
-          {/* Submit button */}
-          <button type="submit" disabled={loading}
-            className="w-full py-4 rounded-lg font-jakarta font-semibold text-sm tracking-wide transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
-            style={{ backgroundColor: '#0B2540', color: '#FDFCFA' }}
-            onMouseEnter={e => (e.currentTarget.style.backgroundColor = '#D9722C')}
-            onMouseLeave={e => (e.currentTarget.style.backgroundColor = '#0B2540')}>
-            {loading ? 'Searching…' : 'Search Available Rooms'}
+          {/* Submit Button */}
+          <button
+            type="submit"
+            disabled={loading}
+            className="w-full py-4 rounded-none font-jakarta font-semibold text-xs tracking-[0.22em] uppercase transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed border border-ink bg-ink text-paper hover:bg-skynest-accent hover:border-skynest-accent cursor-pointer"
+          >
+            {loading ? 'Searching Available Rooms…' : 'Search Available Rooms'}
           </button>
         </form>
       </section>
 
-      {/* ── Results ──────────────────────────────────────────────────────── */}
+      {/* ── Results Section ───────────────────────────────────────────────── */}
       {searched && (
-        <section className="px-6 pb-28 max-w-4xl mx-auto">
+        <section ref={resultsRef} className="relative z-10 px-6 pb-32 max-w-4xl mx-auto scroll-mt-24">
 
-          {/* Result heading */}
-          <div className="mb-6">
-            <h2 className="font-cinzel text-2xl font-semibold" style={{ color: '#0B2540' }}>
-              {loading
-                ? 'Searching…'
-                : rooms.length > 0
-                  ? `${rooms.length} Room${rooms.length > 1 ? 's' : ''} Available`
-                  : 'No Rooms Available'}
-            </h2>
+          {/* Result Heading */}
+          <div className="flex flex-col sm:flex-row sm:items-end justify-between mb-8 pb-4 border-b border-skynest-hairline gap-2">
+            <div>
+              <p className="font-jakarta text-[10px] tracking-[0.25em] uppercase text-skynest-accent font-bold mb-1">
+                Available Rooms
+              </p>
+              <h2 className="font-cinzel text-2xl md:text-3xl font-normal uppercase tracking-[0.04em] text-ink">
+                {loading
+                  ? 'Checking Availability…'
+                  : rooms.length > 0
+                    ? `${rooms.length} Room${rooms.length > 1 ? 's' : ''} Available`
+                    : 'No Rooms Available'}
+              </h2>
+            </div>
             {!loading && selectedBranch && selectedRoomType && (
-              <p className="font-jakarta text-sm mt-1" style={{ color: '#B7C2CC' }}>
-                {selectedRoomType.name} · {selectedBranch.name} · {params.check_in} → {params.check_out}
+              <p className="font-jakarta text-xs tracking-wider uppercase text-ink/60">
+                {selectedRoomType.name} Room · {selectedBranch.name} · {params.check_in} → {params.check_out}
               </p>
             )}
           </div>
 
-          {/* Loading skeletons */}
+          {/* Loading skeletons (Square) */}
           {loading && (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
               {[1, 2, 3, 4].map(i => (
-                <div key={i} className="h-36 rounded-xl animate-pulse" style={{ backgroundColor: '#E4E1DA' }} />
+                <div key={i} className="h-40 rounded-none border border-skynest-hairline bg-black/[0.04] animate-pulse" />
               ))}
             </div>
           )}
 
-          {/* Room cards */}
+          {/* Available Room Cards (Square, Architectural) */}
           {!loading && rooms.length > 0 && (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
               {rooms.map(room => (
-                <div key={room.room_id} className="sn-room-card flex items-center justify-between p-6 rounded-xl transition-all duration-300"
-                  style={{ backgroundColor: '#fff', border: '1px solid #E4E1DA' }}
-                  onMouseEnter={e => { e.currentTarget.style.borderColor = '#D9722C'; e.currentTarget.style.boxShadow = '0 8px 32px rgba(217,114,44,0.12)'; }}
-                  onMouseLeave={e => { e.currentTarget.style.borderColor = '#E4E1DA'; e.currentTarget.style.boxShadow = 'none'; }}>
-
+                <div
+                  key={room.room_id}
+                  className="sn-room-card rounded-none p-6 md:p-8 flex items-center justify-between border border-skynest-hairline bg-white transition-all duration-300 hover:border-skynest-accent hover:shadow-[0_8px_24px_rgba(217,114,44,0.08)] group"
+                >
                   <div>
-                    <p className="font-jakarta text-xs font-semibold tracking-widest uppercase mb-1" style={{ color: '#B7C2CC' }}>
-                      {selectedRoomType?.name ?? 'Room'}
-                    </p>
-                    <h3 className="font-cinzel text-xl font-semibold" style={{ color: '#0B2540' }}>
+                    <span className="inline-block font-jakarta text-[10px] font-bold tracking-[0.24em] uppercase text-skynest-accent mb-1.5">
+                      {selectedRoomType?.name ?? 'Standard'} Room
+                    </span>
+                    <h3 className="font-cinzel text-2xl font-normal uppercase tracking-[0.03em] text-ink">
                       Room {room.room_number}
                     </h3>
-                    <p className="font-jakarta text-sm mt-1" style={{ color: '#B7C2CC' }}>
+                    <p className="font-jakarta text-xs text-ink/50 mt-1 tracking-wider uppercase">
                       Floor {room.floor} · {selectedBranch?.name}
                     </p>
                   </div>
 
-                  <button onClick={() => handleBook(room)}
-                    className="ml-4 flex-shrink-0 px-5 py-2.5 rounded-lg font-jakarta font-semibold text-sm transition-all duration-300"
-                    style={{ border: '1px solid #0B2540', color: '#0B2540', backgroundColor: 'transparent' }}
-                    onMouseEnter={e => { e.currentTarget.style.backgroundColor = '#D9722C'; e.currentTarget.style.borderColor = '#D9722C'; e.currentTarget.style.color = '#fff'; }}
-                    onMouseLeave={e => { e.currentTarget.style.backgroundColor = 'transparent'; e.currentTarget.style.borderColor = '#0B2540'; e.currentTarget.style.color = '#0B2540'; }}>
-                    Book
+                  {/* Sharp Square Book Button */}
+                  <button
+                    onClick={() => handleBook(room)}
+                    className="ml-4 flex-shrink-0 px-6 py-3 rounded-none font-jakarta font-semibold text-xs tracking-[0.16em] uppercase border border-ink text-ink bg-transparent hover:bg-skynest-accent hover:border-skynest-accent hover:text-white transition-all duration-200 cursor-pointer"
+                  >
+                    Book Now
                   </button>
                 </div>
               ))}
             </div>
           )}
 
-          {/* Empty state */}
+          {/* Empty state (Square, Editorial) */}
           {!loading && searched && rooms.length === 0 && !error && (
-            <div className="text-center py-20">
-              <p className="font-cinzel text-xl mb-3" style={{ color: 'rgba(11,37,64,0.3)' }}>No rooms available</p>
-              <p className="font-jakarta text-sm" style={{ color: '#B7C2CC' }}>
-                Try different dates, a different branch, or another room type.
+            <div className="text-center py-20 border border-skynest-hairline bg-white p-10 rounded-none">
+              <MountainGlyph className="w-10 h-auto mx-auto mb-4 text-ink/20" />
+              <h3 className="font-cinzel text-xl uppercase tracking-[0.06em] text-ink mb-2">
+                No Rooms Available for These Dates
+              </h3>
+              <p className="font-jakarta text-xs tracking-wider uppercase text-ink/50 max-w-md mx-auto leading-relaxed">
+                We couldn&apos;t find available rooms for your chosen dates. Please try different dates, another room category, or another Sky Nest location.
               </p>
             </div>
           )}
