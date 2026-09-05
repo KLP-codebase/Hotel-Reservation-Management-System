@@ -267,38 +267,6 @@ void main() {
     col *= 1.0 - u_vignette * smoothstep(0.35, 1.0, vd);
   }
 
-  // --- Evening Sky Sunset Illumination on Clouds (Cursor Interaction) ---
-  if (u_cursorPresence > 0.001) {
-    vec2 cursor = (0.5 * u_mouse * u_resolution.xy)
-      / min(u_resolution.x, u_resolution.y);
-    vec2 screenP = (gl_FragCoord.xy - 0.5 * u_resolution.xy)
-      / min(u_resolution.x, u_resolution.y);
-    float cursorDist = length(screenP - cursor);
-
-    // Multi-tier atmospheric sunset glow falloff — glowRadius is smaller than
-    // u_cursorRadius so the sun stays compact while the swirl stays wide.
-    float glowRadius = max(u_cursorRadius * 0.9, 0.28);
-    float sunsetGlow = u_cursorPresence * smoothstep(glowRadius, 0.0, cursorDist);
-    float sunsetCore = u_cursorPresence * smoothstep(glowRadius * 0.40, 0.0, cursorDist);
-
-    // Evening sky palette: radiant golden ray, Sky Nest burnt orange (#D9722C), and warm sunset coral
-    vec3 eveningCore = vec3(1.0, 0.82, 0.46);     // Warm golden sunlight ray
-    vec3 eveningMid  = vec3(0.851, 0.447, 0.173); // Sky Nest signature burnt orange (#D9722C)
-    vec3 eveningDusk = vec3(0.76, 0.30, 0.18);   // Dusky sunset rim
-
-    vec3 eveningColor = mix(eveningDusk, eveningMid, smoothstep(0.0, 0.55, sunsetGlow));
-    eveningColor = mix(eveningColor, eveningCore, sunsetCore);
-
-    // Cloud luminance
-    float cloudLuma = dot(col, vec3(0.299, 0.587, 0.114));
-
-    // Scatter the warm evening sunset light into the cloud volumes
-    vec3 sunsetLight = eveningColor * (sunsetGlow * 0.90 + sunsetCore * 0.60);
-    vec3 illuminated = col * (1.0 - sunsetGlow * 0.50) + sunsetLight;
-
-    col = mix(col, illuminated, u_cursorPresence);
-  }
-
   if (u_grain > 0.0001)
     col += (grainHash(
       gl_FragCoord.xy + vec2(u_seed * 17.0, u_seed * 31.0)) - 0.5) * u_grain;
@@ -336,7 +304,7 @@ const UNIFORMS = {
   offsetX: 0.110,
   offsetY: -0.190,
   drift: 0.116,
-  cursorEnabled: true,
+  cursorEnabled: false,
   cursorEffect: 2.0,
   cursorStrength: 0.650,
   cursorRadius: 0.550,
@@ -519,8 +487,8 @@ export function ShaderBackground({ className }: { className?: string }) {
       requestRender()
     }
     // Bounds-only update (scroll / ResizeObserver): refresh canvas size but do NOT
-    // recalculate the sun position — prevents layout shifts (e.g. expanding the rooms
-    // section) from making the sun jump or grow.
+    // recalculate the pointer position — prevents layout shifts (e.g. expanding the rooms
+    // section) from causing jumps.
     const updateBoundsOnly = () => {
       bounds = canvas.getBoundingClientRect()
       resizeCanvas()

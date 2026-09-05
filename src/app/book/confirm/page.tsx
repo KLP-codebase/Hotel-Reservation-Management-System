@@ -9,8 +9,8 @@ import { ShaderBackground } from '@/components/ui/adisyon-shader';
 // ── Static Reference Data ───────────────────────────────────────────────────
 const BRANCHES = [
   { id: '1', name: 'Sky Nest Colombo' },
-  { id: '2', name: 'Sky Nest Galle' },
-  { id: '3', name: 'Sky Nest Kandy' },
+  { id: '2', name: 'Sky Nest Kandy' },
+  { id: '3', name: 'Sky Nest Galle' },
 ];
 
 const ROOM_TYPES = [
@@ -322,7 +322,7 @@ function BookingConfirmContent() {
         </nav>
 
         {/* Hero Header */}
-        <section className="relative z-10 flex flex-col items-center justify-center px-6 pt-36 pb-20 md:pt-40 md:pb-24 text-center overflow-hidden border-b border-skynest-hairline bg-ink">
+        <section className="relative z-10 flex flex-col items-center justify-center px-6 pt-36 pb-32 md:pt-40 md:pb-36 text-center overflow-hidden border-b border-skynest-hairline bg-ink shadow-[0_10px_30px_rgba(0,0,0,0.15)]">
           <div aria-hidden="true" className="absolute inset-0 pointer-events-none z-0 overflow-hidden">
             <img
               src="/Booking.jpg"
@@ -365,15 +365,15 @@ function BookingConfirmContent() {
           </div>
         </section>
 
-        {/* Confirmation Card with Cloud & Sun WebGL Shader Background */}
-        <div className="relative overflow-hidden py-14">
-          <div className="absolute inset-0 z-0 pointer-events-none">
+        {/* Confirmation Card Overlapping Hero with Cloud WebGL Shader Background */}
+        <div className="relative min-h-[600px]">
+          <div className="absolute inset-0 z-0 pointer-events-none overflow-hidden">
             <ShaderBackground className="w-full h-full" />
             <div className="absolute inset-0 bg-gradient-to-b from-[#FDFCFA]/50 via-transparent to-[#FDFCFA]/60 pointer-events-none" />
           </div>
 
-          <div className="relative z-10 max-w-2xl mx-auto px-6">
-            <div className="sn-confirm-card p-6 md:p-10 rounded-none border border-skynest-hairline bg-white shadow-sm">
+          <div className="relative z-20 max-w-2xl mx-auto px-6 -mt-20 md:-mt-24 pb-16">
+            <div className="sn-confirm-card p-6 md:p-10 rounded-none bg-white shadow-[0_24px_60px_rgba(11,37,64,0.12)]">
               <div className="flex items-center justify-between pb-4 border-b border-skynest-hairline">
                 <div>
                   <p className="font-jakarta text-[10px] uppercase tracking-wider text-ink/50">Booking Reference</p>
@@ -490,7 +490,7 @@ function BookingConfirmContent() {
       </nav>
 
       {/* Hero Header */}
-      <section className="relative z-10 flex flex-col items-center justify-center px-6 pt-36 pb-20 md:pt-40 md:pb-24 text-center overflow-hidden border-b border-skynest-hairline bg-ink">
+      <section className="relative z-10 flex flex-col items-center justify-center px-6 pt-36 pb-32 md:pt-40 md:pb-40 text-center overflow-hidden border-b border-skynest-hairline bg-ink shadow-[0_10px_30px_rgba(0,0,0,0.15)]">
         <div aria-hidden="true" className="absolute inset-0 pointer-events-none z-0 overflow-hidden">
           <img
             src="/Booking.jpg"
@@ -539,17 +539,17 @@ function BookingConfirmContent() {
         </div>
       </section>
 
-      {/* ── Cards Area with Cloud & Sun WebGL Shader Canvas ── */}
-      <div className="relative overflow-hidden min-h-[700px]">
-        {/* WebGL Cloud & Sun Shader positioned behind all cards */}
-        <div className="absolute inset-0 z-0 pointer-events-none">
+      {/* ── Cards Area with Cloud WebGL Shader Canvas ── */}
+      <div className="relative min-h-[700px]">
+        {/* WebGL Cloud Shader positioned behind all cards */}
+        <div className="absolute inset-0 z-0 pointer-events-none overflow-hidden">
           <ShaderBackground className="w-full h-full" />
-          {/* Subtle luminous mist overlay so clouds & sun glow shine through while cards remain crisp */}
+          {/* Subtle luminous mist overlay so clouds shine through while cards remain crisp */}
           <div className="absolute inset-0 bg-gradient-to-b from-[#FDFCFA]/50 via-transparent to-[#FDFCFA]/60 pointer-events-none" />
         </div>
 
-        {/* Main Form Content */}
-        <main className="relative z-10 max-w-6xl mx-auto px-6 py-12 md:py-16">
+        {/* Main Form Content Overlapping Hero */}
+        <main className="relative z-20 max-w-6xl mx-auto px-6 -mt-20 md:-mt-24 pb-16">
 
           {error && (
             <div className="mb-8 p-4 rounded-none border border-red-300 bg-red-50/80 text-red-700 font-jakarta text-xs">

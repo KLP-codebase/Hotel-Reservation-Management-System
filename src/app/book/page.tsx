@@ -26,8 +26,8 @@ interface SearchParams {
 // ── Static data (matches seed data in the database) ──────────────────────────
 const BRANCHES = [
   { id: '1', name: 'Sky Nest Colombo' },
-  { id: '2', name: 'Sky Nest Galle' },
-  { id: '3', name: 'Sky Nest Kandy' },
+  { id: '2', name: 'Sky Nest Kandy' },
+  { id: '3', name: 'Sky Nest Galle' },
 ];
 
 const ROOM_TYPES = [
@@ -255,7 +255,7 @@ export default function BookPage() {
       {/* ── Hero Section with Booking.jpg Background ──────────────────────── */}
       <section
         ref={heroRef}
-        className="relative z-10 flex flex-col items-center justify-center px-6 pt-36 pb-28 md:pt-40 md:pb-32 text-center overflow-hidden border-b border-skynest-hairline bg-ink"
+        className="relative z-10 flex flex-col items-center justify-center px-6 pt-36 pb-36 md:pt-40 md:pb-44 text-center overflow-hidden border-b border-skynest-hairline bg-ink shadow-[0_10px_30px_rgba(0,0,0,0.15)]"
       >
         {/* Background Image */}
         <div
@@ -313,20 +313,20 @@ export default function BookPage() {
       </section>
 
       {/* ── Cards & Booking Engine Area (with Animated Shader Waves behind cards) ── */}
-      <div className="relative overflow-hidden min-h-[600px]">
+      <div className="relative min-h-[600px]">
         {/* WebGL Waves/Cloud Shader Canvas positioned behind all cards */}
-        <div className="absolute inset-0 z-0 pointer-events-none">
+        <div className="absolute inset-0 z-0 pointer-events-none overflow-hidden">
           <ShaderBackground className="w-full h-full" />
-          {/* Subtle luminous mist overlay so the clouds and sunset glow shine through while cards remain crisp */}
+          {/* Subtle luminous mist overlay so the serene clouds shine through while cards remain crisp */}
           <div className="absolute inset-0 bg-gradient-to-b from-[#FDFCFA]/50 via-transparent to-[#FDFCFA]/60 pointer-events-none" />
         </div>
 
-        {/* ── Search Form (Crisp Square Architectural Box) ───────────────────── */}
-        <section className="relative z-10 px-6 max-w-4xl mx-auto mt-16 mb-20">
+        {/* ── Search Form (Crisp Square Architectural Box Overlapping Hero) ─────── */}
+        <section className="relative z-20 px-6 max-w-4xl mx-auto -mt-20 md:-mt-24 mb-20">
           <form
             ref={formRef}
             onSubmit={handleSearch}
-            className="rounded-none p-6 md:p-10 shadow-[0_20px_50px_rgba(11,37,64,0.08)]"
+            className="rounded-none p-6 md:p-10 shadow-[0_24px_60px_rgba(11,37,64,0.12)]"
             style={{ backgroundColor: '#FFFFFF' }}
           >
             <div className="flex items-center justify-between pb-6 mb-8 border-b border-skynest-hairline">
