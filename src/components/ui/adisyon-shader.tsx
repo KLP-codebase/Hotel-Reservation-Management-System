@@ -275,10 +275,11 @@ void main() {
       / min(u_resolution.x, u_resolution.y);
     float cursorDist = length(screenP - cursor);
 
-    // Multi-tier atmospheric sunset glow falloff
-    float glowRadius = max(u_cursorRadius * 1.35, 0.65);
+    // Multi-tier atmospheric sunset glow falloff — glowRadius is smaller than
+    // u_cursorRadius so the sun stays compact while the swirl stays wide.
+    float glowRadius = max(u_cursorRadius * 0.9, 0.28);
     float sunsetGlow = u_cursorPresence * smoothstep(glowRadius, 0.0, cursorDist);
-    float sunsetCore = u_cursorPresence * smoothstep(glowRadius * 0.45, 0.0, cursorDist);
+    float sunsetCore = u_cursorPresence * smoothstep(glowRadius * 0.40, 0.0, cursorDist);
 
     // Evening sky palette: radiant golden ray, Sky Nest burnt orange (#D9722C), and warm sunset coral
     vec3 eveningCore = vec3(1.0, 0.82, 0.46);     // Warm golden sunlight ray
@@ -510,22 +511,31 @@ export function ShaderBackground({ className }: { className?: string }) {
       targetPresence = 0
       requestRender()
     }
+    // Full layout update (window resize): refresh bounds AND recalculate pointer.
     const updateLayout = () => {
       bounds = canvas.getBoundingClientRect()
       resizeCanvas()
       updatePointerTarget()
       requestRender()
     }
+    // Bounds-only update (scroll / ResizeObserver): refresh canvas size but do NOT
+    // recalculate the sun position — prevents layout shifts (e.g. expanding the rooms
+    // section) from making the sun jump or grow.
+    const updateBoundsOnly = () => {
+      bounds = canvas.getBoundingClientRect()
+      resizeCanvas()
+      requestRender()
+    }
     window.addEventListener("resize", updateLayout)
     if (UNIFORMS.cursorEnabled) {
       window.addEventListener("pointermove", onPointerMove, { passive: true })
       window.addEventListener("pointercancel", onPointerLeave)
-      window.addEventListener("scroll", updateLayout, true)
+      window.addEventListener("scroll", updateBoundsOnly, true)
       window.addEventListener("blur", onPointerLeave)
       document.documentElement.addEventListener("pointerleave", onPointerLeave)
     }
 
-    const resizeObserver = new ResizeObserver(updateLayout)
+    const resizeObserver = new ResizeObserver(updateBoundsOnly)
     resizeObserver.observe(canvas)
     const intersectionObserver = new IntersectionObserver(([entry]) => {
       inView = entry?.isIntersecting ?? true
@@ -600,7 +610,7 @@ export function ShaderBackground({ className }: { className?: string }) {
       if (UNIFORMS.cursorEnabled) {
         window.removeEventListener("pointermove", onPointerMove)
         window.removeEventListener("pointercancel", onPointerLeave)
-        window.removeEventListener("scroll", updateLayout, true)
+        window.removeEventListener("scroll", updateBoundsOnly, true)
         window.removeEventListener("blur", onPointerLeave)
         document.documentElement.removeEventListener(
           "pointerleave",
