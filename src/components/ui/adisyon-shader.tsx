@@ -267,37 +267,6 @@ void main() {
     col *= 1.0 - u_vignette * smoothstep(0.35, 1.0, vd);
   }
 
-  // --- Evening Sky Sunset Illumination on Clouds (Cursor Interaction) ---
-  if (u_cursorPresence > 0.001) {
-    vec2 cursor = (0.5 * u_mouse * u_resolution.xy)
-      / min(u_resolution.x, u_resolution.y);
-    vec2 screenP = (gl_FragCoord.xy - 0.5 * u_resolution.xy)
-      / min(u_resolution.x, u_resolution.y);
-    float cursorDist = length(screenP - cursor);
-
-    // Multi-tier atmospheric sunset glow falloff
-    float glowRadius = max(u_cursorRadius * 1.35, 0.65);
-    float sunsetGlow = u_cursorPresence * smoothstep(glowRadius, 0.0, cursorDist);
-    float sunsetCore = u_cursorPresence * smoothstep(glowRadius * 0.45, 0.0, cursorDist);
-
-    // Evening sky palette: radiant golden ray, Sky Nest burnt orange (#D9722C), and warm sunset coral
-    vec3 eveningCore = vec3(1.0, 0.82, 0.46);     // Warm golden sunlight ray
-    vec3 eveningMid  = vec3(0.851, 0.447, 0.173); // Sky Nest signature burnt orange (#D9722C)
-    vec3 eveningDusk = vec3(0.76, 0.30, 0.18);   // Dusky sunset rim
-
-    vec3 eveningColor = mix(eveningDusk, eveningMid, smoothstep(0.0, 0.55, sunsetGlow));
-    eveningColor = mix(eveningColor, eveningCore, sunsetCore);
-
-    // Cloud luminance
-    float cloudLuma = dot(col, vec3(0.299, 0.587, 0.114));
-
-    // Scatter the warm evening sunset light into the cloud volumes
-    vec3 sunsetLight = eveningColor * (sunsetGlow * 0.90 + sunsetCore * 0.60);
-    vec3 illuminated = col * (1.0 - sunsetGlow * 0.50) + sunsetLight;
-
-    col = mix(col, illuminated, u_cursorPresence);
-  }
-
   if (u_grain > 0.0001)
     col += (grainHash(
       gl_FragCoord.xy + vec2(u_seed * 17.0, u_seed * 31.0)) - 0.5) * u_grain;
@@ -335,7 +304,7 @@ const UNIFORMS = {
   offsetX: 0.110,
   offsetY: -0.190,
   drift: 0.116,
-  cursorEnabled: true,
+  cursorEnabled: false,
   cursorEffect: 2.0,
   cursorStrength: 0.650,
   cursorRadius: 0.550,
@@ -510,22 +479,31 @@ export function ShaderBackground({ className }: { className?: string }) {
       targetPresence = 0
       requestRender()
     }
+    // Full layout update (window resize): refresh bounds AND recalculate pointer.
     const updateLayout = () => {
       bounds = canvas.getBoundingClientRect()
       resizeCanvas()
       updatePointerTarget()
       requestRender()
     }
+    // Bounds-only update (scroll / ResizeObserver): refresh canvas size but do NOT
+    // recalculate the pointer position — prevents layout shifts (e.g. expanding the rooms
+    // section) from causing jumps.
+    const updateBoundsOnly = () => {
+      bounds = canvas.getBoundingClientRect()
+      resizeCanvas()
+      requestRender()
+    }
     window.addEventListener("resize", updateLayout)
     if (UNIFORMS.cursorEnabled) {
       window.addEventListener("pointermove", onPointerMove, { passive: true })
       window.addEventListener("pointercancel", onPointerLeave)
-      window.addEventListener("scroll", updateLayout, true)
+      window.addEventListener("scroll", updateBoundsOnly, true)
       window.addEventListener("blur", onPointerLeave)
       document.documentElement.addEventListener("pointerleave", onPointerLeave)
     }
 
-    const resizeObserver = new ResizeObserver(updateLayout)
+    const resizeObserver = new ResizeObserver(updateBoundsOnly)
     resizeObserver.observe(canvas)
     const intersectionObserver = new IntersectionObserver(([entry]) => {
       inView = entry?.isIntersecting ?? true
@@ -600,7 +578,7 @@ export function ShaderBackground({ className }: { className?: string }) {
       if (UNIFORMS.cursorEnabled) {
         window.removeEventListener("pointermove", onPointerMove)
         window.removeEventListener("pointercancel", onPointerLeave)
-        window.removeEventListener("scroll", updateLayout, true)
+        window.removeEventListener("scroll", updateBoundsOnly, true)
         window.removeEventListener("blur", onPointerLeave)
         document.documentElement.removeEventListener(
           "pointerleave",
