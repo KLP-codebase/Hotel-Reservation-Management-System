@@ -3,7 +3,9 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
+import { useAuth } from "@/context/auth-context";
 import { SkyNestFooter } from "./SkyNestFooter";
+
 
 // ---------------------------------------------------------------------------
 // Types
@@ -289,6 +291,7 @@ function SkyNestNav({
   scrolled: boolean;
   navProgress: number;
 }) {
+  const { user, logout } = useAuth();
   const [menuOpen, setMenuOpen] = useState(false);
 
   const toggleMenu = useCallback(() => setMenuOpen((v) => !v), []);
@@ -408,14 +411,44 @@ function SkyNestNav({
               Rates
             </a>
             <a
-              href="#booking"
+              href="/book"
               id="nav-cta-book-now"
               className="flex items-center px-6 py-2.5 text-[11px] md:text-[12px] font-jakarta font-semibold tracking-[0.12em] uppercase border transition-[border-color,background-color] duration-200"
               style={bookStyle}
             >
               Book Now
             </a>
+
+            {user ? (
+              <>
+                {user.role?.toUpperCase() !== 'GUEST' && (
+                  <a
+                    href="/dashboard"
+                    id="nav-cta-dashboard"
+                    className="flex items-center px-6 py-2.5 text-[11px] md:text-[12px] font-jakarta font-semibold tracking-[0.12em] uppercase border transition-[border-color,background-color] duration-200 text-amber-400 border-amber-500/30 hover:border-amber-400 bg-amber-500/10 hover:bg-amber-500/20"
+                  >
+                    Dashboard
+                  </a>
+                )}
+                <button
+                  onClick={logout}
+                  id="nav-cta-logout"
+                  className="flex items-center px-6 py-2.5 text-[11px] md:text-[12px] font-jakarta font-semibold tracking-[0.12em] uppercase border transition-[border-color,background-color] duration-200 text-red-400 border-red-500/30 hover:border-red-400 bg-red-500/10 hover:bg-red-500/20"
+                >
+                  Log Out
+                </button>
+              </>
+            ) : (
+              <a
+                href="/login"
+                id="nav-cta-sign-in"
+                className="flex items-center px-6 py-2.5 text-[11px] md:text-[12px] font-jakarta font-semibold tracking-[0.12em] uppercase border transition-[border-color,background-color] duration-200 text-amber-400 border-amber-500/30 hover:border-amber-400 bg-amber-500/10 hover:bg-amber-500/20"
+              >
+                Sign In
+              </a>
+            )}
           </div>
+
 
           {/* Mobile hamburger */}
           <button
@@ -465,7 +498,8 @@ function SkyNestNav({
         ].join(" ")}
       >
         <div className="space-y-1 pt-16">
-          {[...NAV_LINKS, { label: "Rates", href: "#rates" }, { label: "Book Now", href: "#booking" }].map(
+          {[...NAV_LINKS, { label: "Rates", href: "#rates" }, { label: "Book Now", href: "/book" }, { label: "Sign In", href: "/login" }].map(
+
             (link, i) => (
               <a
                 key={link.label}

@@ -1,7 +1,12 @@
+"use client";
+
 import Link from "next/link";
-import { BedDouble, CalendarCheck, Users, DollarSign, TrendingUp, CheckCircle, Clock, Plus, ShieldCheck } from "lucide-react";
+import { BedDouble, CalendarCheck, Users, DollarSign, TrendingUp, CheckCircle, Clock, Plus, ShieldCheck, LogOut } from "lucide-react";
+import { useAuth } from "@/context/auth-context";
 
 export default function DashboardPage() {
+  const { user, logout } = useAuth();
+
   const stats = [
     { name: "Total Rooms", value: "48", change: "+4 this month", icon: BedDouble, color: "text-blue-600 bg-blue-50 dark:bg-blue-950/50" },
     { name: "Occupancy Rate", value: "78.5%", change: "+12% vs last week", icon: TrendingUp, color: "text-emerald-600 bg-emerald-50 dark:bg-emerald-950/50" },
@@ -22,23 +27,40 @@ export default function DashboardPage() {
       <header className="border-b border-slate-200 dark:border-slate-800 bg-white/80 dark:bg-slate-900/80 backdrop-blur sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-brand-500 flex items-center justify-center text-white font-bold text-lg shadow-md shadow-brand-500/20">
-              H
+            <div className="w-10 h-10 rounded-none bg-amber-600 flex items-center justify-center text-white font-bold text-lg shadow-md shadow-amber-600/20">
+              S
             </div>
             <div>
-              <h1 className="font-bold text-lg leading-none">Hotel RMS</h1>
+              <h1 className="font-bold text-lg leading-none text-slate-900 dark:text-slate-100">Sky Nest RMS</h1>
               <p className="text-xs text-slate-500 dark:text-slate-400">Reservation & Management System</p>
             </div>
           </div>
 
           <nav className="flex items-center gap-6 text-sm font-medium">
-            <Link href="/dashboard" className="text-brand-500 font-semibold">Dashboard</Link>
-            <Link href="/api/rooms" className="text-slate-600 dark:text-slate-300 hover:text-brand-500 transition-colors">Rooms API</Link>
-            <Link href="/api/bookings" className="text-slate-600 dark:text-slate-300 hover:text-brand-500 transition-colors">Bookings API</Link>
-            <Link href="/api/reports" className="text-slate-600 dark:text-slate-300 hover:text-brand-500 transition-colors">Reports API</Link>
+            <Link href="/dashboard" className="text-amber-500 font-semibold">Dashboard</Link>
+            <Link href="/dashboard/staff" className="text-slate-600 dark:text-slate-300 hover:text-amber-500 transition-colors">Staff</Link>
+            <Link href="/dashboard/branches" className="text-slate-600 dark:text-slate-300 hover:text-amber-500 transition-colors">Branches</Link>
+
+            <div className="flex items-center gap-3 pl-4 border-l border-slate-200 dark:border-slate-800">
+              {user && (
+                <span className="text-xs text-slate-500 font-medium">
+                  {user.firstName} ({user.role.replace('_', ' ')})
+                </span>
+              )}
+              <button
+                onClick={logout}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-none text-xs font-semibold text-red-600 hover:bg-red-50 dark:hover:bg-red-950/40 transition-colors border border-red-200 dark:border-red-900/50"
+                title="Log out of session"
+              >
+                <LogOut size={13} />
+                Log Out
+              </button>
+            </div>
           </nav>
+
         </div>
       </header>
+
 
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
@@ -49,7 +71,7 @@ export default function DashboardPage() {
             <p className="text-sm text-slate-500 dark:text-slate-400">Real-time status of hotel rooms, reservations, and guests.</p>
           </div>
           <div className="flex items-center gap-3">
-            <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
+            <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-none text-xs font-medium bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
               <ShieldCheck className="w-4 h-4" />
               Full-Stack Next.js (Raw SQL)
             </span>
@@ -59,10 +81,10 @@ export default function DashboardPage() {
         {/* Stats Grid */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
           {stats.map((stat) => (
-            <div key={stat.name} className="bg-white dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700/60 rounded-2xl p-5 shadow-sm space-y-3">
+            <div key={stat.name} className="bg-white dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700/60 rounded-none p-5 shadow-sm space-y-3">
               <div className="flex items-center justify-between">
                 <span className="text-sm font-medium text-slate-500 dark:text-slate-400">{stat.name}</span>
-                <div className={`p-2.5 rounded-xl ${stat.color}`}>
+                <div className={`p-2.5 rounded-none ${stat.color}`}>
                   <stat.icon className="w-5 h-5" />
                 </div>
               </div>
@@ -75,7 +97,7 @@ export default function DashboardPage() {
         </div>
 
         {/* Recent Bookings Table */}
-        <div className="bg-white dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700/60 rounded-2xl shadow-sm overflow-hidden">
+        <div className="bg-white dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700/60 rounded-none shadow-sm overflow-hidden">
           <div className="px-6 py-4 border-b border-slate-200 dark:border-slate-700 flex items-center justify-between">
             <h3 className="font-semibold text-base">Recent Reservations</h3>
             <span className="text-xs font-medium text-brand-500 hover:underline cursor-pointer">View All Bookings</span>
@@ -102,17 +124,17 @@ export default function DashboardPage() {
                     <td className="px-6 py-4 text-slate-500 dark:text-slate-400">{b.dates}</td>
                     <td className="px-6 py-4">
                       {b.status === "CHECKED_IN" && (
-                        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300">
+                        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-none text-xs font-medium bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300">
                           <CheckCircle className="w-3.5 h-3.5" /> Checked In
                         </span>
                       )}
                       {b.status === "CONFIRMED" && (
-                        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-blue-100 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300">
+                        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-none text-xs font-medium bg-blue-100 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300">
                           <Clock className="w-3.5 h-3.5" /> Confirmed
                         </span>
                       )}
                       {b.status === "PENDING" && (
-                        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-amber-100 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300">
+                        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-none text-xs font-medium bg-amber-100 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300">
                           <Clock className="w-3.5 h-3.5" /> Pending
                         </span>
                       )}

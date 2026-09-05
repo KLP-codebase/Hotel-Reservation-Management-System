@@ -1,0 +1,68 @@
+{
+  "$schema": "https://design-tokens.github.io/community-group/format/",
+  "_note": "Corrected from landing page implementation (SkyNestHomePage.tsx). Accent is #D9722C (burnt orange), NOT #ff7e15. Base dark is ink (#0B2540), NOT #0a0a0a. Light base is paper (#FDFCFA), NOT #ffffff.",
+  "sn": {
+    "color": {
+      "bg": {
+        "$value": "#FDFCFA",
+        "$type": "color",
+        "$description": "Default page background (paper white). Light sections. Tailwind: bg-paper."
+      },
+      "bg-dark": {
+        "$value": "#0B2540",
+        "$type": "color",
+        "$description": "Inverted sections, hero fill, footer, dark overlays. Tailwind: bg-ink."
+      },
+      "surface": {
+        "$value": "#F3F1EC",
+        "$type": "color",
+        "$description": "Cards, panels on a light background."
+      },
+      "surface-dark": {
+        "$value": "#122033",
+        "$type": "color",
+        "$description": "Cards, panels on a dark background."
+      },
+      "text": {
+        "$value": "#0B2540",
+        "$type": "color",
+        "$description": "Primary text on light sections. Tailwind: text-ink."
+      },
+      "text-muted": {
+        "$value": "#B7C2CC",
+        "$type": "color",
+        "$description": "Captions, meta, placeholders on light. Tailwind: text-ink-faded."
+      },
+      "text-invert": {
+        "$value": "#FFFFFF",
+        "$type": "color",
+        "$description": "Body text on dark sections. Tailwind: text-white."
+      },
+      "text-invert-muted": {
+        "$value": "rgba(255,255,255,0.5)",
+        "$type": "color",
+        "$description": "Muted text on dark sections. Tailwind: text-white/50."
+      },
+      "accent": {
+        "$value": "#D9722C",
+        "$type": "color",
+        "$description": "Burnt orange. Interaction color only — hover fills, active states, CTA underlines. Never use for large fills or body text. Tailwind: text-skynest-accent / bg-skynest-accent."
+      },
+      "border": {
+        "$value": "#E4E1DA",
+        "$type": "color",
+        "$description": "Dividers, hairlines on light background. Tailwind: border-skynest-hairline."
+      },
+      "border-dark": {
+        "$value": "rgba(255,255,255,0.10)",
+        "$type": "color",
+        "$description": "Dividers on dark background. Tailwind: border-white/10."
+      },
+      "border-glass": {
+        "$value": "rgba(255,255,255,0.20)",
+        "$type": "color",
+        "$description": "Glass component hairline border. Tailwind: border-white/20."
+      }
+    }
+  }
+}

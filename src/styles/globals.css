@@ -1,5 +1,4 @@
 @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;500;600;700;800;900&display=swap');
-@import 'lenis/dist/lenis.css';
 
 /* ── Lenis Smooth Scroll Recommended Styles ───────────────────────────────── */
 html.lenis,
@@ -7,20 +6,30 @@ html.lenis body {
   height: auto;
 }
 
+.lenis:not(.lenis-autoToggle).lenis-stopped {
+  overflow: clip;
+}
+
+.lenis [data-lenis-prevent],
+.lenis [data-lenis-prevent-wheel],
+.lenis [data-lenis-prevent-touch],
+.lenis [data-lenis-prevent-vertical],
+.lenis [data-lenis-prevent-horizontal] {
+  overscroll-behavior: contain;
+}
+
 .lenis.lenis-smooth {
   scroll-behavior: auto !important;
 }
 
-.lenis.lenis-smooth [data-lenis-prevent] {
-  overscroll-behavior: contain;
-}
-
-.lenis.lenis-stopped {
-  overflow: hidden;
-}
-
 .lenis.lenis-smooth iframe {
   pointer-events: none;
+}
+
+.lenis.lenis-autoToggle {
+  transition-property: overflow;
+  transition-duration: 1ms;
+  transition-behavior: allow-discrete;
 }
 
 /* ── Hide scrollbars globally across all browsers ──────────────────────────── */
@@ -38,9 +47,9 @@ body::-webkit-scrollbar,
   height: 0;
 }
 
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+
+@import "tailwindcss";
+@config "../../tailwind.config.js";
 
 /* ── Design Tokens ─────────────────────────────────────────────────────────── */
 @layer base {

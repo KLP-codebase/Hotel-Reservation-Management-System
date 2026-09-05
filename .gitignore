@@ -10,6 +10,8 @@ dist/
 build/
 .turbo/
 .vercel/
+next-env.d.ts
+*.tsbuildinfo
 
 # ── Environment variables ──────────────────────────────────────────────────────
 .env
@@ -55,3 +57,7 @@ infrastructure/terraform/.terraform/
 infrastructure/terraform/*.tfstate
 infrastructure/terraform/*.tfstate.backup
 infrastructure/terraform/*.tfvars
+
+# ── Personal Notes (do not commit) ────────────────────────────────────────────
+MY_LEARNING_GUIDE.md
+MY_MODULE.md

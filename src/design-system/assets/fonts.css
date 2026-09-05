@@ -1,0 +1,121 @@
+/* =============================================================================
+   Sky Nest — Font Definitions
+   Cardinal Classic Long (serif display) + Inter Tight (body/UI sans)
+   All weights declared; browser picks the closest available subset.
+   ============================================================================= */
+
+/* ── Cardinal Classic Long ──────────────────────────────────────────────────── */
+@font-face {
+  font-family: 'Cardinal Classic Long';
+  src:
+    local('Cardinal Classic Long Light'),
+    local('CardinalClassicLong-Light'),
+    local('Cardinal Classic Light'),
+    local('Cardinal Classic Long'),
+    local('Cardinal Classic');
+  font-weight: 300;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Cardinal Classic Long';
+  src:
+    local('Cardinal Classic Long Thin'),
+    local('CardinalClassicLong-Thin'),
+    local('Cardinal Classic Thin'),
+    local('Cardinal Classic Long Light'),
+    local('Cardinal Classic Long');
+  font-weight: 200;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Cardinal Classic Long';
+  src:
+    local('Cardinal Classic Long'),
+    local('CardinalClassicLong-Regular'),
+    local('Cardinal Classic'),
+    local('CardinalClassic');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Cardinal Classic Long';
+  src:
+    local('Cardinal Classic Long Italic'),
+    local('CardinalClassicLong-Italic'),
+    local('Cardinal Classic Italic');
+  font-weight: 400;
+  font-style: italic;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Cardinal Classic Long';
+  src:
+    local('Cardinal Classic Long SemiBold'),
+    local('CardinalClassicLong-SemiBold'),
+    local('Cardinal Classic SemiBold'),
+    local('Cardinal Classic Long');
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Cardinal Classic Long';
+  src:
+    local('Cardinal Classic Long Bold'),
+    local('CardinalClassicLong-Bold'),
+    local('Cardinal Classic Bold'),
+    local('Cardinal Classic Long');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* ── Inter Tight (body / UI) — loaded via Google Fonts in layout.tsx ────────── */
+/* If offline or self-hosted, add @font-face rules below for InterTight woff2   */
+/* woff2 files should live in: public/fonts/InterTight-*.woff2                  */
+
+/*
+@font-face {
+  font-family: 'Inter Tight';
+  src: url('/fonts/InterTight-Regular.woff2') format('woff2');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Inter Tight';
+  src: url('/fonts/InterTight-Medium.woff2') format('woff2');
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Inter Tight';
+  src: url('/fonts/InterTight-SemiBold.woff2') format('woff2');
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Inter Tight';
+  src: url('/fonts/InterTight-Bold.woff2') format('woff2');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+*/
+
+/* NOTE: Cardinal Classic Long is a commercial typeface. The declarations above
+   use local() sources only. For production, license the typeface and add the
+   appropriate url() references in the commented-out style above. */

@@ -1,0 +1,40 @@
+{
+  "$schema": "https://design-tokens.github.io/community-group/format/",
+  "sn": {
+    "spacing": {
+      "1":   { "$value": "4px",   "$type": "dimension", "$description": "4px — tight, icon-to-label" },
+      "2":   { "$value": "8px",   "$type": "dimension", "$description": "8px — tight" },
+      "3":   { "$value": "12px",  "$type": "dimension", "$description": "12px — medium" },
+      "4":   { "$value": "16px",  "$type": "dimension", "$description": "16px — medium" },
+      "6":   { "$value": "24px",  "$type": "dimension", "$description": "24px — wide, between groups" },
+      "8":   { "$value": "32px",  "$type": "dimension", "$description": "32px — wide" },
+      "16":  { "$value": "64px",  "$type": "dimension", "$description": "64px — section padding (min)" },
+      "24":  { "$value": "96px",  "$type": "dimension", "$description": "96px — section padding" },
+      "40":  { "$value": "160px", "$type": "dimension", "$description": "160px — section padding (max)" },
+      "80":  { "$value": "320px", "$type": "dimension", "$description": "320px — hero / major section top padding" }
+    },
+    "radius": {
+      "default":  { "$value": "4px",  "$type": "dimension", "$description": "Default border radius" },
+      "card":     { "$value": "8px",  "$type": "dimension", "$description": "Larger cards" },
+      "circular": { "$value": "100%", "$type": "dimension", "$description": "Circular avatars / icons" }
+    },
+    "container": {
+      "width":     { "$value": "calc(100% - 120px)", "$type": "dimension" },
+      "maxWidth":  { "$value": "1440px", "$type": "dimension" },
+      "margin":    { "$value": "auto", "$type": "other", "$description": "margin-inline: auto" }
+    },
+    "grid": {
+      "columns":    { "$value": "12", "$type": "number" },
+      "columnGap":  { "$value": "12px", "$type": "dimension" },
+      "rowGap":     { "$value": "24px", "$type": "dimension" }
+    },
+    "breakpoint": {
+      "xs":   { "$value": "540px",  "$type": "dimension" },
+      "sm":   { "$value": "768px",  "$type": "dimension" },
+      "md":   { "$value": "991px",  "$type": "dimension" },
+      "lg":   { "$value": "1280px", "$type": "dimension" },
+      "xl":   { "$value": "1560px", "$type": "dimension" }
+    }
+  },
+  "_note": "Base grid is 4px. Every margin, padding, gap, width, and height must be a multiple of 4."
+}
