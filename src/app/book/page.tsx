@@ -11,30 +11,37 @@ gsap.registerPlugin(ScrollTrigger);
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 interface Room {
-  room_id: number;
-  room_number: string;
+  id: string;
+  number: string;
+  type: string;
   floor: number;
+  price_per_night: number;
+  max_guests: number;
+  amenities: string[];
+  description: string | null;
+  branch_id: string;
+  status: string;
 }
 
 interface SearchParams {
   branch_id: string;
-  room_type_id: string;
+  room_type: string;
   check_in: string;
   check_out: string;
 }
 
-// ── Static data (matches seed data in the database) ──────────────────────────
+// ── Static data (matches Railway DB — branch UUIDs + ENUM room types) ────────
 const BRANCHES = [
-  { id: '1', name: 'Sky Nest Colombo' },
-  { id: '2', name: 'Sky Nest Kandy' },
-  { id: '3', name: 'Sky Nest Galle' },
+  { id: '953fd827-751c-47eb-a201-e0aac4bc444a', name: 'Sky Nest Colombo' },
+  { id: 'af0167cd-c9eb-4ac5-ba22-cfd65cdc87a5', name: 'Sky Nest Kandy' },
+  { id: '30a7b55d-9440-45c2-a990-08821af210ba', name: 'Sky Nest Galle' },
 ];
 
 const ROOM_TYPES = [
-  { id: '1', name: 'Standard' },
-  { id: '2', name: 'Deluxe' },
-  { id: '3', name: 'Suite' },
-  { id: '4', name: 'Presidential' },
+  { id: 'STANDARD',     name: 'Standard' },
+  { id: 'DELUXE',       name: 'Deluxe' },
+  { id: 'SUITE',        name: 'Suite' },
+  { id: 'PRESIDENTIAL', name: 'Presidential' },
 ];
 
 // ── Mountain Glyph Emblem (Matching Landing Page) ────────────────────────────
@@ -69,7 +76,7 @@ export default function BookPage() {
   // ── State (LOGIC) ─────────────────────────────────────────────────────────
   const [params, setParams] = useState<SearchParams>({
     branch_id: '',
-    room_type_id: '',
+    room_type: '',
     check_in: '',
     check_out: '',
   });
@@ -152,7 +159,7 @@ export default function BookPage() {
     e.preventDefault();
 
     // Validate: all fields required
-    if (!params.branch_id || !params.room_type_id || !params.check_in || !params.check_out) {
+    if (!params.branch_id || !params.room_type || !params.check_in || !params.check_out) {
       setError('Please fill in all fields before searching.');
       return;
     }
@@ -171,7 +178,7 @@ export default function BookPage() {
       const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000';
       const qs = new URLSearchParams({
         branch_id: params.branch_id,
-        room_type_id: params.room_type_id,
+        room_type: params.room_type,
         check_in: params.check_in,
         check_out: params.check_out,
       });
@@ -189,8 +196,8 @@ export default function BookPage() {
 
   function handleBook(room: Room) {
     const qs = new URLSearchParams({
-      room_id: String(room.room_id),
-      room_type_id: params.room_type_id,
+      room_id: room.id,
+      room_type: params.room_type,
       branch_id: params.branch_id,
       check_in: params.check_in,
       check_out: params.check_out,
@@ -200,7 +207,7 @@ export default function BookPage() {
 
   // ── Helpers ───────────────────────────────────────────────────────────────
   const selectedBranch = BRANCHES.find(b => b.id === params.branch_id);
-  const selectedRoomType = ROOM_TYPES.find(r => r.id === params.room_type_id);
+  const selectedRoomType = ROOM_TYPES.find(r => r.id === params.room_type);
   const today = new Date().toISOString().split('T')[0];
 
   // ── Render ────────────────────────────────────────────────────────────────
@@ -372,8 +379,8 @@ export default function BookPage() {
                 </label>
                 <div className="relative">
                   <select
-                    name="room_type_id"
-                    value={params.room_type_id}
+                    name="room_type"
+                    value={params.room_type}
                     onChange={handleChange}
                     className="w-full appearance-none pl-4 pr-11 py-3.5 rounded-none font-jakarta text-sm border border-skynest-hairline bg-[#FDFCFA] text-ink outline-none focus:border-skynest-accent transition-colors duration-200 cursor-pointer"
                   >
@@ -479,7 +486,7 @@ export default function BookPage() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                 {rooms.map(room => (
                   <div
-                    key={room.room_id}
+                    key={room.id}
                     className="sn-room-card rounded-none p-6 md:p-8 flex items-center justify-between bg-white shadow-[0_10px_30px_rgba(11,37,64,0.07)] transition-all duration-300 hover:shadow-[0_16px_36px_rgba(217,114,44,0.14)] group"
                   >
                     <div>
@@ -487,10 +494,10 @@ export default function BookPage() {
                         {selectedRoomType?.name ?? 'Standard'} Room
                       </span>
                       <h3 className="font-cinzel text-2xl font-normal uppercase tracking-[0.03em] text-ink">
-                        Room {room.room_number}
+                        Room {room.number}
                       </h3>
                       <p className="font-jakarta text-xs text-ink/50 mt-1 tracking-wider uppercase">
-                        Floor {room.floor} · {selectedBranch?.name}
+                        Floor {room.floor} · {selectedBranch?.name} · LKR {Number(room.price_per_night).toLocaleString()}/night
                       </p>
                     </div>
 
