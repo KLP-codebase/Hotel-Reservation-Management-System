@@ -8,16 +8,16 @@ import { ShaderBackground } from '@/components/ui/adisyon-shader';
 
 // ── Static Reference Data ───────────────────────────────────────────────────
 const BRANCHES = [
-  { id: '1', name: 'Sky Nest Colombo' },
-  { id: '2', name: 'Sky Nest Kandy' },
-  { id: '3', name: 'Sky Nest Galle' },
+  { id: '953fd827-751c-47eb-a201-e0aac4bc444a', name: 'Sky Nest Colombo' },
+  { id: 'af0167cd-c9eb-4ac5-ba22-cfd65cdc87a5', name: 'Sky Nest Kandy' },
+  { id: '30a7b55d-9440-45c2-a990-08821af210ba', name: 'Sky Nest Galle' },
 ];
 
 const ROOM_TYPES = [
-  { id: '1', name: 'Standard Room', rate: 120 },
-  { id: '2', name: 'Deluxe Ocean Room', rate: 220 },
-  { id: '3', name: 'Executive Suite', rate: 450 },
-  { id: '4', name: 'Presidential Suite', rate: 950 },
+  { id: 'STANDARD',     name: 'Standard Room',      rate: 120 },
+  { id: 'DELUXE',       name: 'Deluxe Room',         rate: 180 },
+  { id: 'SUITE',        name: 'Suite',               rate: 280 },
+  { id: 'PRESIDENTIAL', name: 'Presidential Suite',  rate: 500 },
 ];
 
 const MEAL_PLANS = [
@@ -72,7 +72,7 @@ function BookingConfirmContent() {
 
   // Read URL query params passed from /book
   const roomIdStr = searchParams.get('room_id') ?? '';
-  const roomTypeIdStr = searchParams.get('room_type_id') ?? '';
+  const roomTypeIdStr = searchParams.get('room_type') ?? '';
   const branchIdStr = searchParams.get('branch_id') ?? '';
   const checkIn = searchParams.get('check_in') ?? '';
   const checkOut = searchParams.get('check_out') ?? '';
