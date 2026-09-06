@@ -14,10 +14,10 @@ const BRANCHES = [
 ];
 
 const ROOM_TYPES = [
-  { id: 'STANDARD',     name: 'Standard Room',      rate: 120 },
-  { id: 'DELUXE',       name: 'Deluxe Room',         rate: 180 },
-  { id: 'SUITE',        name: 'Suite',               rate: 280 },
-  { id: 'PRESIDENTIAL', name: 'Presidential Suite',  rate: 500 },
+  { id: 'STANDARD', name: 'Standard Room', rate: 120 },
+  { id: 'DELUXE', name: 'Deluxe Room', rate: 180 },
+  { id: 'SUITE', name: 'Suite', rate: 280 },
+  { id: 'PRESIDENTIAL', name: 'Presidential Suite', rate: 500 },
 ];
 
 const MEAL_PLANS = [
@@ -197,13 +197,14 @@ function BookingConfirmContent() {
 
         if (guestRes.ok) {
           const guestData = await guestRes.json();
-          guestId = guestData.data?.guest_id || '';
+          // Check both guest_id and id so it matches whatever the DB returns
+          guestId = guestData.data?.guest_id || guestData.data?.id || '';
         } else {
           const searchRes = await fetch(`${apiUrl}/api/v1/guests?search=${encodeURIComponent(email.trim())}`);
           if (searchRes.ok) {
             const searchData = await searchRes.json();
             if (searchData.data && searchData.data.length > 0) {
-              guestId = searchData.data[0].guest_id;
+              guestId = searchData.data[0].guest_id || searchData.data[0].id || '';
             }
           }
         }
@@ -224,7 +225,7 @@ function BookingConfirmContent() {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            branch_id: Number(branchIdStr),
+            branch_id: branchIdStr, // Keep as string (UUID) — DO NOT wrap in Number()
             booked_by_guest_id: guestId,
             notes: notes.trim() || undefined,
           }),
@@ -240,8 +241,7 @@ function BookingConfirmContent() {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               primary_guest_id: guestId,
-              room_type_id: Number(roomTypeIdStr),
-              room_id: Number(roomIdStr),
+              room_id: roomIdStr, // Keep as string (UUID) — DO NOT wrap in Number()
               plan_id: selectedPlanId,
               check_in_date: checkIn,
               check_out_date: checkOut,
@@ -254,6 +254,8 @@ function BookingConfirmContent() {
             bookingRoomId = roomData.data?.booking_room_id || bookingRoomId;
           }
         }
+
+
       } catch {
         // Fallback if backend offline
       }
