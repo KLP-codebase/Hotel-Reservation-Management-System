@@ -38,10 +38,10 @@ const BRANCHES = [
 ];
 
 const ROOM_TYPES = [
-  { id: 'STANDARD',     name: 'Standard' },
-  { id: 'DELUXE',       name: 'Deluxe' },
+  { id: 'STANDARD',     name: 'Standard Room' },
+  { id: 'DELUXE',       name: 'Deluxe Room' },
   { id: 'SUITE',        name: 'Suite' },
-  { id: 'PRESIDENTIAL', name: 'Presidential' },
+  { id: 'PRESIDENTIAL', name: 'Presidential Suite' },
 ];
 
 // ── Mountain Glyph Emblem (Matching Landing Page) ────────────────────────────
@@ -386,7 +386,7 @@ export default function BookPage() {
                   >
                     <option value="">Select room type…</option>
                     {ROOM_TYPES.map(r => (
-                      <option key={r.id} value={r.id}>{r.name} Room</option>
+                      <option key={r.id} value={r.id}>{r.name}</option>
                     ))}
                   </select>
                   <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-4 text-ink/40">
@@ -467,7 +467,7 @@ export default function BookPage() {
               </div>
               {!loading && selectedBranch && selectedRoomType && (
                 <p className="font-jakarta text-xs tracking-wider uppercase text-ink/60">
-                  {selectedRoomType.name} Room · {selectedBranch.name} · {params.check_in} → {params.check_out}
+                  {selectedRoomType.name} · {selectedBranch.name} · {params.check_in} → {params.check_out}
                 </p>
               )}
             </div>
@@ -491,7 +491,7 @@ export default function BookPage() {
                   >
                     <div>
                       <span className="inline-block font-jakarta text-[10px] font-bold tracking-[0.24em] uppercase text-skynest-accent mb-1.5">
-                        {selectedRoomType?.name ?? 'Standard'} Room
+                        {selectedRoomType?.name ?? 'Standard Room'}
                       </span>
                       <h3 className="font-cinzel text-2xl font-normal uppercase tracking-[0.03em] text-ink">
                         Room {room.number}
