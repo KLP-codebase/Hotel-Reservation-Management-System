@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { BookOpen, Search, RefreshCw, Calendar, LogOut } from 'lucide-react';
-import { apiFetch } from '@/lib/api-client';
+import { apiFetch, toNum } from '@/lib/api-client';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { useAuth } from '@/context/auth-context';
@@ -138,7 +138,7 @@ export default function BookingsManagementPage() {
                     </div>
                   </td>
                   <td className="px-6 py-4 font-cinzel text-amber-300 font-medium">
-                    {b.total_amount ? `$${b.total_amount.toFixed(2)}` : '—'}
+                    {b.total_amount ? `$${toNum(b.total_amount).toFixed(2)}` : '—'}
                   </td>
                   <td className="px-6 py-4">
                     <span className="inline-flex items-center px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider rounded-none border border-white/10 bg-white/5 text-stone-300">

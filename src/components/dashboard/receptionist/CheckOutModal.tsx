@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { X, LogOut, CheckCircle2, AlertTriangle, CreditCard, DollarSign, Receipt, Printer } from "lucide-react";
-import { apiFetch } from "@/lib/api-client";
+import { apiFetch, toNum } from "@/lib/api-client";
 
 interface CheckOutModalProps {
   isOpen:          boolean;
@@ -50,7 +50,7 @@ export function CheckOutModal({
 
   if (!isOpen || !booking) return null;
 
-  const balanceDue = invoice?.breakdown?.balance_due ?? 0;
+  const balanceDue = toNum(invoice?.breakdown?.balance_due ?? 0);
   const isZeroBalance = balanceDue <= 0;
 
   const handleConfirmCheckOut = async () => {
@@ -153,7 +153,7 @@ export function CheckOutModal({
                     Total Invoiced Charges
                   </span>
                   <span className="font-cinzel text-base font-bold text-ink">
-                    ${(invoice?.breakdown?.total_amount ?? 0).toFixed(2)}
+                    ${toNum(invoice?.breakdown?.total_amount).toFixed(2)}
                   </span>
                 </div>
                 <div>
@@ -161,7 +161,7 @@ export function CheckOutModal({
                     Total Paid
                   </span>
                   <span className="font-cinzel text-base font-bold text-emerald-700">
-                    ${(invoice?.breakdown?.total_paid ?? 0).toFixed(2)}
+                    ${toNum(invoice?.breakdown?.total_paid).toFixed(2)}
                   </span>
                 </div>
                 <div className="text-right">

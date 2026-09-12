@@ -4,6 +4,7 @@ import { db } from '../config/db';
 import { authenticate } from '../middleware/auth.middleware';
 import { authorize } from '../middleware/rbac.middleware';
 import { DashboardRepository } from '../repositories/dashboard.repository';
+import { AuditRepository } from '../repositories/audit.repository';
 
 // ── GoF: Chain of Responsibility ──────────────────────────────────────────────
 // Route pipeline: authenticate → authorize(ADMINISTRATOR, MANAGER, DBA) → handler
@@ -11,7 +12,8 @@ import { DashboardRepository } from '../repositories/dashboard.repository';
 // MANAGER: strictly scoped to their own branch (branchId from JWT/session)
 
 const router = Router();
-const repo   = new DashboardRepository(db);
+const repo      = new DashboardRepository(db);
+const auditRepo = new AuditRepository(db);
 
 // Apply authentication and RBAC to ALL dashboard routes
 router.use(authenticate);
@@ -136,6 +138,35 @@ router.post('/check-out', async (req: Request, res: Response) => {
   } catch (err: any) {
     res.status(400).json({ success: false, message: err.message || 'Checkout failed' });
   }
+});
+
+
+/**
+ * GET /api/v1/dashboard/audit-activity
+ * Admin dashboard convenience alias for audit log activity feed.
+ * Proxies to the AuditRepository so the Admin view can call a single dashboard
+ * namespace endpoint instead of /api/v1/audit-logs.
+ * Query params: ?limit=30&offset=0&entityType=&action=
+ * RBAC: ADMINISTRATOR, DBA (MANAGER access blocked at route level)
+ */
+router.get('/audit-activity', authorize('ADMINISTRATOR', 'DBA'), async (req: Request, res: Response) => {
+  const limit  = Math.min(parseInt((req.query.limit  as string) ?? '30', 10), 200);
+  const offset =           parseInt((req.query.offset as string) ?? '0',  10);
+
+  const filter = {
+    entityType: req.query.entityType as string | undefined,
+    action:     req.query.action     as string | undefined,
+    actorId:    req.query.actorId    as string | undefined,
+    from:       req.query.from       as string | undefined,
+    to:         req.query.to         as string | undefined,
+  };
+
+  const { rows, total } = await auditRepo.getAuditLogs(limit, offset, filter);
+  res.json({
+    success: true,
+    data:    rows,
+    meta:    { total, limit, offset },
+  });
 });
 
 export default router;
