@@ -13,6 +13,8 @@ import bookingRoutes from './routes/bookings.routes';
 import bookingRoomRoutes from './routes/booking-rooms.routes';
 import dashboardRoutes from './routes/dashboard.routes';
 import auditRoutes from './routes/audit.routes';
+import servicesRoutes from './routes/services.routes';
+import invoicesRoutes from './routes/invoices.routes';
 
 
 // ── GoF: Chain of Responsibility ──────────────────────────────────────────────
@@ -49,6 +51,8 @@ app.use('/api/v1/booking-rooms',   bookingRoomRoutes);
 // ── Admin monitoring routes (RBAC: ADMINISTRATOR, MANAGER, DBA) ───────────────
 app.use('/api/v1/dashboard',       dashboardRoutes);
 app.use('/api/v1/audit-logs',      auditRoutes);
+app.use('/api/v1/services',        servicesRoutes);
+app.use('/api/v1/invoices',        invoicesRoutes);
 
 
 // ── 404 handler ────────────────────────────────────────────────────────────────

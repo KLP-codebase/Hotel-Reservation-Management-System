@@ -1,3 +1,4 @@
+import { inMemoryStore } from '../config/db-fallback';
 import { Router, Request, Response } from 'express';
 import { db } from '../config/db';
 import { authenticate } from '../middleware/auth.middleware';
@@ -88,6 +89,53 @@ router.get('/staff-roster', async (req: Request, res: Response) => {
   const branchId    = await resolveBranchScope(req);
   const staffRoster = await repo.getStaffDutyRoster(branchId);
   res.json({ success: true, data: staffRoster, count: staffRoster.length });
+});
+
+
+/**
+ * POST /api/v1/dashboard/check-in
+ * Front desk check-in operation for receptionist / operations.
+ */
+router.post('/check-in', async (req: Request, res: Response) => {
+  const { bookingId, roomNumber, keycardIssued, accompanyingGuests } = req.body;
+  if (!bookingId) {
+    res.status(422).json({ success: false, message: 'bookingId is required' });
+    return;
+  }
+
+  try {
+    const updated = inMemoryStore.checkIn(bookingId, { roomNumber, keycardNumber: keycardIssued ? 'KEY-' + roomNumber : undefined, accompanyingGuests });
+    res.json({
+      success: true,
+      message: 'Guest successfully checked in. Keycard issued.',
+      data: updated,
+    });
+  } catch (err: any) {
+    res.status(400).json({ success: false, message: err.message || 'Check-in failed' });
+  }
+});
+
+/**
+ * POST /api/v1/dashboard/check-out
+ * Front desk check-out operation and final folio settlement.
+ */
+router.post('/check-out', async (req: Request, res: Response) => {
+  const { bookingId, paymentMethod, settleBalance } = req.body;
+  if (!bookingId) {
+    res.status(422).json({ success: false, message: 'bookingId is required' });
+    return;
+  }
+
+  try {
+    const updated = inMemoryStore.checkOut(bookingId, { paymentMethod, settleBalance });
+    res.json({
+      success: true,
+      message: 'Guest checkout completed. Folio settled.',
+      data: updated,
+    });
+  } catch (err: any) {
+    res.status(400).json({ success: false, message: err.message || 'Checkout failed' });
+  }
 });
 
 export default router;

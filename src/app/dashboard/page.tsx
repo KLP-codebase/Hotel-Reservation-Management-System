@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/context/auth-context";
 import { apiFetch, ApiError } from "@/lib/api-client";
+import { ReceptionistHub } from "@/components/dashboard/receptionist/ReceptionistHub";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -205,6 +206,7 @@ export default function DashboardPage() {
   const [lastRefresh, setLastRefresh]   = useState<Date>(new Date());
 
   const isManager = user?.role === "MANAGER";
+  const isReceptionist = user?.role === "RECEPTIONIST";
   const isAdminOrDba = user?.role === "ADMINISTRATOR" || user?.role === "DBA";
 
   // ── Fetch Dashboard Data ────────────────────────────────────────────────────
@@ -212,7 +214,7 @@ export default function DashboardPage() {
     setLoading(true);
     setError(null);
 
-    const branchQuery = (!isManager && selectedBranch) ? `?branchId=${selectedBranch}` : "";
+    const branchQuery = (!isManager && !isReceptionist && selectedBranch) ? `?branchId=${selectedBranch}` : "";
     const branchPrefix = branchQuery ? `${branchQuery}&` : "?";
 
     try {
@@ -372,7 +374,7 @@ export default function DashboardPage() {
             <div>
               <span className="font-cinzel text-sm font-medium text-ink">Sky Nest</span>
               <span className="ml-2 font-jakarta text-[10px] tracking-widest uppercase text-ink/40">
-                {isManager ? "Property Manager" : user?.role.replace(/_/g, " ")}
+                {isManager ? "Property Manager" : isReceptionist ? "Front Desk Reception" : user?.role.replace(/_/g, " ")}
               </span>
             </div>
           </div>
@@ -417,6 +419,17 @@ export default function DashboardPage() {
 
       {/* ── Main Dashboard Surface ────────────────────────────────────────── */}
       <main className="max-w-[1440px] mx-auto px-6 md:px-12 py-10 space-y-10">
+        {isReceptionist ? (
+          <ReceptionistHub
+            user={user}
+            stats={stats}
+            bookings={bookings}
+            roomsStatus={roomsStatus}
+            propertyName={propertyName}
+            onRefresh={fetchAll}
+          />
+        ) : (
+          <>
 
         {/* ── Heading / Property Banner ───────────────────────────────────── */}
         <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 pb-2 border-b border-skynest-hairline">
@@ -940,6 +953,9 @@ export default function DashboardPage() {
           </div>
         )}
 
+      
+          </>
+        )}
       </main>
     </div>
   );

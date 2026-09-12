@@ -42,6 +42,69 @@ export interface SeedStaff {
   is_active:  boolean;
 }
 
+
+export interface MenuItem {
+  id:          string;
+  name:        string;
+  category:    'Dining';
+  meal_time:   'BREAKFAST' | 'LUNCH' | 'DINNER';
+  price:       number;
+  description: string;
+  prep_time:   string;
+  popular?:    boolean;
+}
+
+export interface SpaTreatment {
+  id:              string;
+  name:            string;
+  category:        'Wellness';
+  duration_mins:   number;
+  price:           number;
+  description:     string;
+  therapist_types: string[];
+}
+
+export interface SpaAppointment {
+  appointment_id: string;
+  branch_id:      string;
+  booking_id:     string;
+  room_number:    string;
+  guest_name:     string;
+  treatment_name: string;
+  date:           string;
+  time:           string;
+  status:         'SCHEDULED' | 'COMPLETED' | 'CANCELLED';
+}
+
+export interface FolioServiceItem {
+  usage_id:         string;
+  booking_id:       string;
+  booking_room_id:  string;
+  service_id:       number | string;
+  service_name:     string;
+  category:         string;
+  meal_time?:       string | null;
+  quantity:         number;
+  price_at_usage:   number;
+  total_price:      number;
+  used_at:          string;
+  notes?:           string | null;
+  appointment_time?: string | null;
+  is_active:        boolean;
+}
+
+export interface PaymentItem {
+  payment_id:       string;
+  booking_id:       string;
+  booking_room_id:  string;
+  invoice_id?:      string;
+  amount:           number;
+  payment_date:     string;
+  payment_method:   string;
+  reference_number?: string | null;
+  notes?:           string | null;
+}
+
 class InMemoryStore {
   public branches: SeedBranch[] = [
     { branch_id: 'b1111111-1111-1111-1111-111111111111', branch_name: 'Sky Nest Colombo', city: 'Colombo', address: '100 Galle Road', phone: '+94 11 200 0000', email: 'colombo@skynest.lk', is_active: true },
@@ -140,6 +203,671 @@ class InMemoryStore {
       branch_name:     null,
     },
   ];
+
+  // ── Receptionist & Operational State ──────────────────────────────────────────
+  public menus: { breakfast: MenuItem[]; lunch: MenuItem[]; dinner: MenuItem[] } = {
+    breakfast: [
+      { id: 'm-bf-1', name: 'Sri Lankan Hopper Fiesta', category: 'Dining', meal_time: 'BREAKFAST', price: 18.00, description: 'Golden egg hoppers, plain hoppers, seeni sambol, lunu miris & fish ambul thiyal', prep_time: '20 min', popular: true },
+      { id: 'm-bf-2', name: 'Ceylon Continental Sunrise', category: 'Dining', meal_time: 'BREAKFAST', price: 22.00, description: 'Artisan brioche, flaky croissants, homemade passion fruit jam & butter', prep_time: '15 min' },
+      { id: 'm-bf-3', name: 'Avocado & Smoked Salmon Tartine', category: 'Dining', meal_time: 'BREAKFAST', price: 26.00, description: 'Poached eggs, Tasmanian cold-smoked salmon, toasted sourdough & hollandaise', prep_time: '20 min', popular: true },
+      { id: 'm-bf-4', name: 'Buffalo Curd & Wild Kithul Treacle', category: 'Dining', meal_time: 'BREAKFAST', price: 14.00, description: 'Artisanal Ruhuna buffalo curd, pure wild kithul treacle & roasted cashews', prep_time: '10 min' },
+      { id: 'm-bf-5', name: 'Ceylon Spiced French Toast', category: 'Dining', meal_time: 'BREAKFAST', price: 20.00, description: 'Thick brioche infused with Ceylon cinnamon custard & vanilla mascarpone', prep_time: '20 min' },
+      { id: 'm-bf-6', name: 'Fresh King Coconut & Cold Pressed Juice', category: 'Dining', meal_time: 'BREAKFAST', price: 8.00, description: 'Natural Thambili king coconut water served chilled with lime & mint', prep_time: '5 min' },
+    ],
+    lunch: [
+      { id: 'm-lu-1', name: 'Negombo Lagoon Crab Curry Feast', category: 'Dining', meal_time: 'LUNCH', price: 42.00, description: 'Fresh wild-caught lagoon crab in roasted dark curry, roast paan & pol sambol', prep_time: '35 min', popular: true },
+      { id: 'm-lu-2', name: 'Mirissa Yellowfin Tuna Poke Bowl', category: 'Dining', meal_time: 'LUNCH', price: 28.00, description: 'Sashimi-grade tuna, edamame, avocado, sushi rice & sesame tamari glaze', prep_time: '20 min' },
+      { id: 'm-lu-3', name: 'Sky Nest Wagyu Beef Burger', category: 'Dining', meal_time: 'LUNCH', price: 34.00, description: '200g Australian Wagyu, aged cheddar, truffle aioli & triple cooked chips', prep_time: '25 min', popular: true },
+      { id: 'm-lu-4', name: 'Galle Fort Heritage Rice & 5 Curries', category: 'Dining', meal_time: 'LUNCH', price: 26.00, description: 'Steamed heirloom red rice, 5 organic seasonal curries, papadum & chutney', prep_time: '20 min' },
+      { id: 'm-lu-5', name: 'Wood-Fired Black Truffle Margherita', category: 'Dining', meal_time: 'LUNCH', price: 24.00, description: 'San Marzano tomatoes, buffalo mozzarella, fresh basil & white truffle drizzle', prep_time: '20 min' },
+      { id: 'm-lu-6', name: 'Grilled Jumbo Tiger Prawns', category: 'Dining', meal_time: 'LUNCH', price: 38.00, description: 'Garlic-herb infused butter, organic microgreens & lemongrass jasmine rice', prep_time: '25 min' },
+    ],
+    dinner: [
+      { id: 'm-di-1', name: 'Ceylon Rock Lobster Thermidor', category: 'Dining', meal_time: 'DINNER', price: 65.00, description: 'Whole grilled Mirissa rock lobster, cognac cream reduction & Gruyère crust', prep_time: '35 min', popular: true },
+      { id: 'm-di-2', name: 'Australian Black Angus Tenderloin (250g)', category: 'Dining', meal_time: 'DINNER', price: 52.00, description: 'Prime tenderloin steak, green peppercorn jus & truffle potato mousseline', prep_time: '30 min', popular: true },
+      { id: 'm-di-3', name: 'Southern Sri Lankan Slow-Braised Pork', category: 'Dining', meal_time: 'DINNER', price: 34.00, description: 'Black spiced tender pork belly, pol roti, lunumiris & tempered dhal', prep_time: '25 min' },
+      { id: 'm-di-4', name: 'Pan-Seared Lagoon Barramundi', category: 'Dining', meal_time: 'DINNER', price: 38.00, description: 'Crisp skin barramundi, coconut-lime lemongrass velouté & sautéed bok choy', prep_time: '25 min' },
+      { id: 'm-di-5', name: 'Royal Vegetable Biryani in Clay Pot', category: 'Dining', meal_time: 'DINNER', price: 26.00, description: 'Aged basmati cooked on dum, saffron, mint raita & roasted cashew nuts', prep_time: '30 min' },
+      { id: 'm-di-6', name: 'Valrhona Dark Chocolate Lava Cake', category: 'Dining', meal_time: 'DINNER', price: 18.00, description: 'Warm molten 70% chocolate center, Madagascar vanilla bean gelato', prep_time: '20 min', popular: true },
+    ],
+  };
+
+  public spaCatalogue: SpaTreatment[] = [
+    { id: 'spa-tr-1', name: 'Ayurvedic Abhyanga Full Body Massage', category: 'Wellness', duration_mins: 60, price: 75.00, description: 'Warm herbal medicated oils to relieve fatigue, enhance circulation and tone muscles', therapist_types: ['Ayurvedic Practitioner', 'Senior Therapist'] },
+    { id: 'spa-tr-2', name: 'Shirodhara Third-Eye Therapy', category: 'Wellness', duration_mins: 45, price: 85.00, description: 'Continuous gentle rhythmic stream of warm herbal oil over the forehead for deep serenity', therapist_types: ['Ayurvedic Specialist'] },
+    { id: 'spa-tr-3', name: 'Royal Ceylon Herbal Body Scrub & Steam', category: 'Wellness', duration_mins: 75, price: 95.00, description: 'Sandalwood, turmeric & wild rice exfoliation followed by an aromatic steam bath', therapist_types: ['Holistic Therapist'] },
+    { id: 'spa-tr-4', name: 'Deep Tissue Ocean Mineral Therapy', category: 'Wellness', duration_mins: 90, price: 110.00, description: 'Intense muscle release using heated volcanic stones and ocean mineral extracts', therapist_types: ['Sports Therapist', 'Senior Therapist'] },
+    { id: 'spa-tr-5', name: 'Sunset Couples Retreat & Private Jacuzzi', category: 'Wellness', duration_mins: 120, price: 180.00, description: 'Dual full body massage, private herbal floral jacuzzi, champagne & fresh strawberries', therapist_types: ['Master Therapists (Pair)'] },
+    { id: 'spa-tr-6', name: 'Aromatherapy Stress Relief Ritual', category: 'Wellness', duration_mins: 60, price: 70.00, description: 'Custom blend of pure Ceylon lemongrass, French lavender & ylang-ylang essential oils', therapist_types: ['Aromatherapist'] },
+  ];
+
+  public spaAppointments: SpaAppointment[] = [
+    {
+      appointment_id: 'spa-init-1',
+      branch_id:      'b1111111-1111-1111-1111-111111111111',
+      booking_id:     'bk-col-4',
+      room_number:    '301',
+      guest_name:     'Dr. Samantha Silva',
+      treatment_name: 'Deep Tissue Ocean Mineral Therapy',
+      date:           new Date().toISOString().split('T')[0],
+      time:           '10:30',
+      status:         'SCHEDULED',
+    },
+    {
+      appointment_id: 'spa-init-2',
+      branch_id:      'b1111111-1111-1111-1111-111111111111',
+      booking_id:     'bk-col-1',
+      room_number:    '302',
+      guest_name:     'Nimal Siripala',
+      treatment_name: 'Ayurvedic Abhyanga Full Body Massage',
+      date:           new Date().toISOString().split('T')[0],
+      time:           '14:00',
+      status:         'SCHEDULED',
+    },
+  ];
+
+  public bookings: any[] = [
+    // Colombo Branch Bookings (b1111111-...)
+    {
+      booking_id:         "bk-col-1",
+      booking_room_id:    "br-col-1",
+      branch_id:          "b1111111-1111-1111-1111-111111111111",
+      booking_status:     "CHECKED_IN",
+      booking_created_at: new Date(Date.now() - 86400000).toISOString(),
+      branch_name:        "Sky Nest Colombo",
+      guest_first_name:   "Nimal",
+      guest_last_name:    "Siripala",
+      guest_email:        "nimal@example.com",
+      guest_phone:        "+94 71 234 5678",
+      room_number:        "302",
+      room_type_name:     "Executive Ocean Suite",
+      check_in_date:      new Date(Date.now() - 86400000).toISOString().split("T")[0],
+      check_out_date:     new Date(Date.now() + 86400000 * 2).toISOString().split("T")[0],
+      rate_at_booking:    280.00,
+      nights:             3,
+      total_amount:       1120.00,
+      invoice_status:     "PARTIALLY_PAID",
+    },
+    {
+      booking_id:         "bk-col-2",
+      booking_room_id:    "br-col-2",
+      branch_id:          "b1111111-1111-1111-1111-111111111111",
+      booking_status:     "CHECKED_IN",
+      booking_created_at: new Date(Date.now() - 86400000 * 2).toISOString(),
+      branch_name:        "Sky Nest Colombo",
+      guest_first_name:   "Liam",
+      guest_last_name:    "O'Connor",
+      guest_email:        "liam.oc@example.com",
+      guest_phone:        "+353 87 123 4567",
+      room_number:        "202",
+      room_type_name:     "Deluxe Ocean Balcony",
+      check_in_date:      new Date(Date.now() - 86400000 * 2).toISOString().split("T")[0],
+      check_out_date:     new Date(Date.now() + 86400000).toISOString().split("T")[0],
+      rate_at_booking:    180.00,
+      nights:             3,
+      total_amount:       540.00,
+      invoice_status:     "PARTIALLY_PAID",
+    },
+    {
+      booking_id:         "bk-col-3",
+      booking_room_id:    "br-col-3",
+      branch_id:          "b1111111-1111-1111-1111-111111111111",
+      booking_status:     "CONFIRMED",
+      booking_created_at: new Date(Date.now() - 3600000 * 8).toISOString(),
+      branch_name:        "Sky Nest Colombo",
+      guest_first_name:   "Alexander",
+      guest_last_name:    "Wright",
+      guest_email:        "alex.wright@example.com",
+      guest_phone:        "+44 7700 900123",
+      room_number:        "101",
+      room_type_name:     "City View Deluxe",
+      check_in_date:      new Date().toISOString().split("T")[0],
+      check_out_date:     new Date(Date.now() + 86400000 * 2).toISOString().split("T")[0],
+      rate_at_booking:    140.00,
+      nights:             2,
+      total_amount:       280.00,
+      invoice_status:     "PARTIALLY_PAID",
+    },
+    {
+      booking_id:         "bk-col-4",
+      booking_room_id:    "br-col-4",
+      branch_id:          "b1111111-1111-1111-1111-111111111111",
+      booking_status:     "CHECKED_IN",
+      booking_created_at: new Date(Date.now() - 86400000 * 3).toISOString(),
+      branch_name:        "Sky Nest Colombo",
+      guest_first_name:   "Dr. Samantha",
+      guest_last_name:    "Silva",
+      guest_email:        "samantha.silva@example.com",
+      guest_phone:        "+94 77 345 6789",
+      room_number:        "301",
+      room_type_name:     "Penthouse Ocean Suite",
+      check_in_date:      new Date(Date.now() - 86400000 * 3).toISOString().split("T")[0],
+      check_out_date:     new Date().toISOString().split("T")[0],
+      rate_at_booking:    350.00,
+      nights:             3,
+      total_amount:       1420.00,
+      invoice_status:     "PARTIALLY_PAID",
+    },
+    {
+      booking_id:         "bk-col-5",
+      booking_room_id:    "br-col-5",
+      branch_id:          "b1111111-1111-1111-1111-111111111111",
+      booking_status:     "CONFIRMED",
+      booking_created_at: new Date(Date.now() - 3600000 * 18).toISOString(),
+      branch_name:        "Sky Nest Colombo",
+      guest_first_name:   "Chloe",
+      guest_last_name:    "Dupont",
+      guest_email:        "chloe.d@example.fr",
+      guest_phone:        "+33 6 12 34 56 78",
+      room_number:        "201",
+      room_type_name:     "Superior Ocean Balcony",
+      check_in_date:      new Date(Date.now() + 86400000).toISOString().split("T")[0],
+      check_out_date:     new Date(Date.now() + 86400000 * 4).toISOString().split("T")[0],
+      rate_at_booking:    160.00,
+      nights:             3,
+      total_amount:       480.00,
+      invoice_status:     "CONFIRMED",
+    },
+
+    // Galle Branch Bookings (b2222222-...)
+    {
+      booking_id:         "bk-galle-1",
+      booking_room_id:    "br-galle-1",
+      branch_id:          "b2222222-2222-2222-2222-222222222222",
+      booking_status:     "CHECKED_IN",
+      booking_created_at: new Date(Date.now() - 86400000).toISOString(),
+      branch_name:        "Sky Nest Galle",
+      guest_first_name:   "Sarah",
+      guest_last_name:    "Jenkins",
+      guest_email:        "sarah.j@example.com",
+      guest_phone:        "+44 7911 123456",
+      room_number:        "201",
+      room_type_name:     "Heritage Deluxe Room",
+      check_in_date:      new Date(Date.now() - 86400000).toISOString().split("T")[0],
+      check_out_date:     new Date(Date.now() + 86400000 * 3).toISOString().split("T")[0],
+      rate_at_booking:    180.00,
+      nights:             4,
+      total_amount:       720.00,
+      invoice_status:     "OPEN",
+    },
+    {
+      booking_id:         "bk-galle-2",
+      booking_room_id:    "br-galle-2",
+      branch_id:          "b2222222-2222-2222-2222-222222222222",
+      booking_status:     "CHECKED_IN",
+      booking_created_at: new Date(Date.now() - 86400000 * 2).toISOString(),
+      branch_name:        "Sky Nest Galle",
+      guest_first_name:   "David",
+      guest_last_name:    "Miller",
+      guest_email:        "david.m@example.com",
+      guest_phone:        "+61 412 345 678",
+      room_number:        "301",
+      room_type_name:     "Lighthouse View Suite",
+      check_in_date:      new Date(Date.now() - 86400000 * 2).toISOString().split("T")[0],
+      check_out_date:     new Date(Date.now() + 86400000 * 2).toISOString().split("T")[0],
+      rate_at_booking:    280.00,
+      nights:             4,
+      total_amount:       1120.00,
+      invoice_status:     "OPEN",
+    },
+    {
+      booking_id:         "bk-galle-3",
+      booking_room_id:    "br-galle-3",
+      branch_id:          "b2222222-2222-2222-2222-222222222222",
+      booking_status:     "CHECKED_IN",
+      booking_created_at: new Date().toISOString(),
+      branch_name:        "Sky Nest Galle",
+      guest_first_name:   "Elena",
+      guest_last_name:    "Rostova",
+      guest_email:        "elena.r@example.com",
+      guest_phone:        "+49 170 1234567",
+      room_number:        "303",
+      room_type_name:     "Rampart Suite",
+      check_in_date:      new Date().toISOString().split("T")[0],
+      check_out_date:     new Date(Date.now() + 86400000 * 3).toISOString().split("T")[0],
+      rate_at_booking:    280.00,
+      nights:             3,
+      total_amount:       840.00,
+      invoice_status:     "OPEN",
+    },
+    {
+      booking_id:         "bk-galle-4",
+      booking_room_id:    "br-galle-4",
+      branch_id:          "b2222222-2222-2222-2222-222222222222",
+      booking_status:     "CHECKED_IN",
+      booking_created_at: new Date(Date.now() - 86400000).toISOString(),
+      branch_name:        "Sky Nest Galle",
+      guest_first_name:   "Arthur",
+      guest_last_name:    "Wellesley",
+      guest_email:        "arthur.w@example.com",
+      guest_phone:        "+44 20 7946 0912",
+      room_number:        "401",
+      room_type_name:     "Presidential Ocean Pavilion",
+      check_in_date:      new Date(Date.now() - 86400000).toISOString().split("T")[0],
+      check_out_date:     new Date(Date.now() + 86400000 * 5).toISOString().split("T")[0],
+      rate_at_booking:    500.00,
+      nights:             6,
+      total_amount:       3000.00,
+      invoice_status:     "OPEN",
+    },
+    {
+      booking_id:         "bk-galle-5",
+      booking_room_id:    "br-galle-5",
+      branch_id:          "b2222222-2222-2222-2222-222222222222",
+      booking_status:     "CONFIRMED",
+      booking_created_at: new Date(Date.now() - 3600000 * 12).toISOString(),
+      branch_name:        "Sky Nest Galle",
+      guest_first_name:   "Marcus",
+      guest_last_name:    "Thorne",
+      guest_email:        "marcus.t@example.com",
+      guest_phone:        "+1 415 555 2671",
+      room_number:        "102",
+      room_type_name:     "Colonial Courtyard Standard",
+      check_in_date:      new Date().toISOString().split("T")[0],
+      check_out_date:     new Date(Date.now() + 86400000 * 2).toISOString().split("T")[0],
+      rate_at_booking:    120.00,
+      nights:             2,
+      total_amount:       240.00,
+      invoice_status:     "CONFIRMED",
+    },
+
+    // Kandy Branch Bookings (b3333333-...)
+    {
+      booking_id:         "bk-kan-1",
+      booking_room_id:    "br-kan-1",
+      branch_id:          "b3333333-3333-3333-3333-333333333333",
+      booking_status:     "CHECKED_IN",
+      booking_created_at: new Date(Date.now() - 86400000 * 2).toISOString(),
+      branch_name:        "Sky Nest Kandy",
+      guest_first_name:   "Rohan",
+      guest_last_name:    "De Silva",
+      guest_email:        "rohan.d@example.com",
+      guest_phone:        "+94 77 987 6543",
+      room_number:        "204",
+      room_type_name:     "Mist Valley Suite",
+      check_in_date:      new Date(Date.now() - 86400000 * 2).toISOString().split("T")[0],
+      check_out_date:     new Date(Date.now() + 86400000).toISOString().split("T")[0],
+      rate_at_booking:    280.00,
+      nights:             3,
+      total_amount:       840.00,
+      invoice_status:     "OPEN",
+    },
+  ];
+
+  public folioServices: FolioServiceItem[] = [
+    {
+      usage_id:        'su-col-1',
+      booking_id:      'bk-col-1',
+      booking_room_id: 'br-col-1',
+      service_id:      101,
+      service_name:    'Sri Lankan Hopper Fiesta',
+      category:        'Dining',
+      meal_time:       'BREAKFAST',
+      quantity:        2,
+      price_at_usage:  18.00,
+      total_price:     36.00,
+      used_at:         new Date(Date.now() - 3600000 * 5).toISOString(),
+      notes:           'Deliver to Suite 302 at 07:30 AM, extra spicy lunu miris',
+      is_active:       true,
+    },
+    {
+      usage_id:         'su-col-2',
+      booking_id:       'bk-col-1',
+      booking_room_id:  'br-col-1',
+      service_id:       201,
+      service_name:     'Ayurvedic Abhyanga Full Body Massage',
+      category:         'Wellness',
+      quantity:         1,
+      price_at_usage:   75.00,
+      total_price:      75.00,
+      used_at:          new Date().toISOString(),
+      appointment_time: '14:00',
+      notes:            'Prefers herbal lavender medicated oil for muscle relaxation',
+      is_active:        true,
+    },
+    {
+      usage_id:        'su-col-3',
+      booking_id:      'bk-col-2',
+      booking_room_id: 'br-col-2',
+      service_id:      102,
+      service_name:    'Negombo Lagoon Crab Curry Feast',
+      category:        'Dining',
+      meal_time:       'LUNCH',
+      quantity:        1,
+      price_at_usage:  42.00,
+      total_price:     42.00,
+      used_at:         new Date(Date.now() - 3600000 * 3).toISOString(),
+      notes:           'Medium spice, deliver warm with roast paan',
+      is_active:       true,
+    },
+    {
+      usage_id:        'su-col-4',
+      booking_id:      'bk-col-4',
+      booking_room_id: 'br-col-4',
+      service_id:      103,
+      service_name:    'Ceylon Rock Lobster Thermidor',
+      category:        'Dining',
+      meal_time:       'DINNER',
+      quantity:        2,
+      price_at_usage:  65.00,
+      total_price:     130.00,
+      used_at:         new Date(Date.now() - 86400000).toISOString(),
+      notes:           'Celebration dinner in penthouse suite',
+      is_active:       true,
+    },
+    {
+      usage_id:         'su-col-5',
+      booking_id:       'bk-col-4',
+      booking_room_id:  'br-col-4',
+      service_id:       204,
+      service_name:     'Deep Tissue Ocean Mineral Therapy',
+      category:         'Wellness',
+      quantity:         1,
+      price_at_usage:   110.00,
+      total_price:      110.00,
+      used_at:          new Date().toISOString(),
+      appointment_time: '10:30',
+      notes:            'Senior therapist requested. Focus on lower back tension.',
+      is_active:        true,
+    },
+  ];
+
+  public payments: PaymentItem[] = [
+    {
+      payment_id:       'pay-col-1',
+      booking_id:       'bk-col-1',
+      booking_room_id:  'br-col-1',
+      invoice_id:       'inv-bk-col-1',
+      amount:           400.00,
+      payment_date:     new Date(Date.now() - 86400000).toISOString(),
+      payment_method:   'CREDIT_CARD',
+      reference_number: 'TXN-CC-88219',
+      notes:            'Initial 50% reservation deposit charged to Visa ...4402',
+    },
+    {
+      payment_id:       'pay-col-2',
+      booking_id:       'bk-col-2',
+      booking_room_id:  'br-col-2',
+      invoice_id:       'inv-bk-col-2',
+      amount:           200.00,
+      payment_date:     new Date(Date.now() - 86400000 * 2).toISOString(),
+      payment_method:   'BANK_TRANSFER',
+      reference_number: 'SL-BOC-44102',
+      notes:            'Advance payment received via Bank of Ceylon wire transfer',
+    },
+    {
+      payment_id:       'pay-col-3',
+      booking_id:       'bk-col-3',
+      booking_room_id:  'br-col-3',
+      invoice_id:       'inv-bk-col-3',
+      amount:           140.00,
+      payment_date:     new Date(Date.now() - 3600000 * 8).toISOString(),
+      payment_method:   'CREDIT_CARD',
+      reference_number: 'ONLINE-RES-771',
+      notes:            'First night advance payment processed via payment gateway',
+    },
+    {
+      payment_id:       'pay-col-4',
+      booking_id:       'bk-col-4',
+      booking_room_id:  'br-col-4',
+      invoice_id:       'inv-bk-col-4',
+      amount:           800.00,
+      payment_date:     new Date(Date.now() - 86400000 * 3).toISOString(),
+      payment_method:   'CREDIT_CARD',
+      reference_number: 'VISA-GOLD-1102',
+      notes:            'Pre-authorization charge at check-in',
+    },
+  ];
+
+  // ── Operations Hub Helper Methods ───────────────────────────────────────────
+
+  public getSpaSlots(branchId?: string, dateStr?: string) {
+    const defaultTimes = ['09:00', '10:30', '12:00', '14:00', '15:30', '17:00', '18:30', '20:00'];
+    const targetDate = dateStr || new Date().toISOString().split('T')[0];
+
+    return defaultTimes.map(time => {
+      const appt = this.spaAppointments.find(
+        a => (!branchId || a.branch_id === branchId) &&
+             a.date === targetDate &&
+             a.time === time &&
+             a.status === 'SCHEDULED'
+      );
+      return {
+        time,
+        is_available: !appt,
+        booked_by: appt ? {
+          booking_id:     appt.booking_id,
+          guest_name:     appt.guest_name,
+          room_number:    appt.room_number,
+          treatment_name: appt.treatment_name,
+        } : undefined,
+      };
+    });
+  }
+
+  public getFolio(bookingId: string) {
+    return this.folioServices.filter(
+      s => (s.booking_id === bookingId || s.booking_room_id === bookingId) && s.is_active
+    );
+  }
+
+  public addFolioService(bookingId: string, item: {
+    service_name:     string;
+    category:         string;
+    meal_time?:       string;
+    quantity:         number;
+    price_at_usage:   number;
+    notes?:           string;
+    appointment_time?: string;
+    date?:            string;
+  }) {
+    const booking = this.bookings.find(b => b.booking_id === bookingId || b.booking_room_id === bookingId);
+    if (!booking) throw new Error("Reservation not found for booking ID: " + bookingId);
+
+    // Collision detection for spa appointments
+    if (item.category === 'Wellness' && item.appointment_time) {
+      const apptDate = item.date || new Date().toISOString().split('T')[0];
+      const conflict = this.spaAppointments.find(
+        a => a.branch_id === booking.branch_id &&
+             a.date === apptDate &&
+             a.time === item.appointment_time &&
+             a.status === 'SCHEDULED'
+      );
+      if (conflict) {
+        throw new Error(`Spa Suite already booked at ${item.appointment_time} by Room ${conflict.room_number} (${conflict.guest_name})`);
+      }
+
+      this.spaAppointments.push({
+        appointment_id: `spa-${Date.now()}`,
+        branch_id:      booking.branch_id,
+        booking_id:     booking.booking_id,
+        room_number:    booking.room_number,
+        guest_name:     `${booking.guest_first_name} ${booking.guest_last_name}`,
+        treatment_name: item.service_name,
+        date:           apptDate,
+        time:           item.appointment_time,
+        status:         'SCHEDULED',
+      });
+    }
+
+    const usageId = `su-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+    const newRecord: FolioServiceItem = {
+      usage_id:         usageId,
+      booking_id:       booking.booking_id,
+      booking_room_id:  booking.booking_room_id || booking.booking_id,
+      service_id:       Date.now(),
+      service_name:     item.service_name,
+      category:         item.category,
+      meal_time:        item.meal_time ?? null,
+      quantity:         item.quantity || 1,
+      price_at_usage:   item.price_at_usage,
+      total_price:      Math.round((item.quantity || 1) * item.price_at_usage * 100) / 100,
+      used_at:          new Date().toISOString(),
+      notes:            item.notes ?? null,
+      appointment_time: item.appointment_time ?? null,
+      is_active:        true,
+    };
+
+    this.folioServices.push(newRecord);
+    this.getInvoice(booking.booking_id);
+    return newRecord;
+  }
+
+  public removeFolioService(usageId: string, reason?: string) {
+    const item = this.folioServices.find(s => s.usage_id === usageId);
+    if (!item) return false;
+
+    item.is_active = false;
+    item.notes = (item.notes ? item.notes + ' | ' : '') + `[CANCELLED/VOIDED: ${reason || 'Customer request'}]`;
+
+    // Free scheduled spa slot
+    if (item.category === 'Wellness' && item.appointment_time) {
+      const appt = this.spaAppointments.find(
+        a => a.booking_id === item.booking_id && a.time === item.appointment_time && a.status === 'SCHEDULED'
+      );
+      if (appt) {
+        appt.status = 'CANCELLED';
+      }
+    }
+
+    this.getInvoice(item.booking_id);
+    return true;
+  }
+
+  public getInvoice(bookingId: string) {
+    const booking = this.bookings.find(b => b.booking_id === bookingId || b.booking_room_id === bookingId);
+    if (!booking) return null;
+
+    const nights = booking.nights || 1;
+    const rateAtBooking = booking.rate_at_booking || (booking.total_amount ? booking.total_amount / nights : 200);
+    const roomCharges = Math.round(nights * rateAtBooking * 100) / 100;
+
+    const activeServices = this.folioServices.filter(
+      s => (s.booking_id === booking.booking_id || s.booking_room_id === booking.booking_room_id) && s.is_active
+    );
+    const serviceCharges = Math.round(activeServices.reduce((sum, s) => sum + s.total_price, 0) * 100) / 100;
+    const baseAmount = Math.round((roomCharges + serviceCharges) * 100) / 100;
+
+    // Sri Lankan 4-Tier Statutory Tax Cascade (sp_generate_final_bill)
+    // SC: 10%
+    const scTax = Math.round(baseAmount * 0.10 * 100) / 100;
+    // TDL: 1% on (Base + SC)
+    const tdlTax = Math.round((baseAmount + scTax) * 0.01 * 100) / 100;
+    // SSCL: 2.5% on (Base + SC + TDL)
+    const sscTax = Math.round((baseAmount + scTax + tdlTax) * 0.025 * 100) / 100;
+    // VAT: 18% on (Base + SC + TDL + SSCL)
+    const vatTax = Math.round((baseAmount + scTax + tdlTax + sscTax) * 0.18 * 100) / 100;
+
+    const grandTotal = Math.round((baseAmount + scTax + tdlTax + sscTax + vatTax) * 100) / 100;
+
+    const payments = this.payments.filter(
+      p => p.booking_id === booking.booking_id || p.booking_room_id === booking.booking_room_id
+    );
+    const totalPaid = Math.round(payments.reduce((sum, p) => sum + p.amount, 0) * 100) / 100;
+    const balanceDue = Math.max(0, Math.round((grandTotal - totalPaid) * 100) / 100);
+
+    const todayStr = new Date().toISOString().split('T')[0];
+    const isDepartingToday = 
+      booking.booking_status === 'CHECKED_OUT' || 
+      booking.check_out_date <= todayStr;
+
+    // Rule: Paid in Full / Settled applies ONLY to guests departing today or checked out
+    let invoiceStatus: 'OPEN' | 'PARTIALLY_PAID' | 'SETTLED' = 'OPEN';
+    if (totalPaid >= grandTotal && grandTotal > 0 && isDepartingToday) {
+      invoiceStatus = 'SETTLED';
+    } else if (totalPaid > 0) {
+      invoiceStatus = 'PARTIALLY_PAID';
+    } else {
+      invoiceStatus = 'OPEN';
+    }
+
+    booking.total_amount = grandTotal;
+    booking.invoice_status = invoiceStatus;
+
+    return {
+      invoice_id:      `inv-${booking.booking_id}`,
+      booking_id:      booking.booking_id,
+      booking_room_id: booking.booking_room_id || booking.booking_id,
+      guest_name:      `${booking.guest_first_name} ${booking.guest_last_name}`,
+      guest_email:     booking.guest_email,
+      guest_phone:     booking.guest_phone,
+      room_number:     booking.room_number,
+      room_type_name:  booking.room_type_name,
+      check_in_date:   booking.check_in_date,
+      check_out_date:  booking.check_out_date,
+      nights,
+      rate_at_booking: rateAtBooking,
+      breakdown: {
+        room_charges:       roomCharges,
+        service_charges:    serviceCharges,
+        base_amount:        baseAmount,
+        service_charge_tax: scTax,
+        tdl_amount:         tdlTax,
+        ssc_amount:         sscTax,
+        vat_amount:         vatTax,
+        total_amount:       grandTotal,
+        total_paid:         totalPaid,
+        balance_due:        balanceDue,
+        status:             invoiceStatus,
+      },
+      services: activeServices,
+      payments,
+    };
+  }
+
+  public addPayment(bookingId: string, payment: {
+    amount:            number;
+    payment_method:    string;
+    reference_number?: string;
+    notes?:            string;
+  }) {
+    const booking = this.bookings.find(b => b.booking_id === bookingId || b.booking_room_id === bookingId);
+    if (!booking) throw new Error("Reservation not found for booking ID: " + bookingId);
+
+    const paymentRecord: PaymentItem = {
+      payment_id:       `pay-${Date.now()}`,
+      booking_id:       booking.booking_id,
+      booking_room_id:  booking.booking_room_id || booking.booking_id,
+      invoice_id:       `inv-${booking.booking_id}`,
+      amount:           Math.round(payment.amount * 100) / 100,
+      payment_date:     new Date().toISOString(),
+      payment_method:   payment.payment_method,
+      reference_number: payment.reference_number || `REC-${Date.now().toString().slice(-6)}`,
+      notes:            payment.notes ?? null,
+    };
+
+    this.payments.push(paymentRecord);
+    const updatedInvoice = this.getInvoice(booking.booking_id);
+    return { payment: paymentRecord, invoice: updatedInvoice };
+  }
+
+  public checkIn(bookingId: string, data?: { roomNumber?: string; keycardNumber?: string; accompanyingGuests?: any[] }) {
+    const booking = this.bookings.find(b => b.booking_id === bookingId);
+    if (!booking) throw new Error("Reservation not found: " + bookingId);
+    booking.booking_status = 'CHECKED_IN';
+    if (data?.roomNumber) booking.room_number = data.roomNumber;
+    return booking;
+  }
+
+  public checkOut(bookingId: string, data?: { paymentMethod?: string; settleBalance?: boolean }) {
+    const booking = this.bookings.find(b => b.booking_id === bookingId);
+    if (!booking) throw new Error("Reservation not found: " + bookingId);
+
+    const inv = this.getInvoice(bookingId);
+    if (data?.settleBalance && inv && inv.breakdown.balance_due > 0) {
+      this.addPayment(bookingId, {
+        amount:           inv.breakdown.balance_due,
+        payment_method:   data.paymentMethod || 'CREDIT_CARD',
+        reference_number: `SETTLE-CHKOUT-${Date.now().toString().slice(-4)}`,
+        notes:            'Full bill settlement at checkout desk',
+      });
+    }
+
+    booking.booking_status = 'CHECKED_OUT';
+    return booking;
+  }
+
+
 
   private formatStaff(s: SeedStaff) {
     const branch = this.branches.find(b => b.branch_id === s.branch_id);
@@ -449,162 +1177,9 @@ class InMemoryStore {
       };
     }
 
-    // 11. Recent bookings facade view
+        // 11. Recent bookings facade view (backed by live inMemoryStore.bookings)
     if (normalizedSql.includes("FROM v_booking_details")) {
-      const allBookings = [
-        // Galle Branch Bookings (b2222222-...)
-        {
-          booking_id: "bk-galle-1",
-          branch_id: "b2222222-2222-2222-2222-222222222222",
-          booking_status: "CHECKED_IN",
-          booking_created_at: new Date(Date.now() - 86400000).toISOString(),
-          branch_name: "Sky Nest Galle",
-          guest_first_name: "Sarah",
-          guest_last_name: "Jenkins",
-          guest_email: "sarah.j@example.com",
-          guest_phone: "+44 7911 123456",
-          room_number: "201",
-          room_type_name: "Heritage Deluxe Room",
-          check_in_date: new Date(Date.now() - 86400000).toISOString().split("T")[0],
-          check_out_date: new Date(Date.now() + 86400000 * 3).toISOString().split("T")[0],
-          total_amount: 720.00,
-          invoice_status: "OPEN",
-          nights: 4,
-        },
-        {
-          booking_id: "bk-galle-2",
-          branch_id: "b2222222-2222-2222-2222-222222222222",
-          booking_status: "CHECKED_IN",
-          booking_created_at: new Date(Date.now() - 86400000 * 2).toISOString(),
-          branch_name: "Sky Nest Galle",
-          guest_first_name: "David",
-          guest_last_name: "Miller",
-          guest_email: "david.m@example.com",
-          guest_phone: "+61 412 345 678",
-          room_number: "301",
-          room_type_name: "Lighthouse View Suite",
-          check_in_date: new Date(Date.now() - 86400000 * 2).toISOString().split("T")[0],
-          check_out_date: new Date(Date.now() + 86400000 * 2).toISOString().split("T")[0],
-          total_amount: 1120.00,
-          invoice_status: "OPEN",
-          nights: 4,
-        },
-        {
-          booking_id: "bk-galle-3",
-          branch_id: "b2222222-2222-2222-2222-222222222222",
-          booking_status: "CHECKED_IN",
-          booking_created_at: new Date().toISOString(),
-          branch_name: "Sky Nest Galle",
-          guest_first_name: "Elena",
-          guest_last_name: "Rostova",
-          guest_email: "elena.r@example.com",
-          guest_phone: "+49 170 1234567",
-          room_number: "303",
-          room_type_name: "Rampart Suite",
-          check_in_date: new Date().toISOString().split("T")[0],
-          check_out_date: new Date(Date.now() + 86400000 * 3).toISOString().split("T")[0],
-          total_amount: 840.00,
-          invoice_status: "OPEN",
-          nights: 3,
-        },
-        {
-          booking_id: "bk-galle-4",
-          branch_id: "b2222222-2222-2222-2222-222222222222",
-          booking_status: "CHECKED_IN",
-          booking_created_at: new Date(Date.now() - 86400000).toISOString(),
-          branch_name: "Sky Nest Galle",
-          guest_first_name: "Arthur",
-          guest_last_name: "Wellesley",
-          guest_email: "arthur.w@example.com",
-          guest_phone: "+44 20 7946 0912",
-          room_number: "401",
-          room_type_name: "Presidential Ocean Pavilion",
-          check_in_date: new Date(Date.now() - 86400000).toISOString().split("T")[0],
-          check_out_date: new Date(Date.now() + 86400000 * 5).toISOString().split("T")[0],
-          total_amount: 3000.00,
-          invoice_status: "OPEN",
-          nights: 6,
-        },
-        {
-          booking_id: "bk-galle-5",
-          branch_id: "b2222222-2222-2222-2222-222222222222",
-          booking_status: "CONFIRMED",
-          booking_created_at: new Date(Date.now() - 3600000 * 12).toISOString(),
-          branch_name: "Sky Nest Galle",
-          guest_first_name: "Marcus",
-          guest_last_name: "Thorne",
-          guest_email: "marcus.t@example.com",
-          guest_phone: "+1 415 555 2671",
-          room_number: "102",
-          room_type_name: "Colonial Courtyard Standard",
-          check_in_date: new Date().toISOString().split("T")[0],
-          check_out_date: new Date(Date.now() + 86400000 * 2).toISOString().split("T")[0],
-          total_amount: 240.00,
-          invoice_status: "CONFIRMED",
-          nights: 2,
-        },
-
-        // Colombo Branch Bookings (b1111111-...)
-        {
-          booking_id: "bk-col-1",
-          branch_id: "b1111111-1111-1111-1111-111111111111",
-          booking_status: "CHECKED_IN",
-          booking_created_at: new Date().toISOString(),
-          branch_name: "Sky Nest Colombo",
-          guest_first_name: "Nimal",
-          guest_last_name: "Siripala",
-          guest_email: "nimal@example.com",
-          guest_phone: "+94 71 234 5678",
-          room_number: "302",
-          room_type_name: "Executive Ocean Suite",
-          check_in_date: new Date().toISOString().split("T")[0],
-          check_out_date: new Date(Date.now() + 86400000 * 3).toISOString().split("T")[0],
-          total_amount: 840.00,
-          invoice_status: "OPEN",
-          nights: 3,
-        },
-        {
-          booking_id: "bk-col-2",
-          branch_id: "b1111111-1111-1111-1111-111111111111",
-          booking_status: "CHECKED_IN",
-          booking_created_at: new Date(Date.now() - 86400000).toISOString(),
-          branch_name: "Sky Nest Colombo",
-          guest_first_name: "Liam",
-          guest_last_name: "O'Connor",
-          guest_email: "liam.oc@example.com",
-          guest_phone: "+353 87 123 4567",
-          room_number: "202",
-          room_type_name: "Deluxe Ocean Balcony",
-          check_in_date: new Date(Date.now() - 86400000).toISOString().split("T")[0],
-          check_out_date: new Date(Date.now() + 86400000 * 2).toISOString().split("T")[0],
-          total_amount: 540.00,
-          invoice_status: "OPEN",
-          nights: 3,
-        },
-
-        // Kandy Branch Bookings (b3333333-...)
-        {
-          booking_id: "bk-kan-1",
-          branch_id: "b3333333-3333-3333-3333-333333333333",
-          booking_status: "CHECKED_IN",
-          booking_created_at: new Date(Date.now() - 86400000 * 2).toISOString(),
-          branch_name: "Sky Nest Kandy",
-          guest_first_name: "Rohan",
-          guest_last_name: "De Silva",
-          guest_email: "rohan.d@example.com",
-          guest_phone: "+94 77 987 6543",
-          room_number: "204",
-          room_type_name: "Mist Valley Suite",
-          check_in_date: new Date(Date.now() - 86400000 * 2).toISOString().split("T")[0],
-          check_out_date: new Date(Date.now() + 86400000).toISOString().split("T")[0],
-          total_amount: 840.00,
-          invoice_status: "OPEN",
-          nights: 3,
-        },
-      ];
-
-      // Branch & status filter logic
-      let filtered = allBookings;
+      let filtered = [...this.bookings];
       for (const param of params) {
         if (typeof param === 'string') {
           if (param.startsWith('b1111') || param.startsWith('b2222') || param.startsWith('b3333')) {
@@ -614,11 +1189,21 @@ class InMemoryStore {
           }
         }
       }
-
       return { rows: filtered as unknown as T[], command: "SELECT", rowCount: filtered.length, oid: 0, fields: [] };
     }
 
-    // 12. Audit activity
+    // 11b. Update booking status
+    if (normalizedSql.includes("UPDATE bookings SET") || normalizedSql.includes("UPDATE booking_rooms SET")) {
+      const statusParam = params.find(p => typeof p === 'string' && ['CONFIRMED', 'CHECKED_IN', 'CHECKED_OUT', 'CANCELLED'].includes(p)) as string | undefined;
+      const idParam = params.find(p => typeof p === 'string' && (p.startsWith('bk-') || p.startsWith('br-'))) as string | undefined;
+      if (statusParam && idParam) {
+        const b = this.bookings.find(item => item.booking_id === idParam || item.booking_room_id === idParam);
+        if (b) b.booking_status = statusParam;
+        return { rows: (b ? [b] : []) as unknown as T[], command: "UPDATE", rowCount: b ? 1 : 0, oid: 0, fields: [] };
+      }
+    }
+
+// 12. Audit activity
     if (normalizedSql.includes("FROM v_admin_audit_activity") || normalizedSql.includes("FROM audit_logs")) {
       const mockAudit = [
         {
