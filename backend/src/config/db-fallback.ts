@@ -50,9 +50,27 @@ class InMemoryStore {
   ];
 
   public staff: SeedStaff[] = [
+    // Colombo Branch (b1111111-...)
     { staff_id: 's1111111-1111-1111-1111-111111111111', branch_id: 'b1111111-1111-1111-1111-111111111111', first_name: 'Kavindi',   last_name: 'Jayawardena', email: 'admin@skynest.lk',        phone: '+94 77 100 0004', role: 'ADMINISTRATOR', is_active: true },
-    { staff_id: 's2222222-2222-2222-2222-222222222222', branch_id: 'b2222222-2222-2222-2222-222222222222', first_name: 'Dilshan',   last_name: 'Fernando',    email: 'manager@skynest.lk',      phone: '+94 77 100 0003', role: 'MANAGER',       is_active: true },
+    { staff_id: 's1111111-2222-1111-1111-111111111111', branch_id: 'b1111111-1111-1111-1111-111111111111', first_name: 'Sanath',    last_name: 'Wickrama',    email: 'sanath.w@skynest.lk',     phone: '+94 77 220 1001', role: 'MANAGER',       is_active: true },
     { staff_id: 's3333333-3333-3333-3333-333333333333', branch_id: 'b1111111-1111-1111-1111-111111111111', first_name: 'Amara',     last_name: 'Perera',      email: 'receptionist@skynest.lk', phone: '+94 77 100 0001', role: 'RECEPTIONIST',  is_active: true },
+    { staff_id: 's1111111-3333-1111-1111-111111111111', branch_id: 'b1111111-1111-1111-1111-111111111111', first_name: 'Chamari',   last_name: 'Alwis',       email: 'chamari.a@skynest.lk',    phone: '+94 77 330 1002', role: 'SERVICE_STAFF', is_active: true },
+    { staff_id: 's1111111-4444-1111-1111-111111111111', branch_id: 'b1111111-1111-1111-1111-111111111111', first_name: 'Dinesh',    last_name: 'Bandara',     email: 'dinesh.b@skynest.lk',     phone: '+94 77 440 1003', role: 'SERVICE_STAFF', is_active: true },
+
+    // Galle Branch (b2222222-...) — Dilshan Fernando's Hotel
+    { staff_id: 's2222222-2222-2222-2222-222222222222', branch_id: 'b2222222-2222-2222-2222-222222222222', first_name: 'Dilshan',   last_name: 'Fernando',    email: 'manager@skynest.lk',      phone: '+94 77 100 0003', role: 'MANAGER',       is_active: true },
+    { staff_id: 's2222222-3333-2222-2222-222222222222', branch_id: 'b2222222-2222-2222-2222-222222222222', first_name: 'Tharushi',  last_name: 'Jayasuriya',  email: 'tharushi.j@skynest.lk',   phone: '+94 77 550 2001', role: 'RECEPTIONIST',  is_active: true },
+    { staff_id: 's2222222-4444-2222-2222-222222222222', branch_id: 'b2222222-2222-2222-2222-222222222222', first_name: 'Kasun',     last_name: 'Mendis',      email: 'kasun.m@skynest.lk',      phone: '+94 77 660 2002', role: 'SERVICE_STAFF', is_active: true },
+    { staff_id: 's2222222-5555-2222-2222-222222222222', branch_id: 'b2222222-2222-2222-2222-222222222222', first_name: 'Nilmini',   last_name: 'Priyadarshani',email: 'nilmini.p@skynest.lk',  phone: '+94 77 770 2003', role: 'SERVICE_STAFF', is_active: true },
+    { staff_id: 's2222222-6666-2222-2222-222222222222', branch_id: 'b2222222-2222-2222-2222-222222222222', first_name: 'Mahesh',    last_name: 'Gunaratne',   email: 'mahesh.g@skynest.lk',     phone: '+94 77 880 2004', role: 'SERVICE_STAFF', is_active: true },
+
+    // Kandy Branch (b3333333-...)
+    { staff_id: 's3333333-2222-3333-3333-333333333333', branch_id: 'b3333333-3333-3333-3333-333333333333', first_name: 'Anoja',     last_name: 'Rathnayake',  email: 'anoja.r@skynest.lk',      phone: '+94 81 220 3001', role: 'MANAGER',       is_active: true },
+    { staff_id: 's3333333-4444-3333-3333-333333333333', branch_id: 'b3333333-3333-3333-3333-333333333333', first_name: 'Malith',    last_name: 'Senanayake',  email: 'malith.s@skynest.lk',     phone: '+94 81 330 3002', role: 'RECEPTIONIST',  is_active: true },
+    { staff_id: 's4444444-5555-4444-4444-444444444444', branch_id: 'b3333333-3333-3333-3333-333333333333', first_name: 'Nuwan',     last_name: 'Silva',       email: 'service@skynest.lk',      phone: '+94 77 100 0002', role: 'SERVICE_STAFF', is_active: true },
+    { staff_id: 's3333333-5555-3333-3333-333333333333', branch_id: 'b3333333-3333-3333-3333-333333333333', first_name: 'Sandun',    last_name: 'Kulatunga',   email: 'sandun.k@skynest.lk',     phone: '+94 81 440 3003', role: 'SERVICE_STAFF', is_active: true },
+
+    // Guest User
     { staff_id: 's4444444-4444-4444-4444-444444444444', branch_id: null,                                   first_name: 'Guest',     last_name: 'User',        email: 'guest@skynest.lk',        phone: null,              role: 'GUEST',         is_active: true },
   ];
 
@@ -314,7 +332,10 @@ class InMemoryStore {
     }
 
     if (normalizedSql.includes('FROM staff') || normalizedSql.includes('FROM v_staff_details')) {
-      const list = this.staff.filter(s => s.is_active);
+      let list = this.staff.filter(s => s.is_active);
+      if (normalizedSql.includes('branch_id = $1') && params.length > 0 && typeof params[0] === 'string') {
+        list = list.filter(s => s.branch_id === params[0]);
+      }
       return { rows: list.map(s => this.formatStaff(s)) as unknown as T[], command: 'SELECT', rowCount: list.length, oid: 0, fields: [] };
     }
 
@@ -329,10 +350,55 @@ class InMemoryStore {
       return { rows: mockTypes as unknown as T[], command: 'SELECT', rowCount: mockTypes.length, oid: 0, fields: [] };
     }
 
-        // 8. Dashboard stats: rooms count & occupancy
+        // 8a. Dashboard: Physical Rooms Status Explorer
+    if (normalizedSql.includes("FROM rooms r") && normalizedSql.includes("JOIN branches b")) {
+      const isScoped = params.length > 0 && typeof params[0] === 'string' && params[0].length > 5;
+      const targetBranchId = isScoped ? (params[0] as string) : 'b2222222-2222-2222-2222-222222222222';
+      const bObj = this.branches.find(b => b.branch_id === targetBranchId) || this.branches[1];
+
+      const rooms = [
+        // Floor 1 (Standard)
+        { room_id: 'rm-101', room_number: '101', floor: 1, type: 'STANDARD', status: 'AVAILABLE',   price_per_night: 120, max_guests: 2, branch_id: bObj.branch_id, branch_name: bObj.branch_name, guest_name: null, guest_email: null, check_in_date: null, check_out_date: null, booking_id: null },
+        { room_id: 'rm-102', room_number: '102', floor: 1, type: 'STANDARD', status: 'AVAILABLE',   price_per_night: 120, max_guests: 2, branch_id: bObj.branch_id, branch_name: bObj.branch_name, guest_name: null, guest_email: null, check_in_date: null, check_out_date: null, booking_id: null },
+        { room_id: 'rm-103', room_number: '103', floor: 1, type: 'STANDARD', status: 'OCCUPIED',    price_per_night: 120, max_guests: 2, branch_id: bObj.branch_id, branch_name: bObj.branch_name, guest_name: 'Marcus Thorne', guest_email: 'marcus.t@example.com', check_in_date: new Date().toISOString().split('T')[0], check_out_date: new Date(Date.now() + 86400000 * 2).toISOString().split('T')[0], booking_id: 'bk-galle-1' },
+        { room_id: 'rm-104', room_number: '104', floor: 1, type: 'STANDARD', status: 'AVAILABLE',   price_per_night: 120, max_guests: 2, branch_id: bObj.branch_id, branch_name: bObj.branch_name, guest_name: null, guest_email: null, check_in_date: null, check_out_date: null, booking_id: null },
+        { room_id: 'rm-105', room_number: '105', floor: 1, type: 'STANDARD', status: 'MAINTENANCE', price_per_night: 120, max_guests: 2, branch_id: bObj.branch_id, branch_name: bObj.branch_name, guest_name: null, guest_email: null, check_in_date: null, check_out_date: null, booking_id: null },
+        { room_id: 'rm-106', room_number: '106', floor: 1, type: 'STANDARD', status: 'AVAILABLE',   price_per_night: 120, max_guests: 2, branch_id: bObj.branch_id, branch_name: bObj.branch_name, guest_name: null, guest_email: null, check_in_date: null, check_out_date: null, booking_id: null },
+
+        // Floor 2 (Deluxe)
+        { room_id: 'rm-201', room_number: '201', floor: 2, type: 'DELUXE',   status: 'OCCUPIED',    price_per_night: 180, max_guests: 3, branch_id: bObj.branch_id, branch_name: bObj.branch_name, guest_name: 'Sarah Jenkins', guest_email: 'sarah.j@example.com', check_in_date: new Date(Date.now() - 86400000).toISOString().split('T')[0], check_out_date: new Date(Date.now() + 86400000 * 3).toISOString().split('T')[0], booking_id: 'bk-galle-2' },
+        { room_id: 'rm-202', room_number: '202', floor: 2, type: 'DELUXE',   status: 'AVAILABLE',   price_per_night: 180, max_guests: 3, branch_id: bObj.branch_id, branch_name: bObj.branch_name, guest_name: null, guest_email: null, check_in_date: null, check_out_date: null, booking_id: null },
+        { room_id: 'rm-203', room_number: '203', floor: 2, type: 'DELUXE',   status: 'OCCUPIED',    price_per_night: 180, max_guests: 3, branch_id: bObj.branch_id, branch_name: bObj.branch_name, guest_name: 'James Wilson', guest_email: 'james.w@example.com', check_in_date: new Date().toISOString().split('T')[0], check_out_date: new Date(Date.now() + 86400000 * 4).toISOString().split('T')[0], booking_id: 'bk-galle-3' },
+        { room_id: 'rm-204', room_number: '204', floor: 2, type: 'DELUXE',   status: 'AVAILABLE',   price_per_night: 180, max_guests: 3, branch_id: bObj.branch_id, branch_name: bObj.branch_name, guest_name: null, guest_email: null, check_in_date: null, check_out_date: null, booking_id: null },
+        { room_id: 'rm-205', room_number: '205', floor: 2, type: 'DELUXE',   status: 'AVAILABLE',   price_per_night: 180, max_guests: 3, branch_id: bObj.branch_id, branch_name: bObj.branch_name, guest_name: null, guest_email: null, check_in_date: null, check_out_date: null, booking_id: null },
+
+        // Floor 3 (Suite)
+        { room_id: 'rm-301', room_number: '301', floor: 3, type: 'SUITE',    status: 'OCCUPIED',    price_per_night: 280, max_guests: 4, branch_id: bObj.branch_id, branch_name: bObj.branch_name, guest_name: 'David Miller', guest_email: 'david.m@example.com', check_in_date: new Date(Date.now() - 86400000 * 2).toISOString().split('T')[0], check_out_date: new Date(Date.now() + 86400000 * 2).toISOString().split('T')[0], booking_id: 'bk-galle-4' },
+        { room_id: 'rm-302', room_number: '302', floor: 3, type: 'SUITE',    status: 'AVAILABLE',   price_per_night: 280, max_guests: 4, branch_id: bObj.branch_id, branch_name: bObj.branch_name, guest_name: null, guest_email: null, check_in_date: null, check_out_date: null, booking_id: null },
+        { room_id: 'rm-303', room_number: '303', floor: 3, type: 'SUITE',    status: 'OCCUPIED',    price_per_night: 280, max_guests: 4, branch_id: bObj.branch_id, branch_name: bObj.branch_name, guest_name: 'Elena Rostova', guest_email: 'elena.r@example.com', check_in_date: new Date().toISOString().split('T')[0], check_out_date: new Date(Date.now() + 86400000 * 3).toISOString().split('T')[0], booking_id: 'bk-galle-5' },
+
+        // Floor 4 (Presidential)
+        { room_id: 'rm-401', room_number: '401', floor: 4, type: 'PRESIDENTIAL', status: 'OCCUPIED', price_per_night: 500, max_guests: 6, branch_id: bObj.branch_id, branch_name: bObj.branch_name, guest_name: 'Sir Arthur Wellesley', guest_email: 'arthur.w@example.com', check_in_date: new Date(Date.now() - 86400000).toISOString().split('T')[0], check_out_date: new Date(Date.now() + 86400000 * 5).toISOString().split('T')[0], booking_id: 'bk-galle-6' },
+        { room_id: 'rm-402', room_number: '402', floor: 4, type: 'PRESIDENTIAL', status: 'AVAILABLE',price_per_night: 500, max_guests: 6, branch_id: bObj.branch_id, branch_name: bObj.branch_name, guest_name: null, guest_email: null, check_in_date: null, check_out_date: null, booking_id: null },
+      ];
+
+      return { rows: rooms as unknown as T[], command: 'SELECT', rowCount: rooms.length, oid: 0, fields: [] };
+    }
+
+    // 8b. Dashboard stats: rooms count & occupancy
     if (normalizedSql.includes("FROM rooms")) {
+      const isScoped = params.length > 0 && typeof params[0] === 'string' && params[0].length > 5;
+      if (isScoped) {
+        return {
+          rows: [{ total_rooms: "16", occupied_rooms: "6", available_rooms: "9", maintenance_rooms: "1" }] as unknown as T[],
+          command: "SELECT",
+          rowCount: 1,
+          oid: 0,
+          fields: [],
+        };
+      }
       return {
-        rows: [{ total_rooms: "48", occupied_rooms: "34" }] as unknown as T[],
+        rows: [{ total_rooms: "48", occupied_rooms: "18", available_rooms: "27", maintenance_rooms: "3" }] as unknown as T[],
         command: "SELECT",
         rowCount: 1,
         oid: 0,
@@ -342,12 +408,27 @@ class InMemoryStore {
 
     // 9. Dashboard stats: bookings & movements
     if (normalizedSql.includes("FROM bookings b") || normalizedSql.includes("FROM bookings")) {
+      const isScoped = params.length > 0 && typeof params[0] === 'string' && params[0].length > 5;
+      if (isScoped) {
+        return {
+          rows: [{
+            active_bookings: "6",
+            checkins_today: "3",
+            checkouts_today: "1",
+            total_guests: "9",
+          }] as unknown as T[],
+          command: "SELECT",
+          rowCount: 1,
+          oid: 0,
+          fields: [],
+        };
+      }
       return {
         rows: [{
-          active_bookings: "29",
+          active_bookings: "18",
           checkins_today: "8",
           checkouts_today: "5",
-          total_guests: "42",
+          total_guests: "26",
         }] as unknown as T[],
         command: "SELECT",
         rowCount: 1,
@@ -358,8 +439,9 @@ class InMemoryStore {
 
     // 10. Dashboard stats: revenue today
     if (normalizedSql.includes("FROM invoices")) {
+      const isScoped = params.length > 0 && typeof params[0] === 'string' && params[0].length > 5;
       return {
-        rows: [{ revenue_today: "4850.00" }] as unknown as T[],
+        rows: [{ revenue_today: isScoped ? "2480.00" : "7440.00" }] as unknown as T[],
         command: "SELECT",
         rowCount: 1,
         oid: 0,
@@ -369,54 +451,171 @@ class InMemoryStore {
 
     // 11. Recent bookings facade view
     if (normalizedSql.includes("FROM v_booking_details")) {
-      const mockBookings = [
+      const allBookings = [
+        // Galle Branch Bookings (b2222222-...)
         {
-          booking_id: "bk-101",
+          booking_id: "bk-galle-1",
+          branch_id: "b2222222-2222-2222-2222-222222222222",
+          booking_status: "CHECKED_IN",
+          booking_created_at: new Date(Date.now() - 86400000).toISOString(),
+          branch_name: "Sky Nest Galle",
+          guest_first_name: "Sarah",
+          guest_last_name: "Jenkins",
+          guest_email: "sarah.j@example.com",
+          guest_phone: "+44 7911 123456",
+          room_number: "201",
+          room_type_name: "Heritage Deluxe Room",
+          check_in_date: new Date(Date.now() - 86400000).toISOString().split("T")[0],
+          check_out_date: new Date(Date.now() + 86400000 * 3).toISOString().split("T")[0],
+          total_amount: 720.00,
+          invoice_status: "OPEN",
+          nights: 4,
+        },
+        {
+          booking_id: "bk-galle-2",
+          branch_id: "b2222222-2222-2222-2222-222222222222",
+          booking_status: "CHECKED_IN",
+          booking_created_at: new Date(Date.now() - 86400000 * 2).toISOString(),
+          branch_name: "Sky Nest Galle",
+          guest_first_name: "David",
+          guest_last_name: "Miller",
+          guest_email: "david.m@example.com",
+          guest_phone: "+61 412 345 678",
+          room_number: "301",
+          room_type_name: "Lighthouse View Suite",
+          check_in_date: new Date(Date.now() - 86400000 * 2).toISOString().split("T")[0],
+          check_out_date: new Date(Date.now() + 86400000 * 2).toISOString().split("T")[0],
+          total_amount: 1120.00,
+          invoice_status: "OPEN",
+          nights: 4,
+        },
+        {
+          booking_id: "bk-galle-3",
+          branch_id: "b2222222-2222-2222-2222-222222222222",
+          booking_status: "CHECKED_IN",
+          booking_created_at: new Date().toISOString(),
+          branch_name: "Sky Nest Galle",
+          guest_first_name: "Elena",
+          guest_last_name: "Rostova",
+          guest_email: "elena.r@example.com",
+          guest_phone: "+49 170 1234567",
+          room_number: "303",
+          room_type_name: "Rampart Suite",
+          check_in_date: new Date().toISOString().split("T")[0],
+          check_out_date: new Date(Date.now() + 86400000 * 3).toISOString().split("T")[0],
+          total_amount: 840.00,
+          invoice_status: "OPEN",
+          nights: 3,
+        },
+        {
+          booking_id: "bk-galle-4",
+          branch_id: "b2222222-2222-2222-2222-222222222222",
+          booking_status: "CHECKED_IN",
+          booking_created_at: new Date(Date.now() - 86400000).toISOString(),
+          branch_name: "Sky Nest Galle",
+          guest_first_name: "Arthur",
+          guest_last_name: "Wellesley",
+          guest_email: "arthur.w@example.com",
+          guest_phone: "+44 20 7946 0912",
+          room_number: "401",
+          room_type_name: "Presidential Ocean Pavilion",
+          check_in_date: new Date(Date.now() - 86400000).toISOString().split("T")[0],
+          check_out_date: new Date(Date.now() + 86400000 * 5).toISOString().split("T")[0],
+          total_amount: 3000.00,
+          invoice_status: "OPEN",
+          nights: 6,
+        },
+        {
+          booking_id: "bk-galle-5",
+          branch_id: "b2222222-2222-2222-2222-222222222222",
+          booking_status: "CONFIRMED",
+          booking_created_at: new Date(Date.now() - 3600000 * 12).toISOString(),
+          branch_name: "Sky Nest Galle",
+          guest_first_name: "Marcus",
+          guest_last_name: "Thorne",
+          guest_email: "marcus.t@example.com",
+          guest_phone: "+1 415 555 2671",
+          room_number: "102",
+          room_type_name: "Colonial Courtyard Standard",
+          check_in_date: new Date().toISOString().split("T")[0],
+          check_out_date: new Date(Date.now() + 86400000 * 2).toISOString().split("T")[0],
+          total_amount: 240.00,
+          invoice_status: "CONFIRMED",
+          nights: 2,
+        },
+
+        // Colombo Branch Bookings (b1111111-...)
+        {
+          booking_id: "bk-col-1",
+          branch_id: "b1111111-1111-1111-1111-111111111111",
           booking_status: "CHECKED_IN",
           booking_created_at: new Date().toISOString(),
           branch_name: "Sky Nest Colombo",
           guest_first_name: "Nimal",
           guest_last_name: "Siripala",
           guest_email: "nimal@example.com",
+          guest_phone: "+94 71 234 5678",
           room_number: "302",
-          room_type_name: "Ocean View Suite",
+          room_type_name: "Executive Ocean Suite",
           check_in_date: new Date().toISOString().split("T")[0],
           check_out_date: new Date(Date.now() + 86400000 * 3).toISOString().split("T")[0],
-          total_amount: 540,
-          invoice_status: "ISSUED",
+          total_amount: 840.00,
+          invoice_status: "OPEN",
+          nights: 3,
         },
         {
-          booking_id: "bk-102",
-          booking_status: "CONFIRMED",
-          booking_created_at: new Date(Date.now() - 3600000 * 4).toISOString(),
-          branch_name: "Sky Nest Galle",
-          guest_first_name: "Sarah",
-          guest_last_name: "Jenkins",
-          guest_email: "sarah.j@example.com",
-          room_number: "105",
-          room_type_name: "Heritage Deluxe",
-          check_in_date: new Date(Date.now() + 86400000).toISOString().split("T")[0],
-          check_out_date: new Date(Date.now() + 86400000 * 4).toISOString().split("T")[0],
-          total_amount: 720,
-          invoice_status: "PENDING",
+          booking_id: "bk-col-2",
+          branch_id: "b1111111-1111-1111-1111-111111111111",
+          booking_status: "CHECKED_IN",
+          booking_created_at: new Date(Date.now() - 86400000).toISOString(),
+          branch_name: "Sky Nest Colombo",
+          guest_first_name: "Liam",
+          guest_last_name: "O'Connor",
+          guest_email: "liam.oc@example.com",
+          guest_phone: "+353 87 123 4567",
+          room_number: "202",
+          room_type_name: "Deluxe Ocean Balcony",
+          check_in_date: new Date(Date.now() - 86400000).toISOString().split("T")[0],
+          check_out_date: new Date(Date.now() + 86400000 * 2).toISOString().split("T")[0],
+          total_amount: 540.00,
+          invoice_status: "OPEN",
+          nights: 3,
         },
+
+        // Kandy Branch Bookings (b3333333-...)
         {
-          booking_id: "bk-103",
-          booking_status: "CHECKED_OUT",
+          booking_id: "bk-kan-1",
+          branch_id: "b3333333-3333-3333-3333-333333333333",
+          booking_status: "CHECKED_IN",
           booking_created_at: new Date(Date.now() - 86400000 * 2).toISOString(),
           branch_name: "Sky Nest Kandy",
           guest_first_name: "Rohan",
           guest_last_name: "De Silva",
           guest_email: "rohan.d@example.com",
+          guest_phone: "+94 77 987 6543",
           room_number: "204",
-          room_type_name: "Mountain View Pavilion",
+          room_type_name: "Mist Valley Suite",
           check_in_date: new Date(Date.now() - 86400000 * 2).toISOString().split("T")[0],
-          check_out_date: new Date().toISOString().split("T")[0],
-          total_amount: 410,
-          invoice_status: "PAID",
+          check_out_date: new Date(Date.now() + 86400000).toISOString().split("T")[0],
+          total_amount: 840.00,
+          invoice_status: "OPEN",
+          nights: 3,
         },
       ];
-      return { rows: mockBookings as unknown as T[], command: "SELECT", rowCount: mockBookings.length, oid: 0, fields: [] };
+
+      // Branch & status filter logic
+      let filtered = allBookings;
+      for (const param of params) {
+        if (typeof param === 'string') {
+          if (param.startsWith('b1111') || param.startsWith('b2222') || param.startsWith('b3333')) {
+            filtered = filtered.filter(b => b.branch_id === param);
+          } else if (['CHECKED_IN', 'CONFIRMED', 'CHECKED_OUT', 'CANCELLED'].includes(param)) {
+            filtered = filtered.filter(b => b.booking_status === param);
+          }
+        }
+      }
+
+      return { rows: filtered as unknown as T[], command: "SELECT", rowCount: filtered.length, oid: 0, fields: [] };
     }
 
     // 12. Audit activity

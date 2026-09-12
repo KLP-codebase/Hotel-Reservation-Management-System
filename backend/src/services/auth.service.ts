@@ -45,6 +45,13 @@ export class AuthService {
     // Step 3: update last_login_at
     await this.repo.updateLastLogin(account.user_account_id);
 
+    // Auto-assign branch for manager if unassigned
+    if (account.account_type === 'MANAGER' && !account.branch_id) {
+      account.branch_id = 'b2222222-2222-2222-2222-222222222222';
+      account.branch_name = 'Sky Nest Galle';
+      await this.repo.assignBranchToStaff(account.staff_id, account.branch_id).catch(() => null);
+    }
+
     // Step 4: build JWT payload (Builder)
     const payload = new JwtPayloadBuilder()
       .setSubject(account.user_account_id)
@@ -120,6 +127,14 @@ export class AuthService {
   async me(userAccountId: string) {
     const account = await this.repo.findById(userAccountId);
     if (!account) throw Errors.notFound('User');
+
+    // Auto-assign branch for manager if unassigned
+    if (account.account_type === 'MANAGER' && !account.branch_id) {
+      account.branch_id = 'b2222222-2222-2222-2222-222222222222';
+      account.branch_name = 'Sky Nest Galle';
+      await this.repo.assignBranchToStaff(account.staff_id, account.branch_id).catch(() => null);
+    }
+
     return ResponseFactory.ok({
       id:         account.user_account_id,
       username:   account.username,
