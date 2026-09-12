@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import { useState } from 'react';
 import Link from 'next/link';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -17,23 +17,15 @@ type FormData = z.infer<typeof schema>;
 export default function LoginPage() {
   const { login }  = useAuth();
   const [apiError, setApiError] = useState<string | null>(null);
-  const [selectedRole, setSelectedRole] = useState<string | null>(null);
   const [showPassword, setShowPassword] = useState(false);
 
-  const { register, handleSubmit, setValue, formState: { errors, isSubmitting } } = useForm<FormData>({
+  const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm<FormData>({
     resolver: zodResolver(schema),
     defaultValues: {
       username: '',
       password: '',
     },
   });
-
-  const fillCredentials = (user: string, pass: string) => {
-    setSelectedRole(user);
-    setValue('username', user, { shouldValidate: true });
-    setValue('password', pass, { shouldValidate: true });
-    setApiError(null);
-  };
 
   const onSubmit = async (data: FormData) => {
     setApiError(null);
@@ -60,59 +52,6 @@ export default function LoginPage() {
         <p className="font-jakarta text-xs text-stone-400 tracking-[0.1em] uppercase">
           Sign in to access your SkyNest portal
         </p>
-      </div>
-
-      {/* Quick Access Account Pills */}
-      <div className="mb-6 pb-6 border-b border-white/10">
-        <p className="text-[10px] font-jakarta font-semibold tracking-[0.18em] text-amber-400/90 uppercase mb-2.5">
-          Quick Fill Account:
-        </p>
-        <div className="flex flex-wrap gap-2">
-          <button
-            type="button"
-            onClick={() => fillCredentials('admin', 'admin2025')}
-            className={`px-3 py-1.5 rounded-none border text-[11px] font-jakarta font-medium uppercase tracking-wider transition-colors ${
-              selectedRole === 'admin'
-                ? 'border-amber-400 bg-amber-500/25 text-amber-300 shadow-sm shadow-amber-500/20 font-semibold'
-                : 'border-white/15 bg-white/5 hover:bg-white/10 text-stone-300'
-            }`}
-          >
-            Admin
-          </button>
-          <button
-            type="button"
-            onClick={() => fillCredentials('manager', 'SkyNest2025!')}
-            className={`px-3 py-1.5 rounded-none border text-[11px] font-jakarta font-medium uppercase tracking-wider transition-colors ${
-              selectedRole === 'manager'
-                ? 'border-amber-400 bg-amber-500/25 text-amber-300 shadow-sm shadow-amber-500/20 font-semibold'
-                : 'border-white/15 bg-white/5 hover:bg-white/10 text-stone-300'
-            }`}
-          >
-            Manager
-          </button>
-          <button
-            type="button"
-            onClick={() => fillCredentials('receptionist', 'SkyNest2025!')}
-            className={`px-3 py-1.5 rounded-none border text-[11px] font-jakarta font-medium uppercase tracking-wider transition-colors ${
-              selectedRole === 'receptionist'
-                ? 'border-amber-400 bg-amber-500/25 text-amber-300 shadow-sm shadow-amber-500/20 font-semibold'
-                : 'border-white/15 bg-white/5 hover:bg-white/10 text-stone-300'
-            }`}
-          >
-            Staff
-          </button>
-          <button
-            type="button"
-            onClick={() => fillCredentials('guest', 'SkyNest2025!')}
-            className={`px-3 py-1.5 rounded-none border text-[11px] font-jakarta font-medium uppercase tracking-wider transition-colors ${
-              selectedRole === 'guest'
-                ? 'border-amber-400 bg-amber-500/25 text-amber-300 shadow-sm shadow-amber-500/20 font-semibold'
-                : 'border-white/15 bg-white/5 hover:bg-white/10 text-stone-300'
-            }`}
-          >
-            Guest
-          </button>
-        </div>
       </div>
 
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">

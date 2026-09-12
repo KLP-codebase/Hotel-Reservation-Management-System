@@ -13,7 +13,7 @@ const service = new StaffService(repo);
 
 // ── Zod schemas ───────────────────────────────────────────────────────────────
 const CreateStaffSchema = z.object({
-  branchId:  z.string().uuid().optional(),
+  branchId:  z.string().uuid().optional().nullable().or(z.literal('')),
   firstName: z.string().min(1).max(100),
   lastName:  z.string().min(1).max(100),
   email:     z.string().email(),
@@ -22,7 +22,7 @@ const CreateStaffSchema = z.object({
 });
 
 const UpdateStaffSchema = z.object({
-  branchId:  z.string().uuid().optional(),
+  branchId:  z.string().uuid().optional().nullable().or(z.literal('')),
   firstName: z.string().min(1).max(100).optional(),
   lastName:  z.string().min(1).max(100).optional(),
   phone:     z.string().max(50).optional(),
@@ -59,7 +59,7 @@ router.post(
   authorize('ADMINISTRATOR', 'DBA'),
   async (req: Request, res: Response) => {
     const result = await service.create(
-      { branch_id: req.body.branchId, first_name: req.body.firstName, last_name: req.body.lastName,
+      { branch_id: (req.body.branchId || undefined), first_name: req.body.firstName, last_name: req.body.lastName,
         email: req.body.email, phone: req.body.phone, role: req.body.role },
       req.user?.sub,
     );
@@ -75,7 +75,7 @@ router.patch(
   async (req: Request, res: Response) => {
     const result = await service.update(
       req.params.id,
-      { branch_id: req.body.branchId, first_name: req.body.firstName, last_name: req.body.lastName,
+      { branch_id: (req.body.branchId || undefined), first_name: req.body.firstName, last_name: req.body.lastName,
         phone: req.body.phone, role: req.body.role },
       req.user?.sub,
     );
