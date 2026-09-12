@@ -8,6 +8,7 @@ import {
   Database, Activity, ArrowUpRight, ArrowDownRight, Hotel, Layers
 } from "lucide-react";
 import { useAuth } from "@/context/auth-context";
+import { apiFetch, ApiError } from "@/lib/api-client";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -62,8 +63,6 @@ interface ChangeLogEntry {
   old_data: unknown;
   new_data: unknown;
 }
-
-const API = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000/api/v1";
 
 // ── Status Badge ──────────────────────────────────────────────────────────────
 
@@ -132,7 +131,7 @@ function TabBtn({ active, onClick, children }: { active: boolean; onClick: () =>
 // ── Main Page ─────────────────────────────────────────────────────────────────
 
 export default function DashboardPage() {
-  const { user, logout } = useAuth();
+  const { user, loading: authLoading, logout } = useAuth();
 
   const [stats, setStats]               = useState<DashboardStats | null>(null);
   const [bookings, setBookings]         = useState<RecentBooking[]>([]);
@@ -143,41 +142,40 @@ export default function DashboardPage() {
   const [activeTab, setActiveTab]       = useState<"app" | "db">("app");
   const [lastRefresh, setLastRefresh]   = useState<Date>(new Date());
 
-  const getToken = useCallback((): string => {
-    if (typeof window === "undefined") return "";
-    return localStorage.getItem("skynest_token") ?? "";
-  }, []);
-
   const fetchAll = useCallback(async () => {
-    const token = getToken();
-    if (!token) return;
     setLoading(true);
     setError(null);
 
     try {
-      const headers = { Authorization: `Bearer ${token}` };
-
-      const [statsRes, bookingsRes, auditRes, changeRes] = await Promise.all([
-        fetch(`${API}/dashboard/stats`, { headers }),
-        fetch(`${API}/dashboard/bookings?limit=10`, { headers }),
-        fetch(`${API}/audit-logs?limit=30`, { headers }),
-        fetch(`${API}/audit-logs/changes?limit=30`, { headers }),
+      const [statsRes, bookingsRes, auditRes, changeRes] = await Promise.allSettled([
+        apiFetch<{ success: boolean; data: DashboardStats }>("/api/v1/dashboard/stats"),
+        apiFetch<{ success: boolean; data: RecentBooking[] }>("/api/v1/dashboard/bookings?limit=10"),
+        apiFetch<{ success: boolean; data: AuditLogEntry[] }>("/api/v1/audit-logs?limit=30"),
+        apiFetch<{ success: boolean; data: ChangeLogEntry[] }>("/api/v1/audit-logs/changes?limit=30"),
       ]);
 
-      if (!statsRes.ok)    throw new Error("Failed to load dashboard stats");
-      if (!bookingsRes.ok) throw new Error("Failed to load recent bookings");
+      if (statsRes.status === "fulfilled") {
+        setStats(statsRes.value.data);
+      } else {
+        const err = statsRes.reason;
+        if (err instanceof ApiError && err.status === 401) {
+          window.location.replace("/login");
+          return;
+        }
+        setError(err instanceof Error ? err.message : "Failed to load dashboard stats");
+      }
 
-      const [statsData, bookingsData] = await Promise.all([
-        statsRes.json(),
-        bookingsRes.json(),
-      ]);
+      if (bookingsRes.status === "fulfilled") {
+        setBookings(bookingsRes.value.data ?? []);
+      }
 
-      setStats(statsData.data);
-      setBookings(bookingsData.data ?? []);
+      if (auditRes.status === "fulfilled") {
+        setAuditLogs(auditRes.value.data ?? []);
+      }
 
-      // Audit/change logs are best-effort — admin may not have access
-      if (auditRes.ok)  setAuditLogs((await auditRes.json()).data ?? []);
-      if (changeRes.ok) setChangeLogs((await changeRes.json()).data ?? []);
+      if (changeRes.status === "fulfilled") {
+        setChangeLogs(changeRes.value.data ?? []);
+      }
 
       setLastRefresh(new Date());
     } catch (err: unknown) {
@@ -185,11 +183,17 @@ export default function DashboardPage() {
     } finally {
       setLoading(false);
     }
-  }, [getToken]);
+  }, []);
 
   useEffect(() => {
-    fetchAll();
-  }, [fetchAll]);
+    if (!authLoading) {
+      if (!user) {
+        window.location.replace("/login");
+      } else {
+        fetchAll();
+      }
+    }
+  }, [authLoading, user, fetchAll]);
 
   // ── Stat card derivations ──────────────────────────────────────────────────
 
@@ -225,7 +229,7 @@ export default function DashboardPage() {
 
   // ── Loading skeleton ──────────────────────────────────────────────────────
 
-  if (loading && !stats) {
+  if ((loading || authLoading) && !stats && !error) {
     return (
       <div className="min-h-screen bg-paper flex items-center justify-center">
         <div className="text-center space-y-4">
@@ -257,8 +261,8 @@ export default function DashboardPage() {
           <nav className="hidden md:flex items-center gap-6">
             {[
               { href: "/dashboard",          label: "Overview" },
-              { href: "/dashboard/staff",    label: "Staff" },
-              { href: "/dashboard/branches", label: "Branches" },
+              { href: "/staff",    label: "Staff" },
+              { href: "/branches", label: "Branches" },
             ].map(({ href, label }) => (
               <Link
                 key={href}

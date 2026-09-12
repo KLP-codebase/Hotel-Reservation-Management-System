@@ -203,8 +203,148 @@ class InMemoryStore {
       return { rows: this.staff as unknown as T[], command: 'SELECT', rowCount: this.staff.length, oid: 0, fields: [] };
     }
 
-    // 8. Audit logs or generic fallback
-    return { rows: [] as unknown as T[], command: 'SELECT', rowCount: 0, oid: 0, fields: [] };
+    // 8. Dashboard stats: rooms count & occupancy
+    if (normalizedSql.includes("FROM rooms")) {
+      return {
+        rows: [{ total_rooms: "48", occupied_rooms: "34" }] as unknown as T[],
+        command: "SELECT",
+        rowCount: 1,
+        oid: 0,
+        fields: [],
+      };
+    }
+
+    // 9. Dashboard stats: bookings & movements
+    if (normalizedSql.includes("FROM bookings b") || normalizedSql.includes("FROM bookings")) {
+      return {
+        rows: [{
+          active_bookings: "29",
+          checkins_today: "8",
+          checkouts_today: "5",
+          total_guests: "42",
+        }] as unknown as T[],
+        command: "SELECT",
+        rowCount: 1,
+        oid: 0,
+        fields: [],
+      };
+    }
+
+    // 10. Dashboard stats: revenue today
+    if (normalizedSql.includes("FROM invoices")) {
+      return {
+        rows: [{ revenue_today: "4850.00" }] as unknown as T[],
+        command: "SELECT",
+        rowCount: 1,
+        oid: 0,
+        fields: [],
+      };
+    }
+
+    // 11. Recent bookings facade view
+    if (normalizedSql.includes("FROM v_booking_details")) {
+      const mockBookings = [
+        {
+          booking_id: "bk-101",
+          booking_status: "CHECKED_IN",
+          booking_created_at: new Date().toISOString(),
+          branch_name: "Sky Nest Colombo",
+          guest_first_name: "Nimal",
+          guest_last_name: "Siripala",
+          guest_email: "nimal@example.com",
+          room_number: "302",
+          room_type_name: "Ocean View Suite",
+          check_in_date: new Date().toISOString().split("T")[0],
+          check_out_date: new Date(Date.now() + 86400000 * 3).toISOString().split("T")[0],
+          total_amount: 540,
+          invoice_status: "ISSUED",
+        },
+        {
+          booking_id: "bk-102",
+          booking_status: "CONFIRMED",
+          booking_created_at: new Date(Date.now() - 3600000 * 4).toISOString(),
+          branch_name: "Sky Nest Galle",
+          guest_first_name: "Sarah",
+          guest_last_name: "Jenkins",
+          guest_email: "sarah.j@example.com",
+          room_number: "105",
+          room_type_name: "Heritage Deluxe",
+          check_in_date: new Date(Date.now() + 86400000).toISOString().split("T")[0],
+          check_out_date: new Date(Date.now() + 86400000 * 4).toISOString().split("T")[0],
+          total_amount: 720,
+          invoice_status: "PENDING",
+        },
+        {
+          booking_id: "bk-103",
+          booking_status: "CHECKED_OUT",
+          booking_created_at: new Date(Date.now() - 86400000 * 2).toISOString(),
+          branch_name: "Sky Nest Kandy",
+          guest_first_name: "Rohan",
+          guest_last_name: "De Silva",
+          guest_email: "rohan.d@example.com",
+          room_number: "204",
+          room_type_name: "Mountain View Pavilion",
+          check_in_date: new Date(Date.now() - 86400000 * 2).toISOString().split("T")[0],
+          check_out_date: new Date().toISOString().split("T")[0],
+          total_amount: 410,
+          invoice_status: "PAID",
+        },
+      ];
+      return { rows: mockBookings as unknown as T[], command: "SELECT", rowCount: mockBookings.length, oid: 0, fields: [] };
+    }
+
+    // 12. Audit activity
+    if (normalizedSql.includes("FROM v_admin_audit_activity") || normalizedSql.includes("FROM audit_logs")) {
+      const mockAudit = [
+        {
+          audit_id: "aud-1",
+          entity_type: "AUTH",
+          action: "LOGIN_SUCCESS",
+          created_at: new Date().toISOString(),
+          ip_address: "127.0.0.1",
+          actor_username: "admin",
+          actor_first_name: "Kavindi",
+          actor_last_name: "Jayawardena",
+          actor_role: "ADMINISTRATOR",
+          new_value: { method: "PASSWORD" },
+          old_value: null,
+        },
+        {
+          audit_id: "aud-2",
+          entity_type: "BOOKING",
+          action: "STATUS_CHECKED_IN",
+          created_at: new Date(Date.now() - 1800000).toISOString(),
+          ip_address: "127.0.0.1",
+          actor_username: "receptionist",
+          actor_first_name: "Amara",
+          actor_last_name: "Perera",
+          actor_role: "RECEPTIONIST",
+          new_value: { booking_id: "bk-101", room: "302" },
+          old_value: { status: "CONFIRMED" },
+        },
+      ];
+      return { rows: mockAudit as unknown as T[], command: "SELECT", rowCount: mockAudit.length, oid: 0, fields: [] };
+    }
+
+    // 13. DB Change ledger
+    if (normalizedSql.includes("FROM change_log")) {
+      const mockChanges = [
+        {
+          change_id: "chg-1",
+          table_name: "booking_rooms",
+          record_id: "br-302",
+          operation: "UPDATE",
+          db_user: "skynest_app",
+          created_at: new Date(Date.now() - 1800000).toISOString(),
+          old_data: { status: "CONFIRMED" },
+          new_data: { status: "CHECKED_IN" },
+        },
+      ];
+      return { rows: mockChanges as unknown as T[], command: "SELECT", rowCount: mockChanges.length, oid: 0, fields: [] };
+    }
+
+    // Generic fallback
+    return { rows: [] as unknown as T[], command: "SELECT", rowCount: 0, oid: 0, fields: [] };
   }
 }
 
