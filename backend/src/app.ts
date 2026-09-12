@@ -11,6 +11,8 @@ import roomTypeRoutes from './routes/room-types.routes';
 import availabilityRoutes from './routes/availability.routes';
 import bookingRoutes from './routes/bookings.routes';
 import bookingRoomRoutes from './routes/booking-rooms.routes';
+import dashboardRoutes from './routes/dashboard.routes';
+import auditRoutes from './routes/audit.routes';
 
 
 // ── GoF: Chain of Responsibility ──────────────────────────────────────────────
@@ -35,14 +37,18 @@ app.get('/health', (_req, res) => {
 });
 
 // ── Route mounting ─────────────────────────────────────────────────────────────
-app.use('/api/v1/auth', authRoutes);
-app.use('/api/v1/staff', staffRoutes);
-app.use('/api/v1/branches', branchRoutes);
-app.use('/api/v1/guests', guestRoutes);
-app.use('/api/v1/room-types', roomTypeRoutes);
-app.use('/api/v1/availability', availabilityRoutes);
-app.use('/api/v1/bookings', bookingRoutes);
-app.use('/api/v1/booking-rooms', bookingRoomRoutes);
+app.use('/api/v1/auth',            authRoutes);
+app.use('/api/v1/staff',           staffRoutes);
+app.use('/api/v1/branches',        branchRoutes);
+app.use('/api/v1/guests',          guestRoutes);
+app.use('/api/v1/room-types',      roomTypeRoutes);
+app.use('/api/v1/availability',    availabilityRoutes);
+app.use('/api/v1/bookings',        bookingRoutes);
+app.use('/api/v1/booking-rooms',   bookingRoomRoutes);
+
+// ── Admin monitoring routes (RBAC: ADMINISTRATOR, MANAGER, DBA) ───────────────
+app.use('/api/v1/dashboard',       dashboardRoutes);
+app.use('/api/v1/audit-logs',      auditRoutes);
 
 
 // ── 404 handler ────────────────────────────────────────────────────────────────
