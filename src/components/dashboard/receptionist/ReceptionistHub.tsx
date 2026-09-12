@@ -1,12 +1,14 @@
 "use client";
 
+import { toNum } from "@/lib/api-client";
+
 import { useState, useMemo } from "react";
 import {
   BedDouble, CalendarCheck, Users, TrendingUp, CheckCircle2,
   Clock, ShieldCheck, RefreshCw, AlertTriangle, Search,
-  DoorOpen, Building, CheckCircle, ChevronRight, User,
+  DoorOpen, Building, CheckCircle, ChevronRight, ChevronDown, User,
   Utensils, Sparkles, Receipt, CreditCard, LogOut, Printer, UserCheck,
-  Phone, Mail, Calendar, Key, Eye, Plus
+  Phone, Mail, Calendar, Key, Eye, Plus, FileText
 } from "lucide-react";
 import { InRoomDiningModal } from "./InRoomDiningModal";
 import { SpaBookingModal } from "./SpaBookingModal";
@@ -24,6 +26,21 @@ interface ReceptionistHubProps {
   onRefresh:    () => void;
 }
 
+function formatStayDate(val: string | null | undefined): string {
+  if (!val) return "—";
+  try {
+    const d = new Date(val);
+    if (!isNaN(d.getTime())) {
+      return d.toLocaleDateString("en-GB", {
+        day: "2-digit",
+        month: "short",
+        year: "numeric",
+      });
+    }
+  } catch {}
+  return String(val).replace("T", " ").replace("Z", "").split(".")[0].trim();
+}
+
 export function ReceptionistHub({
   user,
   stats,
@@ -37,15 +54,16 @@ export function ReceptionistHub({
   const [searchQuery, setSearchQuery]   = useState("");
 
   // Modal target states
-  const [selectedBooking, setSelectedBooking] = useState<any | null>(null);
-  const [activeModal, setActiveModal]         = useState<"none" | "dining" | "spa" | "folio" | "bill" | "checkin" | "checkout">("none");
+  const [selectedBooking, setSelectedBooking]     = useState<any | null>(null);
+  const [activeModal, setActiveModal]             = useState<"none" | "dining" | "spa" | "folio" | "bill" | "checkin" | "checkout">("none");
+  const [billModalMode, setBillModalMode]         = useState<"invoice" | "pay">("invoice");
+  const [expandedBookingId, setExpandedBookingId] = useState<string | null>(null);
 
   const todayStr = new Date().toISOString().split("T")[0];
 
   // Scoped bookings for this hotel
   const hotelBookings = useMemo(() => {
     return bookings.filter((b) => {
-      // If branchId exists on user, filter to user's branch
       if (user?.branchId && b.branch_id && b.branch_id !== user.branchId) {
         return false;
       }
@@ -55,7 +73,10 @@ export function ReceptionistHub({
 
   // Operational metrics
   const arrivingToday = useMemo(() => {
-    return hotelBookings.filter((b) => b.check_in_date === todayStr && b.booking_status === "CONFIRMED");
+    return hotelBookings.filter((b) => {
+      const cIn = b.check_in_date ? b.check_in_date.split("T")[0] : "";
+      return cIn === todayStr && b.booking_status === "CONFIRMED";
+    });
   }, [hotelBookings, todayStr]);
 
   const inHouseGuests = useMemo(() => {
@@ -63,7 +84,10 @@ export function ReceptionistHub({
   }, [hotelBookings]);
 
   const departingToday = useMemo(() => {
-    return hotelBookings.filter((b) => b.check_out_date === todayStr && b.booking_status === "CHECKED_IN");
+    return hotelBookings.filter((b) => {
+      const cOut = b.check_out_date ? b.check_out_date.split("T")[0] : "";
+      return cOut === todayStr && b.booking_status === "CHECKED_IN";
+    });
   }, [hotelBookings, todayStr]);
 
   // Filtered list based on tab & search
@@ -92,9 +116,20 @@ export function ReceptionistHub({
     return list;
   }, [hotelBookings, activeFilter, arrivingToday, inHouseGuests, departingToday, searchQuery]);
 
-  const openModalFor = (booking: any, modal: "dining" | "spa" | "folio" | "bill" | "checkin" | "checkout") => {
-    setSelectedBooking(booking);
-    setActiveModal(modal);
+  const openModalFor = (
+    b: any,
+    modal: "dining" | "spa" | "folio" | "invoice" | "pay" | "checkin" | "checkout"
+  ) => {
+    setSelectedBooking(b);
+    if (modal === "invoice") {
+      setBillModalMode("invoice");
+      setActiveModal("bill");
+    } else if (modal === "pay") {
+      setBillModalMode("pay");
+      setActiveModal("bill");
+    } else {
+      setActiveModal(modal);
+    }
   };
 
   const closeModal = () => {
@@ -103,7 +138,7 @@ export function ReceptionistHub({
   };
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6 animate-in fade-in duration-300">
       {/* ══════════════════════════════════════════════════════════════════ */}
       {/* 1. FRONT DESK HERO BANNER & OFFICER BADGE                          */}
       {/* ══════════════════════════════════════════════════════════════════ */}
@@ -306,7 +341,7 @@ export function ReceptionistHub({
       </div>
 
       {/* ══════════════════════════════════════════════════════════════════ */}
-      {/* 3. MAIN CONTENT: STAYS TABLE OR ROOMS GRID                         */}
+      {/* 3. MAIN CONTENT: STAYS TILES OR ROOMS GRID                         */}
       {/* ══════════════════════════════════════════════════════════════════ */}
       {activeFilter === "ROOMS" ? (
         /* Room Status Grid */
@@ -367,213 +402,282 @@ export function ReceptionistHub({
           </div>
         </div>
       ) : (
-        /* Stays & Operations Table */
-        <div className="border border-skynest-hairline rounded-[4px] bg-paper overflow-hidden shadow-xs">
-          <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse">
-              <thead>
-                <tr className="border-b border-skynest-hairline bg-ink/[0.02]">
-                  <th className="py-3.5 px-4 font-cinzel text-xs font-bold text-ink uppercase tracking-wider">
-                    Room & Category
-                  </th>
-                  <th className="py-3.5 px-4 font-cinzel text-xs font-bold text-ink uppercase tracking-wider">
-                    Guest Information
-                  </th>
-                  <th className="py-3.5 px-4 font-cinzel text-xs font-bold text-ink uppercase tracking-wider">
-                    Dates & Nights
-                  </th>
-                  <th className="py-3.5 px-4 font-cinzel text-xs font-bold text-ink uppercase tracking-wider">
-                    Stay Status
-                  </th>
-                  <th className="py-3.5 px-4 font-cinzel text-xs font-bold text-ink uppercase tracking-wider text-right">
-                    Front Desk Actions
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-skynest-hairline">
-                {filteredBookings.length === 0 ? (
-                  <tr>
-                    <td colSpan={5} className="py-16 text-center text-ink/40 font-jakarta text-xs">
-                      No reservations matching current view filter.
-                    </td>
-                  </tr>
-                ) : (
-                  filteredBookings.map((b) => {
-                    const isCheckedIn = b.booking_status === "CHECKED_IN";
-                    const isConfirmed = b.booking_status === "CONFIRMED";
-                    const isCheckedOut = b.booking_status === "CHECKED_OUT";
-                    const isDeparting = b.check_out_date === todayStr && isCheckedIn;
-                    const isArriving = b.check_in_date === todayStr && isConfirmed;
+        /* Booking Tiles Organization — Fully Utilizes Left to Right, Centered & Clean without Misaligned Top Right Headers */
+        <div className="space-y-3">
+          {filteredBookings.length === 0 ? (
+            <div className="py-16 text-center text-ink/40 font-jakarta text-xs border border-skynest-hairline rounded-[4px] bg-paper">
+              No reservations matching current view filter.
+            </div>
+          ) : (
+            filteredBookings.map((b) => {
+              const isCheckedIn = b.booking_status === "CHECKED_IN";
+              const isConfirmed = b.booking_status === "CONFIRMED";
+              const isCheckedOut = b.booking_status === "CHECKED_OUT";
+              const isDeparting = (b.check_out_date?.split("T")[0] === todayStr) && isCheckedIn;
+              const isArriving = (b.check_in_date?.split("T")[0] === todayStr) && isConfirmed;
+              const isExpanded = expandedBookingId === b.booking_id;
 
-                    return (
-                      <tr key={b.booking_id} className="hover:bg-ink/[0.015] transition-colors">
-                        {/* Room & Category */}
-                        <td className="py-4 px-4 align-top">
-                          <div className="flex items-center gap-2">
-                            <span className="font-cinzel text-base font-bold text-ink">
-                              Room {b.room_number || "—"}
+              return (
+                <div
+                  key={b.booking_id}
+                  className={`border rounded-[4px] bg-paper transition-all overflow-hidden shadow-xs ${
+                    isExpanded
+                      ? "border-skynest-accent ring-1 ring-skynest-accent/20"
+                      : "border-skynest-hairline hover:border-ink/20"
+                  }`}
+                >
+                  {/* Tile Main Row — Balanced across all columns, fully utilizing the right side */}
+                  <div
+                    onClick={() => setExpandedBookingId(isExpanded ? null : b.booking_id)}
+                    className={`p-4 sm:p-5 cursor-pointer flex flex-col md:flex-row md:items-center justify-between gap-4 transition-colors ${
+                      isExpanded ? "bg-skynest-accent/[0.02]" : "hover:bg-ink/[0.015]"
+                    }`}
+                  >
+                    {/* 1. Room & Category */}
+                    <div className="w-full md:w-44 shrink-0">
+                      <span className="font-cinzel text-lg font-bold text-ink tracking-wide block">
+                        Room {b.room_number || "—"}
+                      </span>
+                      <span className="text-[11px] font-jakarta font-semibold text-skynest-accent uppercase tracking-wider">
+                        {b.room_type_name || b.room_type || "Suite"}
+                      </span>
+                    </div>
+
+                    {/* 2. Guest Information */}
+                    <div className="w-full md:flex-1 min-w-[200px] font-jakarta">
+                      <p className="font-semibold text-ink text-sm">
+                        {b.guest_first_name} {b.guest_last_name}
+                      </p>
+                      <div className="flex items-center gap-3 text-xs text-ink/60 mt-1 flex-wrap">
+                        {b.guest_phone && (
+                          <span className="flex items-center gap-1 font-mono text-[11px]">
+                            <Phone className="w-3 h-3 text-ink/40 shrink-0" /> {b.guest_phone}
+                          </span>
+                        )}
+                        <span className="text-ink/50 truncate max-w-[220px]" title={b.guest_email}>
+                          {b.guest_email}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* 3. Dates & Nights */}
+                    <div className="w-full md:w-64 shrink-0 font-jakarta">
+                      <div className="flex items-center gap-2 text-ink font-medium text-xs">
+                        <Calendar className="w-3.5 h-3.5 text-skynest-accent shrink-0" />
+                        <span className="font-semibold tracking-wide text-ink">
+                          {formatStayDate(b.check_in_date)}
+                        </span>
+                        <span className="text-skynest-accent font-bold px-1 text-xs">→</span>
+                        <span className="font-semibold tracking-wide text-ink">
+                          {formatStayDate(b.check_out_date)}
+                        </span>
+                      </div>
+                      <div className="mt-1.5 flex items-center gap-2">
+                        <span className="text-[11px] font-medium text-ink/60 bg-ink/[0.04] px-2 py-0.5 rounded">
+                          {b.nights || 1} Night{(b.nights || 1) === 1 ? "" : "s"}
+                        </span>
+                        {isArriving && (
+                          <span className="text-[10px] font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded bg-amber-100 text-amber-800 border border-amber-200">
+                            Arriving Today
+                          </span>
+                        )}
+                        {isDeparting && (
+                          <span className="text-[10px] font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded bg-rose-100 text-rose-800 border border-rose-200">
+                            Departing Today
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* 4. Stay Status & Folio Balance */}
+                    <div className="w-full md:w-44 shrink-0">
+                      <span
+                        className={`inline-flex items-center gap-1 px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider rounded border ${
+                          isCheckedIn
+                            ? "bg-emerald-50 text-emerald-800 border-emerald-200"
+                            : isConfirmed
+                            ? "bg-amber-50 text-amber-800 border-amber-200"
+                            : isCheckedOut
+                            ? "bg-ink/5 text-ink/40 border-skynest-hairline"
+                            : "bg-rose-50 text-rose-800 border-rose-200"
+                        }`}
+                      >
+                        <span
+                          className={`w-1.5 h-1.5 rounded-full ${
+                            isCheckedIn ? "bg-emerald-500 animate-pulse" : isConfirmed ? "bg-amber-500" : "bg-ink/30"
+                          }`}
+                        />
+                        {b.booking_status.replace(/_/g, " ")}
+                      </span>
+
+                      <div className="mt-1 text-[11px] font-jakarta text-ink/60">
+                        Folio: <strong className="font-cinzel text-ink">${toNum(b.total_amount).toFixed(2)}</strong>
+                        {b.invoice_status && (
+                          <span className="text-[10px] text-ink/40 ml-1">({b.invoice_status})</span>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* 5. Manage Stay Button — Positioned on the Far Right */}
+                    <div className="shrink-0 text-right">
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setExpandedBookingId(isExpanded ? null : b.booking_id);
+                        }}
+                        className={`px-3.5 py-2 rounded-[3px] font-jakarta text-xs font-semibold tracking-wider transition-all inline-flex items-center gap-1.5 ${
+                          isExpanded
+                            ? "bg-skynest-accent text-white shadow-xs"
+                            : "bg-paper border border-skynest-hairline text-ink hover:border-skynest-accent hover:text-skynest-accent"
+                        }`}
+                      >
+                        <span>{isExpanded ? "Close" : "Manage Stay"}</span>
+                        <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-200 ${isExpanded ? "rotate-180" : ""}`} />
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Expanded Operations Console right inside the Tile */}
+                  {isExpanded && (
+                    <div className="border-t border-skynest-hairline bg-ink/[0.015] p-4 sm:p-5">
+                      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+                        {/* Guest Stay Summary */}
+                        <div>
+                          <div className="flex items-center gap-2 mb-1">
+                            <span className="text-[11px] font-jakarta font-semibold tracking-wider uppercase text-skynest-accent">
+                              Front Desk Operations Console • Room {b.room_number || "—"} ({b.room_type_name || b.room_type || "Suite"})
+                            </span>
+                            <span className="text-ink/30">•</span>
+                            <span className="font-mono text-xs text-ink/60">
+                              Ref: {b.booking_ref || b.booking_id.slice(-8)}
                             </span>
                           </div>
-                          <p className="font-jakarta text-xs text-skynest-accent font-medium mt-0.5">
-                            {b.room_type_name || "Suite"}
-                          </p>
-                        </td>
-
-                        {/* Guest Details */}
-                        <td className="py-4 px-4 align-top font-jakarta">
-                          <p className="font-semibold text-ink text-sm">
+                          <h4 className="font-cinzel text-base font-bold text-ink">
                             {b.guest_first_name} {b.guest_last_name}
-                          </p>
-                          <div className="flex items-center gap-3 text-xs text-ink/60 mt-1">
+                          </h4>
+                          <div className="flex items-center gap-4 text-xs font-jakarta text-ink/60 mt-1 flex-wrap">
                             {b.guest_phone && (
-                              <span className="flex items-center gap-1 font-mono text-[11px]">
+                              <span className="flex items-center gap-1 font-mono">
                                 <Phone className="w-3 h-3 text-ink/40" /> {b.guest_phone}
                               </span>
                             )}
-                            <span className="text-ink/40 truncate" title={b.guest_email}>
-                              {b.guest_email}
-                            </span>
-                          </div>
-                        </td>
-
-                        {/* Dates of stay */}
-                        <td className="py-4 px-4 align-top font-jakarta text-xs">
-                          <div className="flex items-center gap-1.5 text-ink font-medium">
-                            <Calendar className="w-3.5 h-3.5 text-ink/40" />
-                            <span>{b.check_in_date}</span>
-                            <span className="text-ink/40">→</span>
-                            <span>{b.check_out_date}</span>
-                          </div>
-                          <div className="mt-1 flex items-center gap-2">
-                            <span className="text-[11px] text-ink/50">
-                              {b.nights || 1} Night{(b.nights || 1) === 1 ? "" : "s"}
-                            </span>
-                            {isArriving && (
-                              <span className="text-[10px] font-semibold uppercase tracking-wider px-1.5 py-0.2 rounded bg-amber-100 text-amber-800">
-                                Arriving Today
+                            {b.guest_email && (
+                              <span className="flex items-center gap-1">
+                                <Mail className="w-3 h-3 text-ink/40" /> {b.guest_email}
                               </span>
                             )}
-                            {isDeparting && (
-                              <span className="text-[10px] font-semibold uppercase tracking-wider px-1.5 py-0.2 rounded bg-rose-100 text-rose-800">
-                                Departing Today
-                              </span>
-                            )}
+                            <span className="flex items-center gap-1">
+                              <Calendar className="w-3 h-3 text-skynest-accent" />
+                              {formatStayDate(b.check_in_date)} — {formatStayDate(b.check_out_date)} ({b.nights || 1} Nights)
+                            </span>
                           </div>
-                        </td>
+                        </div>
 
-                        {/* Status */}
-                        <td className="py-4 px-4 align-top">
-                          <span
-                            className={`inline-flex items-center gap-1 px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider rounded border ${
-                              isCheckedIn
-                                ? "bg-emerald-50 text-emerald-800 border-emerald-200"
-                                : isConfirmed
-                                ? "bg-amber-50 text-amber-800 border-amber-200"
-                                : isCheckedOut
-                                ? "bg-ink/5 text-ink/40 border-skynest-hairline"
-                                : "bg-rose-50 text-rose-800 border-rose-200"
-                            }`}
-                          >
-                            <span
-                              className={`w-1.5 h-1.5 rounded-full ${
-                                isCheckedIn ? "bg-emerald-500 animate-pulse" : isConfirmed ? "bg-amber-500" : "bg-ink/30"
-                              }`}
-                            />
-                            {b.booking_status.replace(/_/g, " ")}
-                          </span>
+                        {/* Operational Action Buttons */}
+                        <div className="flex items-center flex-wrap gap-2 shrink-0">
+                          {/* Check-In Action */}
+                          {isConfirmed && (
+                            <button
+                              onClick={() => openModalFor(b, "checkin")}
+                              className="px-3.5 py-2 bg-emerald-600 text-white rounded-[3px] font-jakarta text-xs font-semibold hover:bg-emerald-700 transition-colors flex items-center gap-1.5 shadow-xs"
+                            >
+                              <UserCheck className="w-3.5 h-3.5" />
+                              Check In
+                            </button>
+                          )}
 
-                          <div className="mt-1 text-[11px] font-jakarta text-ink/60">
-                            Folio: <strong className="font-cinzel text-ink">${(b.total_amount ?? 0).toFixed(2)}</strong>
-                            {b.invoice_status && (
-                              <span className="text-[10px] text-ink/40 ml-1">({b.invoice_status})</span>
-                            )}
-                          </div>
-                        </td>
-
-                        {/* Front Desk Action Buttons */}
-                        <td className="py-4 px-4 align-top text-right">
-                          <div className="flex items-center justify-end flex-wrap gap-1.5">
-                            {/* Check-In Action */}
-                            {isConfirmed && (
+                          {/* In-House Resident Actions */}
+                          {isCheckedIn && (
+                            <>
                               <button
-                                onClick={() => openModalFor(b, "checkin")}
-                                className="px-3 py-1.5 bg-emerald-600 text-white rounded-[2px] font-jakarta text-xs font-medium hover:bg-emerald-700 transition-colors flex items-center gap-1"
+                                onClick={() => openModalFor(b, "dining")}
+                                className="px-3 py-2 bg-paper border border-skynest-hairline text-ink hover:border-skynest-accent hover:text-skynest-accent rounded-[3px] font-jakarta text-xs font-medium transition-colors flex items-center gap-1.5 shadow-xs"
+                                title="Order in-room dining from menu"
                               >
-                                <UserCheck className="w-3.5 h-3.5" />
-                                Check In
+                                <Utensils className="w-3.5 h-3.5 text-skynest-accent" />
+                                Dining
                               </button>
-                            )}
 
-                            {/* In-House Resident Actions */}
-                            {isCheckedIn && (
-                              <>
-                                <button
-                                  onClick={() => openModalFor(b, "dining")}
-                                  className="px-2.5 py-1.5 bg-paper border border-skynest-hairline text-ink hover:border-skynest-accent hover:text-skynest-accent rounded-[2px] font-jakarta text-xs font-medium transition-colors flex items-center gap-1"
-                                  title="Order in-room dining from menu"
-                                >
-                                  <Utensils className="w-3.5 h-3.5 text-skynest-accent" />
-                                  Dining
-                                </button>
-
-                                <button
-                                  onClick={() => openModalFor(b, "spa")}
-                                  className="px-2.5 py-1.5 bg-paper border border-skynest-hairline text-ink hover:border-skynest-accent hover:text-skynest-accent rounded-[2px] font-jakarta text-xs font-medium transition-colors flex items-center gap-1"
-                                  title="Schedule collision-aware spa treatment"
-                                >
-                                  <Sparkles className="w-3.5 h-3.5 text-skynest-accent" />
-                                  Spa
-                                </button>
-
-                                <button
-                                  onClick={() => openModalFor(b, "folio")}
-                                  className="px-2.5 py-1.5 bg-paper border border-skynest-hairline text-ink hover:border-skynest-accent hover:text-skynest-accent rounded-[2px] font-jakarta text-xs font-medium transition-colors flex items-center gap-1"
-                                  title="Manage active services & void charges"
-                                >
-                                  <Receipt className="w-3.5 h-3.5" />
-                                  Folio
-                                </button>
-
-                                <button
-                                  onClick={() => openModalFor(b, "bill")}
-                                  className="px-2.5 py-1.5 bg-paper border border-skynest-hairline text-ink hover:border-skynest-accent hover:text-skynest-accent rounded-[2px] font-jakarta text-xs font-medium transition-colors flex items-center gap-1"
-                                  title="View statutory 4-tax cascade invoice & payments"
-                                >
-                                  <Receipt className="w-3.5 h-3.5 text-emerald-700" />
-                                  Invoice & Pay
-                                </button>
-
-                                <button
-                                  onClick={() => openModalFor(b, "checkout")}
-                                  className="px-2.5 py-1.5 bg-ink text-paper hover:bg-rose-700 rounded-[2px] font-jakarta text-xs font-medium transition-colors flex items-center gap-1"
-                                  title="Settle bill and complete checkout"
-                                >
-                                  <LogOut className="w-3.5 h-3.5" />
-                                  Check Out
-                                </button>
-                              </>
-                            )}
-
-                            {/* Checked-Out History */}
-                            {isCheckedOut && (
                               <button
-                                onClick={() => openModalFor(b, "bill")}
-                                className="px-2.5 py-1.5 bg-paper border border-skynest-hairline text-ink/70 hover:text-ink rounded-[2px] font-jakarta text-xs font-medium transition-colors flex items-center gap-1"
+                                onClick={() => openModalFor(b, "spa")}
+                                className="px-3 py-2 bg-paper border border-skynest-hairline text-ink hover:border-skynest-accent hover:text-skynest-accent rounded-[3px] font-jakarta text-xs font-medium transition-colors flex items-center gap-1.5 shadow-xs"
+                                title="Schedule collision-aware spa treatment"
+                              >
+                                <Sparkles className="w-3.5 h-3.5 text-skynest-accent" />
+                                Spa
+                              </button>
+
+                              <button
+                                onClick={() => openModalFor(b, "folio")}
+                                className="px-3 py-2 bg-paper border border-skynest-hairline text-ink hover:border-skynest-accent hover:text-skynest-accent rounded-[3px] font-jakarta text-xs font-medium transition-colors flex items-center gap-1.5 shadow-xs"
+                                title="Manage active services & charges"
+                              >
+                                <Receipt className="w-3.5 h-3.5 text-ink/70" />
+                                Folio
+                              </button>
+
+                              {/* Separate Invoice Button */}
+                              <button
+                                onClick={() => openModalFor(b, "invoice")}
+                                className="px-3 py-2 bg-paper border border-skynest-hairline text-ink hover:border-skynest-accent hover:text-skynest-accent rounded-[3px] font-jakarta text-xs font-semibold transition-colors flex items-center gap-1.5 shadow-xs"
+                                title="Generate and view official statutory tax invoice"
+                              >
+                                <FileText className="w-3.5 h-3.5 text-skynest-accent" />
+                                Invoice
+                              </button>
+
+                              {/* Separate Pay Button */}
+                              <button
+                                onClick={() => openModalFor(b, "pay")}
+                                className="px-3 py-2 bg-emerald-50 border border-emerald-300 text-emerald-800 hover:border-emerald-500 hover:bg-emerald-100/70 rounded-[3px] font-jakarta text-xs font-semibold transition-colors flex items-center gap-1.5 shadow-xs"
+                                title="Record payment or settle balance"
+                              >
+                                <CreditCard className="w-3.5 h-3.5 text-emerald-700" />
+                                Pay
+                              </button>
+
+                              <button
+                                onClick={() => openModalFor(b, "checkout")}
+                                className="px-3 py-2 bg-ink text-paper hover:bg-rose-700 rounded-[3px] font-jakarta text-xs font-medium transition-colors flex items-center gap-1.5 shadow-xs"
+                                title="Settle bill and complete checkout"
+                              >
+                                <LogOut className="w-3.5 h-3.5" />
+                                Check Out
+                              </button>
+                            </>
+                          )}
+
+                          {/* Checked-Out History */}
+                          {isCheckedOut && (
+                            <>
+                              <button
+                                onClick={() => openModalFor(b, "invoice")}
+                                className="px-3 py-2 bg-paper border border-skynest-hairline text-ink/70 hover:text-ink rounded-[3px] font-jakarta text-xs font-medium transition-colors flex items-center gap-1.5 shadow-xs"
                                 title="Print official tax invoice"
                               >
                                 <Printer className="w-3.5 h-3.5 text-skynest-accent" />
-                                Print Invoice
+                                Invoice
                               </button>
-                            )}
-                          </div>
-                        </td>
-                      </tr>
-                    );
-                  })
-                )}
-              </tbody>
-            </table>
-          </div>
+
+                              <button
+                                onClick={() => openModalFor(b, "pay")}
+                                className="px-3 py-2 bg-paper border border-skynest-hairline text-ink/70 hover:text-ink rounded-[3px] font-jakarta text-xs font-medium transition-colors flex items-center gap-1.5 shadow-xs"
+                                title="View payment ledger & transactions"
+                              >
+                                <CreditCard className="w-3.5 h-3.5 text-emerald-600" />
+                                Pay / Ledger
+                              </button>
+                            </>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })
+          )}
         </div>
       )}
 
@@ -607,11 +711,12 @@ export function ReceptionistHub({
         onFolioUpdated={onRefresh}
       />
 
-      {/* Total Bill & Partial Payments Modal */}
+      {/* Total Bill & Partial Payments Modal with initialMode */}
       <TotalBillModal
         isOpen={activeModal === "bill"}
         onClose={closeModal}
         booking={selectedBooking}
+        initialMode={billModalMode}
         onPaymentSaved={onRefresh}
       />
 
@@ -629,7 +734,10 @@ export function ReceptionistHub({
         onClose={closeModal}
         booking={selectedBooking}
         onCheckOutDone={onRefresh}
-        onOpenTotalBill={() => setActiveModal("bill")}
+        onOpenTotalBill={() => {
+          setBillModalMode("pay");
+          setActiveModal("bill");
+        }}
       />
     </div>
   );

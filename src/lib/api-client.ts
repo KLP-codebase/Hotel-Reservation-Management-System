@@ -2,6 +2,24 @@
 // apiFetch wraps native fetch and hides: base URL, auth header injection,
 // error normalisation. All data-fetching code uses this — never raw fetch.
 
+/**
+ * toNum — safe numeric coercion for PostgreSQL-originated values.
+ *
+ * The `pg` driver returns NUMERIC / DECIMAL columns as *strings* to preserve
+ * precision. Any component that calls `.toFixed()` directly on such a value
+ * will throw "toFixed is not a function" at runtime.
+ *
+ * Usage:  toNum(b.total_amount).toFixed(2)
+ *         toNum(item.price_at_usage).toFixed(2)
+ */
+export function toNum(v: unknown): number {
+  if (v === null || v === undefined) return 0;
+  const n = Number(v);
+  return isNaN(n) ? 0 : n;
+}
+
+
+
 export class ApiError extends Error {
   constructor(
     public readonly status: number,

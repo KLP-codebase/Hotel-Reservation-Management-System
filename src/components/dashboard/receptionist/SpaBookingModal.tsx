@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { X, Sparkles, Clock, Calendar, AlertTriangle, CheckCircle2, User, Check, ShieldAlert } from "lucide-react";
-import { apiFetch } from "@/lib/api-client";
+import { apiFetch, toNum } from "@/lib/api-client";
 
 interface SpaTreatment {
   id:              string;
@@ -200,7 +200,7 @@ export function SpaBookingModal({ isOpen, onClose, booking, onOrderPlaced }: Spa
                         {item.name}
                       </h5>
                       <span className="font-cinzel font-bold text-skynest-accent text-xs whitespace-nowrap">
-                        ${item.price.toFixed(2)}
+                        ${toNum(item.price).toFixed(2)}
                       </span>
                     </div>
                     <p className="font-jakarta text-[11px] text-ink/60 mt-1 line-clamp-2 leading-relaxed">
@@ -353,7 +353,7 @@ export function SpaBookingModal({ isOpen, onClose, booking, onOrderPlaced }: Spa
                     Total Treatment Fee
                   </span>
                   <span className="font-cinzel text-lg font-bold text-skynest-accent">
-                    ${(selectedTreatment?.price || 0).toFixed(2)}
+                    ${toNum(selectedTreatment?.price).toFixed(2)}
                   </span>
                 </div>
 

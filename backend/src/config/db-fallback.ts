@@ -236,9 +236,6 @@ class InMemoryStore {
     { id: 'spa-tr-1', name: 'Ayurvedic Abhyanga Full Body Massage', category: 'Wellness', duration_mins: 60, price: 75.00, description: 'Warm herbal medicated oils to relieve fatigue, enhance circulation and tone muscles', therapist_types: ['Ayurvedic Practitioner', 'Senior Therapist'] },
     { id: 'spa-tr-2', name: 'Shirodhara Third-Eye Therapy', category: 'Wellness', duration_mins: 45, price: 85.00, description: 'Continuous gentle rhythmic stream of warm herbal oil over the forehead for deep serenity', therapist_types: ['Ayurvedic Specialist'] },
     { id: 'spa-tr-3', name: 'Royal Ceylon Herbal Body Scrub & Steam', category: 'Wellness', duration_mins: 75, price: 95.00, description: 'Sandalwood, turmeric & wild rice exfoliation followed by an aromatic steam bath', therapist_types: ['Holistic Therapist'] },
-    { id: 'spa-tr-4', name: 'Deep Tissue Ocean Mineral Therapy', category: 'Wellness', duration_mins: 90, price: 110.00, description: 'Intense muscle release using heated volcanic stones and ocean mineral extracts', therapist_types: ['Sports Therapist', 'Senior Therapist'] },
-    { id: 'spa-tr-5', name: 'Sunset Couples Retreat & Private Jacuzzi', category: 'Wellness', duration_mins: 120, price: 180.00, description: 'Dual full body massage, private herbal floral jacuzzi, champagne & fresh strawberries', therapist_types: ['Master Therapists (Pair)'] },
-    { id: 'spa-tr-6', name: 'Aromatherapy Stress Relief Ritual', category: 'Wellness', duration_mins: 60, price: 70.00, description: 'Custom blend of pure Ceylon lemongrass, French lavender & ylang-ylang essential oils', therapist_types: ['Aromatherapist'] },
   ];
 
   public spaAppointments: SpaAppointment[] = [

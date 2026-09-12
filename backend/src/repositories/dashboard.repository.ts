@@ -136,15 +136,14 @@ export class DashboardRepository {
 
     // Revenue today
     const revenueFilter = branchId
-      ? 'JOIN bookings bk ON bk.booking_id = br.booking_id WHERE bk.branch_id = $1 AND'
-      : 'JOIN bookings bk ON bk.booking_id = br.booking_id WHERE';
+      ? 'JOIN bookings bk ON bk.id = i.booking_room_id WHERE bk.branch_id = $1 AND'
+      : 'JOIN bookings bk ON bk.id = i.booking_room_id WHERE';
     const revenueParams: unknown[] = branchId ? [branchId] : [];
 
     const revenueResult = await this.db.query<{ revenue_today: string }>(
       `SELECT COALESCE(SUM(i.total_amount), 0) AS revenue_today
        FROM invoices i
-       JOIN booking_rooms br ON br.booking_room_id = i.booking_room_id
-       ${revenueFilter} i.generated_at::date = CURRENT_DATE`,
+       ${revenueFilter} i.issued_at::date = CURRENT_DATE`,
       revenueParams,
     );
 
@@ -236,8 +235,8 @@ export class DashboardRepository {
 
     const result = await this.db.query<RoomOccupancyStatus>(
       `SELECT
-         r.room_id::text,
-         r.room_number,
+         r.id::text AS room_id,
+         r.number AS room_number,
          r.floor,
          COALESCE(rt.type_name, r.type::text, 'STANDARD') AS type,
          r.status,
@@ -252,11 +251,11 @@ export class DashboardRepository {
          br.booking_id::text
        FROM rooms r
        JOIN branches b ON b.branch_id = r.branch_id
-       LEFT JOIN room_types rt ON rt.room_type_id = r.room_type_id
-       LEFT JOIN booking_rooms br ON br.room_id = r.room_id AND br.status = 'CHECKED_IN'
-       LEFT JOIN guests g ON g.guest_id = br.primary_guest_id
+       LEFT JOIN room_types rt ON rt.type_name = r.type::text
+       LEFT JOIN booking_rooms br ON br.room_id = r.id AND br.status = 'CHECKED_IN'
+       LEFT JOIN guests g ON g.id = br.primary_guest_id OR g.guest_id::text = br.primary_guest_id
        ${branchFilter}
-       ORDER BY r.floor ASC, r.room_number ASC`,
+       ORDER BY r.floor ASC, r.number ASC`,
       params,
     );
 

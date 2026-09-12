@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { X, Utensils, Coffee, Sun, Moon, Clock, Plus, Minus, CheckCircle2, AlertCircle } from "lucide-react";
-import { apiFetch } from "@/lib/api-client";
+import { apiFetch, toNum } from "@/lib/api-client";
 
 interface MenuItem {
   id:          string;
@@ -91,7 +91,7 @@ export function InRoomDiningModal({ isOpen, onClose, booking, onOrderPlaced }: I
   };
 
   const cartItems = Object.values(cart);
-  const traySubtotal = cartItems.reduce((sum, { item, quantity }) => sum + item.price * quantity, 0);
+  const traySubtotal = cartItems.reduce((sum, { item, quantity }) => sum + toNum(item.price) * quantity, 0);
 
   const handleChargeToFolio = async () => {
     if (cartItems.length === 0) return;
@@ -215,7 +215,7 @@ export function InRoomDiningModal({ isOpen, onClose, booking, onOrderPlaced }: I
                             {item.name}
                           </h4>
                           <span className="font-cinzel font-bold text-skynest-accent text-sm whitespace-nowrap">
-                            ${item.price.toFixed(2)}
+                            ${toNum(item.price).toFixed(2)}
                           </span>
                         </div>
                         <p className="font-jakarta text-xs text-ink/60 mt-1.5 line-clamp-2 leading-relaxed">
@@ -289,11 +289,11 @@ export function InRoomDiningModal({ isOpen, onClose, booking, onOrderPlaced }: I
                       <div className="flex-1 pr-2">
                         <p className="font-jakarta font-medium text-ink truncate">{item.name}</p>
                         <p className="text-[11px] text-ink/40 font-jakarta">
-                          ${item.price.toFixed(2)} × {quantity}
+                          ${toNum(item.price).toFixed(2)} × {quantity}
                         </p>
                       </div>
                       <span className="font-cinzel font-semibold text-ink">
-                        ${(item.price * quantity).toFixed(2)}
+                        ${(toNum(item.price) * quantity).toFixed(2)}
                       </span>
                     </div>
                   ))}
