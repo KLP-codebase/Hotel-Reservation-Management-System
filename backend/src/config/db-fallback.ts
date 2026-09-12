@@ -123,6 +123,17 @@ class InMemoryStore {
     },
   ];
 
+  private formatStaff(s: SeedStaff) {
+    const branch = this.branches.find(b => b.branch_id === s.branch_id);
+    return {
+      ...s,
+      branch_name: branch?.branch_name ?? null,
+      branch_city: branch?.city ?? null,
+      created_at: new Date(),
+      updated_at: new Date(),
+    };
+  }
+
   public async query<T extends QueryResultRow = QueryResultRow>(
     sql: string,
     params: unknown[] = [],
@@ -194,16 +205,131 @@ class InMemoryStore {
     }
 
     // 6. Branches
+    if (normalizedSql.includes('FROM branches') && (normalizedSql.includes('branch_id = $1') || normalizedSql.includes('branch_id = $2'))) {
+      const id = params[0] as string;
+      const b = this.branches.find(br => br.branch_id === id);
+      return { rows: (b ? [b] : []) as unknown as T[], command: 'SELECT', rowCount: b ? 1 : 0, oid: 0, fields: [] };
+    }
+
+    if (normalizedSql.startsWith('UPDATE branches SET')) {
+      const branchId = params[params.length - 1] as string;
+      const branch = this.branches.find(b => b.branch_id === branchId);
+      if (branch) {
+        if (normalizedSql.includes('is_active = false')) {
+          branch.is_active = false;
+        } else {
+          const fieldMatches = [...normalizedSql.matchAll(/(\w+)\s*=\s*\$(\d+)/g)];
+          for (const match of fieldMatches) {
+            const fieldName = match[1];
+            const paramIdx = parseInt(match[2], 10) - 1;
+            const val = params[paramIdx];
+            if (fieldName === 'branch_name' && val !== undefined) branch.branch_name = val as string;
+            else if (fieldName === 'city' && val !== undefined) branch.city = val as string;
+            else if (fieldName === 'address' && val !== undefined) branch.address = val as string;
+            else if (fieldName === 'phone' && val !== undefined) branch.phone = val as string;
+            else if (fieldName === 'email' && val !== undefined) branch.email = val as string;
+            else if (fieldName === 'is_active' && val !== undefined) branch.is_active = Boolean(val);
+          }
+        }
+        return { rows: [branch] as unknown as T[], command: 'UPDATE', rowCount: 1, oid: 0, fields: [] };
+      }
+      return { rows: [] as unknown as T[], command: 'UPDATE', rowCount: 0, oid: 0, fields: [] };
+    }
+
+    if (normalizedSql.startsWith('INSERT INTO branches')) {
+      const [branch_name, city, address, phone, email] = params as [string, string, string | null, string | null, string | null];
+      const newBranch: SeedBranch = {
+        branch_id: `b_${Date.now()}`,
+        branch_name,
+        city,
+        address: address || '',
+        phone: phone || '',
+        email: email || '',
+        is_active: true,
+      };
+      this.branches.push(newBranch);
+      return { rows: [newBranch] as unknown as T[], command: 'INSERT', rowCount: 1, oid: 0, fields: [] };
+    }
+
     if (normalizedSql.includes('FROM branches')) {
-      return { rows: this.branches as unknown as T[], command: 'SELECT', rowCount: this.branches.length, oid: 0, fields: [] };
+      const activeOnly = normalizedSql.includes('is_active = true');
+      const list = activeOnly ? this.branches.filter(b => b.is_active) : this.branches;
+      return { rows: list as unknown as T[], command: 'SELECT', rowCount: list.length, oid: 0, fields: [] };
     }
 
-    // 7. Staff list
+    // 7. Staff Management & Queries
+    if (normalizedSql.includes('FROM v_staff_details') && normalizedSql.includes('email = $1')) {
+      const email = (params[0] as string || '').trim().toLowerCase();
+      const s = this.staff.find(m => m.email.trim().toLowerCase() === email && m.is_active);
+      return { rows: (s ? [this.formatStaff(s)] : []) as unknown as T[], command: 'SELECT', rowCount: s ? 1 : 0, oid: 0, fields: [] };
+    }
+
+    if (normalizedSql.includes('FROM v_staff_details') && normalizedSql.includes('staff_id = $1')) {
+      const id = params[0] as string;
+      const s = this.staff.find(m => m.staff_id === id);
+      return { rows: (s ? [this.formatStaff(s)] : []) as unknown as T[], command: 'SELECT', rowCount: s ? 1 : 0, oid: 0, fields: [] };
+    }
+
+    if (normalizedSql.includes('FROM v_staff_details') && normalizedSql.includes('branch_id = $1')) {
+      const branchId = params[0] as string;
+      const list = this.staff.filter(m => m.branch_id === branchId && m.is_active);
+      return { rows: list.map(s => this.formatStaff(s)) as unknown as T[], command: 'SELECT', rowCount: list.length, oid: 0, fields: [] };
+    }
+
+    if (normalizedSql.startsWith('INSERT INTO staff')) {
+      const [branch_id, first_name, last_name, email, phone, role] = params as [string | null, string, string, string, string | null, string];
+      const newStaff: SeedStaff = {
+        staff_id: `s_${Date.now()}`,
+        branch_id: branch_id || null,
+        first_name,
+        last_name,
+        email,
+        phone: phone || null,
+        role,
+        is_active: true,
+      };
+      this.staff.push(newStaff);
+      return { rows: [this.formatStaff(newStaff)] as unknown as T[], command: 'INSERT', rowCount: 1, oid: 0, fields: [] };
+    }
+
+    if (normalizedSql.includes('fn_update_staff')) {
+      const [id, first_name, last_name, phone, role, branch_id] = params as [string, string | null, string | null, string | null, string | null, string | null];
+      const s = this.staff.find(m => m.staff_id === id);
+      if (s) {
+        if (first_name != null) s.first_name = first_name;
+        if (last_name != null) s.last_name = last_name;
+        if (phone != null) s.phone = phone;
+        if (role != null) s.role = role;
+        if (branch_id !== undefined) s.branch_id = branch_id;
+        return { rows: [this.formatStaff(s)] as unknown as T[], command: 'SELECT', rowCount: 1, oid: 0, fields: [] };
+      }
+      return { rows: [] as unknown as T[], command: 'SELECT', rowCount: 0, oid: 0, fields: [] };
+    }
+
+    if (normalizedSql.includes('fn_deactivate_staff')) {
+      const id = params[0] as string;
+      const s = this.staff.find(m => m.staff_id === id);
+      if (s) s.is_active = false;
+      return { rows: [{ fn_deactivate_staff: true }] as unknown as T[], command: 'SELECT', rowCount: 1, oid: 0, fields: [] };
+    }
+
     if (normalizedSql.includes('FROM staff') || normalizedSql.includes('FROM v_staff_details')) {
-      return { rows: this.staff as unknown as T[], command: 'SELECT', rowCount: this.staff.length, oid: 0, fields: [] };
+      const list = this.staff.filter(s => s.is_active);
+      return { rows: list.map(s => this.formatStaff(s)) as unknown as T[], command: 'SELECT', rowCount: list.length, oid: 0, fields: [] };
     }
 
-    // 8. Dashboard stats: rooms count & occupancy
+    // Room Types
+    if (normalizedSql.includes('FROM room_types') || normalizedSql.includes('FROM v_room_types')) {
+      const mockTypes = [
+        { room_type_id: 'rt-1', type_name: 'Deluxe Ocean Suite', base_daily_rate: 180, capacity: 2, description: 'Panoramic sea views, king-sized bed, private balcony and soaking tub.' },
+        { room_type_id: 'rt-2', type_name: 'Heritage Villa Room', base_daily_rate: 220, capacity: 3, description: 'Colonial timber aesthetic with private courtyard garden.' },
+        { room_type_id: 'rt-3', type_name: 'Hilltop Mountain Pavilion', base_daily_rate: 260, capacity: 4, description: 'Mist-shrouded mountain vistas, plunge pool, and bespoke fireplace.' },
+        { room_type_id: 'rt-4', type_name: 'Presidential Sky Suite', base_daily_rate: 450, capacity: 4, description: 'Dual-level luxury penthouse with private infinity edge spa.' },
+      ];
+      return { rows: mockTypes as unknown as T[], command: 'SELECT', rowCount: mockTypes.length, oid: 0, fields: [] };
+    }
+
+        // 8. Dashboard stats: rooms count & occupancy
     if (normalizedSql.includes("FROM rooms")) {
       return {
         rows: [{ total_rooms: "48", occupied_rooms: "34" }] as unknown as T[],

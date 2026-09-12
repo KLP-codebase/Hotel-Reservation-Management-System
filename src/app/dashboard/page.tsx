@@ -261,8 +261,10 @@ export default function DashboardPage() {
           <nav className="hidden md:flex items-center gap-6">
             {[
               { href: "/dashboard",          label: "Overview" },
-              { href: "/staff",    label: "Staff" },
-              { href: "/branches", label: "Branches" },
+              { href: "/dashboard/staff",    label: "Staff" },
+              { href: "/dashboard/branches", label: "Branches" },
+              { href: "/dashboard/rooms",    label: "Rooms" },
+              { href: "/dashboard/bookings", label: "Bookings" },
             ].map(({ href, label }) => (
               <Link
                 key={href}
