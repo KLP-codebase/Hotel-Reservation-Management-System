@@ -306,3 +306,4 @@ Z-index scale — use only: `0, 1, 2, 10, 40, 50, 100, 9999`. Hero is `z-0`. Clo
 - **Easing**: Use GSAP power/expo eases. CSS transitions use `duration-200`–`duration-300` for micro-interactions only.
 - **Hero structure**: The hero is `sticky top-0`, NOT `position: fixed`. Subsequent sections scroll over it.
 - **Nav transparency**: Computed with inline `lerp()` — NOT CSS class toggling (`.is-scrolled` pattern is not used).
+- **`@keyframes` location** (verified 2026-09-17): define ambient/looping keyframes in `src/styles/globals.css`. A `<style jsx global>` block inside a Client Component **silently does nothing** — styled-jsx in the App Router needs a `StyleRegistry` (`useServerInsertedHTML`) that this project doesn't have, so the rules never reach the page and elements referencing them just sit still. This is what broke the login page's drifting cloud PNGs.
