@@ -1,7 +1,7 @@
 import { DbAdapter } from '../config/db';
 
 export interface CreateBookingInput {
-    branch_id: number;
+    branch_id: string | number;
     booked_by_guest_id: string;
     notes?: string;
 }
@@ -9,9 +9,9 @@ export interface CreateBookingInput {
 export interface AddRoomInput {
     booking_id: string;
     primary_guest_id: string;
-    room_type_id: number;
-    room_id: number;
-    plan_id: number;
+    room_type_id?: number | null;
+    room_id: string | number;
+    plan_id?: number | null;
     check_in_date: string;
     check_out_date: string;
     rate_at_booking: number;
@@ -30,8 +30,8 @@ export class BookingRepository {
 
     async createBooking(input: CreateBookingInput): Promise<{ booking_id: string }> {
         const result = await this.db.query<{ booking_id: string }>(`
-            INSERT INTO bookings (branch_id, booked_by_guest_id, notes)
-            VALUES ($1, $2, $3)
+            INSERT INTO bookings (branch_id, booked_by_guest_id, guest_id, notes, special_requests)
+            VALUES ($1, $2, $2, $3, $3)
             RETURNING booking_id
         `, [input.branch_id, input.booked_by_guest_id, input.notes ?? null]);
 
@@ -46,8 +46,8 @@ export class BookingRepository {
             VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
             RETURNING booking_room_id
         `, [
-            input.booking_id, input.primary_guest_id, input.room_type_id,
-            input.room_id, input.plan_id, input.check_in_date,
+            input.booking_id, input.primary_guest_id, input.room_type_id ?? null,
+            input.room_id, input.plan_id ?? 1, input.check_in_date,
             input.check_out_date, input.rate_at_booking,
         ]);
 
