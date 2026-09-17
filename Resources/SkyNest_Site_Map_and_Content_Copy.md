@@ -4,7 +4,25 @@
 > **Source Origin:** Claude Architecture & UX Review  
 > **Target Application:** SkyNest Hotel Reservation & Guest Services Management System (Next.js 16 + React 19)  
 > **Design System Compliance:** `.gemini/skills/sky-nest-design.md` (`font-cinzel`, `font-jakarta`, `#D9722C`, `#0B2540`, `#FDFCFA`)  
-> **Relational Backend:** PostgreSQL 15 (17 normalized tables via Express REST API port 4000)  
+> **Relational Backend:** PostgreSQL 15 via Express REST API port 4000 (17 relations specified; **18 tables live on Railway**, incl. legacy duplicates)  
+
+> ### ⚠️ As-Built Deviations (verified 2026-09-17)
+> The editorial copy in this document is still authoritative. Some **routes** were implemented
+> under different paths — use these when writing code:
+>
+> | Specified | As built |
+> |---|---|
+> | `/book/[roomTypeId]` | **`/book/confirm`** (query-param driven) |
+> | `/book/confirmation/[bookingId]` | folded into **`/book/confirm`** |
+> | `/dashboard/bookings/new` | ❌ not built — walk-in booking runs through the front-desk hub at `/dashboard` |
+> | `/dashboard/bookings/[id]` | ❌ **not built** — next task for Member 3 |
+> | `/account` | ❌ not built |
+>
+> Dashboard pages live under `src/app/dashboard/(management)/`. The `src/app/(dashboard)/` route
+> group holds legacy redirect stubs only.
+>
+> `/dashboard/bookings` was built by **Member/KLP**, not Member 3, and reads
+> `GET /api/v1/dashboard/bookings`.
 
 ---
 

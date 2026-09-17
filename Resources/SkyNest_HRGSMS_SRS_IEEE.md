@@ -322,7 +322,7 @@ The design and implementation of the HRGSMS are governed by the following constr
   * Automated email dispatch depends on third-party SMTP gateways (e.g., Nodemailer, SendGrid, Resend) .  
 * **Technology Stack and Infrastructure:**  
   * The system's core reliability is heavily dependent on PostgreSQL 15; all critical business logic (billing calculations, booking conflict prevention) depends on database-level stored procedures, functions, and triggers executing correctly.  
-  * Application hosting depends on **Railway** (cloud) and **Docker Compose** (local). Each developer runs the full stack locally with a single `docker compose up` command.  
+  * Application hosting depends on **Railway** (cloud). As implemented, developers run the Express API and Next.js frontend locally (`npm run dev`) against the **shared Railway PostgreSQL instance**; `infrastructure/docker/init.sql` is retained as the schema source of truth and Docker Compose as an offline fallback, not the day-to-day workflow.  
   * Changes to these chosen open-source technologies could impact system development timelines and performance.  
 * **Network and Infrastructure:**  
   * Continuous operation depends on reliable internet connectivity at the Colombo, Kandy, and Galle branches, maintaining a minimum 10 Mbps LAN connection to interface with the cloud backend.  

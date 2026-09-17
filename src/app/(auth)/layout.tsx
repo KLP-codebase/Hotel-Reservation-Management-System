@@ -15,41 +15,6 @@ function MountainGlyph({ className = '' }: { className?: string }) {
 export default function AuthLayout({ children }: { children: React.ReactNode }) {
   return (
     <div className="min-h-screen bg-white flex flex-col relative overflow-hidden select-none">
-      <style jsx global>{`
-        @keyframes cloudDriftDistant {
-          0%, 100% { transform: translate3d(0, 0, 0) scale(1.3) rotate(0deg); }
-          50% { transform: translate3d(-38px, -18px, 0) scale(1.33) rotate(-0.5deg); }
-        }
-        @keyframes cloudDriftHighCumulus {
-          0%, 100% { transform: translate3d(0, 0, 0) scale(1.12); }
-          50% { transform: translate3d(42px, -24px, 0) scale(1.16); }
-        }
-        @keyframes cloudDriftCoreFluffy {
-          0%, 100% { transform: translate3d(0, 0, 0) scale(1); }
-          50% { transform: translate3d(-34px, -16px, 0) scale(1.04); }
-        }
-        @keyframes cloudDriftMidBank {
-          0%, 100% { transform: translate3d(0, 0, 0) scale(0.95); }
-          50% { transform: translate3d(38px, -18px, 0) scale(0.99); }
-        }
-        @keyframes cloudDriftWispsLeft {
-          0%, 100% { transform: translate3d(0, 0, 0) scale(0.85); }
-          50% { transform: translate3d(-46px, 22px, 0) scale(0.89); }
-        }
-        @keyframes cloudDriftSecondaryWisps {
-          0%, 100% { transform: translate3d(0, 0, 0) scale(0.72) rotate(1deg); }
-          50% { transform: translate3d(32px, -28px, 0) scale(0.77) rotate(-0.8deg); }
-        }
-        @keyframes cloudDriftPoolMist {
-          0%, 100% { transform: translate3d(0, 0, 0) scale(1.08); }
-          50% { transform: translate3d(35px, -14px, 0) scale(1.12); }
-        }
-        @keyframes cloudDriftAtmosphere {
-          0%, 100% { transform: translate3d(0, 0, 0) scale(0.98); }
-          50% { transform: translate3d(-28px, 20px, 0) scale(1.03); }
-        }
-      `}</style>
-
       {/* Layer 0: Colorful Buildings & Pool Reflection Backdrop */}
       <div aria-hidden="true" className="absolute inset-0 pointer-events-none z-0 overflow-hidden">
         <img
