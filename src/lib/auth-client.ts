@@ -18,10 +18,20 @@ export interface UserProfile {
 
 function setTokenCookie(token: string): void {
   document.cookie = `sn_token=${encodeURIComponent(token)}; path=/; SameSite=Lax; max-age=${8 * 3600}`;
+  if (typeof window !== "undefined") {
+    try {
+      localStorage.setItem("skynest_token", token);
+    } catch {}
+  }
 }
 
 function clearTokenCookie(): void {
-  document.cookie = 'sn_token=; path=/; max-age=0';
+  document.cookie = "sn_token=; path=/; max-age=0";
+  if (typeof window !== "undefined") {
+    try {
+      localStorage.removeItem("skynest_token");
+    } catch {}
+  }
 }
 
 export const authClient = {

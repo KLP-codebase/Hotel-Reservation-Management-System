@@ -131,4 +131,11 @@ export class UserAccountRepository extends BaseRepository<
     );
     return { staffId: rows[0].out_staff_id, userAccountId: rows[0].out_user_account_id };
   }
+  async assignBranchToStaff(staffId: string, branchId: string): Promise<void> {
+    await this.db.query(
+      `UPDATE staff SET branch_id = $1 WHERE staff_id = $2`,
+      [branchId, staffId],
+    );
+  }
+
 }
