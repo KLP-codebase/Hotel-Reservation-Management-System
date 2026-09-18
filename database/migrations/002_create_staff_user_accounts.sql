@@ -154,7 +154,7 @@ BEGIN
 
     -- User accounts
     INSERT INTO user_accounts (staff_id, username, password_hash, account_type) VALUES
-        (NULL,                    'guest',        v_seed_hash,  'GUEST'),
+        (v_guest_staff_id,        'guest',        v_seed_hash,  'GUEST'),
         (v_receptionist_staff_id, 'receptionist', v_seed_hash,  'RECEPTIONIST'),
         (v_service_staff_id,      'service',      v_seed_hash,  'SERVICE_STAFF'),
         (v_manager_staff_id,      'manager',      v_seed_hash,  'MANAGER'),
