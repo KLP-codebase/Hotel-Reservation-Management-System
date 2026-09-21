@@ -9,17 +9,17 @@ const repo = new BookingRepository(db);
 
 // Schema for creating a booking
 const CreateBookingSchema = z.object({
-    branch_id: z.number().int().positive(),
-    booked_by_guest_id: z.string().uuid(),
+    branch_id: z.union([z.string(), z.number()]),
+    booked_by_guest_id: z.string(),
     notes: z.string().optional(),
 });
 
 // Schema for adding a room to a booking
 const AddRoomSchema = z.object({
-    primary_guest_id: z.string().uuid(),
-    room_type_id: z.number().int().positive(),
-    room_id: z.number().int().positive(),
-    plan_id: z.number().int().positive(),
+    primary_guest_id: z.string(),
+    room_type_id: z.number().int().positive().optional().nullable(),
+    room_id: z.union([z.string(), z.number()]),
+    plan_id: z.number().int().positive().optional().default(1),
     check_in_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Must be YYYY-MM-DD'),
     check_out_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Must be YYYY-MM-DD'),
     rate_at_booking: z.number().positive(),

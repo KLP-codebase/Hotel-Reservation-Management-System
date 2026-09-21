@@ -14,6 +14,8 @@ psql $DATABASE_URL -f database/migrations/005_triggers.sql
 psql $DATABASE_URL -f database/migrations/006_views.sql
 psql $DATABASE_URL -f database/migrations/007_functions.sql
 psql $DATABASE_URL -f database/migrations/008_indexes.sql
+psql $DATABASE_URL -f database/migrations/009_billing_and_tax_schema.sql
+psql $DATABASE_URL -f database/migrations/010_reservations_and_booking_rooms.sql
 ```
 
 Or with Docker running:

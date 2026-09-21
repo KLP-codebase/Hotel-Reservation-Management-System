@@ -3,6 +3,25 @@
 
 ---
 
+> ### ⚠️ Design vs. Deployed Reality (verified against Railway, 2026-09-17)
+>
+> This report documents the **designed** schema and remains the academic reference. The deployed
+> Railway database has drifted from it. When writing queries, verify against the live database:
+>
+> - **`guests` carries two identity columns:** `guest_id` (`uuid` PK) and a legacy `id` (`varchar`).
+> - **`bookings.booked_by_guest_id` is `varchar` and holds `guests.id` values**, not
+>   `guests.guest_id` — so `JOIN guests g ON g.id = b.booked_by_guest_id` is the working join.
+>   Casting to `::uuid` fails outright because seed rows contain values like `'GST-COL-001'`.
+> - **`booking_rooms.primary_guest_id` and `.room_id` are `varchar`**, not `uuid`/`int`.
+> - **18 tables exist live**, not 17 — legacy duplicates `users`/`user_accounts` and
+>   `bills`/`invoices` coexist.
+> - **`v_booking_details` uses INNER JOIN**, so bookings with zero room lines return `null`.
+>
+> Frozen-snapshot rules (B8 `rate_at_booking`, B10 `price_at_usage`) and the tax cascade are
+> implemented as designed.
+
+---
+
 ## 1. Overview
 
 SkyNest Hotels operates three branches (Colombo, Kandy, Galle). The database must support multi-branch room inventory, guest bookings with accompanying guest verification, chargeable service tracking per room stay, automated invoice generation with Sri Lankan tax cascades, partial payment support, management reporting, and a full audit/change log.

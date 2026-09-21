@@ -87,7 +87,7 @@ export class UserAccountRepository extends BaseRepository<
        FROM user_accounts ua
        JOIN staff s ON ua.staff_id = s.staff_id
        LEFT JOIN branches b ON s.branch_id = b.branch_id
-       WHERE ua.username = $1 AND ua.is_active = true`,
+       WHERE (ua.username = $1 OR LOWER(s.email) = LOWER($1)) AND ua.is_active = true`,
       [username],
     );
     return rows[0] ?? null;
@@ -131,4 +131,11 @@ export class UserAccountRepository extends BaseRepository<
     );
     return { staffId: rows[0].out_staff_id, userAccountId: rows[0].out_user_account_id };
   }
+  async assignBranchToStaff(staffId: string, branchId: string): Promise<void> {
+    await this.db.query(
+      `UPDATE staff SET branch_id = $1 WHERE staff_id = $2`,
+      [branchId, staffId],
+    );
+  }
+
 }

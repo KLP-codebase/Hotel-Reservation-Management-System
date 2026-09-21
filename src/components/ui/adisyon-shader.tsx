@@ -314,7 +314,40 @@ const UNIFORMS = {
 
 const pendingContextReleases = new WeakMap<HTMLCanvasElement, number>()
 
-export function ShaderBackground({ className }: { className?: string }) {
+export const WHITE_CLOUDS_PALETTE: [number, number, number][] = [
+  [0.820, 0.860, 0.910], // Soft ethereal cloud shadow (clean, zero dark grey)
+  [0.910, 0.940, 0.970], // Light luminous mist body
+  [0.970, 0.985, 1.000], // Fluffy bright white cloud body
+  [1.000, 1.000, 1.000], // Pure brilliant white cloud crests
+  [1.000, 1.000, 1.000],
+  [1.000, 1.000, 1.000],
+  [1.000, 1.000, 1.000],
+  [1.000, 1.000, 1.000],
+];
+
+export interface ShaderBackgroundProps {
+  className?: string;
+  variant?: 'default' | 'white';
+  colors?: [number, number, number][];
+  colorCount?: number;
+  scale?: number;
+  intensity?: number;
+  contrast?: number;
+  brightness?: number;
+  timeScale?: number;
+}
+
+export function ShaderBackground({
+  className,
+  variant = 'default',
+  colors,
+  colorCount,
+  scale,
+  intensity,
+  contrast,
+  brightness,
+  timeScale,
+}: ShaderBackgroundProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
 
   useEffect(() => {
@@ -363,19 +396,28 @@ export function ShaderBackground({ className }: { className?: string }) {
       space: gl.getUniformLocation(program, "u_space"),
       cursor: gl.getUniformLocation(program, "u_cursor"),
     }
-    gl.uniform3fv(uni.colors, new Float32Array(UNIFORMS.colors.flat()))
+
+    const activeColors = colors || (variant === 'white' ? WHITE_CLOUDS_PALETTE : UNIFORMS.colors);
+    const activeColorCount = colorCount !== undefined ? colorCount : (variant === 'white' ? 4 : UNIFORMS.colorCount);
+    const activeScale = scale !== undefined ? scale : (variant === 'white' ? 1.6 : UNIFORMS.scale);
+    const activeIntensity = intensity !== undefined ? intensity : (variant === 'white' ? 0.55 : UNIFORMS.intensity);
+    const activeContrast = contrast !== undefined ? contrast : (variant === 'white' ? 1.02 : UNIFORMS.contrast);
+    const activeBrightness = brightness !== undefined ? brightness : (variant === 'white' ? 0.04 : UNIFORMS.brightness);
+    const activeTimeScale = timeScale !== undefined ? timeScale : UNIFORMS.timeScale;
+
+    gl.uniform3fv(uni.colors, new Float32Array(activeColors.flat()))
     gl.uniform4f(
       uni.shape,
-      UNIFORMS.scale,
-      UNIFORMS.intensity,
+      activeScale,
+      activeIntensity,
       UNIFORMS.paramA,
       UNIFORMS.warp,
     )
     gl.uniform4f(
       uni.surface,
       UNIFORMS.detail,
-      UNIFORMS.contrast,
-      UNIFORMS.brightness,
+      activeContrast,
+      activeBrightness,
       UNIFORMS.saturation,
     )
     gl.uniform4f(
@@ -542,8 +584,8 @@ export function ShaderBackground({ className }: { className?: string }) {
         uni.scene,
         width,
         height,
-        ((now - start) / 1000) * UNIFORMS.timeScale,
-        UNIFORMS.colorCount,
+        ((now - start) / 1000) * activeTimeScale,
+        activeColorCount,
       )
       gl.uniform4f(
         uni.space,

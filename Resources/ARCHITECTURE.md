@@ -69,7 +69,7 @@ The system implements a classic **N-Tier Architecture** distributed across decou
 │                            PRESENTATION TIER (Next.js 16 / React 19)                         │
 │                                Port 3000 · Railway / Local Host                              │
 │  ┌────────────────────────────────────────────────────────────────────────────────────────┐  │
-│  │ App Router: (auth), (dashboard), /book, /book/[roomTypeId], /account                   │  │
+│  │ App Router: (auth), /dashboard/(management), /book, /book/confirm                      │  │
 │  │ Design System: Tailwind CSS v4, Cinzel Serif Display, Plus Jakarta Sans Body           │  │
 │  │ Motion Engine: GSAP 3.12 + ScrollTrigger, Lenis Smooth Scroll                           │  │
 │  │ API Client: Direct fetch to Express REST API via NEXT_PUBLIC_API_URL                   │  │
@@ -130,9 +130,9 @@ branches (branch_id [PK], branch_name, city, address, phone, email, is_active)
   │    user_accounts (account_id [PK], username, password_hash, account_type, staff_id [FK], guest_id [FK])
   │      │
   │      ▼ (1:1 Link)
-  └──< guests (guest_id [PK], first_name, last_name, email, phone, created_at)
+  └──< guests (guest_id [PK], id [legacy varchar], first_name, last_name, email, phone, created_at)
          ▲
-         │ (Booker / Primary Guest)
+         │ (Booker / Primary Guest — see drift warning below)
          ├──< bookings (booking_id [PK], branch_id [FK], booked_by_guest_id [FK], booked_by_staff_id [FK], status, notes)
          │      │
          │      └──< booking_rooms (booking_room_id [PK], booking_id [FK], primary_guest_id [FK], room_type_id [FK],
@@ -153,6 +153,28 @@ tax_configurations (tax_id [PK], tax_name, tax_percentage, is_active, effective_
 report_snapshots (snapshot_id [PK], report_type, report_period_start, report_period_end, branch_id [FK], report_data [JSONB])
 change_log (log_id [PK], table_name, record_id, action, old_data [JSONB], new_data [JSONB], changed_at)
 ```
+
+> ### ⚠️ Live Schema Drift (verified against Railway, 2026-09-17)
+>
+> The diagram above is the **designed** model. The live database differs in ways that will break
+> queries written from the diagram alone. **Trust the live database.**
+>
+> 1. **`guests` has two identity columns.** `guest_id` (`uuid`, the real PK) and `id`
+>    (`varchar`, legacy but still populated).
+> 2. **`bookings.booked_by_guest_id` is `varchar` and references `guests.id`** — *not*
+>    `guests.guest_id`, despite the `REFERENCES guests(guest_id)` declaration in `init.sql`.
+>    - Correct: `LEFT JOIN guests g ON g.id = b.booked_by_guest_id`
+>    - Fails with `operator does not exist: uuid = character varying`:
+>      `... ON g.guest_id = b.booked_by_guest_id`
+>    - Casting also fails — seed rows hold values like `'GST-COL-001'`, so `::uuid` raises
+>      `invalid input syntax for type uuid`. One bad value fails the entire query.
+> 3. **`booking_rooms.primary_guest_id` and `booking_rooms.room_id` are `varchar`**, not `uuid`/`int`.
+> 4. **18 tables exist live**, not 17 — including legacy duplicates `users`/`user_accounts` and
+>    `bills`/`invoices`. Confirm which one holds data before joining.
+> 5. **Live views:** `v_booking_details`, `v_active_accounts`, `v_staff_details`,
+>    `v_admin_audit_activity`. `v_booking_details` uses an **INNER JOIN**, so a booking with zero
+>    rooms returns `null` — fall back to the `bookings` table to tell "no rooms yet" apart from
+>    "does not exist".
 
 ---
 
@@ -486,13 +508,19 @@ All endpoints reside under the base path `/api/v1` and communicate via JSON:
 * **`GET /api/v1/bookings/:id`** — Returns denormalized booking summary via `v_booking_details`.
 * **`POST /api/v1/bookings/:id/rooms`** — Additive single-room reservation for receptionists.
 * **`PATCH /api/v1/bookings/:id/status`** — State transitions: `PENDING` $\rightarrow$ `CONFIRMED` $\rightarrow$ `CHECKED_IN` $\rightarrow$ `CHECKED_OUT` or `CANCELLED`.
-* **`POST /api/v1/bookings/rooms/:id/assign-room`** — Front desk physical room assignment (`room_id`) with ID document verification.
-* **`POST /api/v1/bookings/rooms/:id/check-out`** — Finalizes checkout; blocked if linked invoice balance $> 0$.
+* ~~**`POST /api/v1/bookings/rooms/:id/assign-room`**~~ — *Not built.* Front-desk room assignment is handled by **`POST /api/v1/dashboard/check-in`**.
+* ~~**`POST /api/v1/bookings/rooms/:id/check-out`**~~ — *Not built.* Checkout is handled by **`POST /api/v1/dashboard/check-out`**.
+* **`POST /api/v1/booking-rooms/:id/accompanying-guests`** — *(as built)* Adds an accompanying guest to a room line.
+
+> **As-built note (2026-09-17):** `GET /api/v1/bookings` exists but has **no frontend consumer** —
+> the receptionist ledger reads `GET /api/v1/dashboard/bookings` instead. These endpoints were
+> specified but never implemented: `PATCH /api/v1/booking-rooms/:id`,
+> `DELETE /api/v1/booking-rooms/:id`, `PATCH /api/v1/accompanying-guests/:id/verify`.
 
 ### 7.4 Billing & Payments
 * **`POST /api/v1/services/usage`** — Record billable service consumption (spa, mini-bar, transport).
 * **`POST /api/v1/invoices/:bookingRoomId/generate`** — Calls `sp_generate_final_bill`.
-* **`POST /api/v1/payments`** — Posts cash, credit card, or PayHere gateway payment against an invoice.
+* **`POST /api/v1/invoices/:bookingId/payments`** — *(as built)* Posts a payment against an invoice. There is no top-level `/api/v1/payments` route.
 
 ---
 
@@ -520,16 +548,22 @@ In compliance with [`.gemini/skills/sky-nest-design.md`](file:///f:/Third%20Sem/
 
 Detailed specifications and word-for-word editorial copy reside in [`Resources/SkyNest_Site_Map_and_Content_Copy.md`](file:///f:/Third%20Sem/DB/Project/Github%20Repo/Hotel-Reservation-Management-System/Resources/SkyNest_Site_Map_and_Content_Copy.md):
 
-| # | Route | Screen Name | Target Actor | Assigned Member |
+> **Implementation note (2026-09-17):** the table below is the original screen *specification*.
+> Several routes were implemented under different paths. The **As Built** column is authoritative
+> for anyone writing code.
+
+| # | Specified Route | Screen Name | Assigned Member | As Built |
 |---|---|---|---|---|
-| **0** | `/` | Luxury Marketing Landing Page | Public Visitor | Member 3 *(Completed)* |
-| **1** | `/book` | Room Search & Live Availability | Unregistered / Registered Guest | **Member 3** |
-| **2** | `/book/[roomTypeId]` | Multi-Step Room Detail & Booking Flow | Unregistered / Registered Guest | **Member 3** |
-| **3** | `/book/confirmation/[bookingId]` | Stay Voucher & Confirmation | Guest / Public | **Member 3** |
-| **4** | `/register` | Guest Profile Registration | Unregistered Guest | Member 1 |
-| **5** | `/account` | Guest Stay History & Preferences | Registered Guest | **Member 3** |
-| **6** | `/login` | Staff Authentication Portal | All Staff | Member 1 *(Completed)* |
-| **7** | `/dashboard` | Operations Hub & Daily KPIs | Receptionist, Manager | Shared / Front Desk |
+| **0** | `/` | Luxury Marketing Landing Page | Member 3 | ✅ `/` |
+| **1** | `/book` | Room Search & Live Availability | **Member 3** | ✅ `/book` |
+| **2** | `/book/[roomTypeId]` | Multi-Step Room Detail & Booking Flow | **Member 3** | ✅ built as **`/book/confirm`** (query-param driven) |
+| **3** | `/book/confirmation/[bookingId]` | Stay Voucher & Confirmation | **Member 3** | ✅ folded into `/book/confirm` |
+| **4** | `/register` | Guest Profile Registration | Member 1 | ✅ `/register` |
+| **5** | `/account` | Guest Stay History & Preferences | **Member 3** | ❌ not built |
+| **6** | `/login` | Staff Authentication Portal | Member 1 | ✅ `/login` (auth layout rebuilt by Member 3, 2026-09-17) |
+| **7** | `/dashboard` | Operations Hub & Daily KPIs | Shared / Front Desk | ✅ `/dashboard` + `/dashboard/(management)/*` |
+| **7a** | — | Receptionist Booking Ledger | — | ✅ `/dashboard/bookings` |
+| **7b** | — | Booking Detail & Stay Lifecycle | — | ❌ `/dashboard/bookings/[id]` not built |
 | **8** | `/dashboard/bookings` | Bookings Master Management Grid | Receptionist, Manager | **Member 3** |
 | **9** | `/dashboard/bookings/new` | Front Desk Walk-in Booking Engine | Receptionist | **Member 3** |
 | **10** | `/dashboard/bookings/[id]` | Stay Lifecycle, Check-in/out & Room Assign | Receptionist | **Member 3** |
@@ -575,9 +609,14 @@ The application is architected for dual-target deployment without code modificat
 
 ### Essential Environment Configuration (`.env`)
 
+> **Note:** the backend reads `backend/.env`, not the root `.env`. The **active** connection is the
+> shared Railway instance (`hayabusa.proxy.rlwy.net:16058`); the local Docker URL below is the
+> commented-out fallback. See `Resources/RAILWAY_SETUP_GUIDE.md`.
+
 ```ini
-# Database Connection (Local Docker / Railway Cloud)
-DATABASE_URL=postgresql://postgres:skynest_dev@localhost:5432/skynest
+# Database Connection — ACTIVE is Railway; local Docker retained as fallback
+DATABASE_URL=postgresql://postgres:<password>@hayabusa.proxy.rlwy.net:16058/railway
+# DATABASE_URL=postgresql://postgres:skynest_dev@localhost:5432/skynest
 
 # Express Backend REST API
 PORT=4000

@@ -8,16 +8,16 @@ import { ShaderBackground } from '@/components/ui/adisyon-shader';
 
 // ── Static Reference Data ───────────────────────────────────────────────────
 const BRANCHES = [
-  { id: '1', name: 'Sky Nest Colombo' },
-  { id: '2', name: 'Sky Nest Kandy' },
-  { id: '3', name: 'Sky Nest Galle' },
+  { id: '953fd827-751c-47eb-a201-e0aac4bc444a', name: 'Sky Nest Colombo' },
+  { id: 'af0167cd-c9eb-4ac5-ba22-cfd65cdc87a5', name: 'Sky Nest Kandy' },
+  { id: '30a7b55d-9440-45c2-a990-08821af210ba', name: 'Sky Nest Galle' },
 ];
 
 const ROOM_TYPES = [
-  { id: '1', name: 'Standard Room', rate: 120 },
-  { id: '2', name: 'Deluxe Ocean Room', rate: 220 },
-  { id: '3', name: 'Executive Suite', rate: 450 },
-  { id: '4', name: 'Presidential Suite', rate: 950 },
+  { id: 'STANDARD', name: 'Standard Room', rate: 120 },
+  { id: 'DELUXE', name: 'Deluxe Room', rate: 180 },
+  { id: 'SUITE', name: 'Suite', rate: 280 },
+  { id: 'PRESIDENTIAL', name: 'Presidential Suite', rate: 500 },
 ];
 
 const MEAL_PLANS = [
@@ -72,7 +72,7 @@ function BookingConfirmContent() {
 
   // Read URL query params passed from /book
   const roomIdStr = searchParams.get('room_id') ?? '';
-  const roomTypeIdStr = searchParams.get('room_type_id') ?? '';
+  const roomTypeIdStr = searchParams.get('room_type') ?? '';
   const branchIdStr = searchParams.get('branch_id') ?? '';
   const checkIn = searchParams.get('check_in') ?? '';
   const checkOut = searchParams.get('check_out') ?? '';
@@ -197,13 +197,14 @@ function BookingConfirmContent() {
 
         if (guestRes.ok) {
           const guestData = await guestRes.json();
-          guestId = guestData.data?.guest_id || '';
+          // Check both guest_id and id so it matches whatever the DB returns
+          guestId = guestData.data?.guest_id || guestData.data?.id || '';
         } else {
           const searchRes = await fetch(`${apiUrl}/api/v1/guests?search=${encodeURIComponent(email.trim())}`);
           if (searchRes.ok) {
             const searchData = await searchRes.json();
             if (searchData.data && searchData.data.length > 0) {
-              guestId = searchData.data[0].guest_id;
+              guestId = searchData.data[0].guest_id || searchData.data[0].id || '';
             }
           }
         }
@@ -224,7 +225,7 @@ function BookingConfirmContent() {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            branch_id: Number(branchIdStr),
+            branch_id: branchIdStr, // Keep as string (UUID) — DO NOT wrap in Number()
             booked_by_guest_id: guestId,
             notes: notes.trim() || undefined,
           }),
@@ -240,8 +241,7 @@ function BookingConfirmContent() {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               primary_guest_id: guestId,
-              room_type_id: Number(roomTypeIdStr),
-              room_id: Number(roomIdStr),
+              room_id: roomIdStr, // Keep as string (UUID) — DO NOT wrap in Number()
               plan_id: selectedPlanId,
               check_in_date: checkIn,
               check_out_date: checkOut,
@@ -254,6 +254,8 @@ function BookingConfirmContent() {
             bookingRoomId = roomData.data?.booking_room_id || bookingRoomId;
           }
         }
+
+
       } catch {
         // Fallback if backend offline
       }
