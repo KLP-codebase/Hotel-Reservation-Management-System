@@ -66,7 +66,7 @@ router.get('/:id', async (req: Request, res: Response) => {
     if (isNaN(taxId)) {
         throw Errors.badRequest('Invalid tax ID — must be an integer');
     }
-    const tax = await repo.findById(taxId);
+    const tax = await repo.findById(taxId); //find by id
     if (!tax) {
         throw Errors.notFound('Tax configuration');
     }
@@ -74,5 +74,57 @@ router.get('/:id', async (req: Request, res: Response) => {
 });
 
 
+/**
+ * 4. PUT /api/v1/tax-configurations/:id
+ * Update tax rate, active flag, or expiration date.
+ * Protected: Requires login AND MANAGER, ADMINISTRATOR, or DBA role.
+ */
+
+
+router.put(
+    '/:id',
+    authenticate, //whether the user is authenticated
+    authorize('ADMINISTRATOR', 'MANAGER', 'DBA'),//checking if the authenticated user has permission to update the tax
+    validate(UpdateTaxSchema), //validating the input data
+    async (req: Request, res: Response) => {
+        const taxId = parseInt(req.params.id, 10);
+        if (isNaN(taxId)) {
+            throw Errors.badRequest('Invalid tax ID — must be an integer');
+        }
+        const updated = await repo.update(taxId, {
+            tax_percentage: req.body.taxPercentage,
+            is_active: req.body.isActive,
+            effective_to: req.body.effectiveTo,
+        });
+        if (!updated) {
+            throw Errors.notFound('Tax configuration');
+        }
+        res.status(200).json(ResponseFactory.ok(updated, 'Tax configuration updated successfully'));
+    }
+);
+
+/**
+ * 5. POST /api/v1/tax-configurations
+ * Create a new statutory tax rate (Rule B13).
+ * Protected: Requires login AND ADMINISTRATOR or DBA role.
+ */
+//Only administrator and DBA can create new taxes
+router.post(
+    '/',
+    authenticate,
+    authorize('ADMINISTRATOR', 'DBA'),
+    validate(CreateTaxSchema),
+    async (req: Request, res: Response) => {
+        const created = await repo.create({
+            tax_name: req.body.taxName,
+            tax_percentage: req.body.taxPercentage,
+            is_active: req.body.isActive,
+            effective_from: req.body.effectiveFrom,
+            effective_to: req.body.effectiveTo,
+        });   //201 is commonly used when new resource has created
+        res.status(201).json(ResponseFactory.created(created, 'Tax configuration created successfully'));
+    }
+);
+export default router;
 
 
