@@ -29,20 +29,20 @@ CREATE TABLE IF NOT EXISTS staff (
     phone      VARCHAR(50),
     role       account_type NOT NULL,
     is_active  BOOLEAN DEFAULT true,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE TABLE IF NOT EXISTS user_accounts (
     user_account_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    staff_id        UUID UNIQUE REFERENCES staff(staff_id) ON DELETE CASCADE,
+    staff_id        UUID UNIQUE REFERENCES staff(staff_id) ON DELETE CASCADE, -- NULL for external guests
     username        VARCHAR(100) UNIQUE NOT NULL,
     password_hash   VARCHAR(255) NOT NULL,
     account_type    account_type NOT NULL,
     is_active       BOOLEAN DEFAULT true,
-    last_login_at   TIMESTAMP,
-    created_at      TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at      TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    last_login_at   TIMESTAMP WITH TIME ZONE,
+    created_at      TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at      TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
 -- ── GoF Decorator: Check Constraints ─────────────────────────────────────────
@@ -163,4 +163,3 @@ BEGIN
     ON CONFLICT (username) DO NOTHING;
 END;
 $$;
-
