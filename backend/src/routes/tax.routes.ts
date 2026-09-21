@@ -12,7 +12,7 @@ import { Errors } from '../lib/errors';  //prebuilt http error exceptions
 const router = Router(); //creates the express router
 const repo = new TaxRepository(db);  //creates the tax repositary object
 
-
+//-------------------------Validation schemas--------------------------------------------
 //validate tax creation input
 const CreateTaxSchema = z.object({
     taxName: z.string().min(1, 'Tax name is required').max(100),
@@ -25,6 +25,7 @@ const CreateTaxSchema = z.object({
     effectiveTo: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'effectiveTo must be YYYY-MM-DD').nullable().optional(),
 });
 
+//validate tax update input
 const UpdateTaxSchema = z.object({
     taxPercentage: z
         .number()
@@ -34,4 +35,44 @@ const UpdateTaxSchema = z.object({
     isActive: z.boolean().optional(),   //optional because we don't need to update everything
     effectiveTo: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'effectiveTo must be YYYY-MM-DD').nullable().optional(),
 });
+
+//--------------------------------------------------------------------------------------------------------------------------
+
+
+//------------------------Routes--------------------------------------------------------------------------------------------
+/*when a GET request comes to this router's / path, execute this function
+ Returns all taxes (ordered by tax_id). Accessible to front-desk & management.*/
+router.get('/', async (req: Request, res: Response) => {
+    const taxes = await repo.findAll();
+    res.status(200).json(ResponseFactory.ok(taxes));
+});
+
+/**
+ * 2. GET /api/v1/tax-configurations/active
+ * Returns only currently active statutory taxes for billing (Rule B13).
+ * NOTE: Defined BEFORE /:id so Express doesn't mistake 'active' for an ID!
+ */
+router.get('/active', async (_req: Request, res: Response) => {
+    const activeTaxes = await repo.findActive();
+    res.status(200).json(ResponseFactory.ok(activeTaxes));
+});
+
+/**
+ * 3. GET /api/v1/tax-configurations/:id
+ * Returns a single tax configuration by its ID.
+ */
+router.get('/:id', async (req: Request, res: Response) => {
+    const taxId = parseInt(req.params.id, 10);
+    if (isNaN(taxId)) {
+        throw Errors.badRequest('Invalid tax ID — must be an integer');
+    }
+    const tax = await repo.findById(taxId);
+    if (!tax) {
+        throw Errors.notFound('Tax configuration');
+    }
+    res.status(200).json(ResponseFactory.ok(tax));
+});
+
+
+
 
