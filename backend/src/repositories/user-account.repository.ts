@@ -87,7 +87,7 @@ export class UserAccountRepository extends BaseRepository<
        FROM user_accounts ua
        JOIN staff s ON ua.staff_id = s.staff_id
        LEFT JOIN branches b ON s.branch_id = b.branch_id
-       WHERE ua.username = $1 AND ua.is_active = true`,
+       WHERE (ua.username = $1 OR LOWER(s.email) = LOWER($1)) AND ua.is_active = true`,
       [username],
     );
     return rows[0] ?? null;

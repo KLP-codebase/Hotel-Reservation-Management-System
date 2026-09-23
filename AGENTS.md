@@ -24,6 +24,7 @@ The design system is premium and cinematic. It uses:
 - **Color tokens (Tailwind classes):** `bg-paper`, `bg-ink`, `text-ink`, `text-ink-faded`, `bg-skynest-accent`, `text-skynest-accent`, `border-skynest-hairline`. Do NOT use raw hex values in JSX.
 - **Accent color:** `#D9722C` (`skynest-accent`). NOT `#ff7e15`.
 - **Motion:** GSAP + ScrollTrigger for all scroll-driven effects. CSS transitions only for micro-interactions (hover, focus).
+- **`@keyframes` belong in `src/styles/globals.css`.** Do NOT define them in a `<style jsx global>` block inside a Client Component — styled-jsx in the App Router requires a `StyleRegistry` (`useServerInsertedHTML`) that this project does not have, so the rules silently never reach the page and the animation just doesn't run.
 - **Hero:** Globally pinned (`sticky top-0 z-0`). Cloud section scrolls over it.
 - **Nav:** Inline `lerp()` interpolation — NOT `.is-scrolled` CSS class toggle.
 
@@ -52,7 +53,7 @@ Before submitting any UI change, verify:
 ## Architectural Mandates & Authoritative References
 
 Always read and conform to the project specifications in `Resources/`:
-- **System Architecture:** [`Resources/ARCHITECTURE.md`](file:///f:/Third%20Sem/DB/Project/Github%20Repo/Hotel-Reservation-Management-System/Resources/ARCHITECTURE.md) — 17 normalized relations, two-tier concurrency control, 4-tier Sri Lankan tax cascade ($SC \rightarrow TDL \rightarrow SSCL \rightarrow VAT$), GoF patterns, and REST endpoints.
+- **System Architecture:** [`Resources/ARCHITECTURE.md`](file:///f:/Third%20Sem/DB/Project/Github%20Repo/Hotel-Reservation-Management-System/Resources/ARCHITECTURE.md) — the designed relational model (17 relations as specified; **18 tables exist live**, including legacy duplicates), two-tier concurrency control, 4-tier Sri Lankan tax cascade ($SC \rightarrow TDL \rightarrow SSCL \rightarrow VAT$), GoF patterns, and REST endpoints.
 - **UI Screen Inventory & Content Copy:** [`Resources/SkyNest_Site_Map_and_Content_Copy.md`](file:///f:/Third%20Sem/DB/Project/Github%20Repo/Hotel-Reservation-Management-System/Resources/SkyNest_Site_Map_and_Content_Copy.md) — Exact editorial copy, form labels, empty states, and validation warnings for all 15 screens.
 - **Design System Specification:** [`.gemini/skills/sky-nest-design.md`](file:///f:/Third%20Sem/DB/Project/Github%20Repo/Hotel-Reservation-Management-System/.gemini/skills/sky-nest-design.md) — Typography (`font-cinzel`, `font-jakarta`), color tokens (`#D9722C` `skynest-accent`, `#0B2540` `text-ink`, `#FDFCFA` `bg-paper`), and motion guidelines.
 
@@ -68,20 +69,52 @@ Prisma or any ORM is **strictly forbidden**. All database operations must:
 
 ## Environment
 
-Uses `.env` (not `.env.example`) for local development.
+Uses `.env` (not `.env.example`). **The backend reads its own `backend/.env`, not the root `.env`.**
 
-Database URL varies by context:
-- **Local dev (outside Docker):** `DATABASE_URL=postgresql://postgres:skynest_dev@localhost:5432/skynest`
-- **Docker Compose:** `DATABASE_URL=postgresql://postgres:skynest_dev@postgres:5432/skynest`
+The **active** database is the shared Railway instance — not local Docker:
+
+```env
+# backend/.env — ACTIVE
+DATABASE_URL=postgresql://postgres:<pw>@hayabusa.proxy.rlwy.net:16058/railway
+# LOCAL fallback (commented out by default)
+# DATABASE_URL=postgresql://postgres:skynest_dev@localhost:5432/skynest
+```
+
+`infrastructure/docker/init.sql` remains the team's **schema source of truth** (synced with
+migrations 001–010), but the running database is Railway. Editing `init.sql` does **not** change
+Railway — schema changes must be applied to both. See `Resources/RAILWAY_SETUP_GUIDE.md`.
+
+### Live Schema Warnings (verified 2026-09-17)
+
+The live Railway schema has drifted from `init.sql`. **Trust the live database when writing queries.**
+
+- **`guests` has two identity columns:** `guest_id` (`uuid`, real PK) and `id` (`varchar`, legacy).
+  `bookings.booked_by_guest_id` is a **`varchar` holding `guests.id` values** — despite `init.sql`
+  declaring it `UUID REFERENCES guests(guest_id)`.
+  Correct join: `LEFT JOIN guests g ON g.id = b.booked_by_guest_id`.
+  Casting to `::uuid` fails — some rows hold non-UUID seed values like `'GST-COL-001'`.
+- **18 tables live**, including legacy duplicates: `users` *and* `user_accounts`, `bills` *and*
+  `invoices`. Confirm which holds data before joining.
+- **`v_booking_details` uses INNER JOIN** — a booking with zero rooms returns `null`. Fall back to
+  the `bookings` table to distinguish "no rooms yet" from "does not exist".
+
+To query the live DB: `psql` is not installed locally — use a throwaway Node script in `backend/`
+with `pg` + `dotenv`. Avoid `node -e "…backticks…"` in PowerShell (backtick is PowerShell's escape
+character and will mangle JS template literals).
 
 ## Repository Structure
 
 ```
 src/                    Next.js 16 App Router frontend (Port 3000)
-  app/                  Pages: (auth), (dashboard), /book, /account
+  app/
+    (auth)/             login, register
+    (dashboard)/        LEGACY redirect stubs — not real pages
+    dashboard/          dashboard hub + (management)/{bookings,branches,rooms,staff}
+    book/               availability search + /book/confirm booking flow
   components/           Marketing (SkyNestHomePage), layout, shared UI
   design-system/        Tokens, fonts, and references
-  styles/               Tailwind v4 tokens in globals.css
+  lib/                  api-client.ts (apiFetch, toNum, ApiError), auth, utils
+  styles/               Tailwind v4 tokens + keyframes in globals.css
 backend/                Node.js 20 / Express 4 REST API (Port 4000)
   src/
     config/             Database connection adapter (ResilientPgAdapter)
@@ -89,9 +122,12 @@ backend/                Node.js 20 / Express 4 REST API (Port 4000)
     routes/             Express REST route controllers (/api/v1/*)
     middleware/         Auth (JWT), RBAC, Zod validation, error handling
 database/               PostgreSQL schema, stored procedures, functions
-infrastructure/         Docker Compose (PostgreSQL 15)
+infrastructure/         docker/init.sql — schema source of truth
 Resources/              Architecture, IEEE SRS, DB Design, Site Map & Content Copy
 ```
+
+> Dashboard pages live under `src/app/dashboard/(management)/`. The `src/app/(dashboard)/` route
+> group contains only legacy redirect stubs — do not add pages there.
 
 ## Route Handler Pattern (Next.js 16)
 

@@ -7,11 +7,14 @@
 
 The design is solid for a 3rd-semester project and genuinely close to production-grade in places (exclusion constraints, frozen-rate snapshots, versioned tax config). The two documents mostly agree with each other. Three things need fixing before Member 3's roadmap can proceed safely:
 
-| # | Issue | Severity |
-|---|---|---|
-| 1 | `invoices` table is missing a **TDL (Tourism Development Levy)** column, but the tax cascade in §7.2 requires 4 taxes, not 3 | Blocker for Member 4, but Member 3 should raise it now since it touches the same schema |
-| 2 | No room-type-level concurrency control exists yet — only the **physical-room** exclusion constraint. Two guests can each be told "yes, available" for the last Deluxe room and both get a `booking_rooms` row with `room_id = NULL`, because the exclusion constraint only fires once `room_id` is non-null | Blocker for Task 3 in the roadmap |
-| 3 | Dual API surface (Next.js route handlers + Express backend) — undecided, wastes grading clarity and dev time | Should be resolved before more routes are built |
+> **Status update (2026-09-17):** two of the three issues below are now resolved. Verified against
+> the live Railway database and current `main`.
+
+| # | Issue | Severity | Status |
+|---|---|---|---|
+| 1 | `invoices` table is missing a **TDL (Tourism Development Levy)** column, but the tax cascade in §7.2 requires 4 taxes, not 3 | Blocker for Member 4 | ✅ **Resolved** — live `invoices` has `sc_amount, tdl_amount, sscl_amount, vat_amount` |
+| 2 | No room-type-level concurrency control exists yet — only the **physical-room** exclusion constraint. Two guests can each be told "yes, available" for the last Deluxe room and both get a `booking_rooms` row with `room_id = NULL`, because the exclusion constraint only fires once `room_id` is non-null | Blocker for Task 3 in the roadmap | ❌ **Still open** — no `pg_advisory_lock` / `FOR UPDATE` / explicit transaction exists anywhere in `backend/src/`. The physical-room `EXCLUDE` constraint is the only guard. |
+| 3 | Dual API surface (Next.js route handlers + Express backend) — undecided, wastes grading clarity and dev time | Should be resolved before more routes are built | ✅ **Resolved** — Express is the sole API surface (SI-01, see `AGENTS.md`) |
 
 Everything below is organized as direct answers to your four §8 questions, followed by the corrected architecture plan.
 
@@ -238,16 +241,27 @@ Response should return the full composite object (via `v_booking_details`) so th
 
 ## 4. Prioritized Roadmap for Member 3 (Corrected Order)
 
-1. **Raise the `tdl_amount` schema gap with Member 4 now** — it's shared schema, cheapest to fix before more tables/views depend on `invoices`.
-2. Implement `GET /api/v1/availability` (Task 1) — unchanged, already correct.
-3. Implement `POST /api/v1/bookings` as the **atomic nested-rooms** endpoint (merges old Task 2 + Task 3), using the advisory-lock pattern from §2.1.
-4. Implement `GET /api/v1/bookings`, `GET /api/v1/bookings/:id` (via `v_booking_details`).
-5. Implement `POST /api/v1/bookings/:id/rooms` as the smaller, secondary add-room endpoint.
-6. Implement status transitions (Task 4) — unchanged, correct as specified.
-7. Implement accompanying-guest verification (Task 5) — unchanged.
-8. Frontend flows (Task 6) — build once 3–7 are stable, so you're not building UI against an endpoint shape that's about to change.
-9. Settle the `NEXT_PUBLIC_API_URL` decision (§2.2) **before** Task 6 starts, so the frontend isn't built against routes you're about to delete.
+> ⚠️ **This roadmap is complete except where noted (status added 2026-09-17).**
+> Do not use it to plan new work — see `MY_MODULE.md` for what's actually left.
+
+1. ~~Raise the `tdl_amount` schema gap with Member 4~~ — ✅ done, column exists.
+2. ~~Implement `GET /api/v1/availability`~~ — ✅ done.
+3. ~~Implement `POST /api/v1/bookings` as the **atomic nested-rooms** endpoint~~ — ⚠️ **partially done.** The endpoint exists, but it creates only the booking header; rooms are added separately via `POST /:id/rooms`. **The advisory-lock pattern from §2.1 was never implemented** (see issue 2 in §1).
+4. ~~Implement `GET /api/v1/bookings`, `GET /api/v1/bookings/:id`~~ — ✅ done. Note `GET /api/v1/bookings` has **no frontend consumer**; the receptionist ledger uses `GET /api/v1/dashboard/bookings`.
+5. ~~Implement `POST /api/v1/bookings/:id/rooms`~~ — ✅ done, returns `409` on double-book.
+6. ~~Implement status transitions~~ — ✅ done, state machine enforced.
+7. ~~Implement accompanying-guest verification~~ — ⚠️ **partial.** `POST /api/v1/booking-rooms/:id/accompanying-guests` exists; `PATCH /api/v1/accompanying-guests/:id/verify` was never built.
+8. Frontend flows — ✅ `/book` and `/book/confirm` done. `/dashboard/bookings` was built by KLP. **`/dashboard/bookings/[id]` remains the one open item.**
+9. ~~Settle the `NEXT_PUBLIC_API_URL` decision~~ — ✅ resolved; Express is the sole API surface.
+
+### Genuinely still open
+
+- **Room-type-level concurrency** (advisory locks) — §2.1, issue 2 in §1.
+- **`/dashboard/bookings/[id]`** — booking detail & stay lifecycle page.
+- Never-built endpoints: `PATCH /booking-rooms/:id`, `DELETE /booking-rooms/:id`, `PATCH /accompanying-guests/:id/verify` — build only if the detail page needs them.
 
 ## 5. One Documentation Note
 
-The uploaded `SkyNest_HRGSMS_Database_Design.md` has visible text-corruption in several table/column names (e.g. `ranches`, `ooking_rooms`, `	ax_configurations` appearing where `branches`, `booking_rooms`, `tax_configurations` should be) — likely an encoding issue from whatever tool exported it. Worth re-exporting from the source before sharing it with the rest of the team or a grader, since the FD and schema sections are otherwise accurate.
+~~The uploaded `SkyNest_HRGSMS_Database_Design.md` has visible text-corruption in several table/column names (e.g. `ranches`, `ooking_rooms`, `	ax_configurations`).~~
+
+✅ **Resolved (verified 2026-09-17)** — all 22 occurrences of `booking_rooms` and 13 of `branches` in that file are now spelled correctly. The document no longer needs re-exporting.
