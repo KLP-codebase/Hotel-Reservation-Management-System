@@ -30,6 +30,15 @@ export class AvailabilityRepository {
             WHERE r.branch_id = $1::uuid
               AND r.type      = $2::room_type
               AND r.status    = 'AVAILABLE'
+              -- Real reservations live in booking_rooms (one row per room line)
+              AND NOT EXISTS (
+                SELECT 1 FROM booking_rooms br
+                WHERE br.room_id         = r.id
+                  AND br.status         != 'CANCELLED'
+                  AND br.check_in_date   < $4::date
+                  AND br.check_out_date  > $3::date
+              )
+              -- Legacy single-room bookings (older code paths still write these columns)
               AND NOT EXISTS (
                 SELECT 1 FROM bookings b
                 WHERE b.room_id    = r.id

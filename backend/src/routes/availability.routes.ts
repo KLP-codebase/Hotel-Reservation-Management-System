@@ -17,7 +17,12 @@ const QuerySchema = z.object({
 router.get('/', async (req: Request, res: Response) => {
     const parsed = QuerySchema.safeParse(req.query);
     if (!parsed.success) {
-        res.status(422).json({ success: false, errors: parsed.error.flatten().fieldErrors });
+        res.status(422).json({
+            success: false,
+            message: 'Validation failed',
+            code: 'VALIDATION_ERROR',
+            errors: parsed.error.flatten().fieldErrors,
+        });
         return;
     }
     const { branch_id, room_type, check_in, check_out } = parsed.data;
