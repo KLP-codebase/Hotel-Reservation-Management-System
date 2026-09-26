@@ -93,7 +93,7 @@ export class BookingRepository {
         const roomsResult = await this.db.query(`
             SELECT
                 br.booking_room_id,
-                r.room_number,
+                r.number AS room_number,
                 rt.type_name AS room_type_name,
                 mp.plan_name AS meal_plan_name,
                 br.check_in_date::text AS check_in_date,
@@ -112,12 +112,12 @@ export class BookingRepository {
                     '[]'
                 ) AS accompanying_guests
             FROM booking_rooms br
-            LEFT JOIN rooms r ON r.room_id = br.room_id::uuid
+            LEFT JOIN rooms r ON r.id = br.room_id
             LEFT JOIN room_types rt ON rt.room_type_id = br.room_type_id
             LEFT JOIN meal_plans mp ON mp.plan_id = br.plan_id
             LEFT JOIN accompanying_guests ag ON ag.booking_room_id = br.booking_room_id
             WHERE br.booking_id = $1
-            GROUP BY br.booking_room_id, r.room_number, rt.type_name, mp.plan_name,
+            GROUP BY br.booking_room_id, r.number, rt.type_name, mp.plan_name,
                      br.check_in_date, br.check_out_date, br.rate_at_booking
         `, [bookingId]);
 
