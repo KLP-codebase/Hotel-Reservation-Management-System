@@ -10,19 +10,7 @@ import { apiFetch, ApiError, toNum } from '@/lib/api-client';
 import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 
-
-
-// ── TODO (User Logic) Step 3: define state variables here ────────────────────
-
-// ── TODO (User Logic) Step 4: define fetchBooking() function here ─────────────
-
-// ── TODO (User Logic) Step 5: define useEffect here ──────────────────────────
-
-// ── TODO (User Logic) Step 6: define handleStatusChange() here ───────────────
-
-// ─────────────────────────────────────────────────────────────────────────────
-
-// Status config — colours & labels for each booking status
+// ── Types ────────────────────────────────────────────────────────────────────
 interface AccompanyingGuest {
   verification_id: string;
   first_name: string;
@@ -38,6 +26,7 @@ interface BookingRoom {
   meal_plan_name: string;
   check_in_date: string;
   check_out_date: string;
+  nights: number;
   rate_at_booking: number;
   accompanying_guests: AccompanyingGuest[];
 }
@@ -62,6 +51,7 @@ const STATUS_CONFIG: Record<string, { label: string; color: string; icon: React.
   CHECKED_IN:  { label: 'Checked In',  color: 'text-emerald-400 border-emerald-400/40 bg-emerald-400/10', icon: <CheckCircle2 size={12} /> },
   CHECKED_OUT: { label: 'Checked Out', color: 'text-stone-400 border-stone-400/40 bg-stone-400/10',     icon: <CheckCircle2 size={12} /> },
   CANCELLED:   { label: 'Cancelled',   color: 'text-red-400 border-red-400/40 bg-red-400/10',           icon: <XCircle size={12} /> },
+  NO_SHOW:     { label: 'No Show',     color: 'text-red-400 border-red-400/40 bg-red-400/10',           icon: <XCircle size={12} /> },
 };
 
 // Legal next-status transitions
@@ -71,6 +61,7 @@ const TRANSITIONS: Record<string, string[]> = {
   CHECKED_IN: ['CHECKED_OUT'],
   CHECKED_OUT:[],
   CANCELLED:  [],
+  NO_SHOW:    [],
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -303,6 +294,10 @@ export default function BookingDetailPage() {
                   <span>{room.check_in_date}</span>
                   <span className="text-stone-600">→</span>
                   <span>{room.check_out_date}</span>
+                  <span className="text-stone-600">·</span>
+                  <span>
+                    {toNum(room.nights)} night{toNum(room.nights) === 1 ? '' : 's'} = ${(toNum(room.nights) * toNum(room.rate_at_booking)).toFixed(2)}
+                  </span>
                 </div>
 
                 {room.accompanying_guests && room.accompanying_guests.length > 0 && (
