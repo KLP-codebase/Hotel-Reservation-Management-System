@@ -13,26 +13,34 @@ const repo   = new BranchRepository(db);
 
 // ── Zod schemas ───────────────────────────────────────────────────────────────
 const CreateBranchSchema = z.object({
-  branchName: z.string().min(1).max(100),
-  city:       z.string().min(1).max(100),
-  address:    z.string().max(500).optional(),
-  phone:      z.string().max(50).optional(),
-  email:      z.string().email().optional(),
+  branchName:  z.string().min(1).max(100).optional(),
+  branch_name: z.string().min(1).max(100).optional(),
+  city:        z.string().min(1).max(100),
+  address:     z.string().max(500).optional(),
+  phone:       z.string().max(50).optional(),
+  email:       z.string().email().optional(),
+}).refine(d => (d.branchName ?? d.branch_name) !== undefined, {
+  message: 'Branch name is required',
+  path: ['branchName'],
 });
 
 const UpdateBranchSchema = z.object({
-  branchName: z.string().min(1).max(100).optional(),
-  city:       z.string().min(1).max(100).optional(),
-  address:    z.string().max(500).optional(),
-  phone:      z.string().max(50).optional(),
-  email:      z.string().email().optional(),
+  branchName:  z.string().min(1).max(100).optional(),
+  branch_name: z.string().min(1).max(100).optional(),
+  city:        z.string().min(1).max(100).optional(),
+  address:     z.string().max(500).optional(),
+  phone:       z.string().max(50).optional(),
+  email:       z.string().email().optional(),
+  isActive:    z.boolean().optional(),
+  is_active:   z.boolean().optional(),
 });
 
 // ── Routes ────────────────────────────────────────────────────────────────────
 
-// Public — frontend needs branch list for dropdowns
-router.get('/', async (_req: Request, res: Response) => {
-  const branches = await repo.findAll();
+// Public — frontend needs branch list for dropdowns (support ?include_inactive=true)
+router.get('/', async (req: Request, res: Response) => {
+  const includeInactive = req.query.include_inactive === 'true' || req.query.all === 'true';
+  const branches = includeInactive ? await repo.findAllIncludingInactive() : await repo.findAll();
   res.status(200).json(ResponseFactory.ok(branches));
 });
 
@@ -46,10 +54,11 @@ router.post(
   '/',
   validate(CreateBranchSchema),
   authenticate,
-  authorize('ADMINISTRATOR', 'DBA'),
+  authorize('ADMINISTRATOR', 'DBA', 'MANAGER'),
   async (req: Request, res: Response) => {
+    const branchName = (req.body.branchName ?? req.body.branch_name)!;
     const branch = await repo.create({
-      branch_name: req.body.branchName,
+      branch_name: branchName,
       city:        req.body.city,
       address:     req.body.address,
       phone:       req.body.phone,
@@ -63,16 +72,21 @@ router.patch(
   '/:id',
   validate(UpdateBranchSchema),
   authenticate,
-  authorize('ADMINISTRATOR', 'DBA'),
+  authorize('ADMINISTRATOR', 'DBA', 'MANAGER'),
   async (req: Request, res: Response) => {
     const existing = await repo.findById(req.params.id);
     if (!existing) throw Errors.notFound('Branch');
+
+    const branchName = req.body.branchName ?? req.body.branch_name;
+    const isActive = req.body.isActive ?? req.body.is_active;
+
     const updated = await repo.update(req.params.id, {
-      branch_name: req.body.branchName,
+      branch_name: branchName,
       city:        req.body.city,
       address:     req.body.address,
       phone:       req.body.phone,
       email:       req.body.email,
+      is_active:   isActive,
     });
     res.status(200).json(ResponseFactory.ok(updated, 'Branch updated'));
   },
@@ -81,7 +95,7 @@ router.patch(
 router.delete(
   '/:id',
   authenticate,
-  authorize('ADMINISTRATOR', 'DBA'),
+  authorize('ADMINISTRATOR', 'DBA', 'MANAGER'),
   async (req: Request, res: Response) => {
     const existing = await repo.findById(req.params.id);
     if (!existing) throw Errors.notFound('Branch');
