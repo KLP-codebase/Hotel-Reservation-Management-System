@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { db } from '../config/db';
 import { BookingRepository } from '../repositories/booking.repository';
 import { Errors } from '../lib/errors';
+import { isUuid } from '../lib/uuid';
 
 const router = Router();
 const repo = new BookingRepository(db);
@@ -18,13 +19,19 @@ router.post('/:id/accompanying-guests', async (req: Request, res: Response) => {
     const bookingRoomId = req.params.id;
 
     // 1. Check if the booking room exists
+    if (!isUuid(bookingRoomId)) throw Errors.notFound('Booking Room');
     const room = await repo.findBookingRoomById(bookingRoomId);
     if (!room) throw Errors.notFound('Booking Room');
 
     // 2. Validate request body
     const parsed = AccompanyingGuestSchema.safeParse(req.body);
     if (!parsed.success) {
-        res.status(422).json({ success: false, errors: parsed.error.flatten().fieldErrors });
+        res.status(422).json({
+            success: false,
+            message: 'Validation failed',
+            code: 'VALIDATION_ERROR',
+            errors: parsed.error.flatten().fieldErrors,
+        });
         return;
     }
 

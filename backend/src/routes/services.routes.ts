@@ -5,12 +5,132 @@ import { authorize } from '../middleware/rbac.middleware';
 import { inMemoryStore } from '../config/db-fallback';
 import { db } from '../config/db';
 import { syncAliveBookingDates } from '../services/alive-dates.service';
+import { ServiceRepository } from '../repositories/service.repository';
 
 const router = Router();
+const serviceRepo = new ServiceRepository(db);
 
 // RBAC: Operations staff can manage guest services
 router.use(authenticate);
 router.use(authorize('RECEPTIONIST', 'MANAGER', 'ADMINISTRATOR', 'DBA'));
+
+const CreateCatalogueSchema = z.object({
+  branchId:     z.coerce.number().int().positive().optional(),
+  branch_id:    z.coerce.number().int().positive().optional(),
+  serviceName:  z.string().min(1).max(100).optional(),
+  service_name: z.string().min(1).max(100).optional(),
+  category:     z.string().min(1).max(50),
+  basePrice:    z.coerce.number().nonnegative().optional(),
+  base_price:   z.coerce.number().nonnegative().optional(),
+  isActive:     z.boolean().optional(),
+  is_active:    z.boolean().optional(),
+}).refine(d => (d.branchId ?? d.branch_id) !== undefined, {
+  message: 'Branch is required',
+  path: ['branchId'],
+}).refine(d => (d.serviceName ?? d.service_name) !== undefined, {
+  message: 'Service name is required',
+  path: ['serviceName'],
+}).refine(d => (d.basePrice ?? d.base_price) !== undefined, {
+  message: 'Base price is required',
+  path: ['basePrice'],
+});
+
+const UpdateCatalogueSchema = z.object({
+  branchId:     z.coerce.number().int().positive().optional(),
+  branch_id:    z.coerce.number().int().positive().optional(),
+  serviceName:  z.string().min(1).max(100).optional(),
+  service_name: z.string().min(1).max(100).optional(),
+  category:     z.string().min(1).max(50).optional(),
+  basePrice:    z.coerce.number().nonnegative().optional(),
+  base_price:   z.coerce.number().nonnegative().optional(),
+  isActive:     z.boolean().optional(),
+  is_active:    z.boolean().optional(),
+});
+
+/**
+ * GET /api/v1/services/catalogue
+ * Returns all catalogue services with branch join and optional filtering.
+ */
+router.get('/catalogue', async (req: Request, res: Response) => {
+  const branchId = typeof req.query.branch_id === 'string' && req.query.branch_id !== 'ALL' && req.query.branch_id.trim() !== ''
+    ? req.query.branch_id
+    : undefined;
+  const category = typeof req.query.category === 'string' && req.query.category !== 'ALL' && req.query.category.trim() !== ''
+    ? req.query.category
+    : undefined;
+  const isActive = typeof req.query.is_active === 'string'
+    ? req.query.is_active === 'true'
+    : undefined;
+
+  const services = await serviceRepo.findAllCatalogue({ branch_id: branchId, category, is_active: isActive });
+  res.json({ success: true, data: services });
+});
+
+/**
+ * POST /api/v1/services/catalogue
+ * Registers a new service in the catalogue.
+ */
+router.post('/catalogue', authorize('MANAGER', 'ADMINISTRATOR', 'DBA'), async (req: Request, res: Response) => {
+  const parsed = CreateCatalogueSchema.parse(req.body);
+  const branchId = (parsed.branchId ?? parsed.branch_id)!;
+  const serviceName = (parsed.serviceName ?? parsed.service_name)!;
+  const basePrice = (parsed.basePrice ?? parsed.base_price)!;
+  const isActive = parsed.isActive ?? parsed.is_active ?? true;
+
+  const service = await serviceRepo.createCatalogue({
+    branch_id: branchId,
+    service_name: serviceName,
+    category: parsed.category,
+    base_price: basePrice,
+    is_active: isActive,
+  });
+  res.status(201).json({ success: true, message: 'Service registered successfully', data: service });
+});
+
+/**
+ * PATCH /api/v1/services/catalogue/:id
+ * Updates an existing service in the catalogue.
+ */
+router.patch('/catalogue/:id', authorize('MANAGER', 'ADMINISTRATOR', 'DBA'), async (req: Request, res: Response) => {
+  const serviceId = parseInt(req.params.id, 10);
+  if (isNaN(serviceId)) {
+    return res.status(400).json({ success: false, message: 'Invalid service ID' });
+  }
+  const parsed = UpdateCatalogueSchema.parse(req.body);
+  const branchId = parsed.branchId ?? parsed.branch_id;
+  const serviceName = parsed.serviceName ?? parsed.service_name;
+  const basePrice = parsed.basePrice ?? parsed.base_price;
+  const isActive = parsed.isActive ?? parsed.is_active;
+
+  const updated = await serviceRepo.updateCatalogue(serviceId, {
+    branch_id: branchId,
+    service_name: serviceName,
+    category: parsed.category,
+    base_price: basePrice,
+    is_active: isActive,
+  });
+
+  if (!updated) {
+    return res.status(404).json({ success: false, message: 'Service not found' });
+  }
+  res.json({ success: true, message: 'Service updated successfully', data: updated });
+});
+
+/**
+ * DELETE /api/v1/services/catalogue/:id
+ * Soft deletes / deactivates a service in the catalogue.
+ */
+router.delete('/catalogue/:id', authorize('MANAGER', 'ADMINISTRATOR', 'DBA'), async (req: Request, res: Response) => {
+  const serviceId = parseInt(req.params.id, 10);
+  if (isNaN(serviceId)) {
+    return res.status(400).json({ success: false, message: 'Invalid service ID' });
+  }
+  const ok = await serviceRepo.deleteCatalogue(serviceId);
+  if (!ok) {
+    return res.status(404).json({ success: false, message: 'Service not found' });
+  }
+  res.json({ success: true, message: 'Service deactivated successfully' });
+});
 
 const AddFolioServiceSchema = z.object({
   service_name:     z.string().min(1, 'Service name is required'),

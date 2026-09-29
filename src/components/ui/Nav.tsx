@@ -6,7 +6,7 @@ import { usePathname } from 'next/navigation';
 import { useAuth } from '../../context/auth-context';
 import {
   LayoutDashboard, Users, Building2, BookOpen,
-  BedDouble, LogOut, ChevronRight,
+  BedDouble, LogOut, ChevronRight, Sparkles,
 } from 'lucide-react';
 
 interface NavItem {
@@ -21,6 +21,7 @@ const navItems: NavItem[] = [
   { href: '/dashboard/staff',    label: 'Staff',     icon: <Users size={16} />,           roles: ['MANAGER','ADMINISTRATOR','DBA'] },
   { href: '/dashboard/branches', label: 'Branches',  icon: <Building2 size={16} />,       roles: ['ADMINISTRATOR','DBA'] },
   { href: '/dashboard/rooms',    label: 'Rooms',     icon: <BedDouble size={16} />,       roles: ['RECEPTIONIST','MANAGER','ADMINISTRATOR','DBA'] },
+  { href: '/dashboard/catalogue',label: 'Catalogue', icon: <Sparkles size={16} />,        roles: ['RECEPTIONIST','MANAGER','ADMINISTRATOR','DBA'] },
   { href: '/dashboard/bookings', label: 'Bookings',  icon: <BookOpen size={16} />,        roles: ['RECEPTIONIST','MANAGER','ADMINISTRATOR','DBA'] },
 ];
 

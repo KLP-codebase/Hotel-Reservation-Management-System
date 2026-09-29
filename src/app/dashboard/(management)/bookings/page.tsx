@@ -6,6 +6,8 @@ import { apiFetch, toNum } from '@/lib/api-client';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { useAuth } from '@/context/auth-context';
+import { useRouter } from 'next/navigation';
+
 
 interface RecentBooking {
   booking_id: string;
@@ -24,6 +26,7 @@ interface RecentBooking {
 }
 
 export default function BookingsManagementPage() {
+  const router = useRouter();
   const { logout } = useAuth();
   const [bookings, setBookings] = useState<RecentBooking[]>([]);
   const [loading, setLoading] = useState(true);
@@ -119,7 +122,12 @@ export default function BookingsManagementPage() {
             </thead>
             <tbody className="divide-y divide-white/5">
               {filtered.map(b => (
-                <tr key={b.booking_id} className="hover:bg-white/3 transition-colors">
+                <tr
+  key={b.booking_id}
+  onClick={() => router.push(`/dashboard/bookings/${b.booking_id}`)}
+  className="hover:bg-white/3 transition-colors cursor-pointer"
+>
+
                   <td className="px-6 py-4">
                     <div className="space-y-0.5">
                       <p className="font-semibold text-stone-200">{b.guest_first_name} {b.guest_last_name}</p>

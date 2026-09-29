@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import gsap from 'gsap';
 import { ShaderBackground } from '@/components/ui/adisyon-shader';
+import { apiFetch, ApiError } from '@/lib/api-client';
 
 // ── Static Reference Data ───────────────────────────────────────────────────
 const BRANCHES = [
@@ -179,14 +180,16 @@ function BookingConfirmContent() {
     setError(null);
 
     try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000';
+      // 1. Find or create the guest.
+      //    Bookings reference guests.id (the legacy varchar column), NOT guests.guest_id,
+      //    so prefer `id`. (The backend also normalises either form.)
+      type GuestRow = { id?: string; guest_id?: string; email?: string | null };
+      const pickGuestId = (g: GuestRow) => g.id || g.guest_id || '';
 
-      // 1. Create or find guest
       let guestId = '';
       try {
-        const guestRes = await fetch(`${apiUrl}/api/v1/guests`, {
+        const created = await apiFetch<{ data: GuestRow }>('/api/v1/guests', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             first_name: firstName.trim(),
             last_name: lastName.trim(),
@@ -194,76 +197,54 @@ function BookingConfirmContent() {
             phone: phone.trim() || undefined,
           }),
         });
-
-        if (guestRes.ok) {
-          const guestData = await guestRes.json();
-          // Check both guest_id and id so it matches whatever the DB returns
-          guestId = guestData.data?.guest_id || guestData.data?.id || '';
-        } else {
-          const searchRes = await fetch(`${apiUrl}/api/v1/guests?search=${encodeURIComponent(email.trim())}`);
-          if (searchRes.ok) {
-            const searchData = await searchRes.json();
-            if (searchData.data && searchData.data.length > 0) {
-              guestId = searchData.data[0].guest_id || searchData.data[0].id || '';
-            }
-          }
-        }
-      } catch {
-        // Fallback if backend offline
+        guestId = pickGuestId(created.data);
+      } catch (err) {
+        // 409 = a guest with this email already exists → reuse that exact record
+        if (!(err instanceof ApiError) || err.status !== 409) throw err;
+        const found = await apiFetch<{ data: GuestRow[] }>(
+          `/api/v1/guests?search=${encodeURIComponent(email.trim())}`,
+        );
+        const match = found.data.find(
+          g => g.email?.toLowerCase() === email.trim().toLowerCase(),
+        );
+        if (match) guestId = pickGuestId(match);
       }
 
       if (!guestId) {
-        guestId = typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `g-${Date.now()}`;
+        throw new Error('We could not save your guest details. Please try again.');
       }
 
-      // 2. Create booking
-      let bookingId = `SN-${Date.now().toString(36).toUpperCase()}`;
-      let bookingRoomId = `BR-${Date.now().toString(36).toUpperCase()}`;
+      // 2. Create the booking AND its room line in one request.
+      //    The server does both in a single transaction, so a failed room
+      //    never leaves an empty booking behind. The nightly rate is taken
+      //    server-side from the room itself.
+      const res = await apiFetch<{
+        data: {
+          booking_id: string;
+          rooms: { booking_room_id: string; room_number: string | null }[];
+        };
+      }>('/api/v1/bookings', {
+        method: 'POST',
+        body: JSON.stringify({
+          branch_id: branchIdStr, // Keep as string (UUID) — DO NOT wrap in Number()
+          booked_by_guest_id: guestId,
+          notes: notes.trim() || undefined,
+          rooms: [{
+            primary_guest_id: guestId,
+            room_id: roomIdStr, // Keep as string (UUID) — DO NOT wrap in Number()
+            plan_id: selectedPlanId,
+            check_in_date: checkIn,
+            check_out_date: checkOut,
+          }],
+        }),
+      });
 
-      try {
-        const bookingRes = await fetch(`${apiUrl}/api/v1/bookings`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            branch_id: branchIdStr, // Keep as string (UUID) — DO NOT wrap in Number()
-            booked_by_guest_id: guestId,
-            notes: notes.trim() || undefined,
-          }),
-        });
-
-        if (bookingRes.ok) {
-          const bookingData = await bookingRes.json();
-          bookingId = bookingData.data?.booking_id || bookingId;
-
-          // 3. Attach room
-          const roomRes = await fetch(`${apiUrl}/api/v1/bookings/${bookingId}/rooms`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              primary_guest_id: guestId,
-              room_id: roomIdStr, // Keep as string (UUID) — DO NOT wrap in Number()
-              plan_id: selectedPlanId,
-              check_in_date: checkIn,
-              check_out_date: checkOut,
-              rate_at_booking: baseRate,
-            }),
-          });
-
-          if (roomRes.ok) {
-            const roomData = await roomRes.json();
-            bookingRoomId = roomData.data?.booking_room_id || bookingRoomId;
-          }
-        }
-
-
-      } catch {
-        // Fallback if backend offline
-      }
+      const roomLine = res.data.rooms[0];
 
       setConfirmed({
-        bookingId,
-        bookingRoomId,
-        roomNumber: roomIdStr,
+        bookingId: res.data.booking_id,
+        bookingRoomId: roomLine?.booking_room_id ?? '',
+        roomNumber: roomLine?.room_number ?? roomIdStr,
         branchName: branch?.name ?? 'Sky Nest Hotel',
         roomTypeName: roomType?.name ?? 'Standard Room',
         planName: selectedPlan.name,
@@ -275,8 +256,21 @@ function BookingConfirmContent() {
         guestEmail: email.trim(),
       });
       window.scrollTo({ top: 0, behavior: 'smooth' });
-    } catch (err: any) {
-      setError(err.message || 'An error occurred while confirming your reservation.');
+    } catch (err) {
+      if (err instanceof ApiError) {
+        if (err.code === 'ROOM_UNAVAILABLE') {
+          setError('Sorry — this room has just been booked for these dates. Please go back and choose another room.');
+        } else if (err.code === 'VALIDATION_ERROR') {
+          setError('Please check your details (for example, a valid email address) and try again.');
+        } else {
+          setError(err.message);
+        }
+      } else if (err instanceof TypeError) {
+        // fetch() throws a TypeError when the server can't be reached at all
+        setError('We could not reach the booking server. Please check your connection and try again.');
+      } else {
+        setError(err instanceof Error ? err.message : 'An error occurred while confirming your reservation.');
+      }
     } finally {
       setLoading(false);
     }
