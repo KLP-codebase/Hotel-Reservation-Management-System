@@ -15,6 +15,7 @@ import dashboardRoutes from './routes/dashboard.routes';
 import auditRoutes from './routes/audit.routes';
 import servicesRoutes from './routes/services.routes';
 import invoicesRoutes from './routes/invoices.routes';
+import taxRoutes from './routes/tax.routes';
 
 
 // ── GoF: Chain of Responsibility ──────────────────────────────────────────────
@@ -53,6 +54,7 @@ app.use('/api/v1/dashboard', dashboardRoutes);
 app.use('/api/v1/audit-logs', auditRoutes);
 app.use('/api/v1/services', servicesRoutes);
 app.use('/api/v1/invoices', invoicesRoutes);
+app.use('/api/v1/tax-configurations', taxRoutes);
 
 
 // ── 404 handler ────────────────────────────────────────────────────────────────
