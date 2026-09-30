@@ -1,7 +1,9 @@
-import { z } from 'zod';
+import path from 'path';
 import dotenv from 'dotenv';
+import { z } from 'zod';
 
-dotenv.config();
+// Explicitly load backend/.env as mandated by AGENTS.md
+dotenv.config({ path: path.resolve(__dirname, '../../.env'), override: true });
 
 const envSchema = z.object({
   DATABASE_URL:     z.string().min(1, 'DATABASE_URL is required'),
