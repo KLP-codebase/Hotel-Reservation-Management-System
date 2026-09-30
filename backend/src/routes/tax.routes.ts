@@ -62,10 +62,7 @@ router.get('/active', async (_req: Request, res: Response) => {
  * Returns a single tax configuration by its ID.
  */
 router.get('/:id', async (req: Request, res: Response) => {
-    const taxId = parseInt(req.params.id, 10);
-    if (isNaN(taxId)) {
-        throw Errors.badRequest('Invalid tax ID — must be an integer');
-    }
+    const taxId = req.params.id;
     const tax = await repo.findById(taxId); //find by id
     if (!tax) {
         throw Errors.notFound('Tax configuration');
@@ -87,10 +84,7 @@ router.put(
     authorize('ADMINISTRATOR', 'MANAGER', 'DBA'),//checking if the authenticated user has permission to update the tax
     validate(UpdateTaxSchema), //validating the input data
     async (req: Request, res: Response) => {
-        const taxId = parseInt(req.params.id, 10);
-        if (isNaN(taxId)) {
-            throw Errors.badRequest('Invalid tax ID — must be an integer');
-        }
+        const taxId = req.params.id;
         const updated = await repo.update(taxId, {
             tax_percentage: req.body.taxPercentage,
             is_active: req.body.isActive,

@@ -4,7 +4,7 @@ import { DbAdapter } from '../config/db';
 
 // ── Interfaces ────────────────────────────────────────────────────────────────
 export interface TaxConfiguration {
-  tax_id: number;
+  tax_id: string | number;
   tax_name: string;
   tax_percentage: number;
   is_active: boolean;
@@ -13,6 +13,7 @@ export interface TaxConfiguration {
   external_api_reference?: string | null;
   last_synced_at?: string | null;
 }
+
 
 export interface CreateTaxDto {
   tax_name: string;
@@ -30,7 +31,7 @@ export interface UpdateTaxDto {
 
 // ── Repository Class (Raw SQL Data Access) ────────────────────────────────────
 export class TaxRepository {
-  constructor(private readonly db: DbAdapter) {}
+  constructor(private readonly db: DbAdapter) { }
 
   /**
    * 1. Get all taxes (both active and inactive)
@@ -38,9 +39,10 @@ export class TaxRepository {
   async findAll(): Promise<TaxConfiguration[]> {
     const { rows } = await this.db.query<TaxConfiguration>(
       `SELECT tax_id, tax_name, tax_percentage::float AS tax_percentage, is_active,
-              effective_from::text, effective_to::text, external_api_reference, last_synced_at
+              effective_from::text, effective_to::text,
+              NULL::text AS external_api_reference, NULL::text AS last_synced_at
        FROM tax_configurations
-       ORDER BY tax_id ASC`
+       ORDER BY tax_name ASC`
     );
     return rows;
   }
@@ -57,7 +59,7 @@ export class TaxRepository {
        WHERE is_active = true
          AND CURRENT_DATE >= effective_from
          AND (effective_to IS NULL OR CURRENT_DATE <= effective_to)
-       ORDER BY tax_id ASC`
+       ORDER BY tax_name ASC`
     );
     return rows;
   }
@@ -65,13 +67,13 @@ export class TaxRepository {
   /**
    * 3. Find a single tax by its tax_id
    */
-  async findById(taxId: number): Promise<TaxConfiguration | null> {
+  async findById(taxId: string | number): Promise<TaxConfiguration | null> {
     const { rows } = await this.db.query<TaxConfiguration>(
       `SELECT tax_id, tax_name, tax_percentage::float AS tax_percentage, is_active,
               effective_from::text, effective_to::text
        FROM tax_configurations
-       WHERE tax_id = $1`,
-      [taxId]
+       WHERE tax_id::text = $1`,
+      [String(taxId)]
     );
     return rows[0] ?? null;
   }
@@ -79,7 +81,7 @@ export class TaxRepository {
   /**
    * 4. Update a tax rate or status (Parameterised SQL for security)
    */
-  async update(taxId: number, dto: UpdateTaxDto): Promise<TaxConfiguration | null> {
+  async update(taxId: string | number, dto: UpdateTaxDto): Promise<TaxConfiguration | null> {
     const fields: string[] = [];
     const values: unknown[] = [];
     let i = 1;
@@ -101,11 +103,11 @@ export class TaxRepository {
       return this.findById(taxId);
     }
 
-    values.push(taxId);
+    values.push(String(taxId));
     const sql = `
       UPDATE tax_configurations
       SET ${fields.join(', ')}
-      WHERE tax_id = $${i}
+      WHERE tax_id::text = $${i}
       RETURNING tax_id, tax_name, tax_percentage::float AS tax_percentage, is_active,
                 effective_from::text, effective_to::text
     `;
