@@ -1,29 +1,24 @@
 require('dotenv').config();
-const { Pool } = require('pg');
-const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+const http = require('http');
 
-const sql = `
-SELECT
-  b.booking_id,
-  b.status,
-  b.created_at,
-  br.branch_name,
-  COALESCE(g.first_name || ' ' || g.last_name, s.first_name || ' ' || s.last_name) AS guest_name,
-  agg.room_count,
-  agg.earliest_check_in,
-  agg.latest_check_out
-FROM bookings b
-LEFT JOIN branches br ON br.branch_id = b.branch_id
-LEFT JOIN guests g ON g.id = b.booked_by_guest_id
-
-LEFT JOIN staff s ON s.staff_id = b.booked_by_staff_id
-LEFT JOIN LATERAL (
-  SELECT COUNT(*) AS room_count, MIN(check_in_date) AS earliest_check_in, MAX(check_out_date) AS latest_check_out
-  FROM booking_rooms WHERE booking_rooms.booking_id = b.booking_id
-) agg ON true
-ORDER BY b.created_at DESC;
-`;
-
-pool.query(sql)
-    .then(r => { console.table(r.rows); pool.end(); })
-    .catch(e => { console.error(e.message); pool.end(); });
+http.get('http://localhost:4000/api/v1/bookings/88888888-8888-8888-8888-888888888803', (res) => {
+  let data = '';
+  res.on('data', chunk => data += chunk);
+  res.on('end', () => {
+    const j = JSON.parse(data);
+    if (!j.success) { console.log('ERROR:', j.message); return; }
+    const d = j.data;
+    console.log('✅ status      :', d.status);
+    console.log('✅ booker_name :', d.booker_name);
+    console.log('✅ branch_name :', d.branch_name);
+    console.log('✅ created_at  :', d.created_at);
+    console.log('✅ total_amount:', d.total_amount);
+    console.log('✅ rooms count :', d.rooms?.length);
+    if (d.rooms?.[0]) {
+      const r = d.rooms[0];
+      console.log('✅ room_number :', r.room_number);
+      console.log('✅ room_type   :', r.room_type_name);
+      console.log('✅ meal_plan   :', r.meal_plan_name);
+    }
+  });
+}).on('error', e => console.error('Cannot connect to API:', e.message));

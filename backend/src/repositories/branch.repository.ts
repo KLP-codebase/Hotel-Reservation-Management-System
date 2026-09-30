@@ -28,6 +28,7 @@ export interface UpdateBranchDto {
   address?:     string;
   phone?:       string;
   email?:       string;
+  is_active?:   boolean;
 }
 
 export class BranchRepository extends BaseRepository<Branch, CreateBranchDto, UpdateBranchDto> {
@@ -66,6 +67,7 @@ export class BranchRepository extends BaseRepository<Branch, CreateBranchDto, Up
     if (dto.address     !== undefined) { fields.push(`address = $${i++}`);     values.push(dto.address); }
     if (dto.phone       !== undefined) { fields.push(`phone = $${i++}`);       values.push(dto.phone); }
     if (dto.email       !== undefined) { fields.push(`email = $${i++}`);       values.push(dto.email); }
+    if (dto.is_active   !== undefined) { fields.push(`is_active = $${i++}`);   values.push(dto.is_active); }
 
     values.push(id);
     return {
