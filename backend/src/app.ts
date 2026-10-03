@@ -15,8 +15,7 @@ import dashboardRoutes from './routes/dashboard.routes';
 import auditRoutes from './routes/audit.routes';
 import servicesRoutes from './routes/services.routes';
 import invoicesRoutes from './routes/invoices.routes';
-import roomRoutes from './routes/rooms.routes';
-import taxesRoutes from './routes/taxes.routes';
+import taxRoutes from './routes/tax.routes';
 
 
 // ── GoF: Chain of Responsibility ──────────────────────────────────────────────
@@ -41,22 +40,21 @@ app.get('/health', (_req, res) => {
 });
 
 // ── Route mounting ─────────────────────────────────────────────────────────────
-app.use('/api/v1/auth',            authRoutes);
-app.use('/api/v1/staff',           staffRoutes);
-app.use('/api/v1/branches',        branchRoutes);
-app.use('/api/v1/guests',          guestRoutes);
-app.use('/api/v1/room-types',      roomTypeRoutes);
-app.use('/api/v1/rooms', roomRoutes);
-app.use('/api/v1/availability',    availabilityRoutes);
-app.use('/api/v1/bookings',        bookingRoutes);
-app.use('/api/v1/booking-rooms',   bookingRoomRoutes);
+app.use('/api/v1/auth', authRoutes);
+app.use('/api/v1/staff', staffRoutes);
+app.use('/api/v1/branches', branchRoutes);
+app.use('/api/v1/guests', guestRoutes);
+app.use('/api/v1/room-types', roomTypeRoutes);
+app.use('/api/v1/availability', availabilityRoutes);
+app.use('/api/v1/bookings', bookingRoutes);
+app.use('/api/v1/booking-rooms', bookingRoomRoutes);
 
 // ── Admin monitoring routes (RBAC: ADMINISTRATOR, MANAGER, DBA) ───────────────
-app.use('/api/v1/dashboard',       dashboardRoutes);
-app.use('/api/v1/audit-logs',      auditRoutes);
-app.use('/api/v1/services',        servicesRoutes);
-app.use('/api/v1/invoices',        invoicesRoutes);
-app.use('/api/v1/taxes',           taxesRoutes);
+app.use('/api/v1/dashboard', dashboardRoutes);
+app.use('/api/v1/audit-logs', auditRoutes);
+app.use('/api/v1/services', servicesRoutes);
+app.use('/api/v1/invoices', invoicesRoutes);
+app.use('/api/v1/tax-configurations', taxRoutes);
 
 
 // ── 404 handler ────────────────────────────────────────────────────────────────

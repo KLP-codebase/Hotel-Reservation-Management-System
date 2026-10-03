@@ -43,11 +43,20 @@ export class UserAccountRepository extends BaseRepository<
   // ── Template Method hooks ─────────────────────────────────────────────────────
 
   protected getFindAllSql(): string {
-    return `SELECT * FROM v_active_accounts ORDER BY last_name, first_name`;
+    return `SELECT ua.*, s.first_name, s.last_name, s.email, s.branch_id, b.branch_name
+            FROM user_accounts ua
+            JOIN staff s ON ua.staff_id = s.staff_id
+            LEFT JOIN branches b ON s.branch_id = b.branch_id
+            WHERE ua.is_active = true
+            ORDER BY s.last_name, s.first_name`;
   }
 
   protected getFindByIdSql(): string {
-    return `SELECT * FROM v_active_accounts WHERE user_account_id = $1`;
+    return `SELECT ua.*, s.first_name, s.last_name, s.email, s.branch_id, b.branch_name
+            FROM user_accounts ua
+            JOIN staff s ON ua.staff_id = s.staff_id
+            LEFT JOIN branches b ON s.branch_id = b.branch_id
+            WHERE ua.user_account_id::text = $1`;
   }
 
   protected getSoftDeleteSql(): string {
