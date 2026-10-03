@@ -12,10 +12,10 @@ router.use(authenticate);
 router.use(authorize('RECEPTIONIST', 'MANAGER', 'ADMINISTRATOR', 'DBA'));
 
 const RecordPaymentSchema = z.object({
-  amount:           z.number().positive('Payment amount must be greater than zero'),
-  payment_method:   z.enum(['CASH', 'CREDIT_CARD', 'BANK_TRANSFER', 'ONLINE']),
+  amount: z.number().positive('Payment amount must be greater than zero'),
+  payment_method: z.enum(['CASH', 'CREDIT_CARD', 'BANK_TRANSFER', 'ONLINE']),
   reference_number: z.string().optional(),
-  notes:            z.string().optional(),
+  notes: z.string().optional(),
 });
 
 /**
@@ -47,16 +47,16 @@ async function buildDbInvoice(bookingId: string) {
   );
 
   const services = servicesRes.rows.map((s: any) => ({
-    usage_id:         s.usage_id,
-    service_name:     s.service_name || 'Additional Hotel Service',
-    category:         s.category || 'General',
-    quantity:         Number(s.quantity) || 1,
-    price_at_usage:   Number(s.price_at_usage) || 0,
-    total_price:      Number(s.total_price) || 0,
-    used_at:          s.used_at ? new Date(s.used_at).toISOString() : new Date().toISOString(),
-    notes:            s.notes || null,
+    usage_id: s.usage_id,
+    service_name: s.service_name || 'Additional Hotel Service',
+    category: s.category || 'General',
+    quantity: Number(s.quantity) || 1,
+    price_at_usage: Number(s.price_at_usage) || 0,
+    total_price: Number(s.total_price) || 0,
+    used_at: s.used_at ? new Date(s.used_at).toISOString() : new Date().toISOString(),
+    notes: s.notes || null,
     appointment_time: s.appointment_time || null,
-    meal_time:        s.meal_time || null,
+    meal_time: s.meal_time || null,
   }));
 
   // 3. Compute 4-tier Sri Lankan tax cascade
@@ -112,28 +112,28 @@ async function buildDbInvoice(bookingId: string) {
   );
 
   const payments = payRes.rows.map((p: any) => ({
-    payment_id:     p.payment_id,
-    amount:         Number(p.amount) || 0,
-    payment_date:   p.payment_date ? new Date(p.payment_date).toISOString() : new Date().toISOString(),
+    payment_id: p.payment_id,
+    amount: Number(p.amount) || 0,
+    payment_date: p.payment_date ? new Date(p.payment_date).toISOString() : new Date().toISOString(),
     payment_method: p.payment_method || 'CREDIT_CARD',
   }));
 
   const totalPaid = Math.round(payments.reduce((acc, p) => acc + p.amount, 0) * 100) / 100;
   const balanceDue = Math.max(0, Math.round((grandTotal - totalPaid) * 100) / 100);
-  const status: "OPEN" | "PARTIALLY_PAID" | "SETTLED" = 
+  const status: "OPEN" | "PARTIALLY_PAID" | "SETTLED" =
     balanceDue <= 0 && totalPaid > 0 ? "SETTLED" : (totalPaid > 0 ? "PARTIALLY_PAID" : "OPEN");
 
   // Return full invoice structure
   return {
-    invoice_id:      invoiceId,
-    booking_id:      b.booking_id,
+    invoice_id: invoiceId,
+    booking_id: b.booking_id,
     booking_room_id: b.booking_room_id,
-    guest_name:      `${b.guest_first_name || b.booker_first_name || 'Guest'} ${b.guest_last_name || b.booker_last_name || ''}`.trim(),
-    guest_email:     b.guest_email || b.booker_email || 'guest@skynest.lk',
-    guest_phone:     b.guest_phone || b.booker_phone || null,
-    room_number:     b.room_number || '101',
-    room_type_name:  b.room_type_name || b.room_type || 'Deluxe Suite',
-    check_in_date:   (() => {
+    guest_name: `${b.guest_first_name || b.booker_first_name || 'Guest'} ${b.guest_last_name || b.booker_last_name || ''}`.trim(),
+    guest_email: b.guest_email || b.booker_email || 'guest@skynest.lk',
+    guest_phone: b.guest_phone || b.booker_phone || null,
+    room_number: b.room_number || '101',
+    room_type_name: b.room_type_name || b.room_type || 'Deluxe Suite',
+    check_in_date: (() => {
       const now = new Date();
       const addD = (days: number) => { const d = new Date(now); d.setDate(d.getDate() + days); return d.toISOString().split("T")[0]; };
       if (b.booking_id === "88888888-8888-8888-8888-888888888801" || b.booking_id === "88888888-8888-8888-8888-888888888802") return addD(-1);
@@ -141,7 +141,7 @@ async function buildDbInvoice(bookingId: string) {
       if (b.booking_status === "CHECKED_IN") return addD(-1);
       return now.toISOString().split("T")[0];
     })(),
-    check_out_date:  (() => {
+    check_out_date: (() => {
       const now = new Date();
       const addD = (days: number) => { const d = new Date(now); d.setDate(d.getDate() + days); return d.toISOString().split("T")[0]; };
       if (b.booking_id === "88888888-8888-8888-8888-888888888801") return addD(3);
@@ -149,26 +149,36 @@ async function buildDbInvoice(bookingId: string) {
       if (b.booking_id === "88888888-8888-8888-8888-888888888803") return now.toISOString().split("T")[0];
       return addD(nights);
     })(),
-    nights:          nights,
+    nights: nights,
     rate_at_booking: rateAtBooking,
     breakdown: {
-      room_charges:       roomCharges,
-      service_charges:    serviceCharges,
-      base_amount:        baseAmount,
+      room_charges: roomCharges,
+      service_charges: serviceCharges,
+      base_amount: baseAmount,
       service_charge_tax: scTax,
-      tdl_amount:         tdlTax,
-      ssc_amount:         sscTax,
-      vat_amount:         vatTax,
-      total_amount:       grandTotal,
-      total_paid:         totalPaid,
-      balance_due:        balanceDue,
-      status:             status,
+      tdl_amount: tdlTax,
+      ssc_amount: sscTax,
+      vat_amount: vatTax,
+      total_amount: grandTotal,
+      total_paid: totalPaid,
+      balance_due: balanceDue,
+      status: status,
     },
     services: services,
     payments: payments,
   };
 }
+/**---Nimeth---
+ * GET /api/v1/invoices
+ * Returns all invoices and bookings with 4-tier statutory tax cascade and payment ledger status.
+ */
+router.get('/', async (req: Request, res: Response) => {
+  try {
 
+  } catch (error) {
+
+  }
+})
 /**
  * GET /api/v1/invoices/:bookingId
  * Returns complete tax cascade invoice breakdown, service items, and payments ledger.
