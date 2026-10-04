@@ -2,7 +2,6 @@
 
 import React, { useState } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -18,8 +17,8 @@ const schema = z.object({
 type FormData = z.infer<typeof schema>;
 
 export default function RegisterPage() {
-  const router = useRouter();
   const [apiError, setApiError] = useState<string | null>(null);
+  const [registeredEmail, setRegisteredEmail] = useState<string | null>(null);
 
   const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm<FormData>({
     resolver: zodResolver(schema),
@@ -32,11 +31,39 @@ export default function RegisterPage() {
         method: 'POST',
         body: JSON.stringify({ ...data, role: 'GUEST' }),
       });
-      router.push('/login');
+      setRegisteredEmail(data.email);
     } catch (err) {
       setApiError(err instanceof ApiError ? err.message : 'Something went wrong.');
     }
   };
+
+  if (registeredEmail) {
+    return (
+      <div className="rounded-none border border-white/12 bg-[#0B2540]/80 backdrop-blur-2xl p-8 md:p-10 shadow-[0_32px_64px_-16px_rgba(0,0,0,0.7)] transition-all duration-300 text-center space-y-6">
+        <div className="w-12 h-12 rounded-full bg-amber-500/10 border border-amber-500/30 text-amber-400 flex items-center justify-center mx-auto">
+          <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+          </svg>
+        </div>
+
+        <div className="space-y-2">
+          <h2 className="font-cinzel text-2xl font-normal text-white tracking-wide">Check Your Inbox</h2>
+          <p className="font-jakarta text-xs text-stone-300 tracking-[0.05em] leading-relaxed max-w-sm mx-auto">
+            We have dispatched a verification link to <strong className="text-white">{registeredEmail}</strong>. Please confirm your email address to activate your reservation privileges.
+          </p>
+        </div>
+
+        <div className="pt-2">
+          <Link
+            href="/login"
+            className="inline-block w-full bg-amber-500 hover:bg-amber-400 active:scale-[0.99] text-[#071C30] font-jakarta font-semibold text-xs tracking-[0.2em] uppercase py-3.5 rounded-none transition-all duration-200 shadow-lg shadow-amber-500/20 text-center"
+          >
+            Proceed to Sign In
+          </Link>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="rounded-none border border-white/12 bg-[#0B2540]/80 backdrop-blur-2xl p-8 md:p-10 shadow-[0_32px_64px_-16px_rgba(0,0,0,0.7)] transition-all duration-300">

@@ -46,10 +46,14 @@ export async function apiFetch<T>(
   path: string,
   options: RequestInit = {},
 ): Promise<T> {
-  const baseUrl = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000';
+  const rawBase = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000';
+  // Strip trailing '/api/v1' or slashes from baseUrl if path already begins with '/api/v1'
+  const normalizedBase = path.startsWith('/api/v1')
+    ? rawBase.replace(/\/api\/v1\/?$/, '').replace(/\/+$/, '')
+    : rawBase.replace(/\/+$/, '');
   const token   = getToken();
 
-  const res = await fetch(`${baseUrl}${path}`, {
+  const res = await fetch(`${normalizedBase}${path}`, {
     ...options,
     headers: {
       'Content-Type': 'application/json',

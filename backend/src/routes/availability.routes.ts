@@ -8,7 +8,7 @@ const repo = new AvailabilityRepository(db);
 
 const QuerySchema = z.object({
     branch_id: z.string().uuid('branch_id must be a valid UUID'),
-    room_type: z.enum(['STANDARD', 'DELUXE', 'SUITE', 'PRESIDENTIAL']),
+    room_type: z.enum(['STANDARD', 'DELUXE', 'SUITE', 'PRESIDENTIAL', 'ALL']).optional().default('ALL'),
     check_in: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Must be YYYY-MM-DD'),
     check_out: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Must be YYYY-MM-DD'),
 });

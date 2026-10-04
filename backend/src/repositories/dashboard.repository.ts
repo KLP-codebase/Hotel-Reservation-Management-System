@@ -24,6 +24,7 @@ export interface DashboardStats {
 
 export interface RecentBooking {
   booking_id:         string;
+  booking_room_id?:   string | null;
   branch_id?:         string;
   booking_status:     string;
   booking_created_at: string;
@@ -208,6 +209,7 @@ export class DashboardRepository {
     const result = await this.db.query<RecentBooking>(
       `SELECT
          booking_id,
+         booking_room_id,
          branch_id,
          booking_status,
          booking_created_at,

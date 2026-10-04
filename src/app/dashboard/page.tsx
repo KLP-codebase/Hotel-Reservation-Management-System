@@ -33,6 +33,7 @@ interface DashboardStats {
 
 interface RecentBooking {
   booking_id: string;
+  booking_room_id?: string;
   branch_id?: string;
   booking_status: string;
   booking_created_at: string;
@@ -434,23 +435,23 @@ export default function DashboardPage() {
 
             {/* ── Heading / Property Banner ───────────────────────────────────── */}
             <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 pb-2 border-b border-skynest-hairline">
-              <div>
-                <p className="font-cinzel italic text-xs tracking-widest text-skynest-accent mb-1">
-                  {isManager ? "Property Management Hub" : "Enterprise Operations"}
-                </p>
-                <h1 className="font-cinzel text-3xl font-medium text-ink">
-                  {isManager ? propertyName : "System Overview"}
-                </h1>
-                <p className="mt-1 font-jakarta text-sm text-ink/50">
-                  {isManager
-                    ? `Hotel Operations for ${propertyName} (${propertyCity}) · General Manager: ${user?.firstName} ${user?.lastName}`
-                    : "Live operational data across all hotel branches — inventory, folios, and activity streams."}
-                </p>
-              </div>
+              {isManager && (
+                <div>
+                  <p className="font-cinzel italic text-xs tracking-widest text-skynest-accent mb-1">
+                    Property Management Hub
+                  </p>
+                  <h1 className="font-cinzel text-3xl font-medium text-ink">
+                    {propertyName}
+                  </h1>
+                  <p className="mt-1 font-jakarta text-sm text-ink/50">
+                    {`Hotel Operations for ${propertyName} (${propertyCity}) · General Manager: ${user?.firstName} ${user?.lastName}`}
+                  </p>
+                </div>
+              )}
 
               {/* Admin Branch Filter Selector */}
               {isAdminOrDba && (
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-3 sm:ml-auto">
                   <span className="font-jakarta text-xs text-ink/50 flex items-center gap-1">
                     <Building className="w-3.5 h-3.5 text-skynest-accent" />
                     Branch:
@@ -665,8 +666,8 @@ export default function DashboardPage() {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-skynest-hairline">
-                      {inHouseGuests.map((b) => (
-                        <tr key={b.booking_id} className="hover:bg-ink/[0.015] transition-colors">
+                      {inHouseGuests.map((b, idx) => (
+                        <tr key={b.booking_room_id || `${b.booking_id}-${b.room_number ?? idx}`} className="hover:bg-ink/[0.015] transition-colors">
                           <td className="px-6 py-4">
                             <p className="font-semibold text-ink">
                               {b.guest_first_name} {b.guest_last_name}

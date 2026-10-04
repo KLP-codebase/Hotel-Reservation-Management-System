@@ -4,7 +4,7 @@ import React, { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Plus, Pencil, UserX, Search, RefreshCw, LogOut, CheckCircle2 } from 'lucide-react';
+import { Plus, Pencil, UserX, Search, RefreshCw, LogOut, CheckCircle2, Mail } from 'lucide-react';
 import { apiFetch, ApiError } from '@/lib/api-client';
 import { Badge }      from '@/components/ui/Badge';
 import { Button }     from '@/components/ui/Button';
@@ -23,6 +23,8 @@ interface Staff {
   is_active:   boolean;
   branch_name: string | null;
   branch_city: string | null;
+  user_account_id?: string | null;
+  invite_token?: string | null;
   branch_id?:  string | null;
 }
 
@@ -139,6 +141,17 @@ export default function StaffPage() {
     }
   };
 
+  const inviteStaff = async (id: string, name: string) => {
+    try {
+      await apiFetch(`/api/v1/staff/${id}/invite`, { method: "POST" });
+      setSuccessMsg(`Invitation dispatched to ${name}.`);
+      setTimeout(() => setSuccessMsg(null), 4000);
+      await fetchData();
+    } catch (e) {
+      alert(e instanceof ApiError ? e.message : "Failed to send invite");
+    }
+  };
+
   const deactivate = async (id: string) => {
     if (!confirm('Deactivate this staff member?')) return;
     try {
@@ -231,6 +244,18 @@ export default function StaffPage() {
                   {canMutate(user?.role) && (
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-2 justify-end">
+                        {!s.user_account_id && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => inviteStaff(s.staff_id, `${s.first_name} ${s.last_name}`)}
+                            title={s.invite_token ? "Resend Invitation Email" : "Send Invitation Email"}
+                            className="text-[11px] gap-1 px-2.5"
+                          >
+                            <Mail size={12} />
+                            <span>{s.invite_token ? "Re-invite" : "Invite"}</span>
+                          </Button>
+                        )}
                         <Button variant="ghost" size="sm" onClick={() => openEdit(s)} title="Edit staff member">
                           <Pencil size={13} />
                         </Button>
