@@ -31,6 +31,8 @@ const CreateBookingSchema = z.object({
     branch_id: z.string().uuid('branch_id must be a valid UUID'),
     booked_by_guest_id: z.string().min(1),
     notes: z.string().optional(),
+    adults: z.number().int().min(1).optional(),
+    children: z.number().int().min(0).optional(),
     rooms: z.array(RoomLineSchema).optional(),
 });
 

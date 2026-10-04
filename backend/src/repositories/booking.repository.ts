@@ -12,6 +12,8 @@ export interface CreateBookingInput {
     branch_id: string | number;
     booked_by_guest_id: string;   // guests.id
     notes?: string;
+    adults?: number;
+    children?: number;
 }
 
 export interface RoomLineInput {
@@ -63,10 +65,10 @@ export class BookingRepository {
     ): Promise<{ booking_id: string; rooms: AddedRoomLine[] }> {
         return this.db.transaction(async (client) => {
             const header = await client.query<{ booking_id: string; branch_id: string }>(`
-                INSERT INTO bookings (branch_id, booked_by_guest_id, guest_id, notes, special_requests)
-                VALUES ($1, $2, $2, $3, $3)
+                INSERT INTO bookings (branch_id, booked_by_guest_id, guest_id, notes, special_requests, adults, children)
+                VALUES ($1, $2, $2, $3, $3, $4, $5)
                 RETURNING booking_id, branch_id
-            `, [input.branch_id, input.booked_by_guest_id, input.notes ?? null]);
+            `, [input.branch_id, input.booked_by_guest_id, input.notes ?? null, input.adults ?? null, input.children ?? null]);
 
             const created = header.rows[0];
             if (!created) throw Errors.internal();

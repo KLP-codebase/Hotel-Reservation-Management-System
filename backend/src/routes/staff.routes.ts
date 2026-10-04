@@ -93,4 +93,14 @@ router.delete(
   },
 );
 
+router.post(
+  "/:id/invite",
+  authenticate,
+  authorize("ADMINISTRATOR", "MANAGER", "DBA"),
+  async (req: Request, res: Response) => {
+    const result = await service.invite(req.params.id, req.user?.sub);
+    res.status(200).json(result);
+  },
+);
+
 export default router;

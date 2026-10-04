@@ -16,6 +16,10 @@ export interface Staff {
   // from v_staff_details view
   branch_name?: string;
   branch_city?: string;
+  invite_token?:            string | null;
+  invite_token_expires_at?: Date | null;
+  user_account_id?:         string | null;
+  username?:                string | null;
 }
 
 export interface CreateStaffDto {
@@ -42,7 +46,12 @@ export class StaffRepository extends BaseRepository<Staff, CreateStaffDto, Updat
   // Queries use v_staff_details (Facade view) — no JOIN needed in TypeScript.
 
   protected getFindAllSql(): string {
-    return `SELECT * FROM v_staff_details WHERE is_active = true ORDER BY last_name, first_name`;
+    return `SELECT s.*, st.invite_token, st.invite_token_expires_at, ua.user_account_id, ua.username
+            FROM v_staff_details s
+            JOIN staff st ON s.staff_id = st.staff_id
+            LEFT JOIN user_accounts ua ON ua.staff_id = s.staff_id
+            WHERE s.is_active = true
+            ORDER BY s.last_name, s.first_name`;
   }
 
   protected getFindByIdSql(): string {
@@ -94,5 +103,31 @@ export class StaffRepository extends BaseRepository<Staff, CreateStaffDto, Updat
       [branchId],
     );
     return rows;
+  }
+
+  async setInviteToken(staffId: string, token: string, expiresAt: Date): Promise<void> {
+    await this.db.query(
+      `UPDATE staff SET invite_token = $1, invite_token_expires_at = $2 WHERE staff_id = $3`,
+      [token, expiresAt, staffId],
+    );
+  }
+
+  async findByInviteToken(token: string): Promise<(Staff & { branch_name?: string }) | null> {
+    const { rows } = await this.db.query<Staff & { branch_name?: string }>(
+      `SELECT s.*, st.invite_token, st.invite_token_expires_at, ua.user_account_id
+       FROM v_staff_details s
+       JOIN staff st ON s.staff_id = st.staff_id
+       LEFT JOIN user_accounts ua ON ua.staff_id = s.staff_id
+       WHERE st.invite_token = $1 AND s.is_active = true`,
+      [token],
+    );
+    return rows[0] ?? null;
+  }
+
+  async clearInviteToken(staffId: string): Promise<void> {
+    await this.db.query(
+      `UPDATE staff SET invite_token = NULL, invite_token_expires_at = NULL WHERE staff_id = $1`,
+      [staffId],
+    );
   }
 }
