@@ -168,13 +168,49 @@ async function buildDbInvoice(bookingId: string) {
     payments: payments,
   };
 }
-/**---Nimeth---
+/**---Nimeth---**/
+/**
  * GET /api/v1/invoices
  * Returns all invoices and bookings with 4-tier statutory tax cascade and payment ledger status.
  */
 router.get('/', async (req: Request, res: Response) => {
   try {
-
+    const { branchId, status, search } = req.query;
+    let query = `
+      SELECT 
+        b.booking_id,
+        b.booking_room_id,
+        b.booking_status,
+        b.nights,
+        b.rate_at_booking,
+        b.total_amount AS booking_total,
+        b.branch_name,
+        b.branch_id,
+        b.guest_first_name,
+        b.guest_last_name,
+        b.guest_email,
+        b.room_number,
+        b.room_type_name,
+        b.check_in_date,
+        b.check_out_date,
+        inv.invoice_id,
+        inv.subtotal,
+        inv.sc_amount,
+        inv.tdl_amount,
+        inv.sscl_amount,
+        inv.vat_amount,
+        inv.total_amount AS invoice_total,
+        inv.issued_at,
+        COALESCE(pay.total_paid, 0) AS total_paid
+      FROM v_booking_details b
+      LEFT JOIN invoices inv ON (inv.booking_room_id = b.booking_id::text OR inv.booking_room_id = b.booking_room_id::text)
+      LEFT JOIN (
+        SELECT invoice_id, SUM(amount_paid) AS total_paid
+        FROM payments
+        GROUP BY invoice_id
+      ) pay ON pay.invoice_id = inv.invoice_id
+      WHERE 1=1
+    `;
   } catch (error) {
 
   }
