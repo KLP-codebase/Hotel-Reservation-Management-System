@@ -3,6 +3,8 @@
 import React, { useState, useEffect, useCallback } from 'react';  //React hooks
 import { useAuth } from '@/context/auth-context';  //reads who is currently logged in
 import { apiFetch, toNum, ApiError } from '@/lib/api-client'; // converts PostgreSQL decimal strings to JavaScript numbers, makes API calls
+import { Button } from '@/components/ui/Button';
+
 import {
     Receipt, Search, RefreshCw, X, ChevronDown,
     DollarSign, CheckCircle, AlertCircle, Clock,
@@ -194,7 +196,7 @@ export default function BillingPage() {
         <div className="min-h-screen bg-stone-950 text-stone-100 font-jakarta p-8 max-w-[1440px]">
 
             {/* ── Page Header ──────────────────────────────────────────────────────── */}
-            <div className="flex items-start justify-between pb-8 mb-8 border-b border-white/10">
+            <div className="flex items-center justify-between pb-8 mb-8 border-b border-white/10">
                 <div>
                     <p className="font-jakarta text-[10px] uppercase tracking-[0.2em] text-skynest-accent font-semibold mb-1">
                         Financial Operations
@@ -205,27 +207,17 @@ export default function BillingPage() {
                     <p className="font-jakarta text-sm text-stone-400 mt-1">
                         Statutory tax cascade · Payment ledger · Settlement management
                     </p>
-                    <div className="flex items-center gap-2">
-                        <button
-                            onClick={fetchData}
-                            className="flex items-center gap-2 px-4 py-2 text-xs font-jakarta font-semibold uppercase tracking-widest border border-white/10 bg-stone-900/60 text-stone-300 hover:text-stone-100 hover:border-white/25 transition-colors"
-                        >
-                            <RefreshCw size={12} /> Refresh
-                        </button>
-                        <button
-                            onClick={logout}
-                            className="flex items-center gap-2 px-4 py-2 text-xs font-jakarta font-semibold uppercase tracking-widest border border-rose-500/30 bg-rose-500/10 text-rose-400 hover:bg-rose-500/20 hover:text-rose-300 transition-colors"
-                        >
-                            <LogOut size={12} /> Log Out
-                        </button>
-                    </div>
                 </div>
-                <button
-                    onClick={fetchData}
-                    className="flex items-center gap-2 px-4 py-2 text-xs font-jakarta font-semibold uppercase tracking-widest border border-white/10 bg-stone-900/60 text-stone-300 hover:text-stone-100 hover:border-white/25 transition-colors"
-                >
-                    <RefreshCw size={12} /> Refresh
-                </button>
+
+                {/* Action Buttons on the Right (matches Bookings & Staff) */}
+                <div className="flex items-center gap-3">
+                    <Button variant="ghost" size="sm" onClick={fetchData} title="Refresh billing">
+                        <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
+                    </Button>
+                    <Button variant="danger" size="sm" onClick={logout} className="flex items-center gap-1.5 ml-2">
+                        <LogOut size={14} /> Log Out
+                    </Button>
+                </div>
             </div>
 
             <div className="space-y-8">
