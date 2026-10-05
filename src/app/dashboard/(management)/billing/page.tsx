@@ -6,7 +6,7 @@ import { apiFetch, toNum, ApiError } from '@/lib/api-client'; // converts Postgr
 import {
     Receipt, Search, RefreshCw, X, ChevronDown,
     DollarSign, CheckCircle, AlertCircle, Clock,
-    Printer, CreditCard, Landmark, Banknote, ShieldCheck
+    Printer, CreditCard, Landmark, Banknote, ShieldCheck, LogOut
 } from 'lucide-react';//Icons
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -80,7 +80,7 @@ function fmtDate(d: string | null) {
 // ── Main Page Component ───────────────────────────────────────────────────────
 
 export default function BillingPage() {
-    const { user } = useAuth();
+    const { user, logout } = useAuth();
 
     // ── State ──────────────────────────────────────────────────────────────────
     const [invoices, setInvoices] = useState<Invoice[]>([]);
@@ -205,6 +205,20 @@ export default function BillingPage() {
                     <p className="font-jakarta text-sm text-stone-400 mt-1">
                         Statutory tax cascade · Payment ledger · Settlement management
                     </p>
+                    <div className="flex items-center gap-2">
+                        <button
+                            onClick={fetchData}
+                            className="flex items-center gap-2 px-4 py-2 text-xs font-jakarta font-semibold uppercase tracking-widest border border-white/10 bg-stone-900/60 text-stone-300 hover:text-stone-100 hover:border-white/25 transition-colors"
+                        >
+                            <RefreshCw size={12} /> Refresh
+                        </button>
+                        <button
+                            onClick={logout}
+                            className="flex items-center gap-2 px-4 py-2 text-xs font-jakarta font-semibold uppercase tracking-widest border border-rose-500/30 bg-rose-500/10 text-rose-400 hover:bg-rose-500/20 hover:text-rose-300 transition-colors"
+                        >
+                            <LogOut size={12} /> Log Out
+                        </button>
+                    </div>
                 </div>
                 <button
                     onClick={fetchData}
@@ -246,8 +260,8 @@ export default function BillingPage() {
                             key={tab.key}
                             onClick={() => setActiveTab(tab.key as 'ledger' | 'taxes')}
                             className={`flex items-center gap-2 px-5 py-3 text-xs font-jakarta font-semibold uppercase tracking-widest border-b-2 transition-colors ${activeTab === tab.key
-                                    ? 'border-skynest-accent text-skynest-accent'
-                                    : 'border-transparent text-stone-400 hover:text-stone-200'
+                                ? 'border-skynest-accent text-skynest-accent'
+                                : 'border-transparent text-stone-400 hover:text-stone-200'
                                 }`}
                         >
                             {tab.icon} {tab.label}
@@ -382,8 +396,8 @@ export default function BillingPage() {
                                             </div>
                                         </div>
                                         <span className={`text-[10px] font-jakarta font-semibold uppercase tracking-widest px-2.5 py-0.5 rounded-sm ${tax.is_active
-                                                ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/30'
-                                                : 'bg-rose-500/10 text-rose-400 border border-rose-500/30'
+                                            ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/30'
+                                            : 'bg-rose-500/10 text-rose-400 border border-rose-500/30'
                                             }`}>
                                             {tax.is_active ? 'Active' : 'Inactive'}
                                         </span>
@@ -581,8 +595,8 @@ export default function BillingPage() {
                                             type="button"
                                             onClick={() => setPayMethod(m.value)}
                                             className={`flex flex-col items-center gap-1.5 py-3 px-2 border text-xs font-jakarta font-semibold transition-colors ${payMethod === m.value
-                                                    ? 'border-skynest-accent text-skynest-accent bg-skynest-accent/10'
-                                                    : 'border-white/10 text-stone-400 hover:border-white/20'
+                                                ? 'border-skynest-accent text-skynest-accent bg-skynest-accent/10'
+                                                : 'border-white/10 text-stone-400 hover:border-white/20'
                                                 }`}
                                         >
                                             {m.icon} {m.label}
