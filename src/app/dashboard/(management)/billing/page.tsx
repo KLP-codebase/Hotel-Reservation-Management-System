@@ -48,19 +48,21 @@ type StatusFilter = 'ALL' | 'SETTLED' | 'PARTIALLY_PAID' | 'OPEN';
 
 // ── Helper Components ─────────────────────────────────────────────────────────
 
-function StatusBadge({ status }: { status: Invoice['status'] }) {//colored pill badge reusable tiny component
+// ── Helper Components ─────────────────────────────────────────────────────────
+
+function StatusBadge({ status }: { status: Invoice['status'] }) {
     if (status === 'SETTLED') return (
-        <span className="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] font-jakarta font-semibold uppercase tracking-wider bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-sm">
+        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 text-[10px] font-jakarta font-semibold uppercase tracking-wider bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 rounded-sm">
             <CheckCircle size={10} /> Settled
         </span>
     );
     if (status === 'PARTIALLY_PAID') return (
-        <span className="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] font-jakarta font-semibold uppercase tracking-wider bg-amber-50 text-amber-700 border border-amber-200 rounded-sm">
+        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 text-[10px] font-jakarta font-semibold uppercase tracking-wider bg-amber-500/10 text-amber-400 border border-amber-500/30 rounded-sm">
             <Clock size={10} /> Partial
         </span>
     );
     return (
-        <span className="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] font-jakarta font-semibold uppercase tracking-wider bg-rose-50 text-rose-700 border border-rose-200 rounded-sm">
+        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 text-[10px] font-jakarta font-semibold uppercase tracking-wider bg-rose-500/10 text-rose-400 border border-rose-500/30 rounded-sm">
             <AlertCircle size={10} /> Open
         </span>
     );
@@ -74,6 +76,7 @@ function fmtDate(d: string | null) {
     if (!d) return '—';
     return new Date(d).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
 }
+
 // ── Main Page Component ───────────────────────────────────────────────────────
 
 export default function BillingPage() {
@@ -99,13 +102,12 @@ export default function BillingPage() {
     const fetchData = useCallback(async () => {
         setLoading(true);
         setError(null);
-        try {  //fetch invoices and tax configs from backend, store them in state if successful, otherwise set error
-            //Uses Promise.all() to simultaneously call both your APIs
+        try {
             const [invRes, taxRes] = await Promise.all([
                 apiFetch<{ success: boolean; count: number; data: Invoice[] }>('/api/v1/invoices'),
                 apiFetch<{ success: boolean; data: TaxConfig[] }>('/api/v1/tax-configurations'),
             ]);
-            setInvoices(invRes.data ?? []); //update invoice state
+            setInvoices(invRes.data ?? []);
             setTaxes(taxRes.data ?? []);
         } catch (err) {
             setError(err instanceof ApiError ? err.message : 'Failed to load billing data');
@@ -137,7 +139,6 @@ export default function BillingPage() {
     const settledCount = invoices.filter(i => i.status === 'SETTLED').length;
 
     // ── Record Payment Handler ──────────────────────────────────────────────────
-    //Posts a payment to the backend
     const handleRecordPayment = async () => {
         if (!selectedInvoice) return;
         setPayLoading(true);
@@ -159,15 +160,16 @@ export default function BillingPage() {
             setPayLoading(false);
         }
     };
+
     // ── Loading & Error States ─────────────────────────────────────────────────
     if (loading) {
         return (
-            <div className="min-h-screen bg-paper flex items-center justify-center">
+            <div className="min-h-screen bg-stone-950 flex items-center justify-center">
                 <div className="text-center space-y-3">
-                    <div className="w-10 h-10 rounded-sm bg-skynest-accent/10 flex items-center justify-center mx-auto animate-pulse">
+                    <div className="w-10 h-10 rounded-sm bg-skynest-accent/15 border border-skynest-accent/30 flex items-center justify-center mx-auto animate-pulse">
                         <Receipt className="w-5 h-5 text-skynest-accent" />
                     </div>
-                    <p className="font-jakarta text-sm text-ink/50">Loading billing data…</p>
+                    <p className="font-jakarta text-sm text-stone-400">Loading billing ledger…</p>
                 </div>
             </div>
         );
@@ -175,10 +177,10 @@ export default function BillingPage() {
 
     if (error) {
         return (
-            <div className="min-h-screen bg-paper flex items-center justify-center">
+            <div className="min-h-screen bg-stone-950 flex items-center justify-center">
                 <div className="text-center space-y-3">
-                    <AlertCircle className="w-8 h-8 text-rose-500 mx-auto" />
-                    <p className="font-jakarta text-sm text-rose-600">{error}</p>
+                    <AlertCircle className="w-8 h-8 text-rose-400 mx-auto" />
+                    <p className="font-jakarta text-sm text-rose-400">{error}</p>
                     <button onClick={fetchData} className="text-xs font-jakarta font-semibold uppercase tracking-widest text-skynest-accent hover:underline">
                         Retry
                     </button>
@@ -189,45 +191,43 @@ export default function BillingPage() {
 
     // ── JSX ────────────────────────────────────────────────────────────────────
     return (
-        <div className="min-h-screen bg-paper text-ink font-jakarta">
+        <div className="min-h-screen bg-stone-950 text-stone-100 font-jakarta p-8 max-w-[1440px]">
 
             {/* ── Page Header ──────────────────────────────────────────────────────── */}
-            <div className="border-b border-skynest-hairline bg-paper/95 backdrop-blur-md px-6 md:px-12 py-6">
-                <div className="max-w-[1440px] mx-auto flex items-start justify-between gap-4">
-                    <div>
-                        <p className="font-jakarta text-[10px] uppercase tracking-[0.2em] text-skynest-accent font-semibold mb-1">
-                            Financial Operations
-                        </p>
-                        <h1 className="font-cinzel text-2xl md:text-3xl font-normal tracking-wide text-ink uppercase">
-                            Billing &amp; Invoices
-                        </h1>
-                        <p className="font-jakarta text-sm text-ink/50 mt-1">
-                            Statutory tax cascade · Payment ledger · Settlement management
-                        </p>
-                    </div>
-                    <button
-                        onClick={fetchData}
-                        className="flex items-center gap-2 px-4 py-2 text-xs font-jakarta font-semibold uppercase tracking-widest border border-skynest-hairline text-ink/60 hover:text-ink hover:border-ink transition-colors"
-                    >
-                        <RefreshCw size={12} /> Refresh
-                    </button>
+            <div className="flex items-start justify-between pb-8 mb-8 border-b border-white/10">
+                <div>
+                    <p className="font-jakarta text-[10px] uppercase tracking-[0.2em] text-skynest-accent font-semibold mb-1">
+                        Financial Operations
+                    </p>
+                    <h1 className="font-cinzel italic text-2xl md:text-3xl text-stone-100">
+                        Billing &amp; Invoices
+                    </h1>
+                    <p className="font-jakarta text-sm text-stone-400 mt-1">
+                        Statutory tax cascade · Payment ledger · Settlement management
+                    </p>
                 </div>
+                <button
+                    onClick={fetchData}
+                    className="flex items-center gap-2 px-4 py-2 text-xs font-jakarta font-semibold uppercase tracking-widest border border-white/10 bg-stone-900/60 text-stone-300 hover:text-stone-100 hover:border-white/25 transition-colors"
+                >
+                    <RefreshCw size={12} /> Refresh
+                </button>
             </div>
 
-            <div className="max-w-[1440px] mx-auto px-6 md:px-12 py-8 space-y-8">
+            <div className="space-y-8">
 
                 {/* ── KPI Summary Cards ─────────────────────────────────────────────── */}
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                     {[
-                        { label: 'Total Invoiced', value: fmt(totalInvoiced), icon: <Receipt size={16} />, color: 'text-ink' },
-                        { label: 'Revenue Collected', value: fmt(totalCollected), icon: <DollarSign size={16} />, color: 'text-emerald-600' },
-                        { label: 'Outstanding Balance', value: fmt(totalOutstanding), icon: <AlertCircle size={16} />, color: 'text-rose-600' },
-                        { label: 'Settled Invoices', value: `${settledCount} / ${invoices.length}`, icon: <CheckCircle size={16} />, color: 'text-sky-600' },
+                        { label: 'Total Invoiced', value: fmt(totalInvoiced), icon: <Receipt size={16} />, color: 'text-stone-100' },
+                        { label: 'Revenue Collected', value: fmt(totalCollected), icon: <DollarSign size={16} />, color: 'text-emerald-400' },
+                        { label: 'Outstanding Balance', value: fmt(totalOutstanding), icon: <AlertCircle size={16} />, color: 'text-rose-400' },
+                        { label: 'Settled Invoices', value: `${settledCount} / ${invoices.length}`, icon: <CheckCircle size={16} />, color: 'text-amber-400' },
                     ].map(card => (
-                        <div key={card.label} className="bg-white border border-skynest-hairline p-5">
+                        <div key={card.label} className="bg-stone-900 border border-white/10 p-5">
                             <div className={`flex items-center gap-2 ${card.color} mb-2`}>
                                 {card.icon}
-                                <span className="text-[10px] font-jakarta font-semibold uppercase tracking-widest text-ink/50">
+                                <span className="text-[10px] font-jakarta font-semibold uppercase tracking-widest text-stone-400">
                                     {card.label}
                                 </span>
                             </div>
@@ -235,8 +235,9 @@ export default function BillingPage() {
                         </div>
                     ))}
                 </div>
+
                 {/* ── Tab Navigation ────────────────────────────────────────────────── */}
-                <div className="border-b border-skynest-hairline flex gap-0">
+                <div className="border-b border-white/10 flex gap-0">
                     {[
                         { key: 'ledger', label: 'Financial Ledger', icon: <Receipt size={13} /> },
                         { key: 'taxes', label: 'Statutory Tax Rates', icon: <ShieldCheck size={13} /> },
@@ -245,8 +246,8 @@ export default function BillingPage() {
                             key={tab.key}
                             onClick={() => setActiveTab(tab.key as 'ledger' | 'taxes')}
                             className={`flex items-center gap-2 px-5 py-3 text-xs font-jakarta font-semibold uppercase tracking-widest border-b-2 transition-colors ${activeTab === tab.key
-                                ? 'border-skynest-accent text-skynest-accent'
-                                : 'border-transparent text-ink/40 hover:text-ink/70'
+                                    ? 'border-skynest-accent text-skynest-accent'
+                                    : 'border-transparent text-stone-400 hover:text-stone-200'
                                 }`}
                         >
                             {tab.icon} {tab.label}
@@ -261,33 +262,33 @@ export default function BillingPage() {
                         {/* Search & Filter Bar */}
                         <div className="flex flex-col sm:flex-row gap-3">
                             <div className="relative flex-1">
-                                <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-ink/30" />
+                                <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-stone-500" />
                                 <input
                                     type="text"
                                     placeholder="Search guest name, room, invoice ID…"
                                     value={search}
                                     onChange={e => setSearch(e.target.value)}
-                                    className="w-full pl-9 pr-4 py-2.5 text-sm font-jakarta border border-skynest-hairline bg-white focus:border-skynest-accent outline-none transition-colors"
+                                    className="w-full pl-9 pr-4 py-2.5 text-sm font-jakarta border border-white/10 bg-stone-900/60 text-stone-100 placeholder:text-stone-500 focus:border-skynest-accent outline-none transition-colors"
                                 />
                             </div>
                             <div className="relative">
                                 <select
                                     value={statusFilter}
                                     onChange={e => setStatusFilter(e.target.value as StatusFilter)}
-                                    className="appearance-none pl-4 pr-10 py-2.5 text-xs font-jakarta font-semibold uppercase tracking-widest border border-skynest-hairline bg-white focus:border-skynest-accent outline-none transition-colors cursor-pointer"
+                                    className="appearance-none pl-4 pr-10 py-2.5 text-xs font-jakarta font-semibold uppercase tracking-widest border border-white/10 bg-stone-900 text-stone-300 focus:border-skynest-accent outline-none transition-colors cursor-pointer"
                                 >
                                     {(['ALL', 'SETTLED', 'PARTIALLY_PAID', 'OPEN'] as StatusFilter[]).map(s => (
-                                        <option key={s} value={s}>{s.replace('_', ' ')}</option>
+                                        <option key={s} value={s} className="bg-stone-900 text-stone-100">{s.replace('_', ' ')}</option>
                                     ))}
                                 </select>
-                                <ChevronDown size={12} className="absolute right-3 top-1/2 -translate-y-1/2 text-ink/40 pointer-events-none" />
+                                <ChevronDown size={12} className="absolute right-3 top-1/2 -translate-y-1/2 text-stone-500 pointer-events-none" />
                             </div>
                         </div>
 
                         {/* Invoice Table */}
-                        <div className="bg-white border border-skynest-hairline overflow-x-auto">
+                        <div className="bg-stone-900 border border-white/10 overflow-x-auto">
                             <table className="w-full text-left text-sm font-jakarta">
-                                <thead className="bg-ink/[0.02] border-b border-skynest-hairline text-ink/50 text-[10px] tracking-widest uppercase">
+                                <thead className="bg-white/[0.02] border-b border-white/10 text-stone-400 text-[10px] tracking-widest uppercase">
                                     <tr>
                                         <th className="px-5 py-3 font-semibold">Guest</th>
                                         <th className="px-5 py-3 font-semibold">Room</th>
@@ -299,37 +300,37 @@ export default function BillingPage() {
                                         <th className="px-5 py-3 font-semibold">Actions</th>
                                     </tr>
                                 </thead>
-                                <tbody className="divide-y divide-skynest-hairline">
+                                <tbody className="divide-y divide-white/5">
                                     {filtered.length === 0 ? (
                                         <tr>
-                                            <td colSpan={8} className="px-5 py-12 text-center text-sm text-ink/40">
+                                            <td colSpan={8} className="px-5 py-12 text-center text-sm text-stone-500">
                                                 No invoices match your search or filter.
                                             </td>
                                         </tr>
                                     ) : filtered.map(inv => (
-                                        <tr key={inv.invoice_id} className="hover:bg-ink/[0.015] transition-colors">
+                                        <tr key={inv.invoice_id} className="hover:bg-white/[0.02] transition-colors">
                                             <td className="px-5 py-4">
-                                                <p className="font-medium text-ink text-sm">{inv.guest_name}</p>
-                                                <p className="text-[11px] text-ink/40 mt-0.5">{inv.guest_email}</p>
+                                                <p className="font-medium text-stone-200 text-sm">{inv.guest_name}</p>
+                                                <p className="text-[11px] text-stone-500 mt-0.5">{inv.guest_email}</p>
                                             </td>
                                             <td className="px-5 py-4">
-                                                <p className="text-sm font-medium text-ink">Room {inv.room_number}</p>
-                                                <p className="text-[11px] text-ink/40 mt-0.5">{inv.room_type_name}</p>
+                                                <p className="text-sm font-medium text-stone-200">Room {inv.room_number}</p>
+                                                <p className="text-[11px] text-stone-500 mt-0.5">{inv.room_type_name}</p>
                                             </td>
                                             <td className="px-5 py-4">
-                                                <p className="text-xs text-ink/70">{fmtDate(inv.check_in_date)}</p>
-                                                <p className="text-[11px] text-ink/40">→ {fmtDate(inv.check_out_date)}</p>
-                                                <p className="text-[10px] text-ink/30 mt-0.5">{inv.nights} night{inv.nights !== 1 ? 's' : ''}</p>
+                                                <p className="text-xs text-stone-300">{fmtDate(inv.check_in_date)}</p>
+                                                <p className="text-[11px] text-stone-500">→ {fmtDate(inv.check_out_date)}</p>
+                                                <p className="text-[10px] text-stone-500 mt-0.5">{inv.nights} night{inv.nights !== 1 ? 's' : ''}</p>
                                             </td>
-                                            <td className="px-5 py-4 font-medium text-ink">{fmt(inv.total_amount)}</td>
-                                            <td className="px-5 py-4 text-emerald-600 font-medium">{fmt(inv.total_paid)}</td>
-                                            <td className="px-5 py-4 text-rose-600 font-medium">{fmt(inv.balance_due)}</td>
+                                            <td className="px-5 py-4 font-medium text-stone-200">{fmt(inv.total_amount)}</td>
+                                            <td className="px-5 py-4 text-emerald-400 font-medium">{fmt(inv.total_paid)}</td>
+                                            <td className="px-5 py-4 text-rose-400 font-medium">{fmt(inv.balance_due)}</td>
                                             <td className="px-5 py-4"><StatusBadge status={inv.status} /></td>
                                             <td className="px-5 py-4">
                                                 <div className="flex items-center gap-2">
                                                     <button
                                                         onClick={() => { setSelectedInvoice(inv); setShowTaxModal(true); }}
-                                                        className="text-[10px] font-semibold uppercase tracking-widest text-ink/50 hover:text-skynest-accent transition-colors flex items-center gap-1"
+                                                        className="text-[10px] font-semibold uppercase tracking-widest text-stone-400 hover:text-skynest-accent transition-colors flex items-center gap-1"
                                                     >
                                                         <Printer size={11} /> View
                                                     </button>
@@ -348,7 +349,7 @@ export default function BillingPage() {
                                 </tbody>
                             </table>
                         </div>
-                        <p className="text-[11px] text-ink/30 font-jakarta">
+                        <p className="text-[11px] text-stone-500 font-jakarta">
                             Showing {filtered.length} of {invoices.length} invoices
                         </p>
                     </div>
@@ -358,45 +359,45 @@ export default function BillingPage() {
                 {activeTab === 'taxes' && (
                     <div className="space-y-6">
                         <div>
-                            <h2 className="font-cinzel text-lg uppercase tracking-widest text-ink mb-1">
+                            <h2 className="font-cinzel text-lg uppercase tracking-widest text-stone-100 mb-1">
                                 Statutory Tax Configuration
                             </h2>
-                            <p className="font-jakarta text-sm text-ink/50">
+                            <p className="font-jakarta text-sm text-stone-400">
                                 The 4-tier Sri Lankan tax cascade applied to all invoices in sequence:
-                                <span className="text-ink/70 font-medium"> Base → SC → TDL → SSCL → VAT</span>
+                                <span className="text-amber-400 font-medium"> Base → SC → TDL → SSCL → VAT</span>
                             </p>
                         </div>
 
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             {taxes.map((tax, i) => (
-                                <div key={tax.tax_id} className="bg-white border border-skynest-hairline p-6">
+                                <div key={tax.tax_id} className="bg-stone-900 border border-white/10 p-6">
                                     <div className="flex items-start justify-between mb-4">
                                         <div className="flex items-center gap-3">
-                                            <div className="w-8 h-8 rounded-sm bg-skynest-accent/10 flex items-center justify-center text-skynest-accent font-cinzel text-sm font-medium">
+                                            <div className="w-8 h-8 rounded-sm bg-skynest-accent/15 border border-skynest-accent/30 flex items-center justify-center text-skynest-accent font-cinzel text-sm font-medium">
                                                 {i + 1}
                                             </div>
                                             <div>
-                                                <p className="font-jakarta font-semibold text-sm text-ink">{tax.tax_name}</p>
-                                                <p className="text-[11px] text-ink/40 mt-0.5">Tier {i + 1} of the cascade</p>
+                                                <p className="font-jakarta font-semibold text-sm text-stone-200">{tax.tax_name}</p>
+                                                <p className="text-[11px] text-stone-500 mt-0.5">Tier {i + 1} of the cascade</p>
                                             </div>
                                         </div>
-                                        <span className={`text-[10px] font-jakarta font-semibold uppercase tracking-widest px-2 py-0.5 rounded-sm ${tax.is_active
-                                            ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                                            : 'bg-rose-50 text-rose-600 border border-rose-200'
+                                        <span className={`text-[10px] font-jakarta font-semibold uppercase tracking-widest px-2.5 py-0.5 rounded-sm ${tax.is_active
+                                                ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/30'
+                                                : 'bg-rose-500/10 text-rose-400 border border-rose-500/30'
                                             }`}>
                                             {tax.is_active ? 'Active' : 'Inactive'}
                                         </span>
                                     </div>
-                                    <p className="font-cinzel text-3xl font-normal text-ink mb-3">
+                                    <p className="font-cinzel text-3xl font-normal text-stone-100 mb-3">
                                         {toNum(tax.tax_percentage).toFixed(1)}%
                                     </p>
-                                    <div className="border-t border-skynest-hairline pt-3 space-y-1">
-                                        <p className="text-[11px] text-ink/40 font-jakarta">
-                                            Effective from: <span className="text-ink/60">{fmtDate(tax.effective_from)}</span>
+                                    <div className="border-t border-white/10 pt-3 space-y-1">
+                                        <p className="text-[11px] text-stone-500 font-jakarta">
+                                            Effective from: <span className="text-stone-300">{fmtDate(tax.effective_from)}</span>
                                         </p>
                                         {tax.effective_to && (
-                                            <p className="text-[11px] text-ink/40 font-jakarta">
-                                                Effective to: <span className="text-ink/60">{fmtDate(tax.effective_to)}</span>
+                                            <p className="text-[11px] text-stone-500 font-jakarta">
+                                                Effective to: <span className="text-stone-300">{fmtDate(tax.effective_to)}</span>
                                             </p>
                                         )}
                                     </div>
@@ -405,53 +406,53 @@ export default function BillingPage() {
                         </div>
 
                         {taxes.length === 0 && (
-                            <div className="bg-white border border-skynest-hairline p-12 text-center">
-                                <ShieldCheck className="w-8 h-8 text-ink/20 mx-auto mb-3" />
-                                <p className="font-jakarta text-sm text-ink/40">No tax configurations found.</p>
+                            <div className="bg-stone-900 border border-white/10 p-12 text-center">
+                                <ShieldCheck className="w-8 h-8 text-stone-600 mx-auto mb-3" />
+                                <p className="font-jakarta text-sm text-stone-500">No tax configurations found.</p>
                             </div>
                         )}
                     </div>
                 )}
 
-            </div>{/* end max-w content wrapper */}
+            </div>
 
             {/* ══════════════════════════════════════════════════════════════════════ */}
             {/* ── Tax Breakdown Modal ──────────────────────────────────────────────── */}
             {/* ══════════════════════════════════════════════════════════════════════ */}
             {showTaxModal && selectedInvoice && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-ink/40 backdrop-blur-sm">
-                    <div className="bg-paper border border-skynest-hairline w-full max-w-lg max-h-[90vh] overflow-y-auto">
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm">
+                    <div className="bg-stone-900 border border-white/10 w-full max-w-lg max-h-[90vh] overflow-y-auto shadow-2xl">
                         {/* Modal Header */}
-                        <div className="flex items-start justify-between p-6 border-b border-skynest-hairline">
+                        <div className="flex items-start justify-between p-6 border-b border-white/10">
                             <div>
                                 <p className="text-[10px] uppercase tracking-[0.2em] text-skynest-accent font-semibold font-jakarta mb-1">
                                     Invoice Detail
                                 </p>
-                                <h2 className="font-cinzel text-xl uppercase tracking-wide text-ink">
+                                <h2 className="font-cinzel text-xl uppercase tracking-wide text-stone-100">
                                     Tax Breakdown
                                 </h2>
                             </div>
-                            <button onClick={() => setShowTaxModal(false)} className="text-ink/40 hover:text-ink transition-colors">
+                            <button onClick={() => setShowTaxModal(false)} className="text-stone-400 hover:text-stone-100 transition-colors">
                                 <X size={18} />
                             </button>
                         </div>
 
                         {/* Invoice Identity */}
-                        <div className="p-6 border-b border-skynest-hairline space-y-1">
-                            <p className="font-jakarta font-semibold text-ink">{selectedInvoice.guest_name}</p>
-                            <p className="font-jakarta text-sm text-ink/50">{selectedInvoice.guest_email}</p>
-                            <p className="font-jakarta text-xs text-ink/40 mt-2">
+                        <div className="p-6 border-b border-white/10 space-y-1">
+                            <p className="font-jakarta font-semibold text-stone-200">{selectedInvoice.guest_name}</p>
+                            <p className="font-jakarta text-sm text-stone-400">{selectedInvoice.guest_email}</p>
+                            <p className="font-jakarta text-xs text-stone-500 mt-2">
                                 Room {selectedInvoice.room_number} · {selectedInvoice.branch_name} ·{' '}
                                 {selectedInvoice.nights} night{selectedInvoice.nights !== 1 ? 's' : ''}
                             </p>
-                            <p className="font-jakarta text-xs text-ink/40">
+                            <p className="font-jakarta text-xs text-stone-500">
                                 {fmtDate(selectedInvoice.check_in_date)} → {fmtDate(selectedInvoice.check_out_date)}
                             </p>
                         </div>
 
                         {/* Tax Cascade Breakdown */}
                         <div className="p-6 space-y-2">
-                            <p className="text-[10px] uppercase tracking-widest text-ink/40 font-jakarta font-semibold mb-4">
+                            <p className="text-[10px] uppercase tracking-widest text-stone-500 font-jakarta font-semibold mb-4">
                                 Statutory Tax Cascade
                             </p>
                             {[
@@ -461,47 +462,47 @@ export default function BillingPage() {
                                 { label: 'SSCL', amount: selectedInvoice.sscl_amount, tier: 3 },
                                 { label: 'VAT', amount: selectedInvoice.vat_amount, tier: 4 },
                             ].map(row => (
-                                <div key={row.label} className={`flex items-center justify-between py-2 ${row.tier === 0 ? 'border-b border-skynest-hairline pb-3 mb-1' : ''}`}>
+                                <div key={row.label} className={`flex items-center justify-between py-2 ${row.tier === 0 ? 'border-b border-white/10 pb-3 mb-1' : ''}`}>
                                     <div className="flex items-center gap-3">
                                         {row.tier > 0 && (
-                                            <span className="w-4 h-px bg-skynest-hairline inline-block" />
+                                            <span className="w-4 h-px bg-white/20 inline-block" />
                                         )}
-                                        <span className={`font-jakarta text-sm ${row.tier === 0 ? 'font-semibold text-ink' : 'text-ink/60'}`}>
+                                        <span className={`font-jakarta text-sm ${row.tier === 0 ? 'font-semibold text-stone-200' : 'text-stone-400'}`}>
                                             {row.label}
                                         </span>
                                     </div>
-                                    <span className={`font-jakarta font-medium ${row.tier === 0 ? 'text-ink' : 'text-ink/70'}`}>
+                                    <span className={`font-jakarta font-medium ${row.tier === 0 ? 'text-stone-100' : 'text-stone-300'}`}>
                                         {fmt(row.amount)}
                                     </span>
                                 </div>
                             ))}
-                            <div className="border-t-2 border-ink/10 pt-3 mt-2 flex items-center justify-between">
-                                <span className="font-jakarta font-semibold text-sm text-ink">Grand Total</span>
-                                <span className="font-cinzel text-xl text-ink">{fmt(selectedInvoice.total_amount)}</span>
+                            <div className="border-t-2 border-white/15 pt-3 mt-2 flex items-center justify-between">
+                                <span className="font-jakarta font-semibold text-sm text-stone-100">Grand Total</span>
+                                <span className="font-cinzel text-xl text-amber-400">{fmt(selectedInvoice.total_amount)}</span>
                             </div>
                         </div>
 
                         {/* Payment Status */}
                         <div className="px-6 pb-6 space-y-2">
-                            <div className="flex items-center justify-between py-2 border-t border-skynest-hairline">
-                                <span className="font-jakarta text-sm text-ink/50">Amount Paid</span>
-                                <span className="font-jakarta font-semibold text-emerald-600">{fmt(selectedInvoice.total_paid)}</span>
+                            <div className="flex items-center justify-between py-2 border-t border-white/10">
+                                <span className="font-jakarta text-sm text-stone-400">Amount Paid</span>
+                                <span className="font-jakarta font-semibold text-emerald-400">{fmt(selectedInvoice.total_paid)}</span>
                             </div>
                             <div className="flex items-center justify-between py-2">
-                                <span className="font-jakarta text-sm text-ink/50">Balance Due</span>
-                                <span className="font-jakarta font-semibold text-rose-600">{fmt(selectedInvoice.balance_due)}</span>
+                                <span className="font-jakarta text-sm text-stone-400">Balance Due</span>
+                                <span className="font-jakarta font-semibold text-rose-400">{fmt(selectedInvoice.balance_due)}</span>
                             </div>
                             <div className="flex items-center justify-between pt-2">
-                                <span className="font-jakarta text-xs text-ink/40">Status</span>
+                                <span className="font-jakarta text-xs text-stone-500">Status</span>
                                 <StatusBadge status={selectedInvoice.status} />
                             </div>
                         </div>
 
                         {/* Modal Footer */}
-                        <div className="px-6 py-4 border-t border-skynest-hairline flex justify-end gap-3">
+                        <div className="px-6 py-4 border-t border-white/10 flex justify-end gap-3 bg-stone-950/40">
                             <button
                                 onClick={() => setShowTaxModal(false)}
-                                className="px-5 py-2 text-xs font-jakarta font-semibold uppercase tracking-widest border border-skynest-hairline text-ink/60 hover:text-ink hover:border-ink transition-colors"
+                                className="px-5 py-2 text-xs font-jakarta font-semibold uppercase tracking-widest border border-white/10 text-stone-300 hover:text-stone-100 hover:border-white/25 transition-colors"
                             >
                                 Close
                             </button>
@@ -522,36 +523,36 @@ export default function BillingPage() {
             {/* ── Record Payment Modal ─────────────────────────────────────────────── */}
             {/* ══════════════════════════════════════════════════════════════════════ */}
             {showPayModal && selectedInvoice && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-ink/40 backdrop-blur-sm">
-                    <div className="bg-paper border border-skynest-hairline w-full max-w-md">
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm">
+                    <div className="bg-stone-900 border border-white/10 w-full max-w-md shadow-2xl">
                         {/* Modal Header */}
-                        <div className="flex items-start justify-between p-6 border-b border-skynest-hairline">
+                        <div className="flex items-start justify-between p-6 border-b border-white/10">
                             <div>
                                 <p className="text-[10px] uppercase tracking-[0.2em] text-skynest-accent font-semibold font-jakarta mb-1">
                                     Payment
                                 </p>
-                                <h2 className="font-cinzel text-xl uppercase tracking-wide text-ink">
+                                <h2 className="font-cinzel text-xl uppercase tracking-wide text-stone-100">
                                     Record Payment
                                 </h2>
                             </div>
-                            <button onClick={() => { setShowPayModal(false); setPayError(null); }} className="text-ink/40 hover:text-ink transition-colors">
+                            <button onClick={() => { setShowPayModal(false); setPayError(null); }} className="text-stone-400 hover:text-stone-100 transition-colors">
                                 <X size={18} />
                             </button>
                         </div>
 
                         <div className="p-6 space-y-5">
-                            <div className="bg-ink/[0.02] border border-skynest-hairline p-4 rounded-sm">
-                                <p className="font-jakarta text-xs text-ink/50 mb-1">Guest</p>
-                                <p className="font-jakarta font-semibold text-sm text-ink">{selectedInvoice.guest_name}</p>
-                                <p className="font-jakarta text-xs text-ink/40 mt-1">
-                                    Balance due: <span className="text-rose-600 font-semibold">{fmt(selectedInvoice.balance_due)}</span>
+                            <div className="bg-stone-950/50 border border-white/10 p-4 rounded-sm">
+                                <p className="font-jakarta text-xs text-stone-400 mb-1">Guest</p>
+                                <p className="font-jakarta font-semibold text-sm text-stone-200">{selectedInvoice.guest_name}</p>
+                                <p className="font-jakarta text-xs text-stone-400 mt-1">
+                                    Balance due: <span className="text-rose-400 font-semibold">{fmt(selectedInvoice.balance_due)}</span>
                                 </p>
                             </div>
 
                             {/* Amount Field */}
                             <div>
-                                <label className="block text-[10px] font-jakarta font-semibold uppercase tracking-widest text-ink/50 mb-2">
-                                    Payment Amount
+                                <label className="block text-[10px] font-jakarta font-semibold uppercase tracking-widest text-stone-400 mb-2">
+                                    Payment Amount ($)
                                 </label>
                                 <input
                                     type="number"
@@ -559,14 +560,14 @@ export default function BillingPage() {
                                     step="0.01"
                                     value={payAmount}
                                     onChange={e => setPayAmount(e.target.value)}
-                                    className="w-full px-4 py-3 text-sm font-jakarta border border-skynest-hairline bg-white focus:border-skynest-accent outline-none transition-colors"
+                                    className="w-full px-4 py-3 text-sm font-jakarta border border-white/10 bg-stone-950 text-stone-100 focus:border-skynest-accent outline-none transition-colors"
                                     placeholder="0.00"
                                 />
                             </div>
 
                             {/* Payment Method */}
                             <div>
-                                <label className="block text-[10px] font-jakarta font-semibold uppercase tracking-widest text-ink/50 mb-2">
+                                <label className="block text-[10px] font-jakarta font-semibold uppercase tracking-widest text-stone-400 mb-2">
                                     Payment Method
                                 </label>
                                 <div className="grid grid-cols-3 gap-2">
@@ -580,8 +581,8 @@ export default function BillingPage() {
                                             type="button"
                                             onClick={() => setPayMethod(m.value)}
                                             className={`flex flex-col items-center gap-1.5 py-3 px-2 border text-xs font-jakarta font-semibold transition-colors ${payMethod === m.value
-                                                ? 'border-skynest-accent text-skynest-accent bg-skynest-accent/5'
-                                                : 'border-skynest-hairline text-ink/50 hover:border-ink/30'
+                                                    ? 'border-skynest-accent text-skynest-accent bg-skynest-accent/10'
+                                                    : 'border-white/10 text-stone-400 hover:border-white/20'
                                                 }`}
                                         >
                                             {m.icon} {m.label}
@@ -591,18 +592,18 @@ export default function BillingPage() {
                             </div>
 
                             {payError && (
-                                <p className="text-xs font-jakarta text-rose-600 bg-rose-50 border border-rose-200 px-3 py-2">
+                                <p className="text-xs font-jakarta text-rose-300 bg-rose-500/10 border border-rose-500/30 px-3 py-2">
                                     {payError}
                                 </p>
                             )}
                         </div>
 
                         {/* Modal Footer */}
-                        <div className="px-6 py-4 border-t border-skynest-hairline flex justify-end gap-3">
+                        <div className="px-6 py-4 border-t border-white/10 flex justify-end gap-3 bg-stone-950/40">
                             <button
                                 onClick={() => { setShowPayModal(false); setPayError(null); }}
                                 disabled={payLoading}
-                                className="px-5 py-2 text-xs font-jakarta font-semibold uppercase tracking-widest border border-skynest-hairline text-ink/60 hover:text-ink hover:border-ink transition-colors disabled:opacity-50"
+                                className="px-5 py-2 text-xs font-jakarta font-semibold uppercase tracking-widest border border-white/10 text-stone-300 hover:text-stone-100 hover:border-white/25 transition-colors disabled:opacity-50"
                             >
                                 Cancel
                             </button>
@@ -625,4 +626,3 @@ export default function BillingPage() {
         </div>
     );
 }
-
