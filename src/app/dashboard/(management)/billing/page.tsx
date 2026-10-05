@@ -16,6 +16,7 @@ import {
 interface Invoice {
     invoice_id: string;
     booking_id: string;
+    booking_room_id?: string;
     guest_name: string;
     guest_email: string;
     room_number: string;
@@ -50,8 +51,6 @@ type StatusFilter = 'ALL' | 'SETTLED' | 'PARTIALLY_PAID' | 'OPEN';
 
 // ── Helper Components ─────────────────────────────────────────────────────────
 
-// ── Helper Components ─────────────────────────────────────────────────────────
-
 function StatusBadge({ status }: { status: Invoice['status'] }) {
     if (status === 'SETTLED') return (
         <span className="inline-flex items-center gap-1 px-2.5 py-0.5 text-[10px] font-jakarta font-semibold uppercase tracking-wider bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 rounded-sm">
@@ -71,7 +70,7 @@ function StatusBadge({ status }: { status: Invoice['status'] }) {
 }
 
 function fmt(n: number | unknown) {
-    return `$${toNum(n).toFixed(2)}`;
+    return `LKR ${toNum(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 
 function fmtDate(d: string | null) {
@@ -151,6 +150,7 @@ export default function BillingPage() {
                 body: JSON.stringify({
                     amount: parseFloat(payAmount),
                     payment_method: payMethod,
+                    booking_room_id: selectedInvoice.booking_room_id,
                 }),
             });
             setShowPayModal(false);
@@ -395,7 +395,7 @@ export default function BillingPage() {
                                         </span>
                                     </div>
                                     <p className="font-cinzel text-3xl font-normal text-stone-100 mb-3">
-                                        {toNum(tax.tax_percentage).toFixed(1)}%
+                                        {(toNum(tax.tax_percentage) <= 1 ? toNum(tax.tax_percentage) * 100 : toNum(tax.tax_percentage)).toFixed(1)}%
                                     </p>
                                     <div className="border-t border-white/10 pt-3 space-y-1">
                                         <p className="text-[11px] text-stone-500 font-jakarta">
@@ -558,7 +558,7 @@ export default function BillingPage() {
                             {/* Amount Field */}
                             <div>
                                 <label className="block text-[10px] font-jakarta font-semibold uppercase tracking-widest text-stone-400 mb-2">
-                                    Payment Amount ($)
+                                    Payment Amount (LKR)
                                 </label>
                                 <input
                                     type="number"
