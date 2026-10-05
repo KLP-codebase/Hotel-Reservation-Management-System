@@ -11,6 +11,7 @@ import { useRouter } from 'next/navigation';
 
 interface RecentBooking {
   booking_id: string;
+  booking_room_id?: string;
   booking_status: string;
   booking_created_at: string;
   branch_name: string;
@@ -121,9 +122,9 @@ export default function BookingsManagementPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-white/5">
-              {filtered.map(b => (
+              {filtered.map((b, idx) => (
                 <tr
-  key={b.booking_id}
+  key={b.booking_room_id || `${b.booking_id}-${b.room_number ?? idx}`}
   onClick={() => router.push(`/dashboard/bookings/${b.booking_id}`)}
   className="hover:bg-white/3 transition-colors cursor-pointer"
 >

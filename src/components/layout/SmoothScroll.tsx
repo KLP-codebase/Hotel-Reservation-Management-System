@@ -30,11 +30,11 @@ export function SmoothScroll({ children }: { children: React.ReactNode }) {
 
     // Instantiate Lenis with classic silky inertia physics
     const lenis = new Lenis({
-      lerp: 0.075, // Silky liquid inertia for continuous smooth momentum
-      wheelMultiplier: 1.1, // Responsive initial scroll with luxurious coasting
-      touchMultiplier: 1.8,
+      lerp: 0.1, // Faster responsiveness while preserving smooth liquid momentum
+      wheelMultiplier: 1.3, // Slightly faster distance per scroll notch
+      touchMultiplier: 2.0, // Responsive touch & trackpad momentum
       syncTouch: true, // Enable smooth momentum on touchpads & touch devices
-      syncTouchLerp: 0.075,
+      syncTouchLerp: 0.1,
       autoRaf: false, // Driven synchronously via GSAP ticker
       anchors: true,
       autoResize: true,

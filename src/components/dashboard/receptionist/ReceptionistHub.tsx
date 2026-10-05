@@ -409,7 +409,7 @@ export function ReceptionistHub({
               No reservations matching current view filter.
             </div>
           ) : (
-            filteredBookings.map((b) => {
+            filteredBookings.map((b, idx) => {
               const isCheckedIn = b.booking_status === "CHECKED_IN";
               const isConfirmed = b.booking_status === "CONFIRMED";
               const isCheckedOut = b.booking_status === "CHECKED_OUT";
@@ -419,7 +419,7 @@ export function ReceptionistHub({
 
               return (
                 <div
-                  key={b.booking_id}
+                  key={b.booking_room_id || `${b.booking_id}-${b.room_number ?? idx}`}
                   className={`border rounded-[4px] bg-paper transition-all overflow-hidden shadow-xs ${
                     isExpanded
                       ? "border-skynest-accent ring-1 ring-skynest-accent/20"

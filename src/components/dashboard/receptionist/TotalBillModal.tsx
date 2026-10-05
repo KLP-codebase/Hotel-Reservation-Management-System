@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import {
   X, Receipt, CreditCard, DollarSign, Printer, CheckCircle2,
   AlertCircle, Building, Calendar, User, ShieldCheck, Check,
-  Hotel, FileText, Clock, Phone, Mail
+  Hotel, FileText, Clock, Phone, Mail, Layers
 } from "lucide-react";
 import { apiFetch, toNum } from "@/lib/api-client";
 
@@ -31,33 +31,65 @@ interface TaxCascadeBreakdown {
   status:             "OPEN" | "PARTIALLY_PAID" | "SETTLED";
 }
 
+interface RoomSummaryItem {
+  booking_room_id:      string;
+  room_id:              string;
+  room_number:          string;
+  room_type_name:       string;
+  meal_plan:            string;
+  meal_price_per_night: number;
+  nights:               number;
+  rate_at_booking:      number;
+  room_tariff:          number;
+  meal_charges:         number;
+  room_charges:         number;
+  service_charges:      number;
+  base_amount:          number;
+  total_amount:         number;
+}
+
 interface InvoiceData {
-  invoice_id:      string;
-  booking_id:      string;
-  booking_room_id: string;
-  guest_name:      string;
-  guest_email:     string;
-  guest_phone?:    string | null;
-  room_number:     string;
-  room_type_name:  string;
-  check_in_date:   string;
-  check_out_date:  string;
-  nights:          number;
-  rate_at_booking: number;
-  breakdown:       TaxCascadeBreakdown;
-  services:        Array<{
-    usage_id:         string;
-    service_name:     string;
-    category:         string;
-    quantity:         number;
-    price_at_usage:   number;
-    total_price:      number;
-    used_at:          string;
-    notes?:           string | null;
-    meal_time?:       string | null;
+  invoice_id:           string;
+  booking_id:           string;
+  booking_room_id:      string;
+  is_consolidated?:     boolean;
+  view_mode?:           "consolidated" | "single_room";
+  rooms_count?:         number;
+  guest_name:           string;
+  guest_email:          string;
+  guest_phone?:         string | null;
+  room_number:          string;
+  room_type_name:       string;
+  meal_plan?:           string;
+  meal_price_per_night?: number;
+  check_in_date:        string;
+  check_out_date:       string;
+  nights:               number;
+  rate_at_booking:      number;
+  breakdown:            TaxCascadeBreakdown;
+  rooms?:               RoomSummaryItem[];
+  all_rooms?: Array<{
+    booking_room_id: string;
+    room_number:     string;
+    room_type_name:  string;
+    meal_plan:       string;
+    total_amount:    number;
+  }>;
+  services: Array<{
+    usage_id:          string;
+    booking_room_id?:  string;
+    room_number?:      string | null;
+    service_name:      string;
+    category:          string;
+    quantity:          number;
+    price_at_usage:    number;
+    total_price:       number;
+    used_at:           string;
+    notes?:            string | null;
+    meal_time?:        string | null;
     appointment_time?: string | null;
   }>;
-  payments:        PaymentRecord[];
+  payments: PaymentRecord[];
 }
 
 interface TotalBillModalProps {
@@ -97,8 +129,10 @@ function formatDateClean(dStr: string | null | undefined): string {
 
 export function TotalBillModal({ isOpen, onClose, booking, onPaymentSaved, initialMode = "invoice" }: TotalBillModalProps) {
   const [activeTab, setActiveTab]         = useState<"invoice" | "pay">(initialMode);
+  const [selectedScope, setSelectedScope] = useState<"ALL" | string>("ALL");
   const [invoice, setInvoice]             = useState<InvoiceData | null>(null);
   const [loading, setLoading]             = useState(false);
+  const [generatingBill, setGeneratingBill] = useState(false);
   const [payAmount, setPayAmount]         = useState<string>("");
   const [payMethod, setPayMethod]         = useState<"CREDIT_CARD" | "CASH" | "BANK_TRANSFER" | "ONLINE">("CREDIT_CARD");
   const [payRef, setPayRef]               = useState<string>("");
@@ -106,13 +140,15 @@ export function TotalBillModal({ isOpen, onClose, booking, onPaymentSaved, initi
   const [submittingPay, setSubmittingPay] = useState(false);
   const [statusMsg, setStatusMsg]         = useState<{ type: "success" | "error"; text: string } | null>(null);
 
-  const fetchInvoice = async () => {
+  const fetchInvoice = async (scope: "ALL" | string = selectedScope) => {
     if (!booking) return;
     setLoading(true);
     try {
-      const res = await apiFetch<{ success: boolean; data: InvoiceData }>(
-        `/api/v1/invoices/${booking.booking_id}`
-      );
+      const url = scope === "ALL"
+        ? `/api/v1/invoices/${booking.booking_id}`
+        : `/api/v1/invoices/${booking.booking_id}?booking_room_id=${scope}`;
+
+      const res = await apiFetch<{ success: boolean; data: InvoiceData }>(url);
       if (res.success && res.data) {
         setInvoice(res.data);
         if (res.data.breakdown.balance_due > 0) {
@@ -131,7 +167,8 @@ export function TotalBillModal({ isOpen, onClose, booking, onPaymentSaved, initi
   useEffect(() => {
     if (isOpen && booking) {
       setActiveTab(initialMode || "invoice");
-      fetchInvoice();
+      setSelectedScope("ALL");
+      fetchInvoice("ALL");
       setStatusMsg(null);
       setPayRef(`REC-${Date.now().toString().slice(-6)}`);
       setPayNotes("");
@@ -139,6 +176,40 @@ export function TotalBillModal({ isOpen, onClose, booking, onPaymentSaved, initi
   }, [isOpen, booking, initialMode]);
 
   if (!isOpen || !booking) return null;
+
+  const handleScopeChange = (newScope: "ALL" | string) => {
+    setSelectedScope(newScope);
+    setStatusMsg(null);
+    fetchInvoice(newScope);
+  };
+
+  const handleGenerateBill = async () => {
+    if (!booking) return;
+    setGeneratingBill(true);
+    setStatusMsg(null);
+    try {
+      const url = selectedScope === "ALL"
+        ? `/api/v1/invoices/${booking.booking_id}/generate`
+        : `/api/v1/invoices/${booking.booking_id}/generate?booking_room_id=${selectedScope}`;
+
+      const res = await apiFetch<{ success: boolean; message: string; data: InvoiceData }>(url, {
+        method: "POST",
+      });
+
+      if (res.success && res.data) {
+        setInvoice(res.data);
+        setStatusMsg({
+          type: "success",
+          text: res.message || "Official final bill generated with statutory tax cascade!",
+        });
+        onPaymentSaved();
+      }
+    } catch (err: any) {
+      setStatusMsg({ type: "error", text: err.message || "Failed to formalize bill." });
+    } finally {
+      setGeneratingBill(false);
+    }
+  };
 
   const handleRecordPayment = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -159,11 +230,12 @@ export function TotalBillModal({ isOpen, onClose, booking, onPaymentSaved, initi
           payment_method:   payMethod,
           reference_number: payRef.trim() || undefined,
           notes:            payNotes.trim() || undefined,
+          booking_room_id:  selectedScope !== "ALL" ? selectedScope : undefined,
         }),
       });
 
       setStatusMsg({ type: "success", text: `Payment of $${toNum(amountNum).toFixed(2)} recorded successfully!` });
-      await fetchInvoice();
+      await fetchInvoice(selectedScope);
       onPaymentSaved();
     } catch (err: any) {
       setStatusMsg({ type: "error", text: err.message || "Failed to record payment." });
@@ -183,28 +255,72 @@ export function TotalBillModal({ isOpen, onClose, booking, onPaymentSaved, initi
     booking?.booking_status === "CHECKED_OUT"
   ) : false;
 
-  // Rule: "Paid in Full (Settled)" status applies strictly for guests departing today or checked out
   const isPaidInFullAndSettled = isDepartingToday && (b?.status === "SETTLED" || (b && b.balance_due <= 0 && b.total_paid > 0));
   const isCurrentChargesClearedInHouse = !isDepartingToday && b && b.balance_due <= 0 && b.total_paid > 0;
 
   // ── Construct One-by-One Ordered Line Items ─────────────────────────────────
   const orderedLineItems: OrderedLineItem[] = [];
   if (invoice && b) {
-    // 1. Room accommodation line item
-    orderedLineItems.push({
-      id:          "room-tariff-charge",
-      itemNumber:  1,
-      date:        formatDateClean(invoice.check_in_date),
-      category:    "Accommodation",
-      description: `Room Accommodation — ${invoice.room_type_name} (Room ${invoice.room_number})`,
-      details:     `${invoice.nights} Night${invoice.nights === 1 ? "" : "s"} (${formatDateClean(invoice.check_in_date)} to ${formatDateClean(invoice.check_out_date)})`,
-      unitPrice:   invoice.rate_at_booking,
-      quantity:    invoice.nights,
-      totalPrice:  b.room_charges,
-    });
+    if (invoice.is_consolidated && invoice.rooms && invoice.rooms.length > 0) {
+      // 1. Consolidated Accommodation & Meal Plan Breakdown per Room
+      invoice.rooms.forEach((rm) => {
+        orderedLineItems.push({
+          id:          `room-tariff-${rm.booking_room_id}`,
+          itemNumber:  orderedLineItems.length + 1,
+          date:        formatDateClean(invoice.check_in_date),
+          category:    "Accommodation",
+          description: `Room Accommodation — Room ${rm.room_number} (${rm.room_type_name})`,
+          details:     `${rm.nights} Night${rm.nights === 1 ? "" : "s"} (${formatDateClean(invoice.check_in_date)} to ${formatDateClean(invoice.check_out_date)}) @ $${rm.rate_at_booking}/nt`,
+          unitPrice:   rm.rate_at_booking,
+          quantity:    rm.nights,
+          totalPrice:  rm.room_tariff,
+        });
 
-    // 2. Ordered services line items (Dining, Spa, Housekeeping, Transport)
-    invoice.services.forEach((s, idx) => {
+        if (rm.meal_charges > 0) {
+          orderedLineItems.push({
+            id:          `room-meal-${rm.booking_room_id}`,
+            itemNumber:  orderedLineItems.length + 1,
+            date:        formatDateClean(invoice.check_in_date),
+            category:    "Dining",
+            description: `Meal Plan: ${rm.meal_plan} — Room ${rm.room_number}`,
+            details:     `${rm.nights} Night${rm.nights === 1 ? "" : "s"} @ $${rm.meal_price_per_night}/nt`,
+            unitPrice:   rm.meal_price_per_night,
+            quantity:    rm.nights,
+            totalPrice:  rm.meal_charges,
+          });
+        }
+      });
+    } else {
+      // Single Room Accommodation Line
+      orderedLineItems.push({
+        id:          "room-tariff-charge",
+        itemNumber:  1,
+        date:        formatDateClean(invoice.check_in_date),
+        category:    "Accommodation",
+        description: `Room Accommodation — ${invoice.room_type_name} (Room ${invoice.room_number})`,
+        details:     `${invoice.nights} Night${invoice.nights === 1 ? "" : "s"} (${formatDateClean(invoice.check_in_date)} to ${formatDateClean(invoice.check_out_date)}) @ $${invoice.rate_at_booking}/nt`,
+        unitPrice:   invoice.rate_at_booking,
+        quantity:    invoice.nights,
+        totalPrice:  b.room_charges,
+      });
+
+      if (invoice.meal_plan && invoice.meal_plan !== "Room Only" && (invoice.meal_price_per_night ?? 0) > 0) {
+        orderedLineItems.push({
+          id:          "room-meal-charge",
+          itemNumber:  2,
+          date:        formatDateClean(invoice.check_in_date),
+          category:    "Dining",
+          description: `Meal Plan: ${invoice.meal_plan} (Room ${invoice.room_number})`,
+          details:     `${invoice.nights} Night${invoice.nights === 1 ? "" : "s"} @ $${invoice.meal_price_per_night}/nt`,
+          unitPrice:   invoice.meal_price_per_night ?? 0,
+          quantity:    invoice.nights,
+          totalPrice:  (invoice.meal_price_per_night ?? 0) * invoice.nights,
+        });
+      }
+    }
+
+    // 2. Ancillary services line items
+    invoice.services.forEach((s) => {
       let details = "";
       if (s.appointment_time) {
         details = `Appointment Slot: ${s.appointment_time}`;
@@ -215,12 +331,14 @@ export function TotalBillModal({ isOpen, onClose, booking, onPaymentSaved, initi
         details = details ? `${details} | ${s.notes}` : s.notes;
       }
 
+      const serviceDesc = s.room_number ? `${s.service_name} (Room ${s.room_number})` : s.service_name;
+
       orderedLineItems.push({
         id:          s.usage_id,
-        itemNumber:  idx + 2,
+        itemNumber:  orderedLineItems.length + 1,
         date:        formatDateClean(s.used_at),
         category:    s.category,
-        description: s.service_name,
+        description: serviceDesc,
         details:     details || undefined,
         unitPrice:   s.price_at_usage,
         quantity:    s.quantity,
@@ -255,9 +373,12 @@ export function TotalBillModal({ isOpen, onClose, booking, onPaymentSaved, initi
           <div className="flex items-center gap-2">
             <CreditCard className="w-4 h-4 text-skynest-accent" />
             <h4 className="font-cinzel text-xs font-bold text-ink uppercase tracking-wider">
-              Front Desk Payment Processing
+              {selectedScope === "ALL"
+                ? "Payment Processing — Consolidated Booking Folio"
+                : `Payment Processing — Room ${invoice?.room_number}`}
             </h4>
           </div>
+
           <div className="flex items-center gap-3">
             <span className="text-xs font-jakarta text-ink/60">
               Total Invoiced: <strong className="font-mono text-ink">${toNum(b.total_amount).toFixed(2)}</strong>
@@ -408,16 +529,16 @@ export function TotalBillModal({ isOpen, onClose, booking, onPaymentSaved, initi
 
         <div className="text-left sm:text-right">
           <span className="inline-block px-2.5 py-1 rounded bg-ink/[0.04] border border-skynest-hairline font-cinzel text-xs font-bold tracking-widest text-ink uppercase mb-2">
-            Official Tax Invoice
+            {invoice.is_consolidated ? "Official Consolidated Tax Invoice" : "Official Single Room Tax Invoice"}
           </span>
           <p className="font-mono text-sm font-bold text-ink">
-            INV-{invoice.booking_id.replace(/[^a-zA-Z0-9]/g, "").slice(-6).toUpperCase()}
+            INV-{invoice.booking_id.replace(/[^a-zA-Z0-9]/g, "").slice(-6).toUpperCase()}{invoice.is_consolidated ? "-ALL" : `-${invoice.room_number}`}
           </p>
           <p className="text-xs text-ink/60 mt-1">
             Date of Issue: <span className="font-medium text-ink">{new Date().toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" })}</span>
           </p>
           <p className="text-xs text-ink/60">
-            Folio Ref: <span className="font-mono font-medium text-ink">FOL-{invoice.room_number || "101"}</span>
+            Folio Ref: <span className="font-mono font-medium text-ink">{invoice.is_consolidated ? `FOL-BOOKING-${invoice.rooms_count || 1}RMS` : `FOL-ROOM-${invoice.room_number || "101"}`}</span>
           </p>
           <div className="mt-2">
             <span
@@ -469,7 +590,11 @@ export function TotalBillModal({ isOpen, onClose, booking, onPaymentSaved, initi
             Stay & Room Particulars
           </span>
           <p className="text-xs font-semibold text-ink">
-            Room {invoice.room_number} — <span className="text-skynest-accent">{invoice.room_type_name}</span>
+            {invoice.is_consolidated ? (
+              <span>All Rooms: <strong className="text-skynest-accent">{invoice.room_number}</strong> ({invoice.rooms_count || 1} Rooms Booked)</span>
+            ) : (
+              <span>Room <strong className="text-skynest-accent">{invoice.room_number}</strong> — {invoice.room_type_name}</span>
+            )}
           </p>
           <p className="text-xs text-ink/70 mt-0.5">
             Check-In: <strong className="text-ink">{formatDateClean(invoice.check_in_date)}</strong>
@@ -482,9 +607,14 @@ export function TotalBillModal({ isOpen, onClose, booking, onPaymentSaved, initi
 
       {/* 3. Itemized Charges Table */}
       <div className="mt-4">
-        <h4 className="font-cinzel text-xs font-bold text-ink uppercase tracking-wider mb-2">
-          Itemized Charges & Services
-        </h4>
+        <div className="flex items-center justify-between mb-2">
+          <h4 className="font-cinzel text-xs font-bold text-ink uppercase tracking-wider">
+            {invoice.is_consolidated ? "Itemized Charges & Services Across All Rooms" : "Itemized Charges & Services For This Room"}
+          </h4>
+          <span className="text-[10px] font-jakarta text-ink/40 uppercase">
+            {orderedLineItems.length} Folio Items
+          </span>
+        </div>
         <div className="border border-skynest-hairline rounded overflow-hidden">
           <table className="w-full text-xs text-left border-collapse">
             <thead>
@@ -577,7 +707,7 @@ export function TotalBillModal({ isOpen, onClose, booking, onPaymentSaved, initi
         </div>
       </div>
 
-      {/* 5. Payments & Credits Ledger (Line by Line) */}
+      {/* 5. Payments & Credits Ledger */}
       <div className="mt-8 pt-6 border-t border-skynest-hairline">
         <div className="flex items-center justify-between mb-2">
           <h4 className="font-cinzel text-xs font-bold text-ink uppercase tracking-wider">
@@ -589,8 +719,8 @@ export function TotalBillModal({ isOpen, onClose, booking, onPaymentSaved, initi
         </div>
 
         {invoice.payments.length === 0 ? (
-          <p className="text-xs text-ink/40 italic py-2">
-            No payments or advance deposits recorded for this reservation.
+          <p className="text-xs text-ink/50 italic py-2">
+            No payments or deposits recorded on this invoice yet.
           </p>
         ) : (
           <div className="border border-skynest-hairline rounded overflow-hidden">
@@ -598,22 +728,18 @@ export function TotalBillModal({ isOpen, onClose, booking, onPaymentSaved, initi
               <thead>
                 <tr className="bg-ink/[0.03] border-b border-skynest-hairline text-ink/60 uppercase tracking-wider font-semibold text-[10px]">
                   <th className="py-2 px-3">Date</th>
-                  <th className="py-2 px-3">Payment Method</th>
-                  <th className="py-2 px-3">Reference</th>
+                  <th className="py-2 px-3">Method</th>
                   <th className="py-2 px-3 text-right">Amount Paid</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-skynest-hairline font-jakarta">
                 {invoice.payments.map((p) => (
-                  <tr key={p.payment_id} className="hover:bg-ink/[0.01]">
+                  <tr key={p.payment_id}>
                     <td className="py-2 px-3 font-mono text-[11px] text-ink/70">
                       {formatDateClean(p.payment_date)}
                     </td>
-                    <td className="py-2 px-3 font-semibold text-ink">
+                    <td className="py-2 px-3 text-ink font-medium">
                       {p.payment_method.replace(/_/g, " ")}
-                    </td>
-                    <td className="py-2 px-3 font-mono text-[11px] text-ink/50">
-                      {p.reference_number || "—"}
                     </td>
                     <td className="py-2 px-3 text-right font-mono font-semibold text-emerald-700">
                       ${toNum(p.amount).toFixed(2)}
@@ -624,46 +750,39 @@ export function TotalBillModal({ isOpen, onClose, booking, onPaymentSaved, initi
             </table>
           </div>
         )}
+      </div>
 
-        <div className="mt-4 flex flex-col sm:flex-row items-center justify-between gap-4 p-4 rounded bg-ink/[0.02] border border-skynest-hairline">
-          <div>
-            <p className="text-xs text-ink/60">
-              Total Payments Credited: <strong className="font-mono text-ink">${toNum(b.total_paid).toFixed(2)}</strong>
-            </p>
-            <p className="text-[11px] text-ink/40">
-              Remaining Folio Balance: <strong className={`font-mono ${b.balance_due > 0 ? "text-skynest-accent font-bold" : "text-emerald-700"}`}>${toNum(b.balance_due).toFixed(2)}</strong>
+      {/* Cashier Sign-off */}
+      <div className="mt-8 pt-6 border-t border-skynest-hairline flex flex-col sm:flex-row items-end justify-between gap-6">
+        <div className="text-xs text-ink/60 space-y-1">
+          <p>Payment Currency: USD ($)</p>
+          <p>Thank you for choosing Sky Nest Hotels & Resorts.</p>
+        </div>
+
+        <div className="text-right">
+          <div className="w-48 border-b border-ink/40 pb-1 mb-1">
+            <p className="font-cinzel text-xs text-ink/80 italic text-center">
+              Front Desk Cashier
             </p>
           </div>
-
-          <div className="text-right">
-            <p className="font-cinzel text-xs font-bold text-ink uppercase tracking-wider">
-              {isPaidInFullAndSettled
-                ? "Account Settled in Full"
-                : isCurrentChargesClearedInHouse
-                ? "Interim Charges Cleared"
-                : b.balance_due > 0
-                ? "Payment Due at Front Desk"
-                : "Folio Balance Clear"}
-            </p>
-            <span className="font-jakarta text-[11px] text-ink/50">
-              Authorized Hotel Cashier Signature Stamped
-            </span>
-          </div>
+          <span className="font-jakarta text-[10px] text-ink/40">
+            Authorized Cashier Signature & Stamp
+          </span>
         </div>
       </div>
 
-      {/* Official Legal Footer on Print */}
+      {/* Official Legal Footer */}
       <div className="mt-8 pt-4 border-t border-skynest-hairline text-center text-[10px] text-ink/40 space-y-0.5">
         <p>This document is an authentic computerized tax invoice issued under Inland Revenue Department regulations of Sri Lanka.</p>
         <p>Goods and services consumed during stay are charged in compliance with national tourism development provisions.</p>
-        <p className="font-mono text-[9px] pt-1">Sky Nest Management System • System-Generated Final Folio • Reference: {invoice.invoice_id}</p>
+        <p className="font-mono text-[9px] pt-1">Sky Nest Management System • Folio Reference: {invoice.invoice_id}</p>
       </div>
     </div>
   );
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-ink/60 backdrop-blur-sm animate-in fade-in duration-200 overflow-y-auto">
-      {/* Print Specific CSS to isolate the invoice sheet onto physical paper */}
+      {/* Print Specific CSS */}
       <style>{`
         @media print {
           body * {
@@ -691,7 +810,7 @@ export function TotalBillModal({ isOpen, onClose, booking, onPaymentSaved, initi
       `}</style>
 
       <div className="bg-paper border border-skynest-hairline rounded-[4px] shadow-2xl w-full max-w-4xl max-h-[96vh] flex flex-col overflow-hidden my-auto">
-        {/* Modal Top Control Bar (Hidden on Print) */}
+        {/* Modal Top Control Bar */}
         <div className="px-6 py-3.5 border-b border-skynest-hairline bg-paper flex items-center justify-between shrink-0 print-hidden-element">
           <div className="flex items-center gap-3">
             <span className="p-1.5 rounded bg-skynest-accent/10 text-skynest-accent">
@@ -702,12 +821,14 @@ export function TotalBillModal({ isOpen, onClose, booking, onPaymentSaved, initi
                 {activeTab === "pay" ? "Front Desk Payment Terminal" : "Official Tax Invoice"}
               </h3>
               <p className="font-jakarta text-[11px] text-ink/50">
-                Room {booking.room_number || "—"} • {booking.guest_first_name} {booking.guest_last_name}
+                {selectedScope === "ALL"
+                  ? `All Rooms (${invoice?.all_rooms?.length || 1} Rooms) • ${booking.guest_first_name || ""} ${booking.guest_last_name || ""}`
+                  : `Room ${invoice?.room_number || "—"} • ${booking.guest_first_name || ""} ${booking.guest_last_name || ""}`}
               </p>
             </div>
           </div>
 
-          {/* Mode Switch Tabs */}
+          {/* Mode Switch Tabs & Actions */}
           <div className="flex items-center gap-3">
             <div className="flex items-center gap-1 p-0.5 bg-ink/[0.04] rounded-[4px] border border-skynest-hairline">
               <button
@@ -753,7 +874,55 @@ export function TotalBillModal({ isOpen, onClose, booking, onPaymentSaved, initi
           </div>
         </div>
 
-        {/* Scrollable Container */}
+        {/* Room Switcher & Bill Generation Scope Bar (When multiple rooms exist) */}
+        {invoice?.all_rooms && invoice.all_rooms.length > 1 && (
+          <div className="px-6 py-2.5 bg-ink/[0.02] border-b border-skynest-hairline flex flex-wrap items-center justify-between gap-3 text-xs print-hidden-element shrink-0">
+            <div className="flex items-center gap-1.5 overflow-x-auto">
+              <span className="text-[10px] font-jakarta font-bold uppercase tracking-wider text-ink/50 mr-1 flex items-center gap-1">
+                <Layers className="w-3.5 h-3.5 text-skynest-accent" />
+                Bill Scope:
+              </span>
+              <button
+                type="button"
+                onClick={() => handleScopeChange("ALL")}
+                className={`px-3 py-1 font-jakarta text-xs font-semibold rounded-[3px] border transition-all ${
+                  selectedScope === "ALL"
+                    ? "bg-ink text-white border-ink shadow-xs"
+                    : "bg-paper text-ink/70 border-skynest-hairline hover:border-ink/40 hover:text-ink"
+                }`}
+              >
+                All Rooms (Consolidated Booking)
+              </button>
+              {invoice.all_rooms.map((rm) => (
+                <button
+                  key={rm.booking_room_id}
+                  type="button"
+                  onClick={() => handleScopeChange(rm.booking_room_id)}
+                  className={`px-3 py-1 font-jakarta text-xs font-semibold rounded-[3px] border transition-all ${
+                    selectedScope === rm.booking_room_id
+                      ? "bg-skynest-accent text-white border-skynest-accent shadow-xs"
+                      : "bg-paper text-ink/70 border-skynest-hairline hover:border-ink/40 hover:text-ink"
+                  }`}
+                >
+                  Room {rm.room_number} ({rm.room_type_name})
+                </button>
+              ))}
+            </div>
+
+            <button
+              type="button"
+              onClick={handleGenerateBill}
+              disabled={generatingBill}
+              className="px-3 py-1 text-xs font-jakarta font-semibold uppercase tracking-wider rounded-[3px] border border-skynest-accent/50 bg-skynest-accent/10 text-skynest-accent hover:bg-skynest-accent hover:text-white transition-all flex items-center gap-1.5 disabled:opacity-50"
+              title="Generate computerized statutory bill"
+            >
+              <Receipt className="w-3.5 h-3.5" />
+              {generatingBill ? "Generating…" : selectedScope === "ALL" ? "Formalize Consolidated Bill" : "Formalize Room Bill"}
+            </button>
+          </div>
+        )}
+
+        {/* Scrollable Body Container */}
         <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-6">
           {statusMsg && (
             <div
@@ -775,11 +944,10 @@ export function TotalBillModal({ isOpen, onClose, booking, onPaymentSaved, initi
           {loading || !invoice || !b ? (
             <div className="py-24 text-center text-ink/40">
               <div className="w-6 h-6 border-2 border-skynest-accent border-t-transparent rounded-full animate-spin mx-auto mb-2" />
-              <p className="font-jakarta text-xs">Generating official guest invoice & tax cascade...</p>
+              <p className="font-jakarta text-xs">Generating computerized tax cascade bill...</p>
             </div>
           ) : (
             <>
-              {/* If in Pay mode: show Payment Processing first */}
               {activeTab === "pay" && (
                 <>
                   {paymentFormComponent}
@@ -792,7 +960,6 @@ export function TotalBillModal({ isOpen, onClose, booking, onPaymentSaved, initi
                 </>
               )}
 
-              {/* If in Invoice mode: show Invoice sheet first */}
               {activeTab === "invoice" && (
                 <>
                   {invoiceSheetComponent}
@@ -805,10 +972,10 @@ export function TotalBillModal({ isOpen, onClose, booking, onPaymentSaved, initi
           )}
         </div>
 
-        {/* Modal Bottom Footer (Hidden on Print) */}
+        {/* Modal Bottom Footer */}
         <div className="px-6 py-3.5 border-t border-skynest-hairline bg-paper flex items-center justify-between shrink-0 print-hidden-element">
           <span className="font-jakarta text-xs text-ink/40">
-            Sky Nest Hotel Billing Engine & Fiscal Accounting Ledger
+            Sky Nest Hotel Billing Engine & Fiscal Accounting Ledger • {selectedScope === "ALL" ? "Consolidated Booking Folio" : `Single Room Folio (Room ${invoice?.room_number})`}
           </span>
           <div className="flex items-center gap-3">
             <button
