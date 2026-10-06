@@ -14,6 +14,7 @@ const NAV_ITEMS = [
   { href: "/dashboard/catalogue", label: "Catalogue", roles: ["RECEPTIONIST", "MANAGER", "ADMINISTRATOR", "DBA"] },
   { href: "/dashboard/bookings", label: "Bookings", roles: ["RECEPTIONIST", "MANAGER", "ADMINISTRATOR", "DBA"] },
   { href: "/dashboard/billing", label: "Billing", roles: ["RECEPTIONIST", "MANAGER", "ADMINISTRATOR", "DBA"] },
+  { href: "/dashboard/reports", label: "Reports", roles: ["MANAGER", "ADMINISTRATOR", "DBA"] },
 ];
 
 /** Sticky dark top bar shared by every Sky Nest dashboard page. */
