@@ -236,11 +236,11 @@ export default function BillingPage() {
                                             </tr>
                                         </thead>
                                         <tbody className={tbl.body}>
-                                            {filtered.map(inv => {
+                                            {filtered.map((inv, idx) => {
                                                 const range = fmtStayRange(inv.check_in_date, inv.check_out_date);
                                                 const balance = toNum(inv.balance_due);
                                                 return (
-                                                    <tr key={inv.invoice_id} className={tbl.row}>
+                                                    <tr key={inv.booking_room_id || `${inv.invoice_id}-${inv.room_number ?? idx}`} className={tbl.row}>
                                                         <td className={`${tbl.td} max-w-[240px]`}>
                                                             <p className="text-[15px] truncate">{inv.guest_name}</p>
                                                             <p className={`${tbl.sub} truncate`}>{inv.guest_email}</p>
