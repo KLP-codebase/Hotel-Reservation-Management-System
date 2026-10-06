@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { apiFetch } from '@/lib/api-client';
 import { exportToCsv } from '@/lib/export-csv';
 import { ReportFilterBar } from './ReportFilterBar';
@@ -37,6 +37,14 @@ interface CustomerTrendsData {
 }
 
 export function ServiceTrendsReport() {
+  const today = useMemo(() => {
+    const d = new Date();
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  }, []);
+
   const [branchId, setBranchId] = useState<string>('');
   const [startDate, setStartDate] = useState<string>('');
   const [endDate, setEndDate] = useState<string>('');
@@ -48,6 +56,15 @@ export function ServiceTrendsReport() {
   const [error, setError] = useState<string | null>(null);
 
   const fetchReport = useCallback(async () => {
+    if (startDate && endDate && startDate > endDate) {
+      setError('End date cannot be earlier than start date.');
+      return;
+    }
+    if (endDate && endDate > today) {
+      setError('Dates beyond today cannot be selected.');
+      return;
+    }
+
     setLoading(true);
     setError(null);
     try {
@@ -57,7 +74,7 @@ export function ServiceTrendsReport() {
       if (endDate) q.set('endDate', endDate);
       q.set('limit', '10');
 
-      const res = await apiFetch<{ success: boolean; data: CustomerTrendsData }>(`/api/v1/reports/trends?${q.toString()}`);
+      const res = await apiFetch<{ success: boolean; data: CustomerTrendsData }>(`/reports/trends?${q.toString()}`);
       if (res && res.data) {
         setData(res.data);
       }
@@ -66,7 +83,7 @@ export function ServiceTrendsReport() {
     } finally {
       setLoading(false);
     }
-  }, [branchId, startDate, endDate]);
+  }, [branchId, startDate, endDate, today]);
 
   useEffect(() => {
     fetchReport();
@@ -74,7 +91,6 @@ export function ServiceTrendsReport() {
 
   const handleExportCsv = () => {
     if (!data) return;
-    // Export Top Services
     exportToCsv(
       `SkyNest_Customer_Trends_Services`,
       data.top_services,
@@ -93,7 +109,7 @@ export function ServiceTrendsReport() {
     setSavingSnapshot(true);
     setSnapshotMsg(null);
     try {
-      await apiFetch('/api/v1/reports/snapshots', {
+      await apiFetch('/reports/snapshots', {
         method: 'POST',
         body: JSON.stringify({
           reportType: 'TRENDS',
@@ -134,7 +150,7 @@ export function ServiceTrendsReport() {
       {snapshotMsg && (
         <div className="p-3 bg-amber-500/10 border border-amber-500/30 text-amber-300 text-xs flex items-center justify-between">
           <span>{snapshotMsg}</span>
-          <button onClick={() => setSnapshotMsg(null)} className="text-amber-400 hover:text-white ml-2">Dismiss</button>
+          <button onClick={() => setSnapshotMsg(null)} className="text-amber-400 hover:text-white ml-2 cursor-pointer">Dismiss</button>
         </div>
       )}
 
@@ -154,7 +170,7 @@ export function ServiceTrendsReport() {
         <button
           onClick={handleSaveSnapshot}
           disabled={savingSnapshot || loading || !data}
-          className="flex items-center gap-2 py-1.5 px-3 bg-amber-600/20 hover:bg-amber-600/30 border border-amber-500/40 text-amber-300 text-xs font-semibold uppercase tracking-wider transition disabled:opacity-50"
+          className="flex items-center gap-2 py-1.5 px-3 bg-amber-600/20 hover:bg-amber-600/30 border border-amber-500/40 text-amber-300 text-xs font-semibold uppercase tracking-wider transition disabled:opacity-50 cursor-pointer"
         >
           <Save size={14} />
           <span>{savingSnapshot ? 'Archiving...' : 'Save Audit Snapshot'}</span>
