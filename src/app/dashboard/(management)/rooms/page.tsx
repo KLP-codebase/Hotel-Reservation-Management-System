@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useCallback, useEffect, useState } from 'react';
-import { Plus, Pencil, Wrench, Trash2 } from 'lucide-react';
+import { Plus, Pencil, Wrench, Trash2, ChevronDown } from 'lucide-react';
 import { apiFetch, ApiError, toNum } from '@/lib/api-client';
 import { useAuth } from '@/context/auth-context';
 import {
@@ -54,6 +54,8 @@ const STATUS_LABEL: Record<RoomStatus, string> = {
 
 export default function RoomsPage() {
   const { user } = useAuth();
+  const isAdminOrDba = user?.role === 'ADMINISTRATOR' || user?.role === 'DBA';
+  const isManager = user?.role === 'MANAGER';
   const canMutate = user && ['ADMINISTRATOR', 'DBA', 'MANAGER'].includes(user.role);
   const canToggleStatus = user && ['ADMINISTRATOR', 'DBA', 'MANAGER', 'RECEPTIONIST'].includes(user.role);
 
@@ -72,6 +74,19 @@ export default function RoomsPage() {
 
   // Flash notifications
   const { flash, toasts } = useFlash();
+
+  // Pre-filter to manager's branch when logged in as Manager
+  useEffect(() => {
+    if (isManager && user?.branchId && branches.length > 0) {
+      const found = branches.find(
+        (b) => String(b.branch_id) === String(user.branchId) ||
+               (user.branchName && b.branch_name.toLowerCase().includes(user.branchName.toLowerCase()))
+      );
+      if (found) {
+        setFilterBranch(String(found.branch_id));
+      }
+    }
+  }, [isManager, user, branches]);
 
   // ── Room-type modal state ────────────────────────────────────────────────────
   const [rtModal,   setRtModal]   = useState<'create' | 'edit' | null>(null);
@@ -188,7 +203,16 @@ export default function RoomsPage() {
   // ── Physical room CRUD ───────────────────────────────────────────────────────
   function openCreateRm() {
     setRmEditing(null);
-    setRmForm({ roomNumber: '', floor: '', branchId: branches[0] ? String(branches[0].branch_id) : '', roomTypeId: roomTypes[0] ? String(roomTypes[0].room_type_id) : '', status: 'AVAILABLE' });
+    const defaultBranch = (isManager && user?.branchId)
+      ? String(user.branchId)
+      : (filterBranch !== 'ALL' ? filterBranch : (branches[0] ? String(branches[0].branch_id) : ''));
+    setRmForm({
+      roomNumber: '',
+      floor: '',
+      branchId: defaultBranch,
+      roomTypeId: roomTypes[0] ? String(roomTypes[0].room_type_id) : '',
+      status: 'AVAILABLE',
+    });
     setRmErrors({});
     setRmModal('create');
   }
@@ -273,8 +297,11 @@ export default function RoomsPage() {
 
 
   // ── Headline figures ─────────────────────────────────────────────────────────
-  const availableCount   = rooms.filter(r => r.status === 'AVAILABLE').length;
-  const maintenanceCount = rooms.filter(r => r.status === 'MAINTENANCE' || r.status === 'OUT_OF_SERVICE').length;
+  const displayedRooms   = filterBranch === 'ALL' ? rooms : rooms.filter(r => String(r.branch_id) === filterBranch);
+  const availableCount   = displayedRooms.filter(r => r.status === 'AVAILABLE').length;
+  const maintenanceCount = displayedRooms.filter(r => r.status === 'MAINTENANCE' || r.status === 'OUT_OF_SERVICE').length;
+
+  const selectedBranchRow = branches.find((b) => String(b.branch_id) === filterBranch);
 
   // ── Render ───────────────────────────────────────────────────────────────────
   return (
@@ -282,14 +309,36 @@ export default function RoomsPage() {
       {toasts}
 
       <DashboardMasthead
-        eyebrow="Inventory"
+        eyebrow={isManager ? `${user?.branchName ?? 'Sanctuary'} · Rooms` : 'Physical Inventory · Categories'}
         title="Rooms"
-        imageKey={user?.branchName}
-        aside={<MastheadRefresh onClick={fetchAll} loading={loading} />}
+        imageKey={user?.branchName || (filterBranch !== 'ALL' ? selectedBranchRow?.city : 'Colombo')}
+        aside={
+          <div className="flex items-center gap-6">
+            {isAdminOrDba && branches.length > 0 && (
+              <label className="relative flex items-center gap-3 border-b border-white/20 focus-within:border-skynest-accent transition-colors duration-300">
+                <span className="font-jakarta text-[11px] font-medium tracking-[0.12em] uppercase text-white/60">Property</span>
+                <select
+                  value={filterBranch}
+                  onChange={(e) => setFilterBranch(e.target.value)}
+                  className="appearance-none bg-transparent py-1.5 pr-6 font-jakarta text-[13px] text-white focus:outline-none cursor-pointer"
+                >
+                  <option value="ALL" className="text-ink">All Properties</option>
+                  {branches.map((b) => (
+                    <option key={b.branch_id} value={String(b.branch_id)} className="text-ink">
+                      {b.branch_name}
+                    </option>
+                  ))}
+                </select>
+                <ChevronDown className="absolute right-0 w-3.5 h-3.5 text-white/60 pointer-events-none" />
+              </label>
+            )}
+            <MastheadRefresh onClick={fetchAll} loading={loading} />
+          </div>
+        }
         kpis={[
           { label: 'Room types',  value: String(roomTypes.length), sub: 'Categories on sale' },
-          { label: 'Rooms',       value: String(rooms.length),     sub: `Across ${branches.length} ${branches.length === 1 ? 'property' : 'properties'}` },
-          { label: 'Available',   value: String(availableCount),   sub: 'Ready to sell' },
+          { label: 'Rooms',       value: String(displayedRooms.length), sub: filterBranch === 'ALL' ? `Across ${branches.length} locations` : 'At this location' },
+          { label: 'Available',   value: String(availableCount),   sub: 'Ready to sell', bar: (availableCount / (displayedRooms.length || 1)) * 100 },
           { label: 'Maintenance', value: String(maintenanceCount), sub: 'Out of action' },
         ]}
       />

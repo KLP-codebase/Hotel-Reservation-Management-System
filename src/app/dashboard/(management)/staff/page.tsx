@@ -1,17 +1,19 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo, useCallback } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Plus, Pencil, UserX, Search, RefreshCw, LogOut, CheckCircle2, Mail } from 'lucide-react';
+import {
+  Plus, Pencil, UserX, Mail, Phone, ChevronDown, CheckCircle2,
+} from 'lucide-react';
 import { apiFetch, ApiError } from '@/lib/api-client';
-import { Badge }      from '@/components/ui/Badge';
-import { Button }     from '@/components/ui/Button';
-import { Input }      from '@/components/ui/Input';
-import { StatusPill } from '@/components/ui/StatusPill';
-import { Card }       from '@/components/ui/Card';
-import { useAuth }    from '@/context/auth-context';
+import { useAuth } from '@/context/auth-context';
+import {
+  DashboardMasthead, MastheadRefresh, SectionHeader, Segmented, SearchField,
+  Toolbar, Btn, IconBtn, Field, SelectField, Modal, Loading, Empty, StatusDot,
+  tbl, titleCase, initials, useFlash,
+} from '@/components/dashboard/ui';
 
 interface Staff {
   staff_id:    string;
@@ -28,75 +30,104 @@ interface Staff {
   branch_id?:  string | null;
 }
 
-interface Branch { branch_id: string; branch_name: string; }
+interface Branch {
+  branch_id:   string;
+  branch_name: string;
+  city?:       string;
+}
 
-const ROLES = ['GUEST','RECEPTIONIST','SERVICE_STAFF','MANAGER','ADMINISTRATOR','DBA'] as const;
+const ROLES = ['GUEST', 'RECEPTIONIST', 'SERVICE_STAFF', 'MANAGER', 'ADMINISTRATOR', 'DBA'] as const;
+
+type RoleFilter = 'ALL' | 'RECEPTIONIST' | 'SERVICE_STAFF' | 'MANAGER' | 'ADMINISTRATOR';
 
 const staffSchema = z.object({
-  firstName: z.string().trim().min(1, 'Cannot be left empty'),
-  lastName:  z.string().trim().min(1, 'Cannot be left empty'),
-  email:     z.string().trim().min(1, 'Cannot be left empty').email('Invalid email address'),
-  phone:     z.string().trim().min(1, 'Cannot be left empty'),
-  role:      z.enum(ROLES, { errorMap: () => ({ message: 'Cannot be left empty' }) }),
+  firstName: z.string().trim().min(1, 'First name is required'),
+  lastName:  z.string().trim().min(1, 'Last name is required'),
+  email:     z.string().trim().min(1, 'Email is required').email('Invalid email address'),
+  phone:     z.string().trim().min(1, 'Phone number is required'),
+  role:      z.enum(ROLES, { errorMap: () => ({ message: 'Please select a valid role' }) }),
   branchId:  z.string().optional(),
 });
 type StaffForm = z.infer<typeof staffSchema>;
 
 const canMutate = (role?: string) => role === 'ADMINISTRATOR' || role === 'DBA';
 
-export default function StaffPage() {
-  const { user, logout }  = useAuth();
-  const [staff,   setStaff]   = useState<Staff[]>([]);
-  const [branches, setBranches] = useState<Branch[]>([]);
-  const [loading,  setLoading]  = useState(true);
-  const [search,   setSearch]   = useState('');
-  const [drawerOpen, setDrawerOpen] = useState(false);
-  const [editing,  setEditing]  = useState<Staff | null>(null);
-  const [error,    setError]    = useState<string | null>(null);
-  const [successMsg, setSuccessMsg] = useState<string | null>(null);
+const ROLE_BADGE: Record<string, { label: string; style: string }> = {
+  ADMINISTRATOR: { label: 'Administrator', style: 'text-amber-800 bg-amber-500/10 border-amber-500/30' },
+  DBA:           { label: 'Database Admin', style: 'text-purple-800 bg-purple-500/10 border-purple-500/30' },
+  MANAGER:       { label: 'General Manager', style: 'text-skynest-accent bg-skynest-accent/10 border-skynest-accent/30' },
+  RECEPTIONIST:  { label: 'Front Desk', style: 'text-sky-800 bg-sky-500/10 border-sky-500/30' },
+  SERVICE_STAFF: { label: 'Service Staff', style: 'text-emerald-800 bg-emerald-500/10 border-emerald-500/30' },
+  GUEST:         { label: 'Guest Account', style: 'text-ink/60 bg-ink/5 border-skynest-hairline' },
+};
 
-  const { register, handleSubmit, reset, formState: { errors, isSubmitting } } = useForm<StaffForm>({
+export default function StaffPage() {
+  const { user } = useAuth();
+  const isAdminOrDba = user?.role === 'ADMINISTRATOR' || user?.role === 'DBA';
+  const isManager = user?.role === 'MANAGER';
+
+  const [staff, setStaff] = useState<Staff[]>([]);
+  const [branches, setBranches] = useState<Branch[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState('');
+  const [roleFilter, setRoleFilter] = useState<RoleFilter>('ALL');
+  const [selectedBranch, setSelectedBranch] = useState<string>('ALL');
+  const [modalOpen, setModalOpen] = useState(false);
+  const [editing, setEditing] = useState<Staff | null>(null);
+  const [modalError, setModalError] = useState<string | null>(null);
+
+  const { flash, toasts } = useFlash();
+
+  const { register, handleSubmit, reset, watch, setValue, formState: { errors, isSubmitting } } = useForm<StaffForm>({
     resolver: zodResolver(staffSchema),
     mode: 'onChange',
   });
 
-  const fetchData = async () => {
+  const selectedRole = watch('role');
+  const selectedFormBranch = watch('branchId');
+
+  const fetchData = useCallback(async () => {
     setLoading(true);
     try {
       const [sr, br] = await Promise.all([
-        apiFetch<{ data: Staff[] }>('/api/v1/staff'),
-        apiFetch<{ data: Branch[] }>('/api/v1/branches'),
+        apiFetch<{ data: Staff[] }>('/api/v1/staff').catch(() => ({ data: [] })),
+        apiFetch<{ data: Branch[] }>('/api/v1/branches').catch(() => ({ data: [] })),
       ]);
-      setStaff(sr.data);
-      setBranches(br.data);
-    } catch {
-      // handled
+      setStaff(sr.data ?? []);
+      setBranches(br.data ?? []);
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
-  useEffect(() => { fetchData(); }, []);
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
+
+  // Pre-filter to manager's branch if manager is logged in
+  useEffect(() => {
+    if (isManager && user?.branchId) {
+      setSelectedBranch(user.branchId);
+    }
+  }, [isManager, user]);
 
   const openCreate = () => {
     setEditing(null);
-    setError(null);
-    setSuccessMsg(null);
+    setModalError(null);
     reset({
       firstName: '',
       lastName: '',
       email: '',
       phone: '',
       role: 'SERVICE_STAFF',
-      branchId: branches[0]?.branch_id ?? '',
+      branchId: isManager && user?.branchId ? user.branchId : (branches[0]?.branch_id ?? ''),
     });
-    setDrawerOpen(true);
+    setModalOpen(true);
   };
 
   const openEdit = (s: Staff) => {
     setEditing(s);
-    setError(null);
-    setSuccessMsg(null);
+    setModalError(null);
     reset({
       firstName: s.first_name,
       lastName:  s.last_name,
@@ -105,11 +136,11 @@ export default function StaffPage() {
       role:      s.role as typeof ROLES[number],
       branchId:  s.branch_id ?? '',
     });
-    setDrawerOpen(true);
+    setModalOpen(true);
   };
 
   const onSubmit = async (data: StaffForm) => {
-    setError(null);
+    setModalError(null);
     try {
       const payload = {
         firstName: data.firstName,
@@ -125,222 +156,354 @@ export default function StaffPage() {
           method: 'PATCH',
           body: JSON.stringify(payload),
         });
-        setSuccessMsg(`Staff member "${data.firstName} ${data.lastName}" updated successfully.`);
+        flash('success', `Staff member "${data.firstName} ${data.lastName}" updated.`);
       } else {
         await apiFetch('/api/v1/staff', {
           method: 'POST',
           body: JSON.stringify(payload),
         });
-        setSuccessMsg(`Staff member "${data.firstName} ${data.lastName}" created successfully.`);
+        flash('success', `Staff member "${data.firstName} ${data.lastName}" registered.`);
       }
-      setDrawerOpen(false);
-      setTimeout(() => setSuccessMsg(null), 4000);
+      setModalOpen(false);
       await fetchData();
     } catch (e) {
-      setError(e instanceof ApiError ? e.message : 'Failed to save staff member');
+      setModalError(e instanceof ApiError ? e.message : 'Failed to save staff member');
     }
   };
 
   const inviteStaff = async (id: string, name: string) => {
     try {
-      await apiFetch(`/api/v1/staff/${id}/invite`, { method: "POST" });
-      setSuccessMsg(`Invitation dispatched to ${name}.`);
-      setTimeout(() => setSuccessMsg(null), 4000);
+      await apiFetch(`/api/v1/staff/${id}/invite`, { method: 'POST' });
+      flash('success', `Invitation dispatched to ${name}.`);
       await fetchData();
     } catch (e) {
-      alert(e instanceof ApiError ? e.message : "Failed to send invite");
+      flash('error', e instanceof ApiError ? e.message : 'Failed to send invitation');
     }
   };
 
-  const deactivate = async (id: string) => {
-    if (!confirm('Deactivate this staff member?')) return;
+  const deactivate = async (s: Staff) => {
+    if (!confirm(`Deactivate staff member ${s.first_name} ${s.last_name}?`)) return;
     try {
-      await apiFetch(`/api/v1/staff/${id}`, { method: 'DELETE' });
+      await apiFetch(`/api/v1/staff/${s.staff_id}`, { method: 'DELETE' });
+      flash('success', `${s.first_name} ${s.last_name} deactivated.`);
       await fetchData();
     } catch (e) {
-      alert(e instanceof ApiError ? e.message : 'Failed to deactivate');
+      flash('error', e instanceof ApiError ? e.message : 'Failed to deactivate staff');
     }
   };
 
-  const filtered = staff.filter(s =>
-    `${s.first_name} ${s.last_name} ${s.email}`.toLowerCase().includes(search.toLowerCase()),
-  );
+  // Filter staff by search, role, and branch
+  const filtered = useMemo(() => {
+    return staff.filter((s) => {
+      if (selectedBranch !== 'ALL' && s.branch_id !== selectedBranch) return false;
+      if (roleFilter !== 'ALL' && s.role !== roleFilter) return false;
+      if (search.trim()) {
+        const q = search.toLowerCase();
+        const matchesName = `${s.first_name} ${s.last_name}`.toLowerCase().includes(q);
+        const matchesEmail = s.email.toLowerCase().includes(q);
+        const matchesRole = s.role.toLowerCase().includes(q);
+        const matchesBranch = (s.branch_name ?? '').toLowerCase().includes(q);
+        return matchesName || matchesEmail || matchesRole || matchesBranch;
+      }
+      return true;
+    });
+  }, [staff, selectedBranch, roleFilter, search]);
+
+  // Counts for KPIs and segmented filters
+  const activeCount = staff.filter((s) => s.is_active).length;
+  const opsCount = staff.filter((s) => s.role === 'RECEPTIONIST' || s.role === 'SERVICE_STAFF').length;
+  const mgmtCount = staff.filter((s) => s.role === 'MANAGER' || s.role === 'ADMINISTRATOR' || s.role === 'DBA').length;
+
+  const countByRole = (r: RoleFilter) =>
+    r === 'ALL' ? staff.length : staff.filter((s) => s.role === r).length;
+
+  const selectedBranchRow = branches.find((b) => b.branch_id === selectedBranch);
 
   return (
-    <div className="p-8">
-      {/* Header */}
-      <div className="flex items-center justify-between mb-8">
-        <div>
-          <h1 className="text-2xl font-semibold text-stone-100">Staff</h1>
-          <p className="text-stone-500 text-sm mt-0.5">{staff.length} total members</p>
-        </div>
-        <div className="flex items-center gap-3">
-          <Button variant="ghost" size="sm" onClick={fetchData} title="Refresh staff">
-            <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
-          </Button>
-          {canMutate(user?.role) && (
-            <Button size="sm" onClick={openCreate} className="flex items-center gap-1.5">
-              <Plus size={14} /> Add staff
-            </Button>
-          )}
-          <Button variant="danger" size="sm" onClick={logout} className="flex items-center gap-1.5 ml-2">
-            <LogOut size={14} /> Log Out
-          </Button>
-        </div>
-      </div>
+    <>
+      {toasts}
 
-      {successMsg && (
-        <div className="mb-6 flex items-center gap-2 p-3 bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs font-medium">
-          <CheckCircle2 size={16} />
-          <span>{successMsg}</span>
-        </div>
-      )}
-
-      {/* Search */}
-      <div className="relative mb-6 max-w-sm">
-        <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-stone-500" />
-        <input
-          value={search}
-          onChange={e => setSearch(e.target.value)}
-          placeholder="Search by name or email…"
-          className="w-full bg-white/4 border border-white/10 rounded-none pl-8 pr-4 py-2 text-sm text-stone-200 placeholder:text-stone-600 outline-none focus:border-amber-500/50 transition-colors"
-        />
-      </div>
-
-      {/* Table */}
-      <Card className="p-0 overflow-hidden">
-        {loading ? (
-          <div className="flex items-center justify-center h-40 text-stone-500 text-sm">Loading…</div>
-        ) : (
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-white/8 text-stone-500 text-xs uppercase tracking-wider">
-                <th className="text-left px-6 py-3 font-medium">Name</th>
-                <th className="text-left px-6 py-3 font-medium">Role</th>
-                <th className="text-left px-6 py-3 font-medium">Branch</th>
-                <th className="text-left px-6 py-3 font-medium">Phone</th>
-                <th className="text-left px-6 py-3 font-medium">Status</th>
-                {canMutate(user?.role) && <th className="px-6 py-3" />}
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-white/5">
-              {filtered.map(s => (
-                <tr key={s.staff_id} className="hover:bg-white/3 transition-colors">
-                  <td className="px-6 py-4">
-                    <div className="flex items-center gap-3">
-                      <div className="w-7 h-7 rounded-none bg-stone-800 flex items-center justify-center text-xs font-bold text-stone-300 uppercase">
-                        {s.first_name[0]}{s.last_name[0]}
-                      </div>
-                      <div>
-                        <p className="text-stone-200 font-medium">{s.first_name} {s.last_name}</p>
-                        <p className="text-stone-500 text-xs">{s.email}</p>
-                      </div>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4"><Badge role={s.role as Parameters<typeof Badge>[0]['role']} /></td>
-                  <td className="px-6 py-4 text-stone-400">{s.branch_name ?? '—'}</td>
-                  <td className="px-6 py-4 text-stone-400 text-xs">{s.phone ?? '—'}</td>
-                  <td className="px-6 py-4"><StatusPill active={s.is_active} /></td>
-                  {canMutate(user?.role) && (
-                    <td className="px-6 py-4">
-                      <div className="flex items-center gap-2 justify-end">
-                        {!s.user_account_id && (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => inviteStaff(s.staff_id, `${s.first_name} ${s.last_name}`)}
-                            title={s.invite_token ? "Resend Invitation Email" : "Send Invitation Email"}
-                            className="text-[11px] gap-1 px-2.5"
-                          >
-                            <Mail size={12} />
-                            <span>{s.invite_token ? "Re-invite" : "Invite"}</span>
-                          </Button>
-                        )}
-                        <Button variant="ghost" size="sm" onClick={() => openEdit(s)} title="Edit staff member">
-                          <Pencil size={13} />
-                        </Button>
-                        <Button variant="danger" size="sm" onClick={() => deactivate(s.staff_id)} title="Deactivate staff member">
-                          <UserX size={13} />
-                        </Button>
-                      </div>
-                    </td>
-                  )}
-                </tr>
-              ))}
-              {filtered.length === 0 && (
-                <tr><td colSpan={6} className="px-6 py-12 text-center text-stone-500">No staff found.</td></tr>
-              )}
-            </tbody>
-          </table>
-        )}
-      </Card>
-
-      {/* Drawer */}
-      {drawerOpen && (
-        <div className="fixed inset-0 z-50 flex">
-          <div className="flex-1 bg-stone-950/70 backdrop-blur-sm" onClick={() => setDrawerOpen(false)} />
-          <div className="w-96 bg-stone-950 border-l border-white/8 p-8 overflow-y-auto">
-            <h2 className="text-lg font-semibold text-stone-100 mb-6">
-              {editing ? 'Edit Staff Member' : 'Add Staff Member'}
-            </h2>
-            <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
-              <div className="grid grid-cols-2 gap-4">
-                <Input label="First name" error={errors.firstName?.message} {...register('firstName')} />
-                <Input label="Last name"  error={errors.lastName?.message}  {...register('lastName')} />
-              </div>
-              <Input
-                label="Email"
-                type="email"
-                disabled={Boolean(editing)}
-                error={errors.email?.message}
-                {...register('email')}
-              />
-              <Input label="Phone" error={errors.phone?.message} {...register('phone')} />
-
-              <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-medium text-stone-400 uppercase tracking-widest">Role</label>
+      <DashboardMasthead
+        eyebrow={isManager ? `${user?.branchName ?? 'Sanctuary'} · Team` : 'Human Resources · Directory'}
+        title="Staff"
+        imageKey={user?.branchName || selectedBranchRow?.branch_name}
+        aside={
+          <div className="flex items-center gap-6">
+            {isAdminOrDba && branches.length > 0 && (
+              <label className="relative flex items-center gap-3 border-b border-white/20 focus-within:border-skynest-accent transition-colors duration-300">
+                <span className="font-jakarta text-[11px] font-medium tracking-[0.12em] uppercase text-white/60">Property</span>
                 <select
-                  className="bg-stone-900 border border-white/10 rounded-none px-3 py-2 text-sm text-stone-200 outline-none focus:border-amber-500 transition-colors"
-                  {...register('role')}
+                  value={selectedBranch}
+                  onChange={(e) => setSelectedBranch(e.target.value)}
+                  className="appearance-none bg-transparent py-1.5 pr-6 font-jakarta text-[13px] text-white focus:outline-none cursor-pointer"
                 >
-                  {ROLES.filter(r => r !== 'ADMINISTRATOR').map(r => (
-                    <option key={r} value={r}>{r.replace('_',' ')}</option>
+                  <option value="ALL" className="text-ink">All Properties</option>
+                  {branches.map((b) => (
+                    <option key={b.branch_id} value={b.branch_id} className="text-ink">
+                      {b.branch_name}
+                    </option>
                   ))}
                 </select>
-                {errors.role && <span className="text-xs text-red-400">{errors.role.message}</span>}
-              </div>
-
-              <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-medium text-stone-400 uppercase tracking-widest">Branch</label>
-                <select
-                  className="bg-stone-900 border border-white/10 rounded-none px-3 py-2 text-sm text-stone-200 outline-none focus:border-amber-500 transition-colors"
-                  {...register('branchId')}
-                >
-                  <option value="">— None (Corporate) —</option>
-                  {branches.map(b => (
-                    <option key={b.branch_id} value={b.branch_id}>{b.branch_name}</option>
-                  ))}
-                </select>
-              </div>
-
-              {error && (
-                <p className="text-xs text-red-400 bg-red-500/8 border border-red-500/20 rounded-none px-4 py-3">
-                  {error}
-                </p>
-              )}
-
-              <div className="flex gap-3 pt-2">
-                <Button type="button" variant="ghost" className="flex-1" onClick={() => setDrawerOpen(false)}>
-                  Cancel
-                </Button>
-                <Button type="submit" loading={isSubmitting} className="flex-1">
-                  {editing ? 'Save Changes' : 'Create Staff'}
-                </Button>
-              </div>
-            </form>
+                <ChevronDown className="absolute right-0 w-3.5 h-3.5 text-white/60 pointer-events-none" />
+              </label>
+            )}
+            <MastheadRefresh onClick={fetchData} loading={loading} />
           </div>
-        </div>
+        }
+        kpis={[
+          { label: 'Total staff', value: String(staff.length), sub: `Across ${branches.length} locations` },
+          { label: 'Active', value: String(activeCount), sub: 'Ready on schedule', bar: (activeCount / (staff.length || 1)) * 100 },
+          { label: 'Front desk & ops', value: String(opsCount), sub: 'Reception & guest services' },
+          { label: 'Leadership', value: String(mgmtCount), sub: 'Managers & administrators' },
+        ]}
+      />
+
+      <main className="max-w-[1440px] mx-auto px-6 md:px-12 py-12 md:py-16 space-y-12">
+        <section className="space-y-8">
+          <SectionHeader
+            index={`${filtered.length} of ${staff.length} staff`}
+            title="Team Members"
+          >
+            <div className="flex flex-col md:items-end gap-4 w-full md:w-auto">
+              <Segmented
+                value={roleFilter}
+                onChange={setRoleFilter}
+                options={[
+                  { value: 'ALL',           label: 'All',           count: staff.length },
+                  { value: 'RECEPTIONIST',  label: 'Front Desk',    count: countByRole('RECEPTIONIST') },
+                  { value: 'SERVICE_STAFF', label: 'Service Staff', count: countByRole('SERVICE_STAFF') },
+                  { value: 'MANAGER',       label: 'Managers',      count: countByRole('MANAGER') },
+                  { value: 'ADMINISTRATOR', label: 'Admin',         count: countByRole('ADMINISTRATOR') },
+                ]}
+              />
+              <SearchField
+                value={search}
+                onChange={setSearch}
+                placeholder="Search staff by name, email or role"
+              />
+            </div>
+          </SectionHeader>
+
+          <Toolbar
+            action={
+              canMutate(user?.role) && (
+                <Btn variant="primary" onClick={openCreate}>
+                  <Plus className="w-4 h-4" /> Add staff member
+                </Btn>
+              )
+            }
+          />
+
+          {loading ? (
+            <Loading label="Loading staff directory" />
+          ) : filtered.length === 0 ? (
+            <Empty>
+              {search.trim() ? `No staff match “${search.trim()}”.` : 'No staff members in this view.'}
+            </Empty>
+          ) : (
+            <div className={tbl.wrap}>
+              <table className={tbl.table}>
+                <thead>
+                  <tr className={tbl.headRow}>
+                    <th className={tbl.th}>Staff Member</th>
+                    <th className={tbl.th}>Role</th>
+                    <th className={tbl.th}>Property</th>
+                    <th className={tbl.th}>Contact</th>
+                    <th className={tbl.th}>Status</th>
+                    <th className={tbl.th}><span className="sr-only">Actions</span></th>
+                  </tr>
+                </thead>
+                <tbody className={tbl.body}>
+                  {filtered.map((s) => {
+                    const badge = ROLE_BADGE[s.role] ?? { label: titleCase(s.role), style: 'text-ink/70 bg-ink/5 border-skynest-hairline' };
+                    return (
+                      <tr key={s.staff_id} className={tbl.row}>
+                        <td className={`${tbl.td} max-w-[280px]`}>
+                          <div className="flex items-center gap-3">
+                            <span className="w-9 h-9 shrink-0 rounded-full bg-ink text-white flex items-center justify-center font-cinzel text-[13px] tracking-[0.04em]">
+                              {initials(s.first_name, s.last_name)}
+                            </span>
+                            <div className="min-w-0">
+                              <p className="font-medium text-ink truncate text-[14px]">
+                                {s.first_name} {s.last_name}
+                              </p>
+                              <p className="text-[12px] text-ink/70 truncate">{s.email}</p>
+                            </div>
+                          </div>
+                        </td>
+
+                        <td className={tbl.td}>
+                          <span className={`inline-flex items-center px-2.5 py-1 text-[10px] font-jakarta font-semibold uppercase tracking-wider border rounded-[4px] ${badge.style}`}>
+                            {badge.label}
+                          </span>
+                        </td>
+
+                        <td className={`${tbl.td} whitespace-nowrap`}>
+                          <p className="text-[13px] text-ink">{s.branch_name ?? 'Corporate / Headquarters'}</p>
+                          {s.branch_city && <p className={tbl.sub}>{s.branch_city}</p>}
+                        </td>
+
+                        <td className={`${tbl.td} whitespace-nowrap text-[13px]`}>
+                          {s.phone ? (
+                            <a
+                              href={`tel:${s.phone}`}
+                              className="inline-flex items-center gap-1.5 text-ink hover:text-skynest-accent transition-colors"
+                            >
+                              <Phone className="w-3.5 h-3.5 text-ink/50" />
+                              <span>{s.phone}</span>
+                            </a>
+                          ) : (
+                            <span className="text-ink/40">—</span>
+                          )}
+                        </td>
+
+                        <td className={tbl.td}>
+                          <div className="flex flex-col gap-1">
+                            <StatusDot
+                              status={s.is_active ? 'ACTIVE' : 'INACTIVE'}
+                              label={s.is_active ? 'Active' : 'Deactivated'}
+                            />
+                            {!s.user_account_id && s.is_active && (
+                              <span className="text-[10px] font-jakarta text-amber-700 tracking-wider uppercase font-medium">
+                                {s.invite_token ? '• Invite Sent' : '• Needs Account'}
+                              </span>
+                            )}
+                          </div>
+                        </td>
+
+                        <td className={`${tbl.td} pr-0 text-right`}>
+                          <div className="flex items-center justify-end gap-2">
+                            {!s.user_account_id && s.is_active && (
+                              <Btn
+                                variant="outline"
+                                onClick={() => inviteStaff(s.staff_id, `${s.first_name} ${s.last_name}`)}
+                                title={s.invite_token ? 'Resend invitation email' : 'Send staff portal invitation'}
+                                className="text-[10px] px-2.5 py-1.5"
+                              >
+                                <Mail className="w-3.5 h-3.5 text-skynest-accent" />
+                                <span>{s.invite_token ? 'Re-invite' : 'Invite'}</span>
+                              </Btn>
+                            )}
+
+                            {canMutate(user?.role) && (
+                              <>
+                                <IconBtn
+                                  label={`Edit ${s.first_name}`}
+                                  variant="ghost"
+                                  onClick={() => openEdit(s)}
+                                >
+                                  <Pencil className="w-3.5 h-3.5 text-ink/70 hover:text-ink" />
+                                </IconBtn>
+
+                                {s.is_active && (
+                                  <IconBtn
+                                    label={`Deactivate ${s.first_name}`}
+                                    variant="danger"
+                                    onClick={() => deactivate(s)}
+                                  >
+                                    <UserX className="w-3.5 h-3.5" />
+                                  </IconBtn>
+                                )}
+                              </>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </section>
+      </main>
+
+      {/* ── Add / Edit Staff Modal ────────────────────────────────────────── */}
+      {modalOpen && (
+        <Modal
+          eyebrow="Human Resources"
+          title={editing ? 'Edit Staff Member' : 'Register Staff Member'}
+          onClose={() => setModalOpen(false)}
+          footer={
+            <>
+              <Btn variant="ghost" onClick={() => setModalOpen(false)}>Cancel</Btn>
+              <Btn variant="primary" loading={isSubmitting} onClick={handleSubmit(onSubmit)}>
+                {editing ? 'Save Changes' : 'Create Staff'}
+              </Btn>
+            </>
+          }
+        >
+          <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <Field
+                label="First name"
+                placeholder="e.g. Kavindi"
+                error={errors.firstName?.message}
+                {...register('firstName')}
+              />
+              <Field
+                label="Last name"
+                placeholder="e.g. Jayawardena"
+                error={errors.lastName?.message}
+                {...register('lastName')}
+              />
+            </div>
+
+            <Field
+              label="Email address"
+              type="email"
+              disabled={Boolean(editing)}
+              placeholder="e.g. kavindi@skynest.lk"
+              error={errors.email?.message}
+              hint={editing ? 'Email cannot be changed after creation.' : undefined}
+              {...register('email')}
+            />
+
+            <Field
+              label="Phone number"
+              placeholder="e.g. +94 77 100 0004"
+              error={errors.phone?.message}
+              {...register('phone')}
+            />
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <SelectField
+                label="Staff Role"
+                value={selectedRole ?? 'SERVICE_STAFF'}
+                error={errors.role?.message}
+                onChange={(v) => setValue('role', v as typeof ROLES[number])}
+              >
+                {ROLES.filter((r) => r !== 'ADMINISTRATOR' || isAdminOrDba).map((r) => (
+                  <option key={r} value={r}>
+                    {r.replace('_', ' ')}
+                  </option>
+                ))}
+              </SelectField>
+
+              <SelectField
+                label="Assigned Branch"
+                value={selectedFormBranch ?? ''}
+                disabled={isManager && !!user?.branchId}
+                error={errors.branchId?.message}
+                onChange={(v) => setValue('branchId', v)}
+              >
+                <option value="">— None (Corporate) —</option>
+                {branches.map((b) => (
+                  <option key={b.branch_id} value={b.branch_id}>
+                    {b.branch_name}
+                  </option>
+                ))}
+              </SelectField>
+            </div>
+
+            {modalError && (
+              <p className="text-[12px] text-red-600 border border-red-200 bg-red-50 p-3 rounded-[4px]">
+                {modalError}
+              </p>
+            )}
+          </form>
+        </Modal>
       )}
-    </div>
+    </>
   );
 }
