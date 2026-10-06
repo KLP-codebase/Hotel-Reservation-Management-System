@@ -454,7 +454,7 @@ router.get('/', async (req: Request, res: Response) => {
         balanceDue <= 0 && totalPaid > 0 ? 'SETTLED' : totalPaid > 0 ? 'PARTIALLY_PAID' : 'OPEN';
       const guestName = `${r.guest_first_name || ''} ${r.guest_last_name || ''}`.trim() || 'Guest';
       return {
-        invoice_id: r.invoice_id || `INV-PRE-${r.booking_id.substring(0, 8)}`,
+        invoice_id: r.invoice_id || `INV-PRE-${(r.booking_room_id || r.booking_id).substring(0, 8)}`,
         booking_id: r.booking_id,
         booking_room_id: r.booking_room_id,
         guest_name: guestName,
