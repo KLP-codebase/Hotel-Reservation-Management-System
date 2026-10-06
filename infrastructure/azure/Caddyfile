@@ -1,0 +1,15 @@
+{$APP_DOMAIN} {
+	encode zstd gzip
+
+	# Express owns /api/v1/* and /health. Everything else is Next.js.
+	@backend path /api/v1/* /health
+	handle @backend {
+		reverse_proxy backend:4000
+	}
+
+	handle {
+		@images path *.jpg *.jpeg *.png *.webp *.avif
+		header @images Cache-Control "public, max-age=604800"
+		reverse_proxy frontend:3000
+	}
+}

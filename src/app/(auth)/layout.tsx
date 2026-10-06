@@ -18,7 +18,7 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
       {/* Layer 0: Colorful Buildings & Pool Reflection Backdrop */}
       <div aria-hidden="true" className="absolute inset-0 pointer-events-none z-0 overflow-hidden">
         <img
-          src="/colorful-buildings-reflect-in-pool-on-a-sunny-day-2026-03-24-04-06-42-utc.jpg"
+          src="/colorful-buildings-reflect-in-pool-on-a-sunny-day-2026-03-24-04-06-42-utc.webp"
           alt="SkyNest Resort Sanctuary"
           className="w-full h-full object-cover object-[25%_center]"
           style={{ filter: 'brightness(0.98) contrast(1.02)' }}
@@ -50,7 +50,7 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
           }}
         >
           <img
-            src="/clouds/cloud_fluffy_3d.png"
+            src="/clouds/cloud_fluffy_3d.webp"
             alt=""
             className="w-full h-full object-contain object-center"
           />
@@ -68,7 +68,7 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
           }}
         >
           <img
-            src="/clouds/cloud_billows.png"
+            src="/clouds/cloud_billows.webp"
             alt=""
             className="w-full h-full object-contain object-top drop-shadow-[0_12px_44px_rgba(255,255,255,0.45)]"
           />
@@ -86,7 +86,7 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
           }}
         >
           <img
-            src="/clouds/cloud_fluffy_3d.png"
+            src="/clouds/cloud_fluffy_3d.webp"
             alt=""
             className="w-full h-full object-contain object-center drop-shadow-[0_16px_48px_rgba(255,255,255,0.55)]"
           />
@@ -104,7 +104,7 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
           }}
         >
           <img
-            src="/clouds/cloud_bank.png"
+            src="/clouds/cloud_bank.webp"
             alt=""
             className="w-full h-full object-contain object-center"
           />
@@ -122,7 +122,7 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
           }}
         >
           <img
-            src="/clouds/cloud_wisps.png"
+            src="/clouds/cloud_wisps.webp"
             alt=""
             className="w-full h-full object-contain object-center"
           />
@@ -140,7 +140,7 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
           }}
         >
           <img
-            src="/clouds/cloud_wisps.png"
+            src="/clouds/cloud_wisps.webp"
             alt=""
             className="w-full h-full object-contain object-center"
           />
@@ -158,7 +158,7 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
           }}
         >
           <img
-            src="/clouds/cloud_realistic.png"
+            src="/clouds/cloud_realistic.webp"
             alt=""
             className="w-full h-full object-contain object-bottom drop-shadow-[0_8px_28px_rgba(255,255,255,0.5)]"
           />
@@ -176,7 +176,7 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
           }}
         >
           <img
-            src="/clouds/cloud_billows.png"
+            src="/clouds/cloud_billows.webp"
             alt=""
             className="w-full h-full object-contain object-top"
           />

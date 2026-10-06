@@ -591,7 +591,7 @@ function HeroSection({
       >
         <img
           ref={bgImgRef}
-          src="/sunset-at-a-swimming-pool-during-a-vacation-on-a-t-2026-03-17-05-37-28-utc.jpg"
+          src="/sunset-at-a-swimming-pool-during-a-vacation-on-a-t-2026-03-17-05-37-28-utc.webp"
           alt=""
           className="w-full h-full object-cover object-center"
           style={{
@@ -718,7 +718,7 @@ function CloudTransition() {
         }}
       >
         <img
-          src="/07_Clouds.png"
+          src="/07_Clouds.webp"
           alt=""
           className="w-full h-full object-cover object-bottom"
           style={{
@@ -742,7 +742,7 @@ function CloudTransition() {
         }}
       >
         <img
-          src="/Clouds 3.png"
+          src="/Clouds 3.webp"
           alt=""
           className="w-full h-full object-cover object-bottom"
           style={{
@@ -996,7 +996,7 @@ function KandyBranchSection({ reducedMotion }: { reducedMotion: boolean }) {
 
           <img
             ref={imgRef}
-            src="/Kandy_hotel.jpg"
+            src="/Kandy_hotel.webp"
             alt="SkyNest Kandy — tea-country terrace overlooking misty hill range"
             className="w-full h-full object-cover object-center"
             style={{
@@ -1259,7 +1259,7 @@ function GalleBranchSection({ reducedMotion }: { reducedMotion: boolean }) {
 
           <img
             ref={imgRef}
-            src="/Galle.jpg"
+            src="/Galle.webp"
             alt="SkyNest Galle — colonial harbour ramparts and southern coastline"
             className="w-full h-full object-cover object-center"
             style={{
@@ -1522,7 +1522,7 @@ function ColomboBranchSection({ reducedMotion }: { reducedMotion: boolean }) {
 
           <img
             ref={imgRef}
-            src="/Colombo.jpg"
+            src="/Colombo.webp"
             alt="SkyNest Colombo — harbour city skyline meeting the Indian Ocean"
             className="w-full h-full object-cover object-top"
             style={{
