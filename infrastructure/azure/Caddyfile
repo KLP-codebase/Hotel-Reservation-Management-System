@@ -8,6 +8,8 @@
 	}
 
 	handle {
+		@images path *.jpg *.jpeg *.png *.webp *.avif
+		header @images Cache-Control "public, max-age=604800"
 		reverse_proxy frontend:3000
 	}
 }

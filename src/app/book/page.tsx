@@ -536,7 +536,7 @@ export default function BookPage() {
       >
         <div aria-hidden="true" className="absolute inset-0 pointer-events-none z-0 overflow-hidden">
           <img
-            src="/Booking.jpg"
+            src="/Booking.webp"
             alt=""
             className="w-full h-full object-cover scale-105"
             style={{
