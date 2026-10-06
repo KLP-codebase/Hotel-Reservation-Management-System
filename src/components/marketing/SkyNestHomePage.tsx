@@ -204,15 +204,15 @@ function SweepingOrbitalEmblem({
       const tl = gsap.timeline({
         scrollTrigger: {
           trigger: containerRef.current,
-          start: "top 88%",
-          end: "top 45%",
-          scrub: 1.2,
+          start: "top 95%",
+          end: "top 65%",
+          scrub: 0.8,
         },
       });
 
       tl.to(p1, { strokeDashoffset: 0, ease: "power1.out" }, 0);
-      tl.to(p2, { strokeDashoffset: 0, ease: "power1.out" }, 0.15);
-      tl.to(lbl, { opacity: 1, scale: 1, ease: "power2.out" }, 0.35);
+      tl.to(p2, { strokeDashoffset: 0, ease: "power1.out" }, 0.08);
+      tl.to(lbl, { opacity: 1, scale: 1, ease: "power2.out" }, 0.16);
     }, containerRef);
 
     return () => ctx.revert();
@@ -549,8 +549,8 @@ function HeroSection({
         scrollTrigger: {
           trigger: heroRef.current,
           start: "top top",
-          end: "+=120%",
-          scrub: 1.2,
+          end: "+=100%",
+          scrub: 1.0,
         },
         defaults: {
           ease: "none",
@@ -563,12 +563,12 @@ function HeroSection({
         tl.to(bgImgRef.current, { y: "18%", scale: 1.08 }, 0);
       }
 
-      // Wordmark sinks down and fades with momentum
+      // Wordmark sinks down and fades with momentum on scroll
       if (wordmarkRef.current) {
         tl.to(wordmarkRef.current, { y: "30%", opacity: 0.15 }, 0);
       }
 
-      // Eyebrow and CTA drift up and fade out
+      // Eyebrow and CTA drift up and fade out on scroll
       if (topRowRef.current) {
         tl.to(topRowRef.current, { y: "-35px", opacity: 0.1 }, 0);
       }
@@ -682,7 +682,7 @@ function CloudTransition() {
           trigger: containerRef.current,
           start: "top bottom",
           end: "bottom bottom",
-          scrub: 2, // Smooth lag momentum feel
+          scrub: 1.0, // Responsive, butter-smooth cloud rise
         },
         defaults: {
           ease: "none",
@@ -694,7 +694,7 @@ function CloudTransition() {
       tl.to(wrap1Ref.current, { y: "0%", autoAlpha: 1 }, 0);
 
       // Layer 2 — denser clouds, deeper parallax offset, slight delay in timeline
-      tl.to(wrap2Ref.current, { y: "0%", autoAlpha: 1 }, 0.12);
+      tl.to(wrap2Ref.current, { y: "0%", autoAlpha: 1 }, 0.1);
     }, containerRef);
 
     return () => ctx.revert();
@@ -704,7 +704,7 @@ function CloudTransition() {
     <div
       ref={containerRef}
       aria-hidden="true"
-      className="relative z-10 h-[120dvh] pointer-events-none overflow-hidden"
+      className="relative z-10 h-[70dvh] pointer-events-none overflow-hidden"
     >
       {/* Positioner 1 */}
       <div
@@ -792,37 +792,37 @@ function IntroSection({ reducedMotion }: { reducedMotion: boolean }) {
       return;
     }
 
-    if (!section || !title) return;
+    if (!section) return;
 
-    if (emblem) gsap.set(emblem, { opacity: 0, y: 25 });
-    gsap.set(lines, { opacity: 0, y: "110%" });
-    if (subText) gsap.set(subText, { opacity: 0, y: 20 });
+    if (emblem) gsap.set(emblem, { opacity: 0, y: 15 });
+    gsap.set(lines, { opacity: 0, y: "100%" });
+    if (subText) gsap.set(subText, { opacity: 0, y: 15 });
 
     const ctx = gsap.context(() => {
       const tl = gsap.timeline({
         scrollTrigger: {
-          trigger: title,
-          start: "top 82%",
+          trigger: section,
+          start: "top 90%",
           toggleActions: "play none none none",
         },
       });
 
       if (emblem) {
-        tl.to(emblem, { opacity: 1, y: 0, duration: 0.7, ease: "power2.out" });
+        tl.to(emblem, { opacity: 1, y: 0, duration: 0.4, ease: "power2.out" });
       }
       tl.to(
         lines,
         {
           opacity: 1,
           y: "0%",
-          duration: 0.95,
-          stagger: 0.12,
+          duration: 0.5,
+          stagger: 0.06,
           ease: "power3.out",
         },
-        emblem ? "-=0.3" : 0
+        emblem ? "-=0.25" : 0
       );
       if (subText) {
-        tl.to(subText, { opacity: 1, y: 0, duration: 0.8, ease: "power2.out" }, "-=0.3");
+        tl.to(subText, { opacity: 1, y: 0, duration: 0.45, ease: "power2.out" }, "-=0.2");
       }
     }, section);
 
@@ -938,9 +938,9 @@ function KandyBranchSection({ reducedMotion }: { reducedMotion: boolean }) {
     }
 
     gsap.set(img, { scale: 1.05, y: -30 });
-    gsap.set(label, { y: 25, opacity: 0 });
-    gsap.set(title, { y: 25, opacity: 0 });
-    gsap.set(line, { y: 20, opacity: 0 });
+    gsap.set(label, { y: 15, opacity: 0 });
+    gsap.set(title, { y: 15, opacity: 0 });
+    gsap.set(line, { y: 15, opacity: 0 });
 
     const ctx = gsap.context(() => {
       // Parallax scrub on image
@@ -960,15 +960,15 @@ function KandyBranchSection({ reducedMotion }: { reducedMotion: boolean }) {
       const textTl = gsap.timeline({
         scrollTrigger: {
           trigger: section,
-          start: "top 72%",
+          start: "top 90%",
           toggleActions: "play none none none",
         },
       });
 
       textTl
-        .to(label, { opacity: 1, y: 0, duration: 0.6, ease: "power2.out" })
-        .to(title, { opacity: 1, y: 0, duration: 0.7, ease: "power2.out" }, "-=0.3")
-        .to(line, { opacity: 1, y: 0, duration: 0.7, ease: "power2.out" }, "-=0.3");
+        .to(label, { opacity: 1, y: 0, duration: 0.4, ease: "power2.out" })
+        .to(title, { opacity: 1, y: 0, duration: 0.45, ease: "power2.out" }, "-=0.25")
+        .to(line, { opacity: 1, y: 0, duration: 0.45, ease: "power2.out" }, "-=0.25");
     }, section);
 
     return () => ctx.revert();
@@ -1078,33 +1078,33 @@ function CoastalInterludeSection({ reducedMotion }: { reducedMotion: boolean }) 
       return;
     }
 
-    if (!section || !title) return;
+    if (!section) return;
 
-    if (emblem) gsap.set(emblem, { opacity: 0, y: 25 });
-    gsap.set(lines, { opacity: 0, y: "110%" });
+    if (emblem) gsap.set(emblem, { opacity: 0, y: 15 });
+    gsap.set(lines, { opacity: 0, y: "100%" });
 
     const ctx = gsap.context(() => {
       const tl = gsap.timeline({
         scrollTrigger: {
-          trigger: title,
-          start: "top 82%",
+          trigger: section,
+          start: "top 90%",
           toggleActions: "play none none none",
         },
       });
 
       if (emblem) {
-        tl.to(emblem, { opacity: 1, y: 0, duration: 0.7, ease: "power2.out" });
+        tl.to(emblem, { opacity: 1, y: 0, duration: 0.4, ease: "power2.out" });
       }
       tl.to(
         lines,
         {
           opacity: 1,
           y: "0%",
-          duration: 0.95,
-          stagger: 0.12,
+          duration: 0.5,
+          stagger: 0.06,
           ease: "power3.out",
         },
-        emblem ? "-=0.3" : 0
+        emblem ? "-=0.25" : 0
       );
     }, section);
 
@@ -1201,9 +1201,9 @@ function GalleBranchSection({ reducedMotion }: { reducedMotion: boolean }) {
     }
 
     gsap.set(img, { scale: 1.05, y: -30 });
-    gsap.set(label, { y: 25, opacity: 0 });
-    gsap.set(title, { y: 25, opacity: 0 });
-    gsap.set(line, { y: 20, opacity: 0 });
+    gsap.set(label, { y: 15, opacity: 0 });
+    gsap.set(title, { y: 15, opacity: 0 });
+    gsap.set(line, { y: 15, opacity: 0 });
 
     const ctx = gsap.context(() => {
       // Parallax scrub on image
@@ -1223,15 +1223,15 @@ function GalleBranchSection({ reducedMotion }: { reducedMotion: boolean }) {
       const textTl = gsap.timeline({
         scrollTrigger: {
           trigger: section,
-          start: "top 72%",
+          start: "top 90%",
           toggleActions: "play none none none",
         },
       });
 
       textTl
-        .to(label, { opacity: 1, y: 0, duration: 0.6, ease: "power2.out" })
-        .to(title, { opacity: 1, y: 0, duration: 0.7, ease: "power2.out" }, "-=0.3")
-        .to(line, { opacity: 1, y: 0, duration: 0.7, ease: "power2.out" }, "-=0.3");
+        .to(label, { opacity: 1, y: 0, duration: 0.4, ease: "power2.out" })
+        .to(title, { opacity: 1, y: 0, duration: 0.45, ease: "power2.out" }, "-=0.25")
+        .to(line, { opacity: 1, y: 0, duration: 0.45, ease: "power2.out" }, "-=0.25");
     }, section);
 
     return () => ctx.revert();
@@ -1341,33 +1341,33 @@ function ColomboCityInterludeSection({ reducedMotion }: { reducedMotion: boolean
       return;
     }
 
-    if (!section || !title) return;
+    if (!section) return;
 
-    if (emblem) gsap.set(emblem, { opacity: 0, y: 25 });
-    gsap.set(lines, { opacity: 0, y: "110%" });
+    if (emblem) gsap.set(emblem, { opacity: 0, y: 15 });
+    gsap.set(lines, { opacity: 0, y: "100%" });
 
     const ctx = gsap.context(() => {
       const tl = gsap.timeline({
         scrollTrigger: {
-          trigger: title,
-          start: "top 82%",
+          trigger: section,
+          start: "top 90%",
           toggleActions: "play none none none",
         },
       });
 
       if (emblem) {
-        tl.to(emblem, { opacity: 1, y: 0, duration: 0.7, ease: "power2.out" });
+        tl.to(emblem, { opacity: 1, y: 0, duration: 0.4, ease: "power2.out" });
       }
       tl.to(
         lines,
         {
           opacity: 1,
           y: "0%",
-          duration: 0.95,
-          stagger: 0.12,
+          duration: 0.5,
+          stagger: 0.06,
           ease: "power3.out",
         },
-        emblem ? "-=0.3" : 0
+        emblem ? "-=0.25" : 0
       );
     }, section);
 
@@ -1464,9 +1464,9 @@ function ColomboBranchSection({ reducedMotion }: { reducedMotion: boolean }) {
     }
 
     gsap.set(img, { scale: 1.1, y: 140 });
-    gsap.set(label, { y: 25, opacity: 0 });
-    gsap.set(title, { y: 25, opacity: 0 });
-    gsap.set(line, { y: 20, opacity: 0 });
+    gsap.set(label, { y: 15, opacity: 0 });
+    gsap.set(title, { y: 15, opacity: 0 });
+    gsap.set(line, { y: 15, opacity: 0 });
 
     const ctx = gsap.context(() => {
       // Parallax scrub on image
@@ -1486,15 +1486,15 @@ function ColomboBranchSection({ reducedMotion }: { reducedMotion: boolean }) {
       const textTl = gsap.timeline({
         scrollTrigger: {
           trigger: section,
-          start: "top 72%",
+          start: "top 90%",
           toggleActions: "play none none none",
         },
       });
 
       textTl
-        .to(label, { opacity: 1, y: 0, duration: 0.6, ease: "power2.out" })
-        .to(title, { opacity: 1, y: 0, duration: 0.7, ease: "power2.out" }, "-=0.3")
-        .to(line, { opacity: 1, y: 0, duration: 0.7, ease: "power2.out" }, "-=0.3");
+        .to(label, { opacity: 1, y: 0, duration: 0.4, ease: "power2.out" })
+        .to(title, { opacity: 1, y: 0, duration: 0.45, ease: "power2.out" }, "-=0.25")
+        .to(line, { opacity: 1, y: 0, duration: 0.45, ease: "power2.out" }, "-=0.25");
     }, section);
 
     return () => ctx.revert();
