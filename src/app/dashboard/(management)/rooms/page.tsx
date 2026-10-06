@@ -1,16 +1,13 @@
 'use client';
 
 import React, { useCallback, useEffect, useState } from 'react';
-import {
-  BedDouble, Building2, RefreshCw, Plus, Pencil,
-  WrenchIcon, CheckCircle2, ShieldAlert, XCircle,
-  X, Sparkles, Users, DollarSign, Loader2,
-} from 'lucide-react';
+import { Plus, Pencil, Wrench, Trash2 } from 'lucide-react';
 import { apiFetch, ApiError, toNum } from '@/lib/api-client';
-import { Button }  from '@/components/ui/Button';
-import { Input }   from '@/components/ui/Input';
-import { Card }    from '@/components/ui/Card';
 import { useAuth } from '@/context/auth-context';
+import {
+  DashboardMasthead, MastheadRefresh, SectionHeader, Segmented, Toolbar, FilterSelect,
+  Btn, IconBtn, Field, SelectField, Modal, Loading, Empty, StatusDot, tbl, fmtLKR, useFlash,
+} from '@/components/dashboard/ui';
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -46,61 +43,12 @@ interface Room {
 
 type Tab = 'categories' | 'inventory';
 
-// ── Status helpers ─────────────────────────────────────────────────────────────
-
-const STATUS_META: Record<RoomStatus, { label: string; className: string; icon: React.ReactNode }> = {
-  AVAILABLE:     { label: 'Available',     className: 'text-emerald-400 bg-emerald-500/10 border-emerald-500/30', icon: <CheckCircle2 size={11} /> },
-  OCCUPIED:      { label: 'Occupied',      className: 'text-blue-400   bg-blue-500/10   border-blue-500/30',    icon: <BedDouble   size={11} /> },
-  MAINTENANCE:   { label: 'Maintenance',   className: 'text-rose-400   bg-rose-500/10   border-rose-500/30',    icon: <ShieldAlert size={11} /> },
-  OUT_OF_SERVICE:{ label: 'Out of Service',className: 'text-stone-400  bg-stone-500/10  border-stone-500/30',   icon: <XCircle     size={11} /> },
+const STATUS_LABEL: Record<RoomStatus, string> = {
+  AVAILABLE:      'Available',
+  OCCUPIED:       'Occupied',
+  MAINTENANCE:    'Maintenance',
+  OUT_OF_SERVICE: 'Out of service',
 };
-
-function RoomStatusBadge({ status }: { status: RoomStatus }) {
-  const m = STATUS_META[status] ?? STATUS_META.AVAILABLE;
-  return (
-    <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 text-[11px] font-semibold border ${m.className}`}>
-      {m.icon}{m.label}
-    </span>
-  );
-}
-
-// ── Modal skeleton ─────────────────────────────────────────────────────────────
-
-function Modal({ title, onClose, children }: { title: string; onClose: () => void; children: React.ReactNode }) {
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/70 backdrop-blur-sm">
-      <div className="w-full max-w-lg bg-stone-900 border border-white/10 shadow-2xl">
-        <div className="flex items-center justify-between px-6 py-4 border-b border-white/8">
-          <h2 className="font-cinzel text-base text-stone-100">{title}</h2>
-          <button onClick={onClose} className="text-stone-500 hover:text-stone-200 transition-colors">
-            <X size={18} />
-          </button>
-        </div>
-        <div className="px-6 py-5 space-y-5">{children}</div>
-      </div>
-    </div>
-  );
-}
-
-// ── Label + select helper ──────────────────────────────────────────────────────
-
-function FieldSelect({
-  label, value, onChange, children, error,
-}: { label: string; value: string; onChange: (v: string) => void; children: React.ReactNode; error?: string }) {
-  return (
-    <div className="flex flex-col gap-1.5">
-      <label className="text-xs font-medium text-stone-400 uppercase tracking-widest">{label}</label>
-      <select
-        value={value}
-        onChange={e => onChange(e.target.value)}
-        className="w-full bg-transparent border-b border-white/20 pb-2 pt-1 text-stone-100 text-sm outline-none focus:border-amber-500"
-      >
-        {children}
-      </select>
-      {error && <span className="text-xs text-red-400">{error}</span>}
-    </div>
-  );
-}
 
 // ── Page ───────────────────────────────────────────────────────────────────────
 
@@ -122,14 +70,8 @@ export default function RoomsPage() {
   const [filterStatus,   setFilterStatus]   = useState('ALL');
   const [filterRoomType, setFilterRoomType] = useState('ALL');
 
-  // ── Success / error banners ──────────────────────────────────────────────────
-  const [successMsg, setSuccessMsg] = useState<string | null>(null);
-  const [errorMsg,   setErrorMsg]   = useState<string | null>(null);
-
-  function flash(type: 'success' | 'error', msg: string) {
-    if (type === 'success') { setSuccessMsg(msg); setTimeout(() => setSuccessMsg(null), 3500); }
-    else                    { setErrorMsg(msg);   setTimeout(() => setErrorMsg(null),   4000); }
-  }
+  // Flash notifications
+  const { flash, toasts } = useFlash();
 
   // ── Room-type modal state ────────────────────────────────────────────────────
   const [rtModal,   setRtModal]   = useState<'create' | 'edit' | null>(null);
@@ -329,262 +271,162 @@ export default function RoomsPage() {
     }
   }
 
+
+  // ── Headline figures ─────────────────────────────────────────────────────────
+  const availableCount   = rooms.filter(r => r.status === 'AVAILABLE').length;
+  const maintenanceCount = rooms.filter(r => r.status === 'MAINTENANCE' || r.status === 'OUT_OF_SERVICE').length;
+
   // ── Render ───────────────────────────────────────────────────────────────────
   return (
-    <div className="p-8 max-w-7xl">
+    <>
+      {toasts}
 
-      {/* ── Toasts ── */}
-      {successMsg && (
-        <div className="fixed top-5 right-5 z-[9999] flex items-center gap-2 px-4 py-3 bg-emerald-900/90 border border-emerald-500/40 text-emerald-300 text-sm shadow-lg">
-          <CheckCircle2 size={15} /> {successMsg}
-        </div>
-      )}
-      {errorMsg && (
-        <div className="fixed top-5 right-5 z-[9999] flex items-center gap-2 px-4 py-3 bg-red-900/90 border border-red-500/40 text-red-300 text-sm shadow-lg">
-          <XCircle size={15} /> {errorMsg}
-        </div>
-      )}
+      <DashboardMasthead
+        eyebrow="Inventory"
+        title="Rooms"
+        imageKey={user?.branchName}
+        aside={<MastheadRefresh onClick={fetchAll} loading={loading} />}
+        kpis={[
+          { label: 'Room types',  value: String(roomTypes.length), sub: 'Categories on sale' },
+          { label: 'Rooms',       value: String(rooms.length),     sub: `Across ${branches.length} ${branches.length === 1 ? 'property' : 'properties'}` },
+          { label: 'Available',   value: String(availableCount),   sub: 'Ready to sell' },
+          { label: 'Maintenance', value: String(maintenanceCount), sub: 'Out of action' },
+        ]}
+      />
 
-      {/* ── Page Header ── */}
-      <div className="flex items-start justify-between mb-8">
-        <div>
-          <h1 className="font-cinzel italic text-2xl text-stone-100">Rooms &amp; Suite Categories</h1>
-          <p className="text-stone-500 text-sm mt-1 font-jakarta">
-            Configure luxury suite definitions, base tariffs, and physical room maintenance states.
-          </p>
-        </div>
-        <Button variant="ghost" size="sm" onClick={fetchAll} title="Refresh" disabled={loading}>
-          <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
-        </Button>
-      </div>
-
-      {/* ── Tab switcher ── */}
-      <div className="flex items-center gap-0 mb-8 border-b border-white/8">
-        {(['categories', 'inventory'] as Tab[]).map(tab => (
-          <button
-            key={tab}
-            onClick={() => setActiveTab(tab)}
-            className={[
-              'px-5 py-2.5 text-xs font-medium uppercase tracking-widest font-jakarta transition-colors border-b-2 -mb-px',
-              activeTab === tab
-                ? 'border-amber-400 text-amber-400'
-                : 'border-transparent text-stone-500 hover:text-stone-300',
-            ].join(' ')}
+      <main className="max-w-[1440px] mx-auto px-6 md:px-12 py-12 md:py-16">
+        <section className="space-y-8">
+          <SectionHeader
+            index={activeTab === 'categories' ? `${roomTypes.length} categories` : `${filteredRooms.length} of ${rooms.length} rooms`}
+            title={activeTab === 'categories' ? 'Room Types' : 'Room Inventory'}
           >
-            {tab === 'categories' ? 'Suite Categories (Room Types)' : 'Physical Room Inventory'}
-          </button>
-        ))}
-      </div>
+            <Segmented
+              value={activeTab}
+              onChange={setActiveTab}
+              options={[
+                { value: 'categories', label: 'Room types', count: roomTypes.length },
+                { value: 'inventory',  label: 'Inventory',  count: rooms.length },
+              ]}
+            />
+          </SectionHeader>
 
-      {loading ? (
-        <div className="flex items-center justify-center py-24 text-stone-500 gap-3">
-          <Loader2 size={18} className="animate-spin" />
-          <span className="font-jakarta text-sm">Loading room data…</span>
-        </div>
-      ) : (
-        <>
-          {/* ══════════════════════════════════════════════════════════════════
-              TAB 1 — Suite Categories (Room Types)
-          ══════════════════════════════════════════════════════════════════ */}
-          {activeTab === 'categories' && (
-            <div>
-              <div className="flex items-center justify-between mb-5">
-                <p className="text-xs font-semibold uppercase tracking-widest text-amber-400 font-jakarta">
-                  {roomTypes.length} Suite {roomTypes.length === 1 ? 'Category' : 'Categories'}
-                </p>
-                {canMutate && (
-                  <Button size="sm" onClick={openCreateRt}>
-                    <Plus size={13} /> Add Room Type
-                  </Button>
-                )}
-              </div>
+          {loading ? (
+            <Loading label="Loading rooms" />
+          ) : activeTab === 'categories' ? (
+            /* ── Room types ─────────────────────────────────────────────────── */
+            <div className="space-y-6">
+              {canMutate && (
+                <Toolbar action={<Btn variant="primary" onClick={openCreateRt}><Plus className="w-4 h-4" /> Add room type</Btn>} />
+              )}
 
               {roomTypes.length === 0 ? (
-                <Card className="flex flex-col items-center justify-center py-16 text-center">
-                  <Sparkles size={32} className="text-stone-600 mb-3" />
-                  <p className="font-cinzel text-stone-400 text-sm mb-1">No suite categories yet</p>
-                  <p className="text-xs text-stone-600 font-jakarta">Add the first room type to define your suite portfolio.</p>
-                </Card>
+                <Empty>No room types yet.</Empty>
               ) : (
-                <Card className="p-0 overflow-hidden">
-                  <table className="w-full text-sm">
+                <div className={tbl.wrap}>
+                  <table className={`${tbl.table} min-w-[720px]`}>
                     <thead>
-                      <tr className="border-b border-white/8 text-stone-500 text-xs uppercase tracking-wider">
-                        <th className="text-left px-6 py-3 font-medium">Category Name</th>
-                        <th className="text-left px-6 py-3 font-medium">Base Daily Tariff (LKR)</th>
-                        <th className="text-left px-6 py-3 font-medium">Max Capacity</th>
-                        <th className="text-left px-6 py-3 font-medium">Room Count</th>
-                        <th className="text-left px-6 py-3 font-medium">Description</th>
-                        {canMutate && <th className="px-6 py-3 font-medium text-right">Actions</th>}
+                      <tr className={tbl.headRow}>
+                        <th className={tbl.th}>Room type</th>
+                        <th className={tbl.th}>Rate / night</th>
+                        <th className={tbl.th}>Capacity</th>
+                        <th className={tbl.th}>Rooms</th>
+                        {canMutate && <th className={`${tbl.th} text-right`}><span className="sr-only">Actions</span></th>}
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-white/5">
-                      {roomTypes.map(rt => (
-                        <tr key={rt.room_type_id} className="hover:bg-white/3 transition-colors">
-                          <td className="px-6 py-4">
-                            <div className="flex items-center gap-2">
-                              <Sparkles size={13} className="text-amber-500/70 shrink-0" />
-                              <span className="font-medium text-stone-200 font-cinzel">{rt.type_name}</span>
-                            </div>
-                          </td>
-                          <td className="px-6 py-4 text-amber-400 font-semibold font-cinzel">
-                            {toNum(rt.base_daily_rate).toLocaleString('en-LK', { minimumFractionDigits: 2 })}
-                            <span className="text-[10px] font-jakarta font-normal text-stone-500 ml-1">/ night</span>
-                          </td>
-                          <td className="px-6 py-4 text-stone-300">
-                            <span className="inline-flex items-center gap-1.5">
-                              <Users size={12} className="text-stone-500" />
-                              {rt.capacity}
-                            </span>
-                          </td>
-                          <td className="px-6 py-4 text-stone-400">
-                            {roomCounts[rt.room_type_id] ?? 0} room{(roomCounts[rt.room_type_id] ?? 0) !== 1 ? 's' : ''}
-                          </td>
-                          <td className="px-6 py-4 text-stone-500 text-xs max-w-xs truncate">
-                            {rt.description ?? '—'}
-                          </td>
-                          {canMutate && (
-                            <td className="px-6 py-4 text-right">
-                              <div className="flex items-center justify-end gap-2">
-                                <Button variant="ghost" size="sm" onClick={() => openEditRt(rt)}>
-                                  <Pencil size={12} />
-                                </Button>
-                                <Button variant="danger" size="sm" onClick={() => deleteRt(rt)}>
-                                  <XCircle size={12} />
-                                </Button>
-                              </div>
+                    <tbody className={tbl.body}>
+                      {roomTypes.map(rt => {
+                        const count = roomCounts[rt.room_type_id] ?? 0;
+                        return (
+                          <tr key={rt.room_type_id} className={tbl.row}>
+                            <td className={`${tbl.td} max-w-[360px]`}>
+                              <p className="font-cinzel text-[17px] text-ink">{rt.type_name}</p>
+                              {rt.description && <p className={`${tbl.sub} truncate`}>{rt.description}</p>}
                             </td>
-                          )}
-                        </tr>
-                      ))}
+                            <td className={`${tbl.td} tabular-nums whitespace-nowrap`}>{fmtLKR(toNum(rt.base_daily_rate))}</td>
+                            <td className={`${tbl.td} whitespace-nowrap`}>{rt.capacity} guest{rt.capacity === 1 ? '' : 's'}</td>
+                            <td className={`${tbl.td} tabular-nums`}>{count}</td>
+                            {canMutate && (
+                              <td className={`${tbl.td} pr-0`}>
+                                <div className="flex items-center justify-end gap-2">
+                                  <IconBtn label={`Edit ${rt.type_name}`} onClick={() => openEditRt(rt)}><Pencil className="w-4 h-4" /></IconBtn>
+                                  <IconBtn label={`Remove ${rt.type_name}`} variant="danger" onClick={() => deleteRt(rt)}><Trash2 className="w-4 h-4" /></IconBtn>
+                                </div>
+                              </td>
+                            )}
+                          </tr>
+                        );
+                      })}
                     </tbody>
                   </table>
-                </Card>
+                </div>
               )}
             </div>
-          )}
-
-          {/* ══════════════════════════════════════════════════════════════════
-              TAB 2 — Physical Room Inventory
-          ══════════════════════════════════════════════════════════════════ */}
-          {activeTab === 'inventory' && (
-            <div>
-              {/* Filter bar */}
-              <div className="flex flex-wrap items-center gap-3 mb-5">
-                {/* Branch filter */}
-                <div className="flex items-center gap-2">
-                  <Building2 size={13} className="text-stone-500" />
-                  <select
-                    value={filterBranch}
-                    onChange={e => setFilterBranch(e.target.value)}
-                    className="bg-stone-900 border border-white/10 px-3 py-1.5 text-xs text-stone-200 outline-none focus:border-amber-500 rounded-none"
-                  >
-                    <option value="ALL">All Branches</option>
-                    {branches.map(b => (
-                      <option key={b.branch_id} value={String(b.branch_id)}>{b.branch_name}</option>
-                    ))}
-                  </select>
-                </div>
-
-                {/* Room type filter */}
-                <select
-                  value={filterRoomType}
-                  onChange={e => setFilterRoomType(e.target.value)}
-                  className="bg-stone-900 border border-white/10 px-3 py-1.5 text-xs text-stone-200 outline-none focus:border-amber-500 rounded-none"
-                >
-                  <option value="ALL">All Categories</option>
+          ) : (
+            /* ── Inventory ──────────────────────────────────────────────────── */
+            <div className="space-y-6">
+              <Toolbar
+                action={canMutate && <Btn variant="primary" onClick={openCreateRm}><Plus className="w-4 h-4" /> Add room</Btn>}
+              >
+                <FilterSelect label="Property" value={filterBranch} onChange={setFilterBranch}>
+                  <option value="ALL">All properties</option>
+                  {branches.map(b => (
+                    <option key={b.branch_id} value={String(b.branch_id)}>{b.branch_name}</option>
+                  ))}
+                </FilterSelect>
+                <FilterSelect label="Room type" value={filterRoomType} onChange={setFilterRoomType}>
+                  <option value="ALL">All room types</option>
                   {roomTypes.map(rt => (
                     <option key={rt.room_type_id} value={String(rt.room_type_id)}>{rt.type_name}</option>
                   ))}
-                </select>
-
-                {/* Status filter */}
-                <select
-                  value={filterStatus}
-                  onChange={e => setFilterStatus(e.target.value)}
-                  className="bg-stone-900 border border-white/10 px-3 py-1.5 text-xs text-stone-200 outline-none focus:border-amber-500 rounded-none"
-                >
-                  <option value="ALL">All Statuses</option>
-                  <option value="AVAILABLE">Available</option>
-                  <option value="OCCUPIED">Occupied</option>
-                  <option value="MAINTENANCE">Maintenance</option>
-                  <option value="OUT_OF_SERVICE">Out of Service</option>
-                </select>
-
-                <span className="ml-auto text-xs text-stone-500 font-jakarta">
-                  {filteredRooms.length} room{filteredRooms.length !== 1 ? 's' : ''}
-                </span>
-
-                {canMutate && (
-                  <Button size="sm" onClick={openCreateRm}>
-                    <Plus size={13} /> Add Physical Room
-                  </Button>
-                )}
-              </div>
+                </FilterSelect>
+                <FilterSelect label="Status" value={filterStatus} onChange={setFilterStatus}>
+                  <option value="ALL">All statuses</option>
+                  {(Object.keys(STATUS_LABEL) as RoomStatus[]).map(s => (
+                    <option key={s} value={s}>{STATUS_LABEL[s]}</option>
+                  ))}
+                </FilterSelect>
+              </Toolbar>
 
               {filteredRooms.length === 0 ? (
-                <Card className="flex flex-col items-center justify-center py-16 text-center">
-                  <BedDouble size={32} className="text-stone-600 mb-3" />
-                  <p className="font-cinzel text-stone-400 text-sm mb-1">No rooms found</p>
-                  <p className="text-xs text-stone-600 font-jakarta">
-                    {rooms.length === 0 ? 'Add the first physical room to begin.' : 'Try adjusting your filters.'}
-                  </p>
-                </Card>
+                <Empty>{rooms.length === 0 ? 'No rooms yet.' : 'No rooms match these filters.'}</Empty>
               ) : (
-                <Card className="p-0 overflow-hidden">
-                  <table className="w-full text-sm">
+                <div className={tbl.wrap}>
+                  <table className={`${tbl.table} min-w-[720px]`}>
                     <thead>
-                      <tr className="border-b border-white/8 text-stone-500 text-xs uppercase tracking-wider">
-                        <th className="text-left px-6 py-3 font-medium">Room Number</th>
-                        <th className="text-left px-6 py-3 font-medium">Branch</th>
-                        <th className="text-left px-6 py-3 font-medium">Category</th>
-                        <th className="text-left px-6 py-3 font-medium">Floor</th>
-                        <th className="text-left px-6 py-3 font-medium">Current Status</th>
-                        <th className="px-6 py-3 font-medium text-right">Actions</th>
+                      <tr className={tbl.headRow}>
+                        <th className={tbl.th}>Room</th>
+                        <th className={tbl.th}>Property</th>
+                        <th className={tbl.th}>Room type</th>
+                        <th className={tbl.th}>Floor</th>
+                        <th className={tbl.th}>Status</th>
+                        <th className={`${tbl.th} text-right`}><span className="sr-only">Actions</span></th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-white/5">
+                    <tbody className={tbl.body}>
                       {filteredRooms.map(room => (
-                        <tr key={room.room_id} className="hover:bg-white/3 transition-colors">
-                          <td className="px-6 py-4">
-                            <div className="flex items-center gap-2">
-                              <BedDouble size={13} className="text-amber-500/70 shrink-0" />
-                              <span className="font-semibold text-stone-200">Room {room.room_number}</span>
-                            </div>
-                          </td>
-                          <td className="px-6 py-4 text-stone-400">{room.branch_name ?? '—'}</td>
-                          <td className="px-6 py-4 text-stone-300">{room.type_name ?? '—'}</td>
-                          <td className="px-6 py-4 text-stone-500">
-                            {room.floor !== null ? `Floor ${room.floor}` : '—'}
-                          </td>
-                          <td className="px-6 py-4">
-                            <RoomStatusBadge status={room.status} />
-                          </td>
-                          <td className="px-6 py-4">
+                        <tr key={room.room_id} className={tbl.row}>
+                          <td className={tbl.td}><span className="font-cinzel text-[20px] text-ink">{room.room_number}</span></td>
+                          <td className={tbl.td}>{room.branch_name ?? '—'}</td>
+                          <td className={tbl.td}>{room.type_name ?? '—'}</td>
+                          <td className={`${tbl.td} tabular-nums`}>{room.floor ?? '—'}</td>
+                          <td className={tbl.td}><StatusDot status={room.status} label={STATUS_LABEL[room.status] ?? room.status} /></td>
+                          <td className={`${tbl.td} pr-0`}>
                             <div className="flex items-center justify-end gap-2">
-                              {/* Toggle Maintenance */}
                               {canToggleStatus && room.status !== 'OCCUPIED' && (
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  title={room.status === 'MAINTENANCE' ? 'Mark Available' : 'Toggle Maintenance'}
+                                <IconBtn
+                                  label={room.status === 'MAINTENANCE' ? `Mark room ${room.room_number} available` : `Set room ${room.room_number} to maintenance`}
                                   onClick={() => toggleMaintenance(room)}
                                   loading={statusSaving === room.room_id}
+                                  className={room.status === 'MAINTENANCE' ? 'text-amber-700' : ''}
                                 >
-                                  <WrenchIcon size={12} className={room.status === 'MAINTENANCE' ? 'text-rose-400' : ''} />
-                                </Button>
+                                  <Wrench className="w-4 h-4" />
+                                </IconBtn>
                               )}
-                              {/* Edit */}
                               {canMutate && (
-                                <Button variant="ghost" size="sm" onClick={() => openEditRm(room)}>
-                                  <Pencil size={12} />
-                                </Button>
+                                <IconBtn label={`Edit room ${room.room_number}`} onClick={() => openEditRm(room)}><Pencil className="w-4 h-4" /></IconBtn>
                               )}
-                              {/* Deactivate */}
                               {canMutate && (
-                                <Button variant="danger" size="sm" onClick={() => deactivateRoom(room)}>
-                                  <XCircle size={12} />
-                                </Button>
+                                <IconBtn label={`Deactivate room ${room.room_number}`} variant="danger" onClick={() => deactivateRoom(room)}><Trash2 className="w-4 h-4" /></IconBtn>
                               )}
                             </div>
                           </td>
@@ -592,131 +434,131 @@ export default function RoomsPage() {
                       ))}
                     </tbody>
                   </table>
-                </Card>
+                </div>
               )}
             </div>
           )}
-        </>
-      )}
+        </section>
+      </main>
 
-      {/* ══════════════════════════════════════════════════════════════════════
-          MODAL — Room Type Create / Edit
-      ══════════════════════════════════════════════════════════════════════ */}
+      {/* ── Modal — room type ─────────────────────────────────────────────────── */}
       {rtModal && (
         <Modal
-          title={rtModal === 'create' ? 'Add Suite Category' : 'Edit Suite Category'}
+          eyebrow="Room type"
+          title={rtModal === 'create' ? 'Add room type' : `Edit ${rtEditing?.type_name ?? 'room type'}`}
           onClose={() => setRtModal(null)}
+          footer={
+            <>
+              <Btn variant="ghost" onClick={() => setRtModal(null)}>Cancel</Btn>
+              <Btn variant="primary" onClick={submitRtForm} loading={rtSaving}>
+                {rtModal === 'create' ? 'Create' : 'Save changes'}
+              </Btn>
+            </>
+          }
         >
-          <Input
-            label="Type Name"
+          <Field
+            label="Name"
             placeholder="e.g. Deluxe Ocean Suite"
             value={rtForm.typeName}
             onChange={e => setRtForm(p => ({ ...p, typeName: e.target.value }))}
             error={rtErrors.typeName}
           />
-          <div className="grid grid-cols-2 gap-4">
-            <Input
-              label="Base Rate (LKR / night)"
+          <div className="grid grid-cols-2 gap-6">
+            <Field
+              label="Rate (LKR / night)"
               type="number"
               min="0"
               step="0.01"
-              placeholder="e.g. 25000"
+              placeholder="25000"
               value={rtForm.baseDailyRate}
               onChange={e => setRtForm(p => ({ ...p, baseDailyRate: e.target.value }))}
               error={rtErrors.baseDailyRate}
             />
-            <Input
-              label="Max Capacity"
+            <Field
+              label="Capacity"
               type="number"
               min="1"
-              placeholder="e.g. 2"
+              placeholder="2"
               value={rtForm.capacity}
               onChange={e => setRtForm(p => ({ ...p, capacity: e.target.value }))}
               error={rtErrors.capacity}
             />
           </div>
-          <Input
+          <Field
             label="Description (optional)"
-            placeholder="Brief description of this suite category"
+            placeholder="A short line guests will see"
             value={rtForm.description}
             onChange={e => setRtForm(p => ({ ...p, description: e.target.value }))}
           />
-          <div className="flex justify-end gap-3 pt-2">
-            <Button variant="ghost" onClick={() => setRtModal(null)}>Cancel</Button>
-            <Button onClick={submitRtForm} loading={rtSaving}>
-              <DollarSign size={13} />
-              {rtModal === 'create' ? 'Create Category' : 'Save Changes'}
-            </Button>
-          </div>
         </Modal>
       )}
 
-      {/* ══════════════════════════════════════════════════════════════════════
-          MODAL — Physical Room Create / Edit
-      ══════════════════════════════════════════════════════════════════════ */}
+      {/* ── Modal — physical room ─────────────────────────────────────────────── */}
       {rmModal && (
         <Modal
-          title={rmModal === 'create' ? 'Add Physical Room' : `Edit Room ${rmEditing?.room_number}`}
+          eyebrow="Room"
+          title={rmModal === 'create' ? 'Add room' : `Edit room ${rmEditing?.room_number}`}
           onClose={() => setRmModal(null)}
+          footer={
+            <>
+              <Btn variant="ghost" onClick={() => setRmModal(null)}>Cancel</Btn>
+              <Btn variant="primary" onClick={submitRmForm} loading={rmSaving}>
+                {rmModal === 'create' ? 'Add room' : 'Save changes'}
+              </Btn>
+            </>
+          }
         >
-          <div className="grid grid-cols-2 gap-4">
-            <Input
-              label="Room Number"
-              placeholder="e.g. 101"
+          <div className="grid grid-cols-2 gap-6">
+            <Field
+              label="Room number"
+              placeholder="101"
               value={rmForm.roomNumber}
               onChange={e => setRmForm(p => ({ ...p, roomNumber: e.target.value }))}
               error={rmErrors.roomNumber}
             />
-            <Input
+            <Field
               label="Floor (optional)"
               type="number"
               min="1"
-              placeholder="e.g. 3"
+              placeholder="3"
               value={rmForm.floor}
               onChange={e => setRmForm(p => ({ ...p, floor: e.target.value }))}
               error={rmErrors.floor}
             />
           </div>
-          <FieldSelect
-            label="Branch"
+          <SelectField
+            label="Property"
             value={rmForm.branchId}
             onChange={v => setRmForm(p => ({ ...p, branchId: v }))}
             error={rmErrors.branchId}
           >
-            <option value="">Select branch…</option>
+            <option value="">Select property…</option>
             {branches.map(b => (
               <option key={b.branch_id} value={String(b.branch_id)}>{b.branch_name} — {b.city}</option>
             ))}
-          </FieldSelect>
-          <FieldSelect
-            label="Suite Category"
+          </SelectField>
+          <SelectField
+            label="Room type"
             value={rmForm.roomTypeId}
             onChange={v => setRmForm(p => ({ ...p, roomTypeId: v }))}
             error={rmErrors.roomTypeId}
           >
-            <option value="">Select category…</option>
+            <option value="">Select room type…</option>
             {roomTypes.map(rt => (
               <option key={rt.room_type_id} value={String(rt.room_type_id)}>{rt.type_name}</option>
             ))}
-          </FieldSelect>
-          <FieldSelect
-            label="Initial Status"
+          </SelectField>
+          <SelectField
+            label="Status"
             value={rmForm.status}
             onChange={v => setRmForm(p => ({ ...p, status: v as RoomStatus }))}
           >
             <option value="AVAILABLE">Available</option>
             <option value="MAINTENANCE">Maintenance</option>
-            <option value="OUT_OF_SERVICE">Out of Service</option>
-          </FieldSelect>
-          <div className="flex justify-end gap-3 pt-2">
-            <Button variant="ghost" onClick={() => setRmModal(null)}>Cancel</Button>
-            <Button onClick={submitRmForm} loading={rmSaving}>
-              <BedDouble size={13} />
-              {rmModal === 'create' ? 'Add Room' : 'Save Changes'}
-            </Button>
-          </div>
+            <option value="OUT_OF_SERVICE">Out of service</option>
+          </SelectField>
         </Modal>
       )}
-    </div>
+    </>
   );
 }

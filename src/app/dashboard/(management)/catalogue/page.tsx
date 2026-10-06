@@ -1,16 +1,13 @@
 'use client';
 
 import React, { useCallback, useEffect, useState } from 'react';
-import {
-  Sparkles, Building2, RefreshCw, Plus, Pencil,
-  CheckCircle2, XCircle, X, DollarSign, Loader2,
-  Percent, ShieldAlert, AlertTriangle, Layers,
-} from 'lucide-react';
+import { Plus, Pencil, Trash2 } from 'lucide-react';
 import { apiFetch, ApiError, toNum } from '@/lib/api-client';
-import { Button }  from '@/components/ui/Button';
-import { Input }   from '@/components/ui/Input';
-import { Card }    from '@/components/ui/Card';
 import { useAuth } from '@/context/auth-context';
+import {
+  DashboardMasthead, MastheadRefresh, SectionHeader, Segmented, Toolbar, FilterSelect,
+  Btn, IconBtn, Field, SelectField, Modal, Loading, Empty, StatusDot, tbl, fmtLKR, fmtDay, useFlash,
+} from '@/components/dashboard/ui';
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -43,44 +40,6 @@ type Tab = 'services' | 'taxes';
 
 const SERVICE_CATEGORIES = ['Dining', 'Wellness', 'Transport', 'Laundry', 'Activities', 'Other'];
 
-// ── Modal container ────────────────────────────────────────────────────────────
-
-function Modal({ title, onClose, children }: { title: string; onClose: () => void; children: React.ReactNode }) {
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/70 backdrop-blur-sm">
-      <div className="w-full max-w-lg bg-stone-900 border border-white/10 shadow-2xl">
-        <div className="flex items-center justify-between px-6 py-4 border-b border-white/8">
-          <h2 className="font-cinzel text-base text-stone-100">{title}</h2>
-          <button onClick={onClose} className="text-stone-500 hover:text-stone-200 transition-colors">
-            <X size={18} />
-          </button>
-        </div>
-        <div className="px-6 py-5 space-y-5">{children}</div>
-      </div>
-    </div>
-  );
-}
-
-// ── FieldSelect helper ─────────────────────────────────────────────────────────
-
-function FieldSelect({
-  label, value, onChange, children, error,
-}: { label: string; value: string; onChange: (v: string) => void; children: React.ReactNode; error?: string }) {
-  return (
-    <div className="flex flex-col gap-1.5">
-      <label className="text-xs font-medium text-stone-400 uppercase tracking-widest">{label}</label>
-      <select
-        value={value}
-        onChange={e => onChange(e.target.value)}
-        className="w-full bg-transparent border-b border-white/20 pb-2 pt-1 text-stone-100 text-sm outline-none focus:border-amber-500 rounded-none"
-      >
-        {children}
-      </select>
-      {error && <span className="text-xs text-red-400">{error}</span>}
-    </div>
-  );
-}
-
 // ── Page Component ─────────────────────────────────────────────────────────────
 
 export default function CataloguePage() {
@@ -100,13 +59,7 @@ export default function CataloguePage() {
   const [filterStatus,     setFilterStatus]     = useState('ALL');
 
   // Flash notifications
-  const [successMsg, setSuccessMsg] = useState<string | null>(null);
-  const [errorMsg,   setErrorMsg]   = useState<string | null>(null);
-
-  function flash(type: 'success' | 'error', msg: string) {
-    if (type === 'success') { setSuccessMsg(msg); setTimeout(() => setSuccessMsg(null), 3500); }
-    else                    { setErrorMsg(msg);   setTimeout(() => setErrorMsg(null),   4000); }
-  }
+  const { flash, toasts } = useFlash();
 
   // ── Service modal state ──────────────────────────────────────────────────────
   const [svcModal,   setSvcModal]   = useState<'create' | 'edit' | null>(null);
@@ -311,181 +264,114 @@ export default function CataloguePage() {
     }
   }
 
+
+  // ── Headline figures ─────────────────────────────────────────────────────────
+  const activeServices = services.filter(s => s.is_active).length;
+  const categoriesUsed = new Set(services.map(s => s.category)).size;
+  const activeTaxes    = taxes.filter(t => t.is_active).length;
+
   // ── Render ───────────────────────────────────────────────────────────────────
   return (
-    <div className="p-8 max-w-7xl">
+    <>
+      {toasts}
 
-      {/* ── Toasts ── */}
-      {successMsg && (
-        <div className="fixed top-5 right-5 z-[9999] flex items-center gap-2 px-4 py-3 bg-emerald-900/90 border border-emerald-500/40 text-emerald-300 text-sm shadow-lg">
-          <CheckCircle2 size={15} /> {successMsg}
-        </div>
-      )}
-      {errorMsg && (
-        <div className="fixed top-5 right-5 z-[9999] flex items-center gap-2 px-4 py-3 bg-red-900/90 border border-red-500/40 text-red-300 text-sm shadow-lg">
-          <XCircle size={15} /> {errorMsg}
-        </div>
-      )}
+      <DashboardMasthead
+        eyebrow="Services & Taxes"
+        title="Catalogue"
+        imageKey={user?.branchName}
+        aside={<MastheadRefresh onClick={fetchAll} loading={loading} />}
+        kpis={[
+          { label: 'Services',   value: String(services.length), sub: `${activeServices} active` },
+          { label: 'Categories', value: String(categoriesUsed),  sub: 'In use' },
+          { label: 'Properties', value: String(branches.length), sub: 'Offering services' },
+          { label: 'Tax rates',  value: String(activeTaxes),     sub: `of ${taxes.length} configured` },
+        ]}
+      />
 
-      {/* ── Page Header ── */}
-      <div className="flex items-start justify-between mb-8">
-        <div>
-          <h1 className="font-cinzel italic text-2xl text-stone-100">Services Catalogue &amp; Statutory Tax Rates</h1>
-          <p className="text-stone-500 text-sm mt-1 font-jakarta">
-            Manage chargeable guest amenities, dining menus, wellness services, and statutory tax schedules.
-          </p>
-        </div>
-        <Button variant="ghost" size="sm" onClick={fetchAll} title="Refresh" disabled={loading}>
-          <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
-        </Button>
-      </div>
-
-      {/* ── Tab Switcher ── */}
-      <div className="flex items-center gap-0 mb-8 border-b border-white/8">
-        {(['services', 'taxes'] as Tab[]).map(tab => (
-          <button
-            key={tab}
-            onClick={() => setActiveTab(tab)}
-            className={[
-              'px-5 py-2.5 text-xs font-medium uppercase tracking-widest font-jakarta transition-colors border-b-2 -mb-px',
-              activeTab === tab
-                ? 'border-amber-400 text-amber-400'
-                : 'border-transparent text-stone-500 hover:text-stone-300',
-            ].join(' ')}
+      <main className="max-w-[1440px] mx-auto px-6 md:px-12 py-12 md:py-16">
+        <section className="space-y-8">
+          <SectionHeader
+            index={activeTab === 'services' ? `${filteredServices.length} of ${services.length} services` : `${taxes.length} rates`}
+            title={activeTab === 'services' ? 'Guest Services' : 'Tax Rates'}
           >
-            {tab === 'services' ? 'Chargeable Guest Services' : 'Statutory Tax Rates'}
-          </button>
-        ))}
-      </div>
+            <Segmented
+              value={activeTab}
+              onChange={setActiveTab}
+              options={[
+                { value: 'services', label: 'Services',  count: services.length },
+                { value: 'taxes',    label: 'Tax rates', count: taxes.length },
+              ]}
+            />
+          </SectionHeader>
 
-      {loading ? (
-        <div className="flex items-center justify-center py-24 text-stone-500 gap-3">
-          <Loader2 size={18} className="animate-spin" />
-          <span className="font-jakarta text-sm">Loading catalogue data…</span>
-        </div>
-      ) : (
-        <>
-          {/* ══════════════════════════════════════════════════════════════════
-              TAB 1 — Chargeable Guest Services
-          ══════════════════════════════════════════════════════════════════ */}
-          {activeTab === 'services' && (
-            <div>
-              {/* Filter bar */}
-              <div className="flex flex-wrap items-center gap-3 mb-5">
-                {/* Branch filter */}
-                <div className="flex items-center gap-2">
-                  <Building2 size={13} className="text-stone-500" />
-                  <select
-                    value={filterBranch}
-                    onChange={e => setFilterBranch(e.target.value)}
-                    className="bg-stone-900 border border-white/10 px-3 py-1.5 text-xs text-stone-200 outline-none focus:border-amber-500 rounded-none"
-                  >
-                    <option value="ALL">All Branches</option>
-                    {branches.map(b => (
-                      <option key={b.branch_id} value={String(b.branch_id)}>{b.branch_name}</option>
-                    ))}
-                  </select>
-                </div>
-
-                {/* Category filter */}
-                <select
-                  value={filterCategory}
-                  onChange={e => setFilterCategory(e.target.value)}
-                  className="bg-stone-900 border border-white/10 px-3 py-1.5 text-xs text-stone-200 outline-none focus:border-amber-500 rounded-none"
-                >
-                  <option value="ALL">All Categories</option>
+          {loading ? (
+            <Loading label="Loading catalogue" />
+          ) : activeTab === 'services' ? (
+            /* ── Services ───────────────────────────────────────────────────── */
+            <div className="space-y-6">
+              <Toolbar
+                action={canMutate && <Btn variant="primary" onClick={openCreateSvc}><Plus className="w-4 h-4" /> Add service</Btn>}
+              >
+                <FilterSelect label="Property" value={filterBranch} onChange={setFilterBranch}>
+                  <option value="ALL">All properties</option>
+                  {branches.map(b => (
+                    <option key={b.branch_id} value={String(b.branch_id)}>{b.branch_name}</option>
+                  ))}
+                </FilterSelect>
+                <FilterSelect label="Category" value={filterCategory} onChange={setFilterCategory}>
+                  <option value="ALL">All categories</option>
                   {SERVICE_CATEGORIES.map(cat => (
                     <option key={cat} value={cat}>{cat}</option>
                   ))}
-                </select>
-
-                {/* Status filter */}
-                <select
-                  value={filterStatus}
-                  onChange={e => setFilterStatus(e.target.value)}
-                  className="bg-stone-900 border border-white/10 px-3 py-1.5 text-xs text-stone-200 outline-none focus:border-amber-500 rounded-none"
-                >
-                  <option value="ALL">All Statuses</option>
-                  <option value="ACTIVE">Active Only</option>
-                  <option value="INACTIVE">Inactive Only</option>
-                </select>
-
-                <span className="ml-auto text-xs text-stone-500 font-jakarta">
-                  {filteredServices.length} service{filteredServices.length !== 1 ? 's' : ''}
-                </span>
-
-                {canMutate && (
-                  <Button size="sm" onClick={openCreateSvc}>
-                    <Plus size={13} /> Register New Service
-                  </Button>
-                )}
-              </div>
+                </FilterSelect>
+                <FilterSelect label="Status" value={filterStatus} onChange={setFilterStatus}>
+                  <option value="ALL">All statuses</option>
+                  <option value="ACTIVE">Active</option>
+                  <option value="INACTIVE">Inactive</option>
+                </FilterSelect>
+              </Toolbar>
 
               {filteredServices.length === 0 ? (
-                <Card className="flex flex-col items-center justify-center py-16 text-center">
-                  <Sparkles size={32} className="text-stone-600 mb-3" />
-                  <p className="font-cinzel text-stone-400 text-sm mb-1">No services registered</p>
-                  <p className="text-xs text-stone-600 font-jakarta">
-                    {services.length === 0 ? 'Register the first service in the catalogue.' : 'Try adjusting your filters.'}
-                  </p>
-                </Card>
+                <Empty>{services.length === 0 ? 'No services yet.' : 'No services match these filters.'}</Empty>
               ) : (
-                <Card className="p-0 overflow-hidden">
-                  <table className="w-full text-sm">
+                <div className={tbl.wrap}>
+                  <table className={`${tbl.table} min-w-[720px]`}>
                     <thead>
-                      <tr className="border-b border-white/8 text-stone-500 text-xs uppercase tracking-wider">
-                        <th className="text-left px-6 py-3 font-medium">Service Name</th>
-                        <th className="text-left px-6 py-3 font-medium">Category</th>
-                        <th className="text-left px-6 py-3 font-medium">Applicable Branch</th>
-                        <th className="text-left px-6 py-3 font-medium">Base Tariff (LKR)</th>
-                        <th className="text-left px-6 py-3 font-medium">Active Status</th>
-                        {canMutate && <th className="px-6 py-3 font-medium text-right">Actions</th>}
+                      <tr className={tbl.headRow}>
+                        <th className={tbl.th}>Service</th>
+                        <th className={tbl.th}>Category</th>
+                        <th className={tbl.th}>Property</th>
+                        <th className={tbl.th}>Price</th>
+                        <th className={tbl.th}>Status</th>
+                        {canMutate && <th className={`${tbl.th} text-right`}><span className="sr-only">Actions</span></th>}
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-white/5">
+                    <tbody className={tbl.body}>
                       {filteredServices.map(s => (
-                        <tr key={s.service_id} className="hover:bg-white/3 transition-colors">
-                          <td className="px-6 py-4 font-medium text-stone-200">
-                            <div className="flex items-center gap-2">
-                              <Sparkles size={13} className="text-amber-500/70 shrink-0" />
-                              <span>{s.service_name}</span>
-                            </div>
-                          </td>
-                          <td className="px-6 py-4">
-                            <span className="inline-flex items-center px-2 py-0.5 text-[11px] font-medium bg-white/5 border border-white/10 text-stone-300">
-                              {s.category}
-                            </span>
-                          </td>
-                          <td className="px-6 py-4 text-stone-400">
-                            {s.branch_name ?? 'All Branches (Global)'}
-                          </td>
-                          <td className="px-6 py-4 text-amber-400 font-semibold font-cinzel">
-                            {toNum(s.base_price).toLocaleString('en-LK', { minimumFractionDigits: 2 })}
-                          </td>
-                          <td className="px-6 py-4">
-                            <button
-                              onClick={() => canMutate && toggleServiceStatus(s)}
-                              disabled={!canMutate}
-                              className={`inline-flex items-center gap-1.5 px-2 py-0.5 text-[11px] font-semibold border transition-opacity ${
-                                s.is_active
-                                  ? 'text-emerald-400 bg-emerald-500/10 border-emerald-500/30'
-                                  : 'text-stone-400 bg-stone-500/10 border-stone-500/30'
-                              } ${canMutate ? 'cursor-pointer hover:opacity-80' : 'cursor-default'}`}
-                              title={canMutate ? 'Click to toggle status' : undefined}
-                            >
-                              {s.is_active ? <CheckCircle2 size={11} /> : <XCircle size={11} />}
-                              {s.is_active ? 'Active' : 'Inactive'}
-                            </button>
+                        <tr key={s.service_id} className={tbl.row}>
+                          <td className={`${tbl.td} text-[15px]`}>{s.service_name}</td>
+                          <td className={tbl.td}>{s.category}</td>
+                          <td className={tbl.td}>{s.branch_name ?? 'All properties'}</td>
+                          <td className={`${tbl.td} tabular-nums whitespace-nowrap`}>{fmtLKR(toNum(s.base_price))}</td>
+                          <td className={tbl.td}>
+                            {canMutate ? (
+                              <button
+                                type="button"
+                                onClick={() => toggleServiceStatus(s)}
+                                title={s.is_active ? 'Click to deactivate' : 'Click to activate'}
+                                className="rounded-[4px] transition-opacity duration-300 hover:opacity-70"
+                              >
+                                <StatusDot status={s.is_active ? 'ACTIVE' : 'INACTIVE'} label={s.is_active ? 'Active' : 'Inactive'} />
+                              </button>
+                            ) : (
+                              <StatusDot status={s.is_active ? 'ACTIVE' : 'INACTIVE'} label={s.is_active ? 'Active' : 'Inactive'} />
+                            )}
                           </td>
                           {canMutate && (
-                            <td className="px-6 py-4 text-right">
+                            <td className={`${tbl.td} pr-0`}>
                               <div className="flex items-center justify-end gap-2">
-                                <Button variant="ghost" size="sm" onClick={() => openEditSvc(s)}>
-                                  <Pencil size={12} />
-                                </Button>
-                                <Button variant="danger" size="sm" onClick={() => deleteService(s)}>
-                                  <XCircle size={12} />
-                                </Button>
+                                <IconBtn label={`Edit ${s.service_name}`} onClick={() => openEditSvc(s)}><Pencil className="w-4 h-4" /></IconBtn>
+                                <IconBtn label={`Deactivate ${s.service_name}`} variant="danger" onClick={() => deleteService(s)}><Trash2 className="w-4 h-4" /></IconBtn>
                               </div>
                             </td>
                           )}
@@ -493,111 +379,87 @@ export default function CataloguePage() {
                       ))}
                     </tbody>
                   </table>
-                </Card>
+                </div>
+              )}
+            </div>
+          ) : (
+            /* ── Tax rates ──────────────────────────────────────────────────── */
+            <div className="space-y-6">
+              <Toolbar
+                action={canMutate && <Btn variant="primary" onClick={openCreateTax}><Plus className="w-4 h-4" /> Schedule rate</Btn>}
+              >
+                <p className="font-jakarta text-[13px] text-ink/70 max-w-xl">
+                  Rate changes apply only to invoices issued after the effective date. Existing invoices keep their original amounts.
+                </p>
+              </Toolbar>
+
+              {taxes.length === 0 ? (
+                <Empty>No tax rates configured.</Empty>
+              ) : (
+                <div className={tbl.wrap}>
+                  <table className={`${tbl.table} min-w-[720px]`}>
+                    <thead>
+                      <tr className={tbl.headRow}>
+                        <th className={tbl.th}>Tax</th>
+                        <th className={tbl.th}>Rate</th>
+                        <th className={tbl.th}>Effective from</th>
+                        <th className={tbl.th}>Until</th>
+                        <th className={tbl.th}>Status</th>
+                        {canMutate && <th className={`${tbl.th} text-right`}><span className="sr-only">Actions</span></th>}
+                      </tr>
+                    </thead>
+                    <tbody className={tbl.body}>
+                      {taxes.map(t => (
+                        <tr key={t.tax_id} className={tbl.row}>
+                          <td className={`${tbl.td} text-[15px]`}>{t.tax_name}</td>
+                          <td className={tbl.td}><span className="font-cinzel text-[20px] tabular-nums">{toNum(t.tax_percentage).toFixed(2)}%</span></td>
+                          <td className={`${tbl.td} tabular-nums whitespace-nowrap`}>{fmtDay(t.effective_from)}</td>
+                          <td className={`${tbl.td} tabular-nums whitespace-nowrap`}>{t.effective_to ? fmtDay(t.effective_to) : <span className="text-ink/70">Ongoing</span>}</td>
+                          <td className={tbl.td}>
+                            <StatusDot status={t.is_active ? 'ACTIVE' : 'SUPERSEDED'} label={t.is_active ? 'Active' : 'Superseded'} />
+                          </td>
+                          {canMutate && (
+                            <td className={`${tbl.td} pr-0`}>
+                              <div className="flex items-center justify-end">
+                                <IconBtn label={`Edit ${t.tax_name}`} onClick={() => openEditTax(t)}><Pencil className="w-4 h-4" /></IconBtn>
+                              </div>
+                            </td>
+                          )}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
               )}
             </div>
           )}
+        </section>
+      </main>
 
-          {/* ══════════════════════════════════════════════════════════════════
-              TAB 2 — Statutory Tax Rates (Versioned Configs)
-          ══════════════════════════════════════════════════════════════════ */}
-          {activeTab === 'taxes' && (
-            <div>
-              {/* Statutory Warning Banner */}
-              <div className="mb-6 p-4 bg-amber-500/10 border border-amber-500/30 text-amber-300 flex items-start gap-3">
-                <AlertTriangle size={18} className="shrink-0 mt-0.5 text-amber-400" />
-                <div className="text-xs leading-relaxed font-jakarta">
-                  <p className="font-semibold mb-0.5 text-amber-400">Statutory Compliance Notice (Sri Lanka Tax Cascade)</p>
-                  Modifying an active statutory tax percentage will only apply to future invoices generated after the effective date. Historical invoices preserve their locked snapshot amounts to guarantee ACID and financial audit compliance.
-                </div>
-              </div>
-
-              <div className="flex items-center justify-between mb-5">
-                <p className="text-xs font-semibold uppercase tracking-widest text-amber-400 font-jakarta">
-                  Statutory Levies ({taxes.length} entries)
-                </p>
-                {canMutate && (
-                  <Button size="sm" onClick={openCreateTax}>
-                    <Plus size={13} /> Schedule Future Tax Rate
-                  </Button>
-                )}
-              </div>
-
-              <Card className="p-0 overflow-hidden">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="border-b border-white/8 text-stone-500 text-xs uppercase tracking-wider">
-                      <th className="text-left px-6 py-3 font-medium">Tax Identifier</th>
-                      <th className="text-left px-6 py-3 font-medium">Tax Name</th>
-                      <th className="text-left px-6 py-3 font-medium">Current Rate (%)</th>
-                      <th className="text-left px-6 py-3 font-medium">Effective From</th>
-                      <th className="text-left px-6 py-3 font-medium">Effective To</th>
-                      <th className="text-left px-6 py-3 font-medium">Status</th>
-                      {canMutate && <th className="px-6 py-3 font-medium text-right">Actions</th>}
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-white/5">
-                    {taxes.map(t => (
-                      <tr key={t.tax_id} className="hover:bg-white/3 transition-colors">
-                        <td className="px-6 py-4 font-mono text-xs text-amber-400/90 font-medium">
-                          {t.tax_name.toUpperCase().replace(/\s+/g, '_')}
-                        </td>
-                        <td className="px-6 py-4 text-stone-200 font-medium">
-                          {t.tax_name}
-                        </td>
-                        <td className="px-6 py-4 text-amber-400 font-semibold font-cinzel text-base">
-                          {toNum(t.tax_percentage).toFixed(2)}%
-                        </td>
-                        <td className="px-6 py-4 text-stone-400 text-xs">
-                          {t.effective_from ? t.effective_from.split('T')[0] : '—'}
-                        </td>
-                        <td className="px-6 py-4 text-stone-500 text-xs">
-                          {t.effective_to ? t.effective_to.split('T')[0] : 'Ongoing (No expiry)'}
-                        </td>
-                        <td className="px-6 py-4">
-                          <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 text-[11px] font-semibold border ${
-                            t.is_active
-                              ? 'text-emerald-400 bg-emerald-500/10 border-emerald-500/30'
-                              : 'text-stone-400 bg-stone-500/10 border-stone-500/30'
-                          }`}>
-                            {t.is_active ? <CheckCircle2 size={11} /> : <XCircle size={11} />}
-                            {t.is_active ? 'Active' : 'Superseded'}
-                          </span>
-                        </td>
-                        {canMutate && (
-                          <td className="px-6 py-4 text-right">
-                            <Button variant="ghost" size="sm" onClick={() => openEditTax(t)}>
-                              <Pencil size={12} />
-                            </Button>
-                          </td>
-                        )}
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </Card>
-            </div>
-          )}
-        </>
-      )}
-
-      {/* ══════════════════════════════════════════════════════════════════════
-          MODAL — Register / Edit Service
-      ══════════════════════════════════════════════════════════════════════ */}
+      {/* ── Modal — service ───────────────────────────────────────────────────── */}
       {svcModal && (
         <Modal
-          title={svcModal === 'create' ? 'Register New Chargeable Service' : `Edit Service — ${svcEditing?.service_name}`}
+          eyebrow="Service"
+          title={svcModal === 'create' ? 'Add service' : `Edit ${svcEditing?.service_name ?? 'service'}`}
           onClose={() => setSvcModal(null)}
+          footer={
+            <>
+              <Btn variant="ghost" onClick={() => setSvcModal(null)}>Cancel</Btn>
+              <Btn variant="primary" onClick={submitSvcForm} loading={svcSaving}>
+                {svcModal === 'create' ? 'Add service' : 'Save changes'}
+              </Btn>
+            </>
+          }
         >
-          <Input
-            label="Service Name"
+          <Field
+            label="Name"
             placeholder="e.g. Signature Herbal Spa Treatment"
             value={svcForm.serviceName}
             onChange={e => setSvcForm(p => ({ ...p, serviceName: e.target.value }))}
             error={svcErrors.serviceName}
           />
-          <div className="grid grid-cols-2 gap-4">
-            <FieldSelect
+          <div className="grid grid-cols-2 gap-6">
+            <SelectField
               label="Category"
               value={svcForm.category}
               onChange={v => setSvcForm(p => ({ ...p, category: v }))}
@@ -606,103 +468,93 @@ export default function CataloguePage() {
               {SERVICE_CATEGORIES.map(c => (
                 <option key={c} value={c}>{c}</option>
               ))}
-            </FieldSelect>
-            <Input
-              label="Base Tariff (LKR)"
+            </SelectField>
+            <Field
+              label="Price (LKR)"
               type="number"
               min="0"
               step="0.01"
-              placeholder="e.g. 4500"
+              placeholder="4500"
               value={svcForm.basePrice}
               onChange={e => setSvcForm(p => ({ ...p, basePrice: e.target.value }))}
               error={svcErrors.basePrice}
             />
           </div>
-          <FieldSelect
-            label="Applicable Branch"
+          <SelectField
+            label="Property"
             value={svcForm.branchId}
             onChange={v => setSvcForm(p => ({ ...p, branchId: v }))}
             error={svcErrors.branchId}
           >
-            <option value="">Select branch…</option>
+            <option value="">Select property…</option>
             {branches.map(b => (
               <option key={b.branch_id} value={String(b.branch_id)}>{b.branch_name} ({b.city})</option>
             ))}
-          </FieldSelect>
-          <div className="flex items-center gap-2 pt-1">
+          </SelectField>
+          <label className="flex items-center gap-4 font-jakarta text-[13px] text-ink cursor-pointer">
             <input
               type="checkbox"
-              id="svc-active"
               checked={svcForm.isActive}
               onChange={e => setSvcForm(p => ({ ...p, isActive: e.target.checked }))}
-              className="rounded-none border-white/20 text-amber-500 focus:ring-0"
+              className="w-4 h-4 accent-ink"
             />
-            <label htmlFor="svc-active" className="text-xs text-stone-300 font-jakarta">
-              Active for guest orders &amp; room service folio logging
-            </label>
-          </div>
-          <div className="flex justify-end gap-3 pt-2">
-            <Button variant="ghost" onClick={() => setSvcModal(null)}>Cancel</Button>
-            <Button onClick={submitSvcForm} loading={svcSaving}>
-              <Sparkles size={13} />
-              {svcModal === 'create' ? 'Register Service' : 'Save Changes'}
-            </Button>
-          </div>
+            Available for guest orders
+          </label>
         </Modal>
       )}
 
-      {/* ══════════════════════════════════════════════════════════════════════
-          MODAL — Schedule Future / Edit Tax Rate
-      ══════════════════════════════════════════════════════════════════════ */}
+      {/* ── Modal — tax rate ──────────────────────────────────────────────────── */}
       {taxModal && (
         <Modal
-          title={taxModal === 'create' ? 'Schedule Future Statutory Tax Rate' : `Edit Tax Rate — ${taxEditing?.tax_name}`}
+          eyebrow="Tax rate"
+          title={taxModal === 'create' ? 'Schedule tax rate' : `Edit ${taxEditing?.tax_name ?? 'tax rate'}`}
           onClose={() => setTaxModal(null)}
+          footer={
+            <>
+              <Btn variant="ghost" onClick={() => setTaxModal(null)}>Cancel</Btn>
+              <Btn variant="primary" onClick={submitTaxForm} loading={taxSaving}>
+                {taxModal === 'create' ? 'Schedule' : 'Save changes'}
+              </Btn>
+            </>
+          }
         >
           {taxModal === 'create' && (
-            <Input
-              label="Tax Name / Identifier"
-              placeholder="e.g. VAT or Tourism Development Levy"
+            <Field
+              label="Name"
+              placeholder="e.g. VAT"
               value={taxForm.taxName}
               onChange={e => setTaxForm(p => ({ ...p, taxName: e.target.value }))}
               error={taxErrors.taxName}
             />
           )}
-          <Input
-            label="Tax Percentage (%)"
+          <Field
+            label="Rate (%)"
             type="number"
             min="0"
             step="0.01"
-            placeholder="e.g. 18.00"
+            placeholder="18.00"
             value={taxForm.taxPercentage}
             onChange={e => setTaxForm(p => ({ ...p, taxPercentage: e.target.value }))}
             error={taxErrors.taxPercentage}
           />
-          <div className="grid grid-cols-2 gap-4">
-            <Input
-              label="Effective From"
+          <div className="grid grid-cols-2 gap-6">
+            <Field
+              label="Effective from"
               type="date"
               value={taxForm.effectiveFrom}
               onChange={e => setTaxForm(p => ({ ...p, effectiveFrom: e.target.value }))}
               error={taxErrors.effectiveFrom}
               disabled={taxModal === 'edit'}
             />
-            <Input
-              label="Effective To (Optional)"
+            <Field
+              label="Until (optional)"
               type="date"
               value={taxForm.effectiveTo}
               onChange={e => setTaxForm(p => ({ ...p, effectiveTo: e.target.value }))}
             />
           </div>
-          <div className="flex justify-end gap-3 pt-2">
-            <Button variant="ghost" onClick={() => setTaxModal(null)}>Cancel</Button>
-            <Button onClick={submitTaxForm} loading={taxSaving}>
-              <Percent size={13} />
-              {taxModal === 'create' ? 'Schedule Rate' : 'Save Changes'}
-            </Button>
-          </div>
         </Modal>
       )}
-    </div>
+    </>
   );
 }
