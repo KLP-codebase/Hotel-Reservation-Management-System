@@ -1,0 +1,13 @@
+{$APP_DOMAIN} {
+	encode zstd gzip
+
+	# Express owns /api/v1/* and /health. Everything else is Next.js.
+	@backend path /api/v1/* /health
+	handle @backend {
+		reverse_proxy backend:4000
+	}
+
+	handle {
+		reverse_proxy frontend:3000
+	}
+}
