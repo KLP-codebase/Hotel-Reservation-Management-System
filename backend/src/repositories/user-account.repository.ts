@@ -12,6 +12,10 @@ export interface UserAccount {
   last_login_at:   Date | null;
   created_at:      Date;
   updated_at:      Date;
+  is_email_verified?:          boolean;
+  verification_token?:         string | null;
+  verification_token_expires_at?: Date | null;
+  last_verification_sent_at?:    Date | null;
   // from v_active_accounts view
   first_name?:     string;
   last_name?:      string;
@@ -43,11 +47,20 @@ export class UserAccountRepository extends BaseRepository<
   // ── Template Method hooks ─────────────────────────────────────────────────────
 
   protected getFindAllSql(): string {
-    return `SELECT * FROM v_active_accounts ORDER BY last_name, first_name`;
+    return `SELECT ua.*, s.first_name, s.last_name, s.email, s.branch_id, b.branch_name
+            FROM user_accounts ua
+            JOIN staff s ON ua.staff_id = s.staff_id
+            LEFT JOIN branches b ON s.branch_id = b.branch_id
+            WHERE ua.is_active = true
+            ORDER BY s.last_name, s.first_name`;
   }
 
   protected getFindByIdSql(): string {
-    return `SELECT * FROM v_active_accounts WHERE user_account_id = $1`;
+    return `SELECT ua.*, s.first_name, s.last_name, s.email, s.branch_id, b.branch_name
+            FROM user_accounts ua
+            JOIN staff s ON ua.staff_id = s.staff_id
+            LEFT JOIN branches b ON s.branch_id = b.branch_id
+            WHERE ua.user_account_id::text = $1`;
   }
 
   protected getSoftDeleteSql(): string {
@@ -137,5 +150,52 @@ export class UserAccountRepository extends BaseRepository<
       [branchId, staffId],
     );
   }
+
+  async setVerificationToken(userAccountId: string, token: string, expiresAt: Date): Promise<void> {
+    await this.db.query(
+      `UPDATE user_accounts
+       SET verification_token = $1,
+           verification_token_expires_at = $2,
+           last_verification_sent_at = NOW()
+       WHERE user_account_id = $3`,
+      [token, expiresAt, userAccountId],
+    );
+  }
+
+  async findByVerificationToken(token: string): Promise<UserAccount | null> {
+    const { rows } = await this.db.query<UserAccount>(
+      `SELECT ua.*, s.first_name, s.last_name, s.email, s.branch_id, b.branch_name
+       FROM user_accounts ua
+       JOIN staff s ON ua.staff_id = s.staff_id
+       LEFT JOIN branches b ON s.branch_id = b.branch_id
+       WHERE ua.verification_token = $1 AND ua.is_active = true`,
+      [token],
+    );
+    return rows[0] ?? null;
+  }
+
+  async verifyEmail(userAccountId: string): Promise<void> {
+    await this.db.query(
+      `UPDATE user_accounts
+       SET is_email_verified = true,
+           verification_token = NULL,
+           verification_token_expires_at = NULL
+       WHERE user_account_id = $1`,
+      [userAccountId],
+    );
+  }
+
+  async findByEmail(email: string): Promise<UserAccount | null> {
+    const { rows } = await this.db.query<UserAccount>(
+      `SELECT ua.*, s.first_name, s.last_name, s.email, s.branch_id, b.branch_name
+       FROM user_accounts ua
+       JOIN staff s ON ua.staff_id = s.staff_id
+       LEFT JOIN branches b ON s.branch_id = b.branch_id
+       WHERE LOWER(s.email) = LOWER($1) AND ua.is_active = true`,
+      [email],
+    );
+    return rows[0] ?? null;
+  }
+
 
 }

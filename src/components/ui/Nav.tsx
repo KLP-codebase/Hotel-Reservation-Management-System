@@ -6,23 +6,26 @@ import { usePathname } from 'next/navigation';
 import { useAuth } from '../../context/auth-context';
 import {
   LayoutDashboard, Users, Building2, BookOpen,
-  BedDouble, LogOut, ChevronRight,
+  BedDouble, LogOut, ChevronRight, Sparkles, Receipt
 } from 'lucide-react';
 
 interface NavItem {
-  href:  string;
+  href: string;
   label: string;
-  icon:  React.ReactNode;
+  icon: React.ReactNode;
   roles: string[];
 }
 
 const navItems: NavItem[] = [
-  { href: '/dashboard',          label: 'Overview',  icon: <LayoutDashboard size={16} />, roles: ['RECEPTIONIST','SERVICE_STAFF','MANAGER','ADMINISTRATOR','DBA'] },
-  { href: '/dashboard/staff',    label: 'Staff',     icon: <Users size={16} />,           roles: ['MANAGER','ADMINISTRATOR','DBA'] },
-  { href: '/dashboard/branches', label: 'Branches',  icon: <Building2 size={16} />,       roles: ['ADMINISTRATOR','DBA'] },
-  { href: '/dashboard/rooms',    label: 'Rooms',     icon: <BedDouble size={16} />,       roles: ['RECEPTIONIST','MANAGER','ADMINISTRATOR','DBA'] },
-  { href: '/dashboard/bookings', label: 'Bookings',  icon: <BookOpen size={16} />,        roles: ['RECEPTIONIST','MANAGER','ADMINISTRATOR','DBA'] },
+  { href: '/dashboard', label: 'Overview', icon: <LayoutDashboard size={16} />, roles: ['RECEPTIONIST', 'SERVICE_STAFF', 'MANAGER', 'ADMINISTRATOR', 'DBA'] },
+  { href: '/dashboard/staff', label: 'Staff', icon: <Users size={16} />, roles: ['MANAGER', 'ADMINISTRATOR', 'DBA'] },
+  { href: '/dashboard/branches', label: 'Branches', icon: <Building2 size={16} />, roles: ['ADMINISTRATOR', 'DBA'] },
+  { href: '/dashboard/rooms', label: 'Rooms', icon: <BedDouble size={16} />, roles: ['RECEPTIONIST', 'MANAGER', 'ADMINISTRATOR', 'DBA'] },
+  { href: '/dashboard/catalogue', label: 'Catalogue', icon: <Sparkles size={16} />, roles: ['RECEPTIONIST', 'MANAGER', 'ADMINISTRATOR', 'DBA'] },
+  { href: '/dashboard/bookings', label: 'Bookings', icon: <BookOpen size={16} />, roles: ['RECEPTIONIST', 'MANAGER', 'ADMINISTRATOR', 'DBA'] },
+  { href: '/dashboard/billing', label: 'Billing & Invoices', icon: <Receipt size={16} />, roles: ['RECEPTIONIST', 'MANAGER', 'ADMINISTRATOR', 'DBA'] },
 ];
+
 
 export function Nav() {
   const { user, logout } = useAuth();

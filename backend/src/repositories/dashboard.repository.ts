@@ -24,6 +24,7 @@ export interface DashboardStats {
 
 export interface RecentBooking {
   booking_id:         string;
+  booking_room_id?:   string | null;
   branch_id?:         string;
   booking_status:     string;
   booking_created_at: string;
@@ -82,8 +83,8 @@ export class DashboardRepository {
    * @param branchId - Optional branch UUID filter; null = cross-branch
    */
   async getStats(branchId?: string): Promise<DashboardStats> {
-    const branchFilter = branchId ? 'AND r.branch_id = $1' : '';
-    const params: unknown[] = branchId ? [branchId] : [];
+    const branchFilter = branchId ? 'AND r.branch_id::text = $1' : '';
+    const params: unknown[] = branchId ? [String(branchId)] : [];
 
     // Occupancy & room statuses
     const occupancyResult = await this.db.query<{
@@ -111,8 +112,8 @@ export class DashboardRepository {
       : 0;
 
     // Active bookings + movements
-    const bookingFilter = branchId ? 'WHERE b.branch_id = $1' : '';
-    const bookingParams: unknown[] = branchId ? [branchId] : [];
+    const bookingFilter = branchId ? 'WHERE b.branch_id::text = $1' : '';
+    const bookingParams: unknown[] = branchId ? [String(branchId)] : [];
 
     const bookingResult = await this.db.query<{
       active_bookings: string;
@@ -134,26 +135,33 @@ export class DashboardRepository {
       bookingParams,
     );
 
-    // Revenue today
-    const revenueFilter = branchId
-      ? 'JOIN bookings bk ON bk.id = i.booking_room_id WHERE bk.branch_id = $1 AND'
-      : 'JOIN bookings bk ON bk.id = i.booking_room_id WHERE';
-    const revenueParams: unknown[] = branchId ? [branchId] : [];
+    // Revenue today (resilient to schema variations between issued_at/created_at)
+    let revenueToday = 0;
+    try {
+      const revenueFilter = branchId
+        ? 'WHERE bk.branch_id::text = $1 AND'
+        : 'WHERE';
+      const revenueParams: unknown[] = branchId ? [String(branchId)] : [];
 
-    const revenueResult = await this.db.query<{ revenue_today: string }>(
-      `SELECT COALESCE(SUM(i.total_amount), 0) AS revenue_today
-       FROM invoices i
-       ${revenueFilter} i.issued_at::date = CURRENT_DATE`,
-      revenueParams,
-    );
+      const revenueResult = await this.db.query<{ revenue_today: string }>(
+        `SELECT COALESCE(SUM(COALESCE(i.total_amount, i.net_amount, 0)), 0) AS revenue_today
+         FROM invoices i
+         LEFT JOIN bookings bk ON (bk.booking_id::text = i.booking_id::text OR bk.booking_id::text = i.booking_room_id::text)
+         ${revenueFilter} COALESCE(i.issued_at, i.created_at)::date = CURRENT_DATE`,
+        revenueParams,
+      );
+      revenueToday = parseFloat(revenueResult.rows[0]?.revenue_today ?? '0');
+    } catch {
+      revenueToday = 0;
+    }
 
     // Branch metadata if scoped
     let branchName: string | null = null;
     let branchCity: string | null = null;
     if (branchId) {
       const bRes = await this.db.query<{ branch_name: string; city: string }>(
-        `SELECT branch_name, city FROM branches WHERE branch_id = $1`,
-        [branchId],
+        `SELECT branch_name, city FROM branches WHERE branch_id::text = $1`,
+        [String(branchId)],
       );
       if (bRes.rows[0]) {
         branchName = bRes.rows[0].branch_name;
@@ -170,7 +178,7 @@ export class DashboardRepository {
       active_bookings:   parseInt(bookingResult.rows[0]?.active_bookings ?? '0', 10),
       checkins_today:    parseInt(bookingResult.rows[0]?.checkins_today   ?? '0', 10),
       checkouts_today:   parseInt(bookingResult.rows[0]?.checkouts_today  ?? '0', 10),
-      revenue_today:     parseFloat(revenueResult.rows[0]?.revenue_today  ?? '0'),
+      revenue_today:     revenueToday,
       total_guests:      parseInt(bookingResult.rows[0]?.total_guests     ?? '0', 10),
       branch_id:         branchId ?? null,
       branch_name:       branchName,
@@ -201,6 +209,7 @@ export class DashboardRepository {
     const result = await this.db.query<RecentBooking>(
       `SELECT
          booking_id,
+         booking_room_id,
          branch_id,
          booking_status,
          booking_created_at,

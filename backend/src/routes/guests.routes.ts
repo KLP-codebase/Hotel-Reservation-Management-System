@@ -4,6 +4,7 @@ import { validate } from '../middleware/validate.middleware';
 import { db } from '../config/db';
 import { GuestRepository } from '../repositories/guest.repository';
 import { Errors } from '../lib/errors';
+import { isUuid } from '../lib/uuid';
 
 // Create one instance of the repository (it holds the db connection)
 const router = Router();
@@ -19,6 +20,7 @@ router.get('/', async (req: Request, res: Response) => {
 })
 
 router.get('/:id', async (req: Request, res: Response) => {
+    if (!isUuid(req.params.id)) throw Errors.notFound('Guest');
     const guest = await repo.findById(req.params.id);
     if (!guest) throw Errors.notFound('Guest');
     res.json({ success: true, data: guest });
@@ -45,6 +47,7 @@ const UpdateSchema = z.object({
 });
 
 router.patch('/:id', validate(UpdateSchema), async (req: Request, res: Response) => {
+    if (!isUuid(req.params.id)) throw Errors.notFound('Guest');
     const guest = await repo.update(req.params.id, req.body);
     if (!guest) throw Errors.notFound('Guest');
     res.json({ success: true, data: guest });

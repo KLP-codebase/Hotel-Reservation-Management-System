@@ -1,187 +1,564 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
-import { BedDouble, Building2, RefreshCw, CheckCircle2, ShieldAlert, Sparkles, LogOut } from 'lucide-react';
-import { apiFetch } from '@/lib/api-client';
-import { Button } from '@/components/ui/Button';
-import { Card } from '@/components/ui/Card';
+import React, { useCallback, useEffect, useState } from 'react';
+import { Plus, Pencil, Wrench, Trash2 } from 'lucide-react';
+import { apiFetch, ApiError, toNum } from '@/lib/api-client';
 import { useAuth } from '@/context/auth-context';
+import {
+  DashboardMasthead, MastheadRefresh, SectionHeader, Segmented, Toolbar, FilterSelect,
+  Btn, IconBtn, Field, SelectField, Modal, Loading, Empty, StatusDot, tbl, fmtLKR, useFlash,
+} from '@/components/dashboard/ui';
+
+// ── Types ──────────────────────────────────────────────────────────────────────
+
+type RoomStatus = 'AVAILABLE' | 'OCCUPIED' | 'MAINTENANCE' | 'OUT_OF_SERVICE';
 
 interface RoomType {
-  room_type_id:    string;
-  type_name:       string;
+  room_type_id: number;
+  type_name:    string;
   base_daily_rate: number;
-  capacity:        number;
-  description:     string;
+  capacity:     number;
+  description:  string | null;
 }
 
 interface Branch {
-  branch_id:   string;
+  branch_id:   number;
   branch_name: string;
   city:        string;
 }
 
-interface PhysicalRoom {
-  room_id:        string;
-  room_number:    string;
-  floor_number:   number;
-  branch_id:      string;
-  room_type_name: string;
-  status:         'AVAILABLE' | 'OCCUPIED' | 'MAINTENANCE';
+interface Room {
+  room_id:      number;
+  branch_id:    number;
+  room_type_id: number;
+  room_number:  string;
+  floor:        number | null;
+  status:       RoomStatus;
+  is_active:    boolean;
+  branch_name:  string;
+  type_name:    string;
+  base_daily_rate: number;
+  capacity:     number;
 }
 
-const SEED_PHYSICAL_ROOMS: PhysicalRoom[] = [
-  { room_id: 'rm-101', room_number: '101', floor_number: 1, branch_id: 'b1111111-1111-1111-1111-111111111111', room_type_name: 'Deluxe Ocean Suite', status: 'AVAILABLE' },
-  { room_id: 'rm-102', room_number: '102', floor_number: 1, branch_id: 'b1111111-1111-1111-1111-111111111111', room_type_name: 'Deluxe Ocean Suite', status: 'OCCUPIED' },
-  { room_id: 'rm-201', room_number: '201', floor_number: 2, branch_id: 'b1111111-1111-1111-1111-111111111111', room_type_name: 'Presidential Sky Suite', status: 'AVAILABLE' },
-  { room_id: 'rm-202', room_number: '202', floor_number: 2, branch_id: 'b1111111-1111-1111-1111-111111111111', room_type_name: 'Heritage Villa Room', status: 'MAINTENANCE' },
-  { room_id: 'rm-301', room_number: '101', floor_number: 1, branch_id: 'b2222222-2222-2222-2222-222222222222', room_type_name: 'Heritage Villa Room', status: 'OCCUPIED' },
-  { room_id: 'rm-302', room_number: '102', floor_number: 1, branch_id: 'b2222222-2222-2222-2222-222222222222', room_type_name: 'Heritage Villa Room', status: 'AVAILABLE' },
-  { room_id: 'rm-401', room_number: '201', floor_number: 2, branch_id: 'b3333333-3333-3333-3333-333333333333', room_type_name: 'Hilltop Mountain Pavilion', status: 'AVAILABLE' },
-  { room_id: 'rm-402', room_number: '202', floor_number: 2, branch_id: 'b3333333-3333-3333-3333-333333333333', room_type_name: 'Hilltop Mountain Pavilion', status: 'OCCUPIED' },
-];
+type Tab = 'categories' | 'inventory';
+
+const STATUS_LABEL: Record<RoomStatus, string> = {
+  AVAILABLE:      'Available',
+  OCCUPIED:       'Occupied',
+  MAINTENANCE:    'Maintenance',
+  OUT_OF_SERVICE: 'Out of service',
+};
+
+// ── Page ───────────────────────────────────────────────────────────────────────
 
 export default function RoomsPage() {
-  const { logout } = useAuth();
-  const [roomTypes, setRoomTypes] = useState<RoomType[]>([]);
-  const [branches, setBranches] = useState<Branch[]>([]);
-  const [selectedBranch, setSelectedBranch] = useState<string>('ALL');
-  const [loading, setLoading] = useState(true);
+  const { user } = useAuth();
+  const canMutate = user && ['ADMINISTRATOR', 'DBA', 'MANAGER'].includes(user.role);
+  const canToggleStatus = user && ['ADMINISTRATOR', 'DBA', 'MANAGER', 'RECEPTIONIST'].includes(user.role);
 
-  const fetchData = async () => {
+  // ── Core data state ──────────────────────────────────────────────────────────
+  const [roomTypes, setRoomTypes] = useState<RoomType[]>([]);
+  const [branches,  setBranches]  = useState<Branch[]>([]);
+  const [rooms,     setRooms]     = useState<Room[]>([]);
+  const [roomCounts, setRoomCounts] = useState<Record<number, number>>({});
+  const [loading,   setLoading]   = useState(true);
+
+  // ── Tab & filter state ───────────────────────────────────────────────────────
+  const [activeTab,      setActiveTab]      = useState<Tab>('categories');
+  const [filterBranch,   setFilterBranch]   = useState('ALL');
+  const [filterStatus,   setFilterStatus]   = useState('ALL');
+  const [filterRoomType, setFilterRoomType] = useState('ALL');
+
+  // Flash notifications
+  const { flash, toasts } = useFlash();
+
+  // ── Room-type modal state ────────────────────────────────────────────────────
+  const [rtModal,   setRtModal]   = useState<'create' | 'edit' | null>(null);
+  const [rtEditing, setRtEditing] = useState<RoomType | null>(null);
+  const [rtForm,    setRtForm]    = useState({ typeName: '', baseDailyRate: '', capacity: '', description: '' });
+  const [rtErrors,  setRtErrors]  = useState<Record<string, string>>({});
+  const [rtSaving,  setRtSaving]  = useState(false);
+
+  // ── Physical room modal state ────────────────────────────────────────────────
+  const [rmModal,   setRmModal]   = useState<'create' | 'edit' | null>(null);
+  const [rmEditing, setRmEditing] = useState<Room | null>(null);
+  const [rmForm,    setRmForm]    = useState({ roomNumber: '', floor: '', branchId: '', roomTypeId: '', status: 'AVAILABLE' as RoomStatus });
+  const [rmErrors,  setRmErrors]  = useState<Record<string, string>>({});
+  const [rmSaving,  setRmSaving]  = useState(false);
+  const [statusSaving, setStatusSaving] = useState<number | null>(null);
+
+  // ── Fetch functions ──────────────────────────────────────────────────────────
+  const fetchAll = useCallback(async () => {
     setLoading(true);
     try {
-      const [rtRes, bRes] = await Promise.all([
+      const [rtRes, bRes, rRes, cRes] = await Promise.all([
         apiFetch<{ data: RoomType[] }>('/api/v1/room-types').catch(() => ({ data: [] })),
         apiFetch<{ data: Branch[] }>('/api/v1/branches').catch(() => ({ data: [] })),
+        apiFetch<{ data: Room[] }>('/api/v1/rooms?is_active=true').catch(() => ({ data: [] })),
+        apiFetch<{ data: Record<number, number> }>('/api/v1/rooms/stats/counts-by-type').catch(() => ({ data: {} })),
       ]);
       setRoomTypes(rtRes.data);
       setBranches(bRes.data);
-    } catch {
-      // fallback
+      setRooms(rRes.data);
+      setRoomCounts(cRes.data);
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
-  useEffect(() => { fetchData(); }, []);
+  useEffect(() => { fetchAll(); }, [fetchAll]);
 
-  const filteredRooms = selectedBranch === 'ALL'
-    ? SEED_PHYSICAL_ROOMS
-    : SEED_PHYSICAL_ROOMS.filter(r => r.branch_id === selectedBranch);
+  // ── Filtered physical rooms ──────────────────────────────────────────────────
+  const filteredRooms = rooms.filter(r => {
+    if (filterBranch   !== 'ALL' && String(r.branch_id)    !== filterBranch)   return false;
+    if (filterStatus   !== 'ALL' && r.status               !== filterStatus)   return false;
+    if (filterRoomType !== 'ALL' && String(r.room_type_id) !== filterRoomType) return false;
+    return true;
+  });
 
+  // ── Room-type CRUD ───────────────────────────────────────────────────────────
+  function openCreateRt() {
+    setRtEditing(null);
+    setRtForm({ typeName: '', baseDailyRate: '', capacity: '', description: '' });
+    setRtErrors({});
+    setRtModal('create');
+  }
+
+  function openEditRt(rt: RoomType) {
+    setRtEditing(rt);
+    setRtForm({
+      typeName:     rt.type_name,
+      baseDailyRate: String(rt.base_daily_rate),
+      capacity:     String(rt.capacity),
+      description:  rt.description ?? '',
+    });
+    setRtErrors({});
+    setRtModal('edit');
+  }
+
+  function validateRtForm() {
+    const errs: Record<string, string> = {};
+    if (!rtForm.typeName.trim())                          errs.typeName     = 'Type name is required';
+    if (!rtForm.baseDailyRate || isNaN(Number(rtForm.baseDailyRate)) || Number(rtForm.baseDailyRate) <= 0)
+                                                          errs.baseDailyRate = 'Enter a valid positive rate';
+    if (!rtForm.capacity || !Number.isInteger(Number(rtForm.capacity)) || Number(rtForm.capacity) <= 0)
+                                                          errs.capacity     = 'Enter a valid capacity';
+    setRtErrors(errs);
+    return Object.keys(errs).length === 0;
+  }
+
+  async function submitRtForm() {
+    if (!validateRtForm()) return;
+    setRtSaving(true);
+    try {
+      const body = {
+        typeName:     rtForm.typeName.trim(),
+        baseDailyRate: Number(rtForm.baseDailyRate),
+        capacity:     Number(rtForm.capacity),
+        description:  rtForm.description.trim() || undefined,
+      };
+      if (rtModal === 'create') {
+        await apiFetch('/api/v1/room-types', { method: 'POST', body: JSON.stringify(body) });
+        flash('success', `Suite category "${rtForm.typeName}" created.`);
+      } else if (rtEditing) {
+        await apiFetch(`/api/v1/room-types/${rtEditing.room_type_id}`, { method: 'PATCH', body: JSON.stringify(body) });
+        flash('success', `Suite category "${rtForm.typeName}" updated.`);
+      }
+      setRtModal(null);
+      await fetchAll();
+    } catch (e) {
+      flash('error', e instanceof ApiError ? e.message : 'Failed to save suite category');
+    } finally {
+      setRtSaving(false);
+    }
+  }
+
+  async function deleteRt(rt: RoomType) {
+    if (!confirm(`Remove suite category "${rt.type_name}"? This will deactivate it.`)) return;
+    try {
+      await apiFetch(`/api/v1/room-types/${rt.room_type_id}`, { method: 'DELETE' });
+      flash('success', `Suite category "${rt.type_name}" removed.`);
+      await fetchAll();
+    } catch (e) {
+      flash('error', e instanceof ApiError ? e.message : 'Failed to remove suite category');
+    }
+  }
+
+  // ── Physical room CRUD ───────────────────────────────────────────────────────
+  function openCreateRm() {
+    setRmEditing(null);
+    setRmForm({ roomNumber: '', floor: '', branchId: branches[0] ? String(branches[0].branch_id) : '', roomTypeId: roomTypes[0] ? String(roomTypes[0].room_type_id) : '', status: 'AVAILABLE' });
+    setRmErrors({});
+    setRmModal('create');
+  }
+
+  function openEditRm(r: Room) {
+    setRmEditing(r);
+    setRmForm({
+      roomNumber: r.room_number,
+      floor:      r.floor !== null ? String(r.floor) : '',
+      branchId:   String(r.branch_id),
+      roomTypeId: String(r.room_type_id),
+      status:     r.status,
+    });
+    setRmErrors({});
+    setRmModal('edit');
+  }
+
+  function validateRmForm() {
+    const errs: Record<string, string> = {};
+    if (!rmForm.roomNumber.trim()) errs.roomNumber = 'Room number is required';
+    if (!rmForm.branchId)          errs.branchId   = 'Branch is required';
+    if (!rmForm.roomTypeId)        errs.roomTypeId  = 'Suite category is required';
+    if (rmForm.floor && isNaN(Number(rmForm.floor))) errs.floor = 'Floor must be a number';
+    setRmErrors(errs);
+    return Object.keys(errs).length === 0;
+  }
+
+  async function submitRmForm() {
+    if (!validateRmForm()) return;
+    setRmSaving(true);
+    try {
+      const body: Record<string, unknown> = {
+        roomNumber: rmForm.roomNumber.trim(),
+        branchId:   Number(rmForm.branchId),
+        roomTypeId: Number(rmForm.roomTypeId),
+        status:     rmForm.status,
+      };
+      if (rmForm.floor.trim()) body.floor = Number(rmForm.floor);
+      if (rmModal === 'create') {
+        await apiFetch('/api/v1/rooms', { method: 'POST', body: JSON.stringify(body) });
+        flash('success', `Room ${rmForm.roomNumber} added.`);
+      } else if (rmEditing) {
+        await apiFetch(`/api/v1/rooms/${rmEditing.room_id}`, { method: 'PATCH', body: JSON.stringify(body) });
+        flash('success', `Room ${rmForm.roomNumber} updated.`);
+      }
+      setRmModal(null);
+      await fetchAll();
+    } catch (e) {
+      flash('error', e instanceof ApiError ? e.message : 'Failed to save room');
+    } finally {
+      setRmSaving(false);
+    }
+  }
+
+  async function toggleMaintenance(r: Room) {
+    const next: RoomStatus = r.status === 'MAINTENANCE' ? 'AVAILABLE' : 'MAINTENANCE';
+    setStatusSaving(r.room_id);
+    try {
+      await apiFetch(`/api/v1/rooms/${r.room_id}/status`, {
+        method: 'PATCH',
+        body: JSON.stringify({ status: next }),
+      });
+      flash('success', `Room ${r.room_number} set to ${next.toLowerCase()}.`);
+      await fetchAll();
+    } catch (e) {
+      flash('error', e instanceof ApiError ? e.message : 'Failed to update status');
+    } finally {
+      setStatusSaving(null);
+    }
+  }
+
+  async function deactivateRoom(r: Room) {
+    if (!confirm(`Deactivate Room ${r.room_number}? It will be hidden from inventory.`)) return;
+    try {
+      await apiFetch(`/api/v1/rooms/${r.room_id}`, { method: 'DELETE' });
+      flash('success', `Room ${r.room_number} deactivated.`);
+      await fetchAll();
+    } catch (e) {
+      flash('error', e instanceof ApiError ? e.message : 'Failed to deactivate room');
+    }
+  }
+
+
+  // ── Headline figures ─────────────────────────────────────────────────────────
+  const availableCount   = rooms.filter(r => r.status === 'AVAILABLE').length;
+  const maintenanceCount = rooms.filter(r => r.status === 'MAINTENANCE' || r.status === 'OUT_OF_SERVICE').length;
+
+  // ── Render ───────────────────────────────────────────────────────────────────
   return (
-    <div className="p-8">
-      {/* Header */}
-      <div className="flex items-center justify-between mb-8">
-        <div>
-          <h1 className="text-2xl font-semibold text-stone-100 font-cinzel">Rooms & Suites</h1>
-          <p className="text-stone-500 text-sm mt-0.5 font-jakarta">
-            Physical room inventory and architectural categories
-          </p>
-        </div>
-        <div className="flex items-center gap-3">
-          <Button variant="ghost" size="sm" onClick={fetchData} title="Refresh rooms">
-            <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
-          </Button>
-          <Button variant="danger" size="sm" onClick={logout} className="flex items-center gap-1.5 ml-2">
-            <LogOut size={14} /> Log Out
-          </Button>
-        </div>
-      </div>
+    <>
+      {toasts}
 
-      {/* Room Types Grid */}
-      <div className="mb-10">
-        <h2 className="text-xs font-semibold uppercase tracking-widest text-amber-400 mb-4 font-jakarta">
-          Suite Categories
-        </h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
-          {roomTypes.map(rt => (
-            <Card key={rt.room_type_id} className="flex flex-col justify-between p-5 border-white/10">
-              <div className="space-y-2">
-                <div className="w-8 h-8 rounded-none bg-amber-500/10 text-amber-400 flex items-center justify-center">
-                  <Sparkles size={16} />
+      <DashboardMasthead
+        eyebrow="Inventory"
+        title="Rooms"
+        imageKey={user?.branchName}
+        aside={<MastheadRefresh onClick={fetchAll} loading={loading} />}
+        kpis={[
+          { label: 'Room types',  value: String(roomTypes.length), sub: 'Categories on sale' },
+          { label: 'Rooms',       value: String(rooms.length),     sub: `Across ${branches.length} ${branches.length === 1 ? 'property' : 'properties'}` },
+          { label: 'Available',   value: String(availableCount),   sub: 'Ready to sell' },
+          { label: 'Maintenance', value: String(maintenanceCount), sub: 'Out of action' },
+        ]}
+      />
+
+      <main className="max-w-[1440px] mx-auto px-6 md:px-12 py-12 md:py-16">
+        <section className="space-y-8">
+          <SectionHeader
+            index={activeTab === 'categories' ? `${roomTypes.length} categories` : `${filteredRooms.length} of ${rooms.length} rooms`}
+            title={activeTab === 'categories' ? 'Room Types' : 'Room Inventory'}
+          >
+            <Segmented
+              value={activeTab}
+              onChange={setActiveTab}
+              options={[
+                { value: 'categories', label: 'Room types', count: roomTypes.length },
+                { value: 'inventory',  label: 'Inventory',  count: rooms.length },
+              ]}
+            />
+          </SectionHeader>
+
+          {loading ? (
+            <Loading label="Loading rooms" />
+          ) : activeTab === 'categories' ? (
+            /* ── Room types ─────────────────────────────────────────────────── */
+            <div className="space-y-6">
+              {canMutate && (
+                <Toolbar action={<Btn variant="primary" onClick={openCreateRt}><Plus className="w-4 h-4" /> Add room type</Btn>} />
+              )}
+
+              {roomTypes.length === 0 ? (
+                <Empty>No room types yet.</Empty>
+              ) : (
+                <div className={tbl.wrap}>
+                  <table className={`${tbl.table} min-w-[720px]`}>
+                    <thead>
+                      <tr className={tbl.headRow}>
+                        <th className={tbl.th}>Room type</th>
+                        <th className={tbl.th}>Rate / night</th>
+                        <th className={tbl.th}>Capacity</th>
+                        <th className={tbl.th}>Rooms</th>
+                        {canMutate && <th className={`${tbl.th} text-right`}><span className="sr-only">Actions</span></th>}
+                      </tr>
+                    </thead>
+                    <tbody className={tbl.body}>
+                      {roomTypes.map(rt => {
+                        const count = roomCounts[rt.room_type_id] ?? 0;
+                        return (
+                          <tr key={rt.room_type_id} className={tbl.row}>
+                            <td className={`${tbl.td} max-w-[360px]`}>
+                              <p className="font-cinzel text-[17px] text-ink">{rt.type_name}</p>
+                              {rt.description && <p className={`${tbl.sub} truncate`}>{rt.description}</p>}
+                            </td>
+                            <td className={`${tbl.td} tabular-nums whitespace-nowrap`}>{fmtLKR(toNum(rt.base_daily_rate))}</td>
+                            <td className={`${tbl.td} whitespace-nowrap`}>{rt.capacity} guest{rt.capacity === 1 ? '' : 's'}</td>
+                            <td className={`${tbl.td} tabular-nums`}>{count}</td>
+                            {canMutate && (
+                              <td className={`${tbl.td} pr-0`}>
+                                <div className="flex items-center justify-end gap-2">
+                                  <IconBtn label={`Edit ${rt.type_name}`} onClick={() => openEditRt(rt)}><Pencil className="w-4 h-4" /></IconBtn>
+                                  <IconBtn label={`Remove ${rt.type_name}`} variant="danger" onClick={() => deleteRt(rt)}><Trash2 className="w-4 h-4" /></IconBtn>
+                                </div>
+                              </td>
+                            )}
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
                 </div>
-                <h3 className="font-cinzel text-base text-stone-100 font-medium">{rt.type_name}</h3>
-                <p className="text-xs text-stone-400 line-clamp-2">{rt.description}</p>
-              </div>
-              <div className="mt-4 pt-3 border-t border-white/5 flex items-center justify-between text-xs">
-                <span className="text-stone-500">Max {rt.capacity} Guests</span>
-                <span className="text-amber-400 font-semibold font-cinzel text-sm">${rt.base_daily_rate} <span className="text-[10px] font-normal text-stone-500">/ night</span></span>
-              </div>
-            </Card>
-          ))}
-        </div>
-      </div>
+              )}
+            </div>
+          ) : (
+            /* ── Inventory ──────────────────────────────────────────────────── */
+            <div className="space-y-6">
+              <Toolbar
+                action={canMutate && <Btn variant="primary" onClick={openCreateRm}><Plus className="w-4 h-4" /> Add room</Btn>}
+              >
+                <FilterSelect label="Property" value={filterBranch} onChange={setFilterBranch}>
+                  <option value="ALL">All properties</option>
+                  {branches.map(b => (
+                    <option key={b.branch_id} value={String(b.branch_id)}>{b.branch_name}</option>
+                  ))}
+                </FilterSelect>
+                <FilterSelect label="Room type" value={filterRoomType} onChange={setFilterRoomType}>
+                  <option value="ALL">All room types</option>
+                  {roomTypes.map(rt => (
+                    <option key={rt.room_type_id} value={String(rt.room_type_id)}>{rt.type_name}</option>
+                  ))}
+                </FilterSelect>
+                <FilterSelect label="Status" value={filterStatus} onChange={setFilterStatus}>
+                  <option value="ALL">All statuses</option>
+                  {(Object.keys(STATUS_LABEL) as RoomStatus[]).map(s => (
+                    <option key={s} value={s}>{STATUS_LABEL[s]}</option>
+                  ))}
+                </FilterSelect>
+              </Toolbar>
 
-      {/* Physical Inventory */}
-      <div>
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4">
-          <h2 className="text-xs font-semibold uppercase tracking-widest text-amber-400 font-jakarta">
-            Physical Inventory ({filteredRooms.length} Rooms)
-          </h2>
-          <div className="flex items-center gap-2">
-            <Building2 size={14} className="text-stone-500" />
-            <select
-              value={selectedBranch}
-              onChange={e => setSelectedBranch(e.target.value)}
-              className="bg-stone-900 border border-white/10 px-3 py-1.5 text-xs text-stone-200 outline-none focus:border-amber-500 rounded-none"
-            >
-              <option value="ALL">All Branches</option>
-              {branches.map(b => (
-                <option key={b.branch_id} value={b.branch_id}>{b.branch_name}</option>
-              ))}
-            </select>
+              {filteredRooms.length === 0 ? (
+                <Empty>{rooms.length === 0 ? 'No rooms yet.' : 'No rooms match these filters.'}</Empty>
+              ) : (
+                <div className={tbl.wrap}>
+                  <table className={`${tbl.table} min-w-[720px]`}>
+                    <thead>
+                      <tr className={tbl.headRow}>
+                        <th className={tbl.th}>Room</th>
+                        <th className={tbl.th}>Property</th>
+                        <th className={tbl.th}>Room type</th>
+                        <th className={tbl.th}>Floor</th>
+                        <th className={tbl.th}>Status</th>
+                        <th className={`${tbl.th} text-right`}><span className="sr-only">Actions</span></th>
+                      </tr>
+                    </thead>
+                    <tbody className={tbl.body}>
+                      {filteredRooms.map(room => (
+                        <tr key={room.room_id} className={tbl.row}>
+                          <td className={tbl.td}><span className="font-cinzel text-[20px] text-ink">{room.room_number}</span></td>
+                          <td className={tbl.td}>{room.branch_name ?? '—'}</td>
+                          <td className={tbl.td}>{room.type_name ?? '—'}</td>
+                          <td className={`${tbl.td} tabular-nums`}>{room.floor ?? '—'}</td>
+                          <td className={tbl.td}><StatusDot status={room.status} label={STATUS_LABEL[room.status] ?? room.status} /></td>
+                          <td className={`${tbl.td} pr-0`}>
+                            <div className="flex items-center justify-end gap-2">
+                              {canToggleStatus && room.status !== 'OCCUPIED' && (
+                                <IconBtn
+                                  label={room.status === 'MAINTENANCE' ? `Mark room ${room.room_number} available` : `Set room ${room.room_number} to maintenance`}
+                                  onClick={() => toggleMaintenance(room)}
+                                  loading={statusSaving === room.room_id}
+                                  className={room.status === 'MAINTENANCE' ? 'text-amber-700' : ''}
+                                >
+                                  <Wrench className="w-4 h-4" />
+                                </IconBtn>
+                              )}
+                              {canMutate && (
+                                <IconBtn label={`Edit room ${room.room_number}`} onClick={() => openEditRm(room)}><Pencil className="w-4 h-4" /></IconBtn>
+                              )}
+                              {canMutate && (
+                                <IconBtn label={`Deactivate room ${room.room_number}`} variant="danger" onClick={() => deactivateRoom(room)}><Trash2 className="w-4 h-4" /></IconBtn>
+                              )}
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          )}
+        </section>
+      </main>
+
+      {/* ── Modal — room type ─────────────────────────────────────────────────── */}
+      {rtModal && (
+        <Modal
+          eyebrow="Room type"
+          title={rtModal === 'create' ? 'Add room type' : `Edit ${rtEditing?.type_name ?? 'room type'}`}
+          onClose={() => setRtModal(null)}
+          footer={
+            <>
+              <Btn variant="ghost" onClick={() => setRtModal(null)}>Cancel</Btn>
+              <Btn variant="primary" onClick={submitRtForm} loading={rtSaving}>
+                {rtModal === 'create' ? 'Create' : 'Save changes'}
+              </Btn>
+            </>
+          }
+        >
+          <Field
+            label="Name"
+            placeholder="e.g. Deluxe Ocean Suite"
+            value={rtForm.typeName}
+            onChange={e => setRtForm(p => ({ ...p, typeName: e.target.value }))}
+            error={rtErrors.typeName}
+          />
+          <div className="grid grid-cols-2 gap-6">
+            <Field
+              label="Rate (LKR / night)"
+              type="number"
+              min="0"
+              step="0.01"
+              placeholder="25000"
+              value={rtForm.baseDailyRate}
+              onChange={e => setRtForm(p => ({ ...p, baseDailyRate: e.target.value }))}
+              error={rtErrors.baseDailyRate}
+            />
+            <Field
+              label="Capacity"
+              type="number"
+              min="1"
+              placeholder="2"
+              value={rtForm.capacity}
+              onChange={e => setRtForm(p => ({ ...p, capacity: e.target.value }))}
+              error={rtErrors.capacity}
+            />
           </div>
-        </div>
+          <Field
+            label="Description (optional)"
+            placeholder="A short line guests will see"
+            value={rtForm.description}
+            onChange={e => setRtForm(p => ({ ...p, description: e.target.value }))}
+          />
+        </Modal>
+      )}
 
-        <Card className="p-0 overflow-hidden">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-white/8 text-stone-500 text-xs uppercase tracking-wider">
-                <th className="text-left px-6 py-3 font-medium">Room No</th>
-                <th className="text-left px-6 py-3 font-medium">Category</th>
-                <th className="text-left px-6 py-3 font-medium">Floor</th>
-                <th className="text-left px-6 py-3 font-medium">Branch</th>
-                <th className="text-left px-6 py-3 font-medium">Status</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-white/5">
-              {filteredRooms.map(room => {
-                const branchObj = branches.find(b => b.branch_id === room.branch_id);
-                return (
-                  <tr key={room.room_id} className="hover:bg-white/3 transition-colors">
-                    <td className="px-6 py-4 font-semibold text-stone-200 flex items-center gap-2">
-                      <BedDouble size={14} className="text-amber-500/70" />
-                      Room {room.room_number}
-                    </td>
-                    <td className="px-6 py-4 text-stone-300">{room.room_type_name}</td>
-                    <td className="px-6 py-4 text-stone-400">Floor {room.floor_number}</td>
-                    <td className="px-6 py-4 text-stone-400">{branchObj?.branch_name ?? 'Sky Nest Hotel'}</td>
-                    <td className="px-6 py-4">
-                      {room.status === 'AVAILABLE' && (
-                        <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 text-[11px] font-semibold text-emerald-400 bg-emerald-500/10 border border-emerald-500/30">
-                          <CheckCircle2 size={12} /> Available
-                        </span>
-                      )}
-                      {room.status === 'OCCUPIED' && (
-                        <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 text-[11px] font-semibold text-amber-400 bg-amber-500/10 border border-amber-500/30">
-                          Occupied
-                        </span>
-                      )}
-                      {room.status === 'MAINTENANCE' && (
-                        <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 text-[11px] font-semibold text-red-400 bg-red-500/10 border border-red-500/30">
-                          <ShieldAlert size={12} /> Maintenance
-                        </span>
-                      )}
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </Card>
-      </div>
-    </div>
+      {/* ── Modal — physical room ─────────────────────────────────────────────── */}
+      {rmModal && (
+        <Modal
+          eyebrow="Room"
+          title={rmModal === 'create' ? 'Add room' : `Edit room ${rmEditing?.room_number}`}
+          onClose={() => setRmModal(null)}
+          footer={
+            <>
+              <Btn variant="ghost" onClick={() => setRmModal(null)}>Cancel</Btn>
+              <Btn variant="primary" onClick={submitRmForm} loading={rmSaving}>
+                {rmModal === 'create' ? 'Add room' : 'Save changes'}
+              </Btn>
+            </>
+          }
+        >
+          <div className="grid grid-cols-2 gap-6">
+            <Field
+              label="Room number"
+              placeholder="101"
+              value={rmForm.roomNumber}
+              onChange={e => setRmForm(p => ({ ...p, roomNumber: e.target.value }))}
+              error={rmErrors.roomNumber}
+            />
+            <Field
+              label="Floor (optional)"
+              type="number"
+              min="1"
+              placeholder="3"
+              value={rmForm.floor}
+              onChange={e => setRmForm(p => ({ ...p, floor: e.target.value }))}
+              error={rmErrors.floor}
+            />
+          </div>
+          <SelectField
+            label="Property"
+            value={rmForm.branchId}
+            onChange={v => setRmForm(p => ({ ...p, branchId: v }))}
+            error={rmErrors.branchId}
+          >
+            <option value="">Select property…</option>
+            {branches.map(b => (
+              <option key={b.branch_id} value={String(b.branch_id)}>{b.branch_name} — {b.city}</option>
+            ))}
+          </SelectField>
+          <SelectField
+            label="Room type"
+            value={rmForm.roomTypeId}
+            onChange={v => setRmForm(p => ({ ...p, roomTypeId: v }))}
+            error={rmErrors.roomTypeId}
+          >
+            <option value="">Select room type…</option>
+            {roomTypes.map(rt => (
+              <option key={rt.room_type_id} value={String(rt.room_type_id)}>{rt.type_name}</option>
+            ))}
+          </SelectField>
+          <SelectField
+            label="Status"
+            value={rmForm.status}
+            onChange={v => setRmForm(p => ({ ...p, status: v as RoomStatus }))}
+          >
+            <option value="AVAILABLE">Available</option>
+            <option value="MAINTENANCE">Maintenance</option>
+            <option value="OUT_OF_SERVICE">Out of service</option>
+          </SelectField>
+        </Modal>
+      )}
+    </>
   );
 }

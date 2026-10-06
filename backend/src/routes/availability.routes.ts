@@ -8,7 +8,7 @@ const repo = new AvailabilityRepository(db);
 
 const QuerySchema = z.object({
     branch_id: z.string().uuid('branch_id must be a valid UUID'),
-    room_type: z.enum(['STANDARD', 'DELUXE', 'SUITE', 'PRESIDENTIAL']),
+    room_type: z.enum(['STANDARD', 'DELUXE', 'SUITE', 'PRESIDENTIAL', 'ALL']).optional().default('ALL'),
     check_in: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Must be YYYY-MM-DD'),
     check_out: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Must be YYYY-MM-DD'),
 });
@@ -17,7 +17,12 @@ const QuerySchema = z.object({
 router.get('/', async (req: Request, res: Response) => {
     const parsed = QuerySchema.safeParse(req.query);
     if (!parsed.success) {
-        res.status(422).json({ success: false, errors: parsed.error.flatten().fieldErrors });
+        res.status(422).json({
+            success: false,
+            message: 'Validation failed',
+            code: 'VALIDATION_ERROR',
+            errors: parsed.error.flatten().fieldErrors,
+        });
         return;
     }
     const { branch_id, room_type, check_in, check_out } = parsed.data;

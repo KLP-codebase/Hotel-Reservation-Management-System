@@ -1,14 +1,20 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { BookOpen, Search, RefreshCw, Calendar, LogOut } from 'lucide-react';
+import Link from 'next/link';
+import { ChevronRight } from 'lucide-react';
 import { apiFetch, toNum } from '@/lib/api-client';
-import { Button } from '@/components/ui/Button';
-import { Card } from '@/components/ui/Card';
 import { useAuth } from '@/context/auth-context';
+import { useRouter } from 'next/navigation';
+import {
+  DashboardMasthead, MastheadRefresh, SectionHeader, Segmented, SearchField,
+  Loading, Empty, StatusDot, tbl, fmtStayRange, fmtMoney, titleCase,
+} from '@/components/dashboard/ui';
+
 
 interface RecentBooking {
   booking_id: string;
+  booking_room_id?: string;
   booking_status: string;
   booking_created_at: string;
   branch_name: string;
@@ -23,12 +29,15 @@ interface RecentBooking {
   invoice_status: string | null;
 }
 
+type StatusFilter = 'ALL' | 'PENDING' | 'CONFIRMED' | 'CHECKED_IN' | 'CHECKED_OUT';
+
 export default function BookingsManagementPage() {
-  const { logout } = useAuth();
+  const router = useRouter();
+  const { user } = useAuth();
   const [bookings, setBookings] = useState<RecentBooking[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
-  const [statusFilter, setStatusFilter] = useState('ALL');
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>('ALL');
 
   const fetchData = async () => {
     setLoading(true);
@@ -52,117 +61,105 @@ export default function BookingsManagementPage() {
     return matchesSearch && matchesStatus;
   });
 
+  const countOf = (s: StatusFilter) => bookings.filter(b => b.booking_status.toUpperCase() === s).length;
+  // Clicking a KPI filters to it; clicking the active one clears the filter.
+  const toggle = (s: StatusFilter) => setStatusFilter(cur => (cur === s ? 'ALL' : s));
+
   return (
-    <div className="p-8">
-      {/* Header */}
-      <div className="flex items-center justify-between mb-8">
-        <div>
-          <h1 className="text-2xl font-semibold text-stone-100 font-cinzel">Bookings Ledger</h1>
-          <p className="text-stone-500 text-sm mt-0.5 font-jakarta">
-            Active reservations, guest stays, and checkout records
-          </p>
-        </div>
-        <div className="flex items-center gap-3">
-          <Button variant="ghost" size="sm" onClick={fetchData} title="Refresh bookings">
-            <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
-          </Button>
-          <Button variant="danger" size="sm" onClick={logout} className="flex items-center gap-1.5 ml-2">
-            <LogOut size={14} /> Log Out
-          </Button>
-        </div>
-      </div>
+    <>
+      <DashboardMasthead
+        eyebrow="Reservations"
+        title="Bookings"
+        imageKey={user?.branchName}
+        aside={<MastheadRefresh onClick={fetchData} loading={loading} />}
+        kpis={[
+          { label: 'Pending',     value: String(countOf('PENDING')),     sub: 'Awaiting confirmation', onClick: () => toggle('PENDING'),     active: statusFilter === 'PENDING' },
+          { label: 'Confirmed',   value: String(countOf('CONFIRMED')),   sub: 'Due to arrive',         onClick: () => toggle('CONFIRMED'),   active: statusFilter === 'CONFIRMED' },
+          { label: 'In house',    value: String(countOf('CHECKED_IN')),  sub: 'Currently staying',     onClick: () => toggle('CHECKED_IN'),  active: statusFilter === 'CHECKED_IN' },
+          { label: 'Checked out', value: String(countOf('CHECKED_OUT')), sub: 'Completed stays',       onClick: () => toggle('CHECKED_OUT'), active: statusFilter === 'CHECKED_OUT' },
+        ]}
+      />
 
-      {/* Filters & Search */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
-        <div className="relative max-w-sm w-full">
-          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-stone-500" />
-          <input
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            placeholder="Search by guest, email or booking ID…"
-            className="w-full bg-white/4 border border-white/10 rounded-none pl-8 pr-4 py-2 text-sm text-stone-200 placeholder:text-stone-600 outline-none focus:border-amber-500/50 transition-colors"
-          />
-        </div>
+      <main className="max-w-[1440px] mx-auto px-6 md:px-12 py-12 md:py-16">
+        <section className="space-y-8">
+          <SectionHeader index={`${filtered.length} of ${bookings.length} bookings`} title="Reservations">
+            <div className="flex flex-col md:items-end gap-4 w-full md:w-auto">
+              <Segmented
+                value={statusFilter}
+                onChange={setStatusFilter}
+                options={[
+                  { value: 'ALL',         label: 'All',         count: bookings.length },
+                  { value: 'PENDING',     label: 'Pending',     count: countOf('PENDING') },
+                  { value: 'CONFIRMED',   label: 'Confirmed',   count: countOf('CONFIRMED') },
+                  { value: 'CHECKED_IN',  label: 'In house',    count: countOf('CHECKED_IN') },
+                  { value: 'CHECKED_OUT', label: 'Checked out', count: countOf('CHECKED_OUT') },
+                ]}
+              />
+              <SearchField value={search} onChange={setSearch} placeholder="Search guest, email or booking ID" />
+            </div>
+          </SectionHeader>
 
-        <div className="flex items-center gap-2">
-          {['ALL', 'CONFIRMED', 'CHECKED_IN', 'CHECKED_OUT'].map(status => (
-            <button
-              key={status}
-              onClick={() => setStatusFilter(status)}
-              className={`px-3 py-1.5 text-xs font-semibold uppercase tracking-wider rounded-none transition-colors ${
-                statusFilter === status
-                  ? 'bg-amber-500 text-stone-950 font-bold'
-                  : 'bg-white/5 text-stone-400 hover:text-stone-200 hover:bg-white/10'
-              }`}
-            >
-              {status.replace('_', ' ')}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* Table */}
-      <Card className="p-0 overflow-hidden">
-        {loading ? (
-          <div className="flex items-center justify-center h-48 text-stone-500 text-sm">Loading bookings ledger…</div>
-        ) : (
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-white/8 text-stone-500 text-xs uppercase tracking-wider">
-                <th className="text-left px-6 py-3 font-medium">Ref & Guest</th>
-                <th className="text-left px-6 py-3 font-medium">Branch & Suite</th>
-                <th className="text-left px-6 py-3 font-medium">Dates</th>
-                <th className="text-left px-6 py-3 font-medium">Amount</th>
-                <th className="text-left px-6 py-3 font-medium">Status</th>
-                <th className="text-left px-6 py-3 font-medium">Billing</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-white/5">
-              {filtered.map(b => (
-                <tr key={b.booking_id} className="hover:bg-white/3 transition-colors">
-                  <td className="px-6 py-4">
-                    <div className="space-y-0.5">
-                      <p className="font-semibold text-stone-200">{b.guest_first_name} {b.guest_last_name}</p>
-                      <p className="text-stone-500 text-xs">{b.guest_email}</p>
-                      <p className="font-mono text-[10px] text-amber-400/80">#{b.booking_id}</p>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4">
-                    <p className="text-stone-300 font-medium">{b.branch_name}</p>
-                    <p className="text-stone-500 text-xs">{b.room_type_name ?? '—'} (Room {b.room_number ?? 'TBA'})</p>
-                  </td>
-                  <td className="px-6 py-4 text-xs text-stone-400">
-                    <div className="flex items-center gap-1.5">
-                      <Calendar size={12} className="text-stone-500" />
-                      <span>{b.check_in_date ?? '—'} &rarr; {b.check_out_date ?? '—'}</span>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 font-cinzel text-amber-300 font-medium">
-                    {b.total_amount ? `$${toNum(b.total_amount).toFixed(2)}` : '—'}
-                  </td>
-                  <td className="px-6 py-4">
-                    <span className="inline-flex items-center px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider rounded-none border border-white/10 bg-white/5 text-stone-300">
-                      {b.booking_status.replace('_', ' ')}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4">
-                    <span className="text-[11px] font-medium text-stone-400">
-                      {b.invoice_status ?? 'PENDING'}
-                    </span>
-                  </td>
-                </tr>
-              ))}
-              {filtered.length === 0 && (
-                <tr>
-                  <td colSpan={6} className="px-6 py-12 text-center text-stone-500">
-                    No reservations matching current filter.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        )}
-      </Card>
-    </div>
+          {loading ? (
+            <Loading label="Loading bookings" />
+          ) : filtered.length === 0 ? (
+            <Empty>{search.trim() ? `No matches for “${search.trim()}”.` : 'No bookings in this view.'}</Empty>
+          ) : (
+            <div className={tbl.wrap}>
+              <table className={`${tbl.table} min-w-[880px]`}>
+                <thead>
+                  <tr className={tbl.headRow}>
+                    <th className={tbl.th}>Guest</th>
+                    <th className={tbl.th}>Room</th>
+                    <th className={tbl.th}>Property</th>
+                    <th className={tbl.th}>Stay</th>
+                    <th className={tbl.th}>Status</th>
+                    <th className={`${tbl.th} text-right`}>Total</th>
+                    <th className={tbl.th}><span className="sr-only">Open</span></th>
+                  </tr>
+                </thead>
+                <tbody className={tbl.body}>
+                  {filtered.map((b, idx) => {
+                    const range = fmtStayRange(b.check_in_date, b.check_out_date);
+                    const href = `/dashboard/bookings/${b.booking_id}`;
+                    return (
+                      <tr
+                        key={b.booking_room_id || `${b.booking_id}-${b.room_number ?? idx}`}
+                        onClick={() => router.push(href)}
+                        className={`${tbl.row} cursor-pointer group`}
+                      >
+                        <td className={`${tbl.td} max-w-[280px]`}>
+                          <Link href={href} onClick={e => e.stopPropagation()} className="block text-[15px] text-ink truncate hover:text-skynest-accent transition-colors duration-300">
+                            {b.guest_first_name} {b.guest_last_name}
+                          </Link>
+                          <p className={`${tbl.sub} truncate`}>{b.guest_email}</p>
+                        </td>
+                        <td className={tbl.td}>
+                          <p className="font-cinzel text-[20px] leading-none">{b.room_number ?? '—'}</p>
+                          <p className={tbl.sub}>{b.room_type_name ? titleCase(b.room_type_name) : 'Unassigned'}</p>
+                        </td>
+                        <td className={`${tbl.td} whitespace-nowrap`}>{b.branch_name}</td>
+                        <td className={`${tbl.td} whitespace-nowrap tabular-nums`}>
+                          {range.from} <span className="text-ink/50" aria-hidden>→</span> {range.to}
+                        </td>
+                        <td className={tbl.td}>
+                          <StatusDot status={b.booking_status} />
+                          {b.invoice_status && <p className={tbl.sub}>Invoice {titleCase(b.invoice_status).toLowerCase()}</p>}
+                        </td>
+                        <td className={`${tbl.td} text-right tabular-nums whitespace-nowrap`}>
+                          {b.total_amount ? fmtMoney(toNum(b.total_amount), 2) : '—'}
+                        </td>
+                        <td className={`${tbl.td} pr-0 w-8`}>
+                          <ChevronRight className="w-4 h-4 text-ink/50 transition-transform duration-300 group-hover:translate-x-1" aria-hidden />
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </section>
+      </main>
+    </>
   );
 }
