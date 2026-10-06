@@ -15,9 +15,6 @@ jobs:
   frontend:
     name: Frontend CI
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: frontend
 
     steps:
       - name: Checkout code
@@ -28,7 +25,7 @@ jobs:
         with:
           node-version: "20"
           cache: "npm"
-          cache-dependency-path: frontend/package-lock.json
+          cache-dependency-path: package-lock.json
 
       - name: Install dependencies
         run: npm ci
@@ -47,13 +44,6 @@ jobs:
         env:
           NEXT_PUBLIC_API_URL: https://api.yourdomain.com/api/v1
           NEXT_PUBLIC_APP_URL: https://yourdomain.com
-
-      - name: Upload build artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: frontend-build
-          path: frontend/out
-          retention-days: 1
 
   # ── Backend ───────────────────────────────────────────────────────────────────
   backend:
@@ -98,17 +88,9 @@ jobs:
       - name: Type check
         run: npm run type-check
 
-      - name: Run database migrations
-        run: npx prisma migrate deploy
-        env:
-          DATABASE_URL: postgresql://test_user:test_password@localhost:5432/hotel_rms_test
-
-      - name: Run tests
-        run: npm test -- --ci --coverage
-        env:
-          DATABASE_URL: postgresql://test_user:test_password@localhost:5432/hotel_rms_test
-          JWT_SECRET: test-secret
-          NODE_ENV: test
+      # TODO: load the raw SQL schema into the postgres service (init.sql vs
+      # database/migrations — pending team decision). Backend tests go here
+      # once a test script exists.
 
       - name: Build
         run: npm run build
