@@ -61,3 +61,6 @@ infrastructure/terraform/*.tfvars
 # ── Personal Notes (do not commit) ────────────────────────────────────────────
 MY_LEARNING_GUIDE.md
 MY_MODULE.md
+
+# ── Local progress notes (not for the repo) ───────────────────────────────────
+AZURE_DEPLOY_PROGRESS.md
