@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useCallback } from 'react';  //React hooks
 import { useAuth } from '@/context/auth-context';  //reads who is currently logged in
 import { apiFetch, toNum, ApiError } from '@/lib/api-client'; // converts PostgreSQL decimal strings to JavaScript numbers, makes API calls
-import { CreditCard, Landmark, Banknote } from 'lucide-react'; //Icons
+import { CreditCard, Landmark, Banknote, ChevronDown } from 'lucide-react'; //Icons
 import {
     DashboardMasthead, MastheadRefresh, SectionHeader, Segmented, SearchField, Toolbar, FilterSelect,
     Btn, Field, Modal, Loading, Empty, StatusDot, tbl, fmtLKR, fmtLKRCompact, fmtStayRange, fmtDay,
@@ -35,6 +35,12 @@ interface Invoice {
     issued_at: string;
 }
 
+interface Branch {
+    branch_id: string;
+    branch_name: string;
+    city?: string;
+}
+
 //Describe the expected shape of the data coming from the backend API for a tax configuration
 interface TaxConfig {
     tax_id: string;
@@ -63,9 +69,13 @@ const PAY_METHODS = [
 
 export default function BillingPage() {
     const { user } = useAuth();
+    const isAdminOrDba = user?.role === 'ADMINISTRATOR' || user?.role === 'DATABASE_ADMINISTRATOR';
+    const isManager = user?.role === 'MANAGER';
 
     // ── State ──────────────────────────────────────────────────────────────────
     const [invoices, setInvoices] = useState<Invoice[]>([]);
+    const [branches, setBranches] = useState<Branch[]>([]);
+    const [selectedBranch, setSelectedBranch] = useState<string>('ALL');
     const [taxes, setTaxes] = useState<TaxConfig[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -80,6 +90,13 @@ export default function BillingPage() {
     const [payLoading, setPayLoading] = useState(false);
     const [payError, setPayError] = useState<string | null>(null);
 
+    // Lock Manager to their assigned branch
+    useEffect(() => {
+        if (isManager && user?.branchId) {
+            setSelectedBranch(String(user.branchId));
+        }
+    }, [isManager, user?.branchId]);
+
     // Pre-fill the search from ?q= (the booking detail page links here with its booking ID)
     useEffect(() => {
         const q = new URLSearchParams(window.location.search).get('q');
@@ -91,18 +108,23 @@ export default function BillingPage() {
         setLoading(true);
         setError(null);
         try {
-            const [invRes, taxRes] = await Promise.all([
-                apiFetch<{ success: boolean; count: number; data: Invoice[] }>('/api/v1/invoices'),
+            const branchParam = selectedBranch !== 'ALL' ? `?branchId=${selectedBranch}` : '';
+            const [invRes, taxRes, branchRes] = await Promise.all([
+                apiFetch<{ success: boolean; count: number; data: Invoice[] }>(`/api/v1/invoices${branchParam}`),
                 apiFetch<{ success: boolean; data: TaxConfig[] }>('/api/v1/tax-configurations'),
+                apiFetch<{ success: boolean; data: Branch[] }>('/api/v1/branches').catch(() => ({ success: false, data: [] as Branch[] })),
             ]);
             setInvoices(invRes.data ?? []);
             setTaxes(taxRes.data ?? []);
+            if (branchRes.data) {
+                setBranches(branchRes.data);
+            }
         } catch (err) {
             setError(err instanceof ApiError ? err.message : 'Failed to load billing data');
         } finally {
             setLoading(false);
         }
-    }, []);
+    }, [selectedBranch]);
 
     useEffect(() => { fetchData(); }, [fetchData]);
 
@@ -162,14 +184,38 @@ export default function BillingPage() {
         return (n <= 1 ? n * 100 : n).toFixed(1);
     };
 
+    const selectedBranchRow = branches.find((b) => String(b.branch_id) === String(selectedBranch));
+
     // ── JSX ────────────────────────────────────────────────────────────────────
     return (
         <>
             <DashboardMasthead
-                eyebrow="Finance"
+                eyebrow={isManager ? `${user?.branchName ?? 'Sanctuary'} · Financial Ledger` : 'Finance · Ledger & Taxes'}
                 title="Billing"
-                imageKey={user?.branchName}
-                aside={<MastheadRefresh onClick={fetchData} loading={loading} />}
+                imageKey={user?.branchName || selectedBranchRow?.branch_name}
+                aside={
+                    <div className="flex items-center gap-6">
+                        {isAdminOrDba && branches.length > 0 && (
+                            <label className="relative flex items-center gap-3 border-b border-white/20 focus-within:border-skynest-accent transition-colors duration-300">
+                                <span className="font-jakarta text-[11px] font-medium tracking-[0.12em] uppercase text-white/60">Property</span>
+                                <select
+                                    value={selectedBranch}
+                                    onChange={(e) => setSelectedBranch(e.target.value)}
+                                    className="appearance-none bg-transparent py-1.5 pr-6 font-jakarta text-[13px] text-white focus:outline-none cursor-pointer"
+                                >
+                                    <option value="ALL" className="text-ink">All Properties</option>
+                                    {branches.map((b) => (
+                                        <option key={b.branch_id} value={b.branch_id} className="text-ink">
+                                            {b.branch_name}
+                                        </option>
+                                    ))}
+                                </select>
+                                <ChevronDown className="absolute right-0 w-3.5 h-3.5 text-white/60 pointer-events-none" />
+                            </label>
+                        )}
+                        <MastheadRefresh onClick={fetchData} loading={loading} />
+                    </div>
+                }
                 kpis={[
                     { label: 'Invoiced', value: fmtLKRCompact(totalInvoiced), sub: fmtLKR(totalInvoiced) },
                     { label: 'Collected', value: fmtLKRCompact(totalCollected), sub: fmtLKR(totalCollected) },
@@ -225,6 +271,7 @@ export default function BillingPage() {
                                     <table className={`${tbl.table} min-w-[1024px]`}>
                                         <thead>
                                             <tr className={tbl.headRow}>
+                                                {isAdminOrDba && selectedBranch === 'ALL' && <th className={tbl.th}>Property</th>}
                                                 <th className={tbl.th}>Guest</th>
                                                 <th className={tbl.th}>Room</th>
                                                 <th className={tbl.th}>Stay</th>
@@ -240,7 +287,12 @@ export default function BillingPage() {
                                                 const range = fmtStayRange(inv.check_in_date, inv.check_out_date);
                                                 const balance = toNum(inv.balance_due);
                                                 return (
-                                                    <tr key={inv.booking_room_id || `${inv.invoice_id}-${inv.room_number ?? idx}`} className={tbl.row}>
+                                                    <tr key={`${inv.invoice_id}-${inv.booking_room_id || inv.room_number || idx}`} className={tbl.row}>
+                                                        {isAdminOrDba && selectedBranch === 'ALL' && (
+                                                            <td className={`${tbl.td} whitespace-nowrap`}>
+                                                                <span className="font-cinzel text-[14px] text-ink">{inv.branch_name || '—'}</span>
+                                                            </td>
+                                                        )}
                                                         <td className={`${tbl.td} max-w-[240px]`}>
                                                             <p className="text-[15px] truncate">{inv.guest_name}</p>
                                                             <p className={`${tbl.sub} truncate`}>{inv.guest_email}</p>
