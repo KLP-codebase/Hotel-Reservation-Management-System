@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useCallback, useEffect, useState } from 'react';
-import { Plus, Pencil, Trash2 } from 'lucide-react';
+import { Plus, Pencil, Trash2, ChevronDown } from 'lucide-react';
 import { apiFetch, ApiError, toNum } from '@/lib/api-client';
 import { useAuth } from '@/context/auth-context';
 import {
@@ -44,6 +44,8 @@ const SERVICE_CATEGORIES = ['Dining', 'Wellness', 'Transport', 'Laundry', 'Activ
 
 export default function CataloguePage() {
   const { user } = useAuth();
+  const isAdminOrDba = user?.role === 'ADMINISTRATOR' || user?.role === 'DBA';
+  const isManager = user?.role === 'MANAGER';
   const canMutate = user && ['ADMINISTRATOR', 'DBA', 'MANAGER'].includes(user.role);
 
   // Data states
@@ -60,6 +62,19 @@ export default function CataloguePage() {
 
   // Flash notifications
   const { flash, toasts } = useFlash();
+
+  // Pre-filter to manager's branch when logged in as Manager
+  useEffect(() => {
+    if (isManager && user?.branchId && branches.length > 0) {
+      const found = branches.find(
+        (b) => String(b.branch_id) === String(user.branchId) ||
+               (user.branchName && b.branch_name.toLowerCase().includes(user.branchName.toLowerCase()))
+      );
+      if (found) {
+        setFilterBranch(String(found.branch_id));
+      }
+    }
+  }, [isManager, user, branches]);
 
   // ── Service modal state ──────────────────────────────────────────────────────
   const [svcModal,   setSvcModal]   = useState<'create' | 'edit' | null>(null);
@@ -106,11 +121,14 @@ export default function CataloguePage() {
   // ── Service CRUD ─────────────────────────────────────────────────────────────
   function openCreateSvc() {
     setSvcEditing(null);
+    const defaultBranch = (isManager && user?.branchId)
+      ? String(user.branchId)
+      : (filterBranch !== 'ALL' ? filterBranch : (branches[0] ? String(branches[0].branch_id) : ''));
     setSvcForm({
       serviceName: '',
       category: 'Dining',
       basePrice: '',
-      branchId: branches[0] ? String(branches[0].branch_id) : '',
+      branchId: defaultBranch,
       isActive: true,
     });
     setSvcErrors({});
@@ -266,9 +284,12 @@ export default function CataloguePage() {
 
 
   // ── Headline figures ─────────────────────────────────────────────────────────
-  const activeServices = services.filter(s => s.is_active).length;
-  const categoriesUsed = new Set(services.map(s => s.category)).size;
+  const displayedServices = filterBranch === 'ALL' ? services : services.filter(s => String(s.branch_id) === filterBranch);
+  const activeServices = displayedServices.filter(s => s.is_active).length;
+  const categoriesUsed = new Set(displayedServices.map(s => s.category)).size;
   const activeTaxes    = taxes.filter(t => t.is_active).length;
+
+  const selectedBranchRow = branches.find((b) => String(b.branch_id) === filterBranch);
 
   // ── Render ───────────────────────────────────────────────────────────────────
   return (
@@ -276,12 +297,34 @@ export default function CataloguePage() {
       {toasts}
 
       <DashboardMasthead
-        eyebrow="Services & Taxes"
+        eyebrow={isManager ? `${user?.branchName ?? 'Sanctuary'} · Services` : 'Services & Taxes · Catalogue'}
         title="Catalogue"
-        imageKey={user?.branchName}
-        aside={<MastheadRefresh onClick={fetchAll} loading={loading} />}
+        imageKey={user?.branchName || (filterBranch !== 'ALL' ? selectedBranchRow?.city : 'Colombo')}
+        aside={
+          <div className="flex items-center gap-6">
+            {isAdminOrDba && branches.length > 0 && (
+              <label className="relative flex items-center gap-3 border-b border-white/20 focus-within:border-skynest-accent transition-colors duration-300">
+                <span className="font-jakarta text-[11px] font-medium tracking-[0.12em] uppercase text-white/60">Property</span>
+                <select
+                  value={filterBranch}
+                  onChange={(e) => setFilterBranch(e.target.value)}
+                  className="appearance-none bg-transparent py-1.5 pr-6 font-jakarta text-[13px] text-white focus:outline-none cursor-pointer"
+                >
+                  <option value="ALL" className="text-ink">All Properties</option>
+                  {branches.map((b) => (
+                    <option key={b.branch_id} value={String(b.branch_id)} className="text-ink">
+                      {b.branch_name}
+                    </option>
+                  ))}
+                </select>
+                <ChevronDown className="absolute right-0 w-3.5 h-3.5 text-white/60 pointer-events-none" />
+              </label>
+            )}
+            <MastheadRefresh onClick={fetchAll} loading={loading} />
+          </div>
+        }
         kpis={[
-          { label: 'Services',   value: String(services.length), sub: `${activeServices} active` },
+          { label: 'Services',   value: String(displayedServices.length), sub: `${activeServices} active`, bar: (activeServices / (displayedServices.length || 1)) * 100 },
           { label: 'Categories', value: String(categoriesUsed),  sub: 'In use' },
           { label: 'Properties', value: String(branches.length), sub: 'Offering services' },
           { label: 'Tax rates',  value: String(activeTaxes),     sub: `of ${taxes.length} configured` },
