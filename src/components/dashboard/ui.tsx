@@ -84,9 +84,9 @@ export function initials(first?: string | null, last?: string | null): string {
 /** Branch photography for the masthead, matched on city or property name. */
 export function mastheadImage(city?: string | null): string {
   const c = (city ?? "").toLowerCase();
-  if (c.includes("galle")) return "/Galle.jpg";
-  if (c.includes("kandy")) return "/Kandy_hotel.jpg";
-  return "/Colombo.jpg";
+  if (c.includes("galle")) return "/Galle.webp";
+  if (c.includes("kandy")) return "/Kandy_hotel.webp";
+  return "/Colombo.webp";
 }
 
 // ── Status Indicator ──────────────────────────────────────────────────────────

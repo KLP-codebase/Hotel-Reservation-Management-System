@@ -82,7 +82,7 @@ Full-screen overlay on mobile. `bg-ink/[0.97] backdrop-blur-2xl`. Nav links are 
   <div className="absolute inset-0 pointer-events-none z-0 overflow-hidden">
     <img
       ref={bgImgRef}
-      src="/sunset-at-a-swimming-pool-during-a-vacation-on-a-t-2026-03-17-05-37-28-utc.jpg"
+      src="/sunset-at-a-swimming-pool-during-a-vacation-on-a-t-2026-03-17-05-37-28-utc.webp"
       alt=""
       className="w-full h-full object-cover object-center"
       style={{ filter: "brightness(0.7) contrast(1.1)", willChange: "transform" }}
@@ -136,12 +136,12 @@ Positioned immediately after the hero. Uses a `h-[120dvh]` div so the hero has r
 <div ref={containerRef} className="relative z-10 h-[120dvh] pointer-events-none overflow-hidden">
   <div ref={wrap1Ref} className="absolute bottom-0 left-1/2"
     style={{ width: "220%", height: "100%", marginLeft: "-110%", willChange: "transform, opacity" }}>
-    <img src="/07_Clouds.png" alt="" className="w-full h-full object-cover object-bottom"
+    <img src="/07_Clouds.webp" alt="" className="w-full h-full object-cover object-bottom"
       style={{ maskImage: "linear-gradient(to bottom, transparent 0%, rgba(0,0,0,0.2) 18%, rgba(0,0,0,0.7) 38%, black 58%)" }} />
   </div>
   <div ref={wrap2Ref} className="absolute bottom-0 left-1/2"
     style={{ width: "220%", height: "85%", marginLeft: "-110%", willChange: "transform, opacity" }}>
-    <img src="/Clouds 3.png" alt="" className="w-full h-full object-cover object-bottom"
+    <img src="/Clouds 3.webp" alt="" className="w-full h-full object-cover object-bottom"
       style={{ maskImage: "linear-gradient(to bottom, transparent 0%, rgba(0,0,0,0.4) 22%, rgba(0,0,0,0.9) 48%, black 65%)" }} />
   </div>
 </div>

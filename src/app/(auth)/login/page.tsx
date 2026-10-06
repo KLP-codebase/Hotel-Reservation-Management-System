@@ -122,7 +122,7 @@ function LoginForm() {
           style={{ animation: 'cloudDriftPoolMist 13s ease-in-out infinite' }}
         >
           <img
-            src="/clouds/cloud_realistic.png"
+            src="/clouds/cloud_realistic.webp"
             alt=""
             className="w-full h-full object-contain object-bottom-left drop-shadow-[0_12px_28px_rgba(255,255,255,0.8)]"
           />
