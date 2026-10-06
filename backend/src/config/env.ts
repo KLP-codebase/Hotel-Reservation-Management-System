@@ -14,11 +14,11 @@ const envSchema = z.object({
   ALLOWED_ORIGINS:  z.string().default('http://localhost:3000'),
 
   // ── Email Delivery Strategy ───────────────────────────────────────
-  EMAIL_PROVIDER:   z.enum(['smtp', 'resend']).default('smtp'),
+  EMAIL_PROVIDER:   z.enum(['smtp', 'resend', 'console']).default('console'),
   EMAIL_FROM:       z.string().min(1, 'EMAIL_FROM is required').refine(
                       (val) => val.includes('@'),
                       'EMAIL_FROM must contain a valid email address'
-                    ),
+                    ).default('noreply@skynest.lk'),
   APP_URL:          z.string().url().default('http://localhost:3000'),
 
   // Resend (required when EMAIL_PROVIDER=resend, optional otherwise)

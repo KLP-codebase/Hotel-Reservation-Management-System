@@ -183,6 +183,17 @@ class SmtpProvider implements EmailProvider {
   }
 }
 
+// ── Console Provider (Local Dev / Fallback) ─────────────────────────
+
+class ConsoleProvider implements EmailProvider {
+  readonly name = 'Console';
+
+  async send(payload: EmailPayload): Promise<boolean> {
+    console.log(`[ConsoleProvider] Dispatched email to ${payload.to} | Subject: "${payload.subject}"`);
+    return true;
+  }
+}
+
 // ── Email Service (Strategy Facade) ─────────────────────────────────
 
 export class EmailService {
@@ -192,7 +203,7 @@ export class EmailService {
     if (env.EMAIL_PROVIDER === 'resend') {
       console.log('[EmailService] Using Resend provider');
       this.provider = new ResendProvider(env.RESEND_API_KEY!);
-    } else {
+    } else if (env.EMAIL_PROVIDER === 'smtp') {
       console.log('[EmailService] Using SMTP provider');
       const smtpProvider = new SmtpProvider({
         host: env.SMTP_HOST!,
@@ -204,6 +215,9 @@ export class EmailService {
       // Non-blocking connection verification on startup
       smtpProvider.verify();
       this.provider = smtpProvider;
+    } else {
+      console.log('[EmailService] Using Console provider (local development/mock)');
+      this.provider = new ConsoleProvider();
     }
   }
 
