@@ -2,13 +2,15 @@
 
 import React from 'react';
 import Link from 'next/link';
-import {
-  ArrowLeft, Building2, User, Calendar, CreditCard,
-  Users, CheckCircle2, Clock, XCircle, BedDouble, ChevronRight,
-} from 'lucide-react';
+import { ArrowLeft, ChevronRight } from 'lucide-react';
 import { apiFetch, ApiError, toNum } from '@/lib/api-client';
 import { useState, useEffect } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { useParams } from 'next/navigation';
+import { useAuth } from '@/context/auth-context';
+import {
+  DashboardMasthead, Btn, Loading, Empty, StatusDot,
+  fmtStayRange, fmtMoney, fmtDay, titleCase, useFlash,
+} from '@/components/dashboard/ui';
 
 // ── Types ────────────────────────────────────────────────────────────────────
 interface AccompanyingGuest {
@@ -44,16 +46,6 @@ interface BookingDetail {
 
 // ─────────────────────────────────────────────────────────────────────────────
 
-// Status config — colours & labels for each booking status
-const STATUS_CONFIG: Record<string, { label: string; color: string; icon: React.ReactNode }> = {
-  PENDING:     { label: 'Pending',     color: 'text-amber-400 border-amber-400/40 bg-amber-400/10',     icon: <Clock size={12} /> },
-  CONFIRMED:   { label: 'Confirmed',   color: 'text-sky-400 border-sky-400/40 bg-sky-400/10',           icon: <CheckCircle2 size={12} /> },
-  CHECKED_IN:  { label: 'Checked In',  color: 'text-emerald-400 border-emerald-400/40 bg-emerald-400/10', icon: <CheckCircle2 size={12} /> },
-  CHECKED_OUT: { label: 'Checked Out', color: 'text-stone-400 border-stone-400/40 bg-stone-400/10',     icon: <CheckCircle2 size={12} /> },
-  CANCELLED:   { label: 'Cancelled',   color: 'text-red-400 border-red-400/40 bg-red-400/10',           icon: <XCircle size={12} /> },
-  NO_SHOW:     { label: 'No Show',     color: 'text-red-400 border-red-400/40 bg-red-400/10',           icon: <XCircle size={12} /> },
-};
-
 // Legal next-status transitions
 const TRANSITIONS: Record<string, string[]> = {
   PENDING:    ['CONFIRMED', 'CANCELLED'],
@@ -64,13 +56,24 @@ const TRANSITIONS: Record<string, string[]> = {
   NO_SHOW:    [],
 };
 
+const ACTION_LABEL: Record<string, string> = {
+  CONFIRMED:   'Confirm booking',
+  CHECKED_IN:  'Check in',
+  CHECKED_OUT: 'Check out',
+  CANCELLED:   'Cancel booking',
+};
+
+const BACK_LINK =
+  'inline-flex items-center gap-2 font-jakarta text-[11px] font-medium tracking-[0.12em] uppercase text-ink/70 hover:text-skynest-accent transition-colors duration-300';
+
 // ─────────────────────────────────────────────────────────────────────────────
 
 export default function BookingDetailPage() {
 
   const params   = useParams();
-  const router   = useRouter();
   const id       = params.id as string;
+  const { user } = useAuth();
+  const { flash, toasts } = useFlash();
   const [booking, setBooking]             = useState<BookingDetail | null>(null);
   const [loading, setLoading]             = useState(true);
   const [error, setError]                 = useState<string | null>(null);
@@ -108,226 +111,168 @@ export default function BookingDetailPage() {
         body: JSON.stringify({ status: newStatus }),
       });
       await fetchBooking();
+      flash('success', `Booking ${titleCase(newStatus).toLowerCase()}.`);
     } catch (err) {
       const msg = err instanceof ApiError ? err.message : 'Action failed.';
-      alert(msg);
+      flash('error', msg);
     } finally {
       setActionLoading(false);
     }
   };
 
 
-  // ── Loading state ─────────────────────────────────────────────────────────
-  if (loading) {
+  // ── Loading / error / not found ───────────────────────────────────────────
+  if (loading || error || !booking) {
     return (
-      <div className="flex items-center justify-center h-64 text-stone-500 text-sm font-jakarta">
-        Loading booking…
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="flex flex-col items-center justify-center h-64 gap-3">
-        <XCircle size={32} className="text-red-400" />
-        <p className="text-stone-400 text-sm font-jakarta">{error}</p>
-        <Link href="/dashboard/bookings"
-          className="text-xs text-amber-400 underline underline-offset-4">
-          Back to ledger
+      <main className="max-w-[1440px] mx-auto px-6 md:px-12 py-12">
+        <Link href="/dashboard/bookings" className={BACK_LINK}>
+          <ArrowLeft className="w-4 h-4" /> All bookings
         </Link>
-      </div>
-    );
-  }
-
-  if (!booking) {
-    return (
-      <div className="flex flex-col items-center justify-center h-64 gap-3">
-        <BedDouble size={32} className="text-stone-600" />
-        <p className="text-stone-500 text-sm font-jakarta">Booking not found.</p>
-        <Link href="/dashboard/bookings"
-          className="text-xs text-amber-400 underline underline-offset-4">
-          Back to ledger
-        </Link>
-      </div>
+        {loading ? <Loading label="Loading booking" />
+          : <Empty>{error ?? 'Booking not found.'}</Empty>}
+      </main>
     );
   }
 
   // ── Derived values ────────────────────────────────────────────────────────
-  const statusCfg = STATUS_CONFIG[booking.status] ?? STATUS_CONFIG['PENDING'];
-  const nextSteps = TRANSITIONS[booking.status]   ?? [];
+  const nextSteps  = TRANSITIONS[booking.status] ?? [];
+  const totalNights = (booking.rooms ?? []).reduce((n, r) => Math.max(n, toNum(r.nights)), 0);
 
   // ── Page render ───────────────────────────────────────────────────────────
   return (
-    <div className="p-8 max-w-5xl mx-auto">
+    <>
+      {toasts}
 
-      {/* ── Back link ── */}
-      <Link
-        href="/dashboard/bookings"
-        className="inline-flex items-center gap-1.5 text-xs text-stone-500 hover:text-stone-300 transition-colors mb-6 font-jakarta"
-      >
-        <ArrowLeft size={13} />
-        Back to Bookings Ledger
-      </Link>
+      <DashboardMasthead
+        eyebrow={`Booking · ${booking.booking_id.slice(0, 8).toUpperCase()}`}
+        title={booking.booker_name}
+        imageKey={booking.branch_name ?? user?.branchName}
+        aside={
+          <div className="flex items-center gap-2 px-4 py-2 rounded-[4px] bg-paper">
+            <StatusDot status={booking.status} />
+          </div>
+        }
+        kpis={[
+          { label: 'Rooms',    value: String(booking.rooms?.length ?? 0), sub: `At ${booking.branch_name}` },
+          { label: 'Stay',     value: String(totalNights),                sub: `Night${totalNights === 1 ? '' : 's'}` },
+          { label: 'Total',    value: booking.total_amount ? fmtMoney(toNum(booking.total_amount)) : '—', sub: 'Booking value' },
+          { label: 'Booked',   value: fmtDay(booking.created_at).slice(0, 6), sub: fmtDay(booking.created_at) },
+        ]}
+      />
 
-      {/* ── Page Header ── */}
-      <div className="flex items-start justify-between mb-8">
-        <div>
-          <h1 className="text-2xl font-semibold text-stone-100 font-cinzel">
-            Booking Detail
-          </h1>
-          <p className="font-mono text-xs text-amber-400/80 mt-1">
-            #{booking.booking_id}
-          </p>
-        </div>
+      <main className="max-w-[1440px] mx-auto px-6 md:px-12 py-12 md:py-16 space-y-8">
+        <Link href="/dashboard/bookings" className={BACK_LINK}>
+          <ArrowLeft className="w-4 h-4" /> All bookings
+        </Link>
 
-        <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold uppercase tracking-wider border rounded-none ${statusCfg.color}`}>
-          {statusCfg.icon}
-          {statusCfg.label}
-        </span>
-      </div>
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-12">
 
-      {/* ── Two-column layout ── */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
-
-        {/* Left — Booking info */}
-        <div className="lg:col-span-2 space-y-4">
-          <div className="bg-white/3 border border-white/8 p-6 space-y-4">
-            <h2 className="text-xs uppercase tracking-widest text-stone-500 font-jakarta mb-3">
-              Booking Information
-            </h2>
-            <div className="grid grid-cols-2 gap-4">
-              <InfoRow icon={<Building2 size={14} />} label="Branch"  value={booking.branch_name} />
-              <InfoRow icon={<User size={14} />}      label="Booker"  value={booking.booker_name} />
-              <InfoRow icon={<Calendar size={14} />}  label="Created" value={new Date(booking.created_at).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })} />
-              <InfoRow icon={<CreditCard size={14} />} label="Total"  value={booking.total_amount ? `$${toNum(booking.total_amount).toFixed(2)}` : '—'} />
+          {/* ── Rooms ───────────────────────────────────────────────────── */}
+          <section className="lg:col-span-2 space-y-6">
+            <div className="pb-6 border-b border-skynest-hairline">
+              <p className="font-jakarta text-[11px] font-medium tracking-[0.16em] uppercase text-ink/70">
+                {booking.rooms?.length ?? 0} {(booking.rooms?.length ?? 0) === 1 ? 'room' : 'rooms'}
+              </p>
+              <h2 className="mt-2 font-cinzel text-[28px] md:text-[32px] leading-[1.1] text-ink">Rooms</h2>
             </div>
-            {booking.notes && (
-              <div className="pt-3 border-t border-white/6">
-                <p className="text-xs text-stone-500 mb-1 font-jakarta">Notes</p>
-                <p className="text-sm text-stone-300 font-jakarta">{booking.notes}</p>
+
+            {(!booking.rooms || booking.rooms.length === 0) ? (
+              <Empty>No rooms assigned to this booking yet.</Empty>
+            ) : (
+              <ul className="divide-y divide-skynest-hairline">
+                {booking.rooms.map((room) => {
+                  const range  = fmtStayRange(room.check_in_date, room.check_out_date);
+                  const nights = toNum(room.nights);
+                  const rate   = toNum(room.rate_at_booking);
+                  return (
+                    <li key={room.booking_room_id} className="py-6 first:pt-0 space-y-4">
+                      <div className="flex items-start justify-between gap-6">
+                        <div className="flex items-baseline gap-4">
+                          <span className="font-cinzel text-[32px] leading-none text-ink">{room.room_number}</span>
+                          <div className="font-jakarta">
+                            <p className="text-[15px] text-ink">{titleCase(room.room_type_name)}</p>
+                            {room.meal_plan_name && <p className="mt-1 text-[12px] text-ink/70">{room.meal_plan_name}</p>}
+                          </div>
+                        </div>
+                        <div className="text-right font-jakarta">
+                          <p className="text-[15px] text-ink tabular-nums">{fmtMoney(nights * rate, 2)}</p>
+                          <p className="mt-1 text-[12px] text-ink/70 tabular-nums">{fmtMoney(rate, 2)} × {nights} night{nights === 1 ? '' : 's'}</p>
+                        </div>
+                      </div>
+
+                      <p className="font-jakarta text-[13px] text-ink tabular-nums">
+                        {range.from} <span className="text-ink/50" aria-hidden>→</span> {range.to}
+                      </p>
+
+                      {room.accompanying_guests && room.accompanying_guests.length > 0 && (
+                        <div className="pt-4 border-t border-skynest-hairline space-y-2">
+                          <p className="font-jakarta text-[11px] font-medium tracking-[0.12em] uppercase text-ink/70">Guests</p>
+                          {room.accompanying_guests.map((ag) => (
+                            <div key={ag.verification_id} className="flex items-center justify-between gap-4 font-jakarta text-[13px]">
+                              <span className="text-ink">
+                                {ag.first_name} {ag.last_name}
+                                <span className="ml-2 text-ink/70 tabular-nums">{ag.id_passport_no}</span>
+                              </span>
+                              <StatusDot status={ag.is_verified ? 'VERIFIED' : 'UNVERIFIED'} label={ag.is_verified ? 'Verified' : 'Unverified'} />
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+          </section>
+
+          {/* ── Sidebar ─────────────────────────────────────────────────── */}
+          <aside className="space-y-12">
+            <div className="space-y-6">
+              <p className="pb-4 border-b border-skynest-hairline font-jakarta text-[11px] font-medium tracking-[0.16em] uppercase text-ink/70">Progress</p>
+              <StatusTimeline currentStatus={booking.status} />
+            </div>
+
+            {nextSteps.length > 0 && (
+              <div className="space-y-4">
+                <p className="pb-4 border-b border-skynest-hairline font-jakarta text-[11px] font-medium tracking-[0.16em] uppercase text-ink/70">Next step</p>
+                <div className="flex flex-col gap-2">
+                  {nextSteps.map(next => (
+                    <Btn
+                      key={next}
+                      variant={next === 'CANCELLED' ? 'danger' : 'primary'}
+                      disabled={actionLoading}
+                      onClick={() => handleStatusChange(next)}
+                      className="w-full justify-between"
+                    >
+                      {ACTION_LABEL[next] ?? titleCase(next)}
+                      <ChevronRight className="w-4 h-4" />
+                    </Btn>
+                  ))}
+                </div>
               </div>
             )}
-          </div>
-        </div>
 
-        {/* Right — Status timeline + actions */}
-        <div className="space-y-4">
-
-          <div className="bg-white/3 border border-white/8 p-5">
-            <h2 className="text-xs uppercase tracking-widest text-stone-500 font-jakarta mb-4">
-              Lifecycle
-            </h2>
-            <StatusTimeline currentStatus={booking.status} />
-          </div>
-
-          {nextSteps.length > 0 && (
-            <div className="bg-white/3 border border-white/8 p-5 space-y-2">
-              <h2 className="text-xs uppercase tracking-widest text-stone-500 font-jakarta mb-3">
-                Actions
-              </h2>
-              {nextSteps.map(next => (
-                <button
-                  key={next}
-                  disabled={actionLoading}
-                  onClick={() => handleStatusChange(next)}
-                  className={`w-full flex items-center justify-between px-4 py-2.5 text-xs font-semibold uppercase tracking-wider border transition-all ${
-                    next === 'CANCELLED'
-                      ? 'border-red-400/30 text-red-400 hover:bg-red-400/10'
-                      : 'border-amber-500/40 text-amber-400 hover:bg-amber-500/10'
-                  } disabled:opacity-40 disabled:cursor-not-allowed`}
-                >
-                  <span>{next.replace('_', ' ')}</span>
-                  <ChevronRight size={13} />
-                </button>
-              ))}
+            <div className="space-y-4">
+              <p className="pb-4 border-b border-skynest-hairline font-jakarta text-[11px] font-medium tracking-[0.16em] uppercase text-ink/70">Billing</p>
+              <Link
+                href={`/dashboard/billing?q=${encodeURIComponent(booking.booking_id)}`}
+                className="flex items-center justify-between px-4 py-2 rounded-[4px] border border-skynest-hairline font-jakarta text-[11px] font-medium tracking-[0.12em] uppercase text-ink hover:border-skynest-accent hover:text-skynest-accent transition-colors duration-300"
+              >
+                View invoice
+                <ChevronRight className="w-4 h-4" />
+              </Link>
             </div>
-          )}
 
-          <div className="bg-white/3 border border-white/8 p-5">
-            <h2 className="text-xs uppercase tracking-widest text-stone-500 font-jakarta mb-3">
-              Billing
-            </h2>
-            <Link
-              href={`/dashboard/invoices?booking_id=${booking.booking_id}`}
-              className="w-full flex items-center justify-between px-4 py-2.5 text-xs font-semibold uppercase tracking-wider border border-white/10 text-stone-400 hover:text-stone-200 hover:bg-white/5 transition-all"
-            >
-              <span>View Invoice</span>
-              <ChevronRight size={13} />
-            </Link>
-          </div>
-
-        </div>
-      </div>
-
-      {/* ── Room Lines ── */}
-      <div>
-        <h2 className="text-xs uppercase tracking-widest text-stone-500 font-jakarta mb-4">
-          Room Reservations
-        </h2>
-
-        {(!booking.rooms || booking.rooms.length === 0) ? (
-          <div className="bg-white/3 border border-white/8 p-8 text-center">
-            <BedDouble size={28} className="text-stone-600 mx-auto mb-2" />
-            <p className="text-stone-500 text-sm font-jakarta">No rooms assigned to this booking yet.</p>
-          </div>
-        ) : (
-          <div className="space-y-4">
-            {booking.rooms.map((room) => (
-              <div key={room.booking_room_id} className="bg-white/3 border border-white/8 p-6">
-
-                <div className="flex items-start justify-between mb-4">
-                  <div>
-                    <p className="text-stone-100 font-semibold font-jakarta">
-                      Room {room.room_number}
-                      <span className="text-stone-500 font-normal ml-2 text-sm">— {room.room_type_name}</span>
-                    </p>
-                    <p className="text-xs text-stone-500 mt-0.5 font-jakarta">{room.meal_plan_name}</p>
-                  </div>
-                  <p className="font-cinzel text-amber-300 font-medium text-sm">
-                    ${toNum(room.rate_at_booking).toFixed(2)}
-                    <span className="text-stone-600 text-xs font-jakarta">/night</span>
-                  </p>
-                </div>
-
-                <div className="flex items-center gap-2 text-xs text-stone-400 mb-4 font-jakarta">
-                  <Calendar size={12} className="text-stone-500" />
-                  <span>{room.check_in_date}</span>
-                  <span className="text-stone-600">→</span>
-                  <span>{room.check_out_date}</span>
-                  <span className="text-stone-600">·</span>
-                  <span>
-                    {toNum(room.nights)} night{toNum(room.nights) === 1 ? '' : 's'} = ${(toNum(room.nights) * toNum(room.rate_at_booking)).toFixed(2)}
-                  </span>
-                </div>
-
-                {room.accompanying_guests && room.accompanying_guests.length > 0 && (
-                  <div className="border-t border-white/6 pt-4">
-                    <p className="text-xs uppercase tracking-widest text-stone-600 font-jakarta mb-3 flex items-center gap-1.5">
-                      <Users size={11} /> Accompanying Guests
-                    </p>
-                    <div className="space-y-1.5">
-                      {room.accompanying_guests.map((ag) => (
-                        <div key={ag.verification_id} className="flex items-center justify-between text-xs font-jakarta">
-                          <span className="text-stone-300">
-                            {ag.first_name} {ag.last_name}
-                            <span className="text-stone-600 ml-2">· {ag.id_passport_no}</span>
-                          </span>
-                          <span className={`px-2 py-0.5 text-[10px] font-semibold uppercase border ${ag.is_verified ? 'text-emerald-400 border-emerald-400/30 bg-emerald-400/8' : 'text-stone-500 border-stone-600/40'}`}>
-                            {ag.is_verified ? 'Verified' : 'Unverified'}
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
+            {booking.notes && (
+              <div className="space-y-4">
+                <p className="pb-4 border-b border-skynest-hairline font-jakarta text-[11px] font-medium tracking-[0.16em] uppercase text-ink/70">Notes</p>
+                <p className="font-jakarta text-[15px] leading-relaxed text-ink">{booking.notes}</p>
               </div>
-            ))}
-          </div>
-        )}
-      </div>
-
-    </div>
+            )}
+          </aside>
+        </div>
+      </main>
+    </>
   );
 }
 
@@ -335,52 +280,29 @@ export default function BookingDetailPage() {
 // Sub-components (UI only)
 // ─────────────────────────────────────────────────────────────────────────────
 
-function InfoRow({ icon, label, value }: { icon: React.ReactNode; label: string; value: string }) {
-  return (
-    <div className="flex items-start gap-2">
-      <span className="text-stone-600 mt-0.5">{icon}</span>
-      <div>
-        <p className="text-[10px] uppercase tracking-widest text-stone-600 font-jakarta">{label}</p>
-        <p className="text-sm text-stone-200 font-jakarta">{value}</p>
-      </div>
-    </div>
-  );
-}
-
 const TIMELINE_STEPS = ['PENDING', 'CONFIRMED', 'CHECKED_IN', 'CHECKED_OUT'];
 
 function StatusTimeline({ currentStatus }: { currentStatus: string }) {
   const currentIdx  = TIMELINE_STEPS.indexOf(currentStatus);
-  const isCancelled = currentStatus === 'CANCELLED';
 
-  if (isCancelled) {
-    return (
-      <div className="flex items-center gap-2 text-red-400 text-xs font-jakarta">
-        <XCircle size={14} />
-        <span>Booking Cancelled</span>
-      </div>
-    );
+  if (currentStatus === 'CANCELLED' || currentStatus === 'NO_SHOW') {
+    return <StatusDot status={currentStatus} label={currentStatus === 'CANCELLED' ? 'Booking cancelled' : 'No show'} />;
   }
 
   return (
-    <ol className="space-y-2">
+    <ol className="relative space-y-4 pl-6 before:absolute before:left-1 before:top-2 before:bottom-2 before:w-px before:bg-skynest-hairline">
       {TIMELINE_STEPS.map((step, i) => {
         const done    = i < currentIdx;
         const current = i === currentIdx;
         return (
-          <li key={step} className="flex items-center gap-2.5">
-            <span className={`w-2 h-2 rounded-full flex-shrink-0 ${
-              done    ? 'bg-emerald-400' :
-              current ? 'bg-amber-400 ring-2 ring-amber-400/30' :
-                        'bg-stone-700'
+          <li key={step} className="relative flex items-center gap-4">
+            <span className={`absolute -left-6 w-2 h-2 rounded-full ring-4 ring-paper ${
+              done ? 'bg-emerald-500' : current ? 'bg-skynest-accent' : 'bg-ink-faded'
             }`} />
-            <span className={`text-xs font-jakarta ${
-              current ? 'text-amber-300 font-semibold' :
-              done    ? 'text-stone-400' :
-                        'text-stone-700'
-            }`}>
-              {step.replace('_', ' ')}
+            <span className={`font-jakarta text-[13px] ${current ? 'text-ink font-medium' : 'text-ink/70'}`}>
+              {titleCase(step)}
             </span>
+            {current && <span className="font-jakarta text-[11px] tracking-[0.12em] uppercase text-skynest-accent">Current</span>}
           </li>
         );
       })}

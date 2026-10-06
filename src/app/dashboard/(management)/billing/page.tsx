@@ -3,13 +3,11 @@
 import React, { useState, useEffect, useCallback } from 'react';  //React hooks
 import { useAuth } from '@/context/auth-context';  //reads who is currently logged in
 import { apiFetch, toNum, ApiError } from '@/lib/api-client'; // converts PostgreSQL decimal strings to JavaScript numbers, makes API calls
-import { Button } from '@/components/ui/Button';
-
+import { CreditCard, Landmark, Banknote } from 'lucide-react'; //Icons
 import {
-    Receipt, Search, RefreshCw, X, ChevronDown,
-    DollarSign, CheckCircle, AlertCircle, Clock,
-    Printer, CreditCard, Landmark, Banknote, ShieldCheck, LogOut
-} from 'lucide-react';//Icons
+    DashboardMasthead, MastheadRefresh, SectionHeader, Segmented, SearchField, Toolbar, FilterSelect,
+    Btn, Field, Modal, Loading, Empty, StatusDot, tbl, fmtLKR, fmtLKRCompact, fmtStayRange, fmtDay,
+} from '@/components/dashboard/ui';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 //Describe the expected shape of the data coming from the backend API for a single invoice
@@ -49,39 +47,22 @@ interface TaxConfig {
 
 type StatusFilter = 'ALL' | 'SETTLED' | 'PARTIALLY_PAID' | 'OPEN';
 
-// ── Helper Components ─────────────────────────────────────────────────────────
+const STATUS_LABEL: Record<Invoice['status'], string> = {
+    SETTLED: 'Settled',
+    PARTIALLY_PAID: 'Partly paid',
+    OPEN: 'Open',
+};
 
-function StatusBadge({ status }: { status: Invoice['status'] }) {
-    if (status === 'SETTLED') return (
-        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 text-[10px] font-jakarta font-semibold uppercase tracking-wider bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 rounded-sm">
-            <CheckCircle size={10} /> Settled
-        </span>
-    );
-    if (status === 'PARTIALLY_PAID') return (
-        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 text-[10px] font-jakarta font-semibold uppercase tracking-wider bg-amber-500/10 text-amber-400 border border-amber-500/30 rounded-sm">
-            <Clock size={10} /> Partial
-        </span>
-    );
-    return (
-        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 text-[10px] font-jakarta font-semibold uppercase tracking-wider bg-rose-500/10 text-rose-400 border border-rose-500/30 rounded-sm">
-            <AlertCircle size={10} /> Open
-        </span>
-    );
-}
-
-function fmt(n: number | unknown) {
-    return `LKR ${toNum(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-}
-
-function fmtDate(d: string | null) {
-    if (!d) return '—';
-    return new Date(d).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
-}
+const PAY_METHODS = [
+    { value: 'CASH', label: 'Cash', icon: Banknote },
+    { value: 'CREDIT_CARD', label: 'Card', icon: CreditCard },
+    { value: 'BANK_TRANSFER', label: 'Bank', icon: Landmark },
+] as const;
 
 // ── Main Page Component ───────────────────────────────────────────────────────
 
 export default function BillingPage() {
-    const { user, logout } = useAuth();
+    const { user } = useAuth();
 
     // ── State ──────────────────────────────────────────────────────────────────
     const [invoices, setInvoices] = useState<Invoice[]>([]);
@@ -98,6 +79,12 @@ export default function BillingPage() {
     const [payMethod, setPayMethod] = useState<'CASH' | 'CREDIT_CARD' | 'BANK_TRANSFER'>('CASH');
     const [payLoading, setPayLoading] = useState(false);
     const [payError, setPayError] = useState<string | null>(null);
+
+    // Pre-fill the search from ?q= (the booking detail page links here with its booking ID)
+    useEffect(() => {
+        const q = new URLSearchParams(window.location.search).get('q');
+        if (q) setSearch(q);
+    }, []);
 
     // ── Fetch Data ──────────────────────────────────────────────────────────────
     const fetchData = useCallback(async () => {
@@ -163,472 +150,283 @@ export default function BillingPage() {
         }
     };
 
-    // ── Loading & Error States ─────────────────────────────────────────────────
-    if (loading) {
-        return (
-            <div className="min-h-screen bg-stone-950 flex items-center justify-center">
-                <div className="text-center space-y-3">
-                    <div className="w-10 h-10 rounded-sm bg-skynest-accent/15 border border-skynest-accent/30 flex items-center justify-center mx-auto animate-pulse">
-                        <Receipt className="w-5 h-5 text-skynest-accent" />
-                    </div>
-                    <p className="font-jakarta text-sm text-stone-400">Loading billing ledger…</p>
-                </div>
-            </div>
-        );
-    }
+    const openPay = (inv: Invoice) => {
+        setSelectedInvoice(inv);
+        setPayAmount(toNum(inv.balance_due).toFixed(2));
+        setPayError(null);
+        setShowPayModal(true);
+    };
 
-    if (error) {
-        return (
-            <div className="min-h-screen bg-stone-950 flex items-center justify-center">
-                <div className="text-center space-y-3">
-                    <AlertCircle className="w-8 h-8 text-rose-400 mx-auto" />
-                    <p className="font-jakarta text-sm text-rose-400">{error}</p>
-                    <button onClick={fetchData} className="text-xs font-jakarta font-semibold uppercase tracking-widest text-skynest-accent hover:underline">
-                        Retry
-                    </button>
-                </div>
-            </div>
-        );
-    }
+    const pct = (p: number | unknown) => {
+        const n = toNum(p);
+        return (n <= 1 ? n * 100 : n).toFixed(1);
+    };
 
     // ── JSX ────────────────────────────────────────────────────────────────────
     return (
-        <div className="min-h-screen bg-stone-950 text-stone-100 font-jakarta p-8 max-w-[1440px]">
+        <>
+            <DashboardMasthead
+                eyebrow="Finance"
+                title="Billing"
+                imageKey={user?.branchName}
+                aside={<MastheadRefresh onClick={fetchData} loading={loading} />}
+                kpis={[
+                    { label: 'Invoiced', value: fmtLKRCompact(totalInvoiced), sub: fmtLKR(totalInvoiced) },
+                    { label: 'Collected', value: fmtLKRCompact(totalCollected), sub: fmtLKR(totalCollected) },
+                    { label: 'Outstanding', value: fmtLKRCompact(totalOutstanding), sub: fmtLKR(totalOutstanding), onClick: () => setStatusFilter(s => s === 'OPEN' ? 'ALL' : 'OPEN'), active: statusFilter === 'OPEN' },
+                    { label: 'Settled', value: `${settledCount}/${invoices.length}`, sub: 'Invoices paid in full', onClick: () => setStatusFilter(s => s === 'SETTLED' ? 'ALL' : 'SETTLED'), active: statusFilter === 'SETTLED' },
+                ]}
+            />
 
-            {/* ── Page Header ──────────────────────────────────────────────────────── */}
-            <div className="flex items-center justify-between pb-8 mb-8 border-b border-white/10">
-                <div>
-                    <p className="font-jakarta text-[10px] uppercase tracking-[0.2em] text-skynest-accent font-semibold mb-1">
-                        Financial Operations
-                    </p>
-                    <h1 className="font-cinzel italic text-2xl md:text-3xl text-stone-100">
-                        Billing &amp; Invoices
-                    </h1>
-                    <p className="font-jakarta text-sm text-stone-400 mt-1">
-                        Statutory tax cascade · Payment ledger · Settlement management
-                    </p>
-                </div>
-
-                {/* Action Buttons on the Right (matches Bookings & Staff) */}
-                <div className="flex items-center gap-3">
-                    <Button variant="ghost" size="sm" onClick={fetchData} title="Refresh billing">
-                        <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
-                    </Button>
-                    <Button variant="danger" size="sm" onClick={logout} className="flex items-center gap-1.5 ml-2">
-                        <LogOut size={14} /> Log Out
-                    </Button>
-                </div>
-            </div>
-
-            <div className="space-y-8">
-
-                {/* ── KPI Summary Cards ─────────────────────────────────────────────── */}
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                    {[
-                        { label: 'Total Invoiced', value: fmt(totalInvoiced), icon: <Receipt size={16} />, color: 'text-stone-100' },
-                        { label: 'Revenue Collected', value: fmt(totalCollected), icon: <DollarSign size={16} />, color: 'text-emerald-400' },
-                        { label: 'Outstanding Balance', value: fmt(totalOutstanding), icon: <AlertCircle size={16} />, color: 'text-rose-400' },
-                        { label: 'Settled Invoices', value: `${settledCount} / ${invoices.length}`, icon: <CheckCircle size={16} />, color: 'text-amber-400' },
-                    ].map(card => (
-                        <div key={card.label} className="bg-stone-900 border border-white/10 p-5">
-                            <div className={`flex items-center gap-2 ${card.color} mb-2`}>
-                                {card.icon}
-                                <span className="text-[10px] font-jakarta font-semibold uppercase tracking-widest text-stone-400">
-                                    {card.label}
-                                </span>
-                            </div>
-                            <p className={`font-cinzel text-xl font-medium ${card.color}`}>{card.value}</p>
+            <main className="max-w-[1440px] mx-auto px-6 md:px-12 py-12 md:py-16">
+                <section className="space-y-8">
+                    <SectionHeader
+                        index={activeTab === 'ledger' ? `${filtered.length} of ${invoices.length} invoices` : `${taxes.length} taxes, applied in order`}
+                        title={activeTab === 'ledger' ? 'Invoices' : 'Tax Cascade'}
+                    >
+                        <div className="flex flex-col md:items-end gap-4 w-full md:w-auto">
+                            <Segmented
+                                value={activeTab}
+                                onChange={setActiveTab}
+                                options={[
+                                    { value: 'ledger', label: 'Invoices', count: invoices.length },
+                                    { value: 'taxes', label: 'Tax rates', count: taxes.length },
+                                ]}
+                            />
+                            {activeTab === 'ledger' && (
+                                <SearchField value={search} onChange={setSearch} placeholder="Search guest, room or invoice" />
+                            )}
                         </div>
-                    ))}
-                </div>
+                    </SectionHeader>
 
-                {/* ── Tab Navigation ────────────────────────────────────────────────── */}
-                <div className="border-b border-white/10 flex gap-0">
-                    {[
-                        { key: 'ledger', label: 'Financial Ledger', icon: <Receipt size={13} /> },
-                        { key: 'taxes', label: 'Statutory Tax Rates', icon: <ShieldCheck size={13} /> },
-                    ].map(tab => (
-                        <button
-                            key={tab.key}
-                            onClick={() => setActiveTab(tab.key as 'ledger' | 'taxes')}
-                            className={`flex items-center gap-2 px-5 py-3 text-xs font-jakarta font-semibold uppercase tracking-widest border-b-2 transition-colors ${activeTab === tab.key
-                                ? 'border-skynest-accent text-skynest-accent'
-                                : 'border-transparent text-stone-400 hover:text-stone-200'
-                                }`}
-                        >
-                            {tab.icon} {tab.label}
-                        </button>
-                    ))}
-                </div>
-
-                {/* ── Tab 1: Financial Ledger ───────────────────────────────────────── */}
-                {activeTab === 'ledger' && (
-                    <div className="space-y-4">
-
-                        {/* Search & Filter Bar */}
-                        <div className="flex flex-col sm:flex-row gap-3">
-                            <div className="relative flex-1">
-                                <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-stone-500" />
-                                <input
-                                    type="text"
-                                    placeholder="Search guest name, room, invoice ID…"
-                                    value={search}
-                                    onChange={e => setSearch(e.target.value)}
-                                    className="w-full pl-9 pr-4 py-2.5 text-sm font-jakarta border border-white/10 bg-stone-900/60 text-stone-100 placeholder:text-stone-500 focus:border-skynest-accent outline-none transition-colors"
-                                />
-                            </div>
-                            <div className="relative">
-                                <select
-                                    value={statusFilter}
-                                    onChange={e => setStatusFilter(e.target.value as StatusFilter)}
-                                    className="appearance-none pl-4 pr-10 py-2.5 text-xs font-jakarta font-semibold uppercase tracking-widest border border-white/10 bg-stone-900 text-stone-300 focus:border-skynest-accent outline-none transition-colors cursor-pointer"
-                                >
-                                    {(['ALL', 'SETTLED', 'PARTIALLY_PAID', 'OPEN'] as StatusFilter[]).map(s => (
-                                        <option key={s} value={s} className="bg-stone-900 text-stone-100">{s.replace('_', ' ')}</option>
-                                    ))}
-                                </select>
-                                <ChevronDown size={12} className="absolute right-3 top-1/2 -translate-y-1/2 text-stone-500 pointer-events-none" />
-                            </div>
+                    {loading ? (
+                        <Loading label="Loading billing" />
+                    ) : error ? (
+                        <div className="py-12 flex flex-col items-center gap-4">
+                            <p className="font-jakarta text-[15px] text-red-700">{error}</p>
+                            <Btn onClick={fetchData}>Try again</Btn>
                         </div>
+                    ) : activeTab === 'ledger' ? (
+                        /* ── Invoices ─────────────────────────────────────────── */
+                        <div className="space-y-6">
+                            <Toolbar>
+                                <FilterSelect label="Status" value={statusFilter} onChange={v => setStatusFilter(v as StatusFilter)}>
+                                    <option value="ALL">All statuses</option>
+                                    <option value="OPEN">Open</option>
+                                    <option value="PARTIALLY_PAID">Partly paid</option>
+                                    <option value="SETTLED">Settled</option>
+                                </FilterSelect>
+                            </Toolbar>
 
-                        {/* Invoice Table */}
-                        <div className="bg-stone-900 border border-white/10 overflow-x-auto">
-                            <table className="w-full text-left text-sm font-jakarta">
-                                <thead className="bg-white/[0.02] border-b border-white/10 text-stone-400 text-[10px] tracking-widest uppercase">
-                                    <tr>
-                                        <th className="px-5 py-3 font-semibold">Guest</th>
-                                        <th className="px-5 py-3 font-semibold">Room</th>
-                                        <th className="px-5 py-3 font-semibold">Stay</th>
-                                        <th className="px-5 py-3 font-semibold">Total</th>
-                                        <th className="px-5 py-3 font-semibold">Paid</th>
-                                        <th className="px-5 py-3 font-semibold">Balance</th>
-                                        <th className="px-5 py-3 font-semibold">Status</th>
-                                        <th className="px-5 py-3 font-semibold">Actions</th>
-                                    </tr>
-                                </thead>
-                                <tbody className="divide-y divide-white/5">
-                                    {filtered.length === 0 ? (
-                                        <tr>
-                                            <td colSpan={8} className="px-5 py-12 text-center text-sm text-stone-500">
-                                                No invoices match your search or filter.
-                                            </td>
-                                        </tr>
-                                    ) : filtered.map(inv => (
-                                        <tr key={inv.invoice_id} className="hover:bg-white/[0.02] transition-colors">
-                                            <td className="px-5 py-4">
-                                                <p className="font-medium text-stone-200 text-sm">{inv.guest_name}</p>
-                                                <p className="text-[11px] text-stone-500 mt-0.5">{inv.guest_email}</p>
-                                            </td>
-                                            <td className="px-5 py-4">
-                                                <p className="text-sm font-medium text-stone-200">Room {inv.room_number}</p>
-                                                <p className="text-[11px] text-stone-500 mt-0.5">{inv.room_type_name}</p>
-                                            </td>
-                                            <td className="px-5 py-4">
-                                                <p className="text-xs text-stone-300">{fmtDate(inv.check_in_date)}</p>
-                                                <p className="text-[11px] text-stone-500">→ {fmtDate(inv.check_out_date)}</p>
-                                                <p className="text-[10px] text-stone-500 mt-0.5">{inv.nights} night{inv.nights !== 1 ? 's' : ''}</p>
-                                            </td>
-                                            <td className="px-5 py-4 font-medium text-stone-200">{fmt(inv.total_amount)}</td>
-                                            <td className="px-5 py-4 text-emerald-400 font-medium">{fmt(inv.total_paid)}</td>
-                                            <td className="px-5 py-4 text-rose-400 font-medium">{fmt(inv.balance_due)}</td>
-                                            <td className="px-5 py-4"><StatusBadge status={inv.status} /></td>
-                                            <td className="px-5 py-4">
-                                                <div className="flex items-center gap-2">
-                                                    <button
-                                                        onClick={() => { setSelectedInvoice(inv); setShowTaxModal(true); }}
-                                                        className="text-[10px] font-semibold uppercase tracking-widest text-stone-400 hover:text-skynest-accent transition-colors flex items-center gap-1"
-                                                    >
-                                                        <Printer size={11} /> View
-                                                    </button>
-                                                    {inv.status !== 'SETTLED' && (
-                                                        <button
-                                                            onClick={() => { setSelectedInvoice(inv); setPayAmount(toNum(inv.balance_due).toFixed(2)); setShowPayModal(true); }}
-                                                            className="text-[10px] font-semibold uppercase tracking-widest text-skynest-accent hover:underline transition-colors flex items-center gap-1"
-                                                        >
-                                                            <CreditCard size={11} /> Pay
-                                                        </button>
-                                                    )}
-                                                </div>
-                                            </td>
-                                        </tr>
-                                    ))}
-                                </tbody>
-                            </table>
+                            {filtered.length === 0 ? (
+                                <Empty>{search.trim() ? `No invoices match “${search.trim()}”.` : 'No invoices in this view.'}</Empty>
+                            ) : (
+                                <div className={tbl.wrap}>
+                                    <table className={`${tbl.table} min-w-[1024px]`}>
+                                        <thead>
+                                            <tr className={tbl.headRow}>
+                                                <th className={tbl.th}>Guest</th>
+                                                <th className={tbl.th}>Room</th>
+                                                <th className={tbl.th}>Stay</th>
+                                                <th className={`${tbl.th} text-right`}>Total</th>
+                                                <th className={`${tbl.th} text-right`}>Paid</th>
+                                                <th className={`${tbl.th} text-right`}>Balance</th>
+                                                <th className={tbl.th}>Status</th>
+                                                <th className={tbl.th}><span className="sr-only">Actions</span></th>
+                                            </tr>
+                                        </thead>
+                                        <tbody className={tbl.body}>
+                                            {filtered.map(inv => {
+                                                const range = fmtStayRange(inv.check_in_date, inv.check_out_date);
+                                                const balance = toNum(inv.balance_due);
+                                                return (
+                                                    <tr key={inv.invoice_id} className={tbl.row}>
+                                                        <td className={`${tbl.td} max-w-[240px]`}>
+                                                            <p className="text-[15px] truncate">{inv.guest_name}</p>
+                                                            <p className={`${tbl.sub} truncate`}>{inv.guest_email}</p>
+                                                        </td>
+                                                        <td className={tbl.td}>
+                                                            <p className="font-cinzel text-[20px] leading-none">{inv.room_number}</p>
+                                                            <p className={tbl.sub}>{inv.room_type_name}</p>
+                                                        </td>
+                                                        <td className={`${tbl.td} whitespace-nowrap tabular-nums`}>
+                                                            {range.from} <span className="text-ink/50" aria-hidden>→</span> {range.to}
+                                                            <p className={tbl.sub}>{inv.nights} night{inv.nights !== 1 ? 's' : ''}</p>
+                                                        </td>
+                                                        <td className={`${tbl.td} text-right tabular-nums whitespace-nowrap`}>{fmtLKR(inv.total_amount)}</td>
+                                                        <td className={`${tbl.td} text-right tabular-nums whitespace-nowrap`}>{fmtLKR(inv.total_paid)}</td>
+                                                        <td className={`${tbl.td} text-right tabular-nums whitespace-nowrap ${balance > 0 ? 'font-medium' : 'text-ink/70'}`}>{fmtLKR(balance)}</td>
+                                                        <td className={tbl.td}><StatusDot status={inv.status} label={STATUS_LABEL[inv.status]} /></td>
+                                                        <td className={`${tbl.td} pr-0`}>
+                                                            <div className="flex items-center justify-end gap-2">
+                                                                <Btn onClick={() => { setSelectedInvoice(inv); setShowTaxModal(true); }}>View</Btn>
+                                                                {inv.status !== 'SETTLED' && (
+                                                                    <Btn variant="primary" onClick={() => openPay(inv)}>Pay</Btn>
+                                                                )}
+                                                            </div>
+                                                        </td>
+                                                    </tr>
+                                                );
+                                            })}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            )}
                         </div>
-                        <p className="text-[11px] text-stone-500 font-jakarta">
-                            Showing {filtered.length} of {invoices.length} invoices
-                        </p>
-                    </div>
-                )}
-
-                {/* ── Tab 2: Statutory Tax Rates ───────────────────────────────────── */}
-                {activeTab === 'taxes' && (
-                    <div className="space-y-6">
-                        <div>
-                            <h2 className="font-cinzel text-lg uppercase tracking-widest text-stone-100 mb-1">
-                                Statutory Tax Configuration
-                            </h2>
-                            <p className="font-jakarta text-sm text-stone-400">
-                                The 4-tier Sri Lankan tax cascade applied to all invoices in sequence:
-                                <span className="text-amber-400 font-medium"> Base → SC → TDL → SSCL → VAT</span>
-                            </p>
-                        </div>
-
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            {taxes.map((tax, i) => (
-                                <div key={tax.tax_id} className="bg-stone-900 border border-white/10 p-6">
-                                    <div className="flex items-start justify-between mb-4">
-                                        <div className="flex items-center gap-3">
-                                            <div className="w-8 h-8 rounded-sm bg-skynest-accent/15 border border-skynest-accent/30 flex items-center justify-center text-skynest-accent font-cinzel text-sm font-medium">
-                                                {i + 1}
-                                            </div>
-                                            <div>
-                                                <p className="font-jakarta font-semibold text-sm text-stone-200">{tax.tax_name}</p>
-                                                <p className="text-[11px] text-stone-500 mt-0.5">Tier {i + 1} of the cascade</p>
-                                            </div>
+                    ) : (
+                        /* ── Tax cascade ──────────────────────────────────────── */
+                        taxes.length === 0 ? (
+                            <Empty>No tax rates configured.</Empty>
+                        ) : (
+                            <ol className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 border-t border-l border-skynest-hairline">
+                                {taxes.map((tax, i) => (
+                                    <li key={tax.tax_id} className="p-6 border-r border-b border-skynest-hairline space-y-4">
+                                        <div className="flex items-center justify-between gap-4">
+                                            <span className="font-jakarta text-[11px] font-medium tracking-[0.16em] uppercase text-ink/70">Step {i + 1}</span>
+                                            <StatusDot status={tax.is_active ? 'ACTIVE' : 'INACTIVE'} label={tax.is_active ? 'Active' : 'Inactive'} />
                                         </div>
-                                        <span className={`text-[10px] font-jakarta font-semibold uppercase tracking-widest px-2.5 py-0.5 rounded-sm ${tax.is_active
-                                            ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/30'
-                                            : 'bg-rose-500/10 text-rose-400 border border-rose-500/30'
-                                            }`}>
-                                            {tax.is_active ? 'Active' : 'Inactive'}
-                                        </span>
-                                    </div>
-                                    <p className="font-cinzel text-3xl font-normal text-stone-100 mb-3">
-                                        {(toNum(tax.tax_percentage) <= 1 ? toNum(tax.tax_percentage) * 100 : toNum(tax.tax_percentage)).toFixed(1)}%
-                                    </p>
-                                    <div className="border-t border-white/10 pt-3 space-y-1">
-                                        <p className="text-[11px] text-stone-500 font-jakarta">
-                                            Effective from: <span className="text-stone-300">{fmtDate(tax.effective_from)}</span>
-                                        </p>
-                                        {tax.effective_to && (
-                                            <p className="text-[11px] text-stone-500 font-jakarta">
-                                                Effective to: <span className="text-stone-300">{fmtDate(tax.effective_to)}</span>
+                                        <p className="font-cinzel text-[40px] leading-none text-ink tabular-nums">{pct(tax.tax_percentage)}%</p>
+                                        <div className="font-jakarta">
+                                            <p className="text-[15px] text-ink">{tax.tax_name}</p>
+                                            <p className="mt-1 text-[12px] text-ink/70">
+                                                From {fmtDay(tax.effective_from)}{tax.effective_to ? ` until ${fmtDay(tax.effective_to)}` : ''}
                                             </p>
-                                        )}
-                                    </div>
+                                        </div>
+                                    </li>
+                                ))}
+                            </ol>
+                        )
+                    )}
+                </section>
+            </main>
+
+            {/* ── Invoice modal ─────────────────────────────────────────────────── */}
+            {showTaxModal && selectedInvoice && (() => {
+                const range = fmtStayRange(selectedInvoice.check_in_date, selectedInvoice.check_out_date);
+                const lines = [
+                    { label: 'Room charge', amount: selectedInvoice.base_amount },
+                    { label: 'Service charge', amount: selectedInvoice.sc_amount },
+                    { label: 'Tourism development levy', amount: selectedInvoice.tdl_amount },
+                    { label: 'SSCL', amount: selectedInvoice.sscl_amount },
+                    { label: 'VAT', amount: selectedInvoice.vat_amount },
+                ];
+                return (
+                    <Modal
+                        eyebrow={`Invoice · Room ${selectedInvoice.room_number}`}
+                        title={selectedInvoice.guest_name}
+                        onClose={() => setShowTaxModal(false)}
+                        footer={
+                            <>
+                                <Btn variant="ghost" onClick={() => setShowTaxModal(false)}>Close</Btn>
+                                {selectedInvoice.status !== 'SETTLED' && (
+                                    <Btn variant="primary" onClick={() => { setShowTaxModal(false); openPay(selectedInvoice); }}>Record payment</Btn>
+                                )}
+                            </>
+                        }
+                    >
+                        <p className="font-jakarta text-[13px] text-ink/70">
+                            {selectedInvoice.branch_name} · {range.from} → {range.to} · {selectedInvoice.nights} night{selectedInvoice.nights !== 1 ? 's' : ''}
+                        </p>
+
+                        <dl className="font-jakarta text-[13px] divide-y divide-skynest-hairline border-y border-skynest-hairline">
+                            {lines.map((row, i) => (
+                                <div key={row.label} className="flex items-center justify-between py-2">
+                                    <dt className={i === 0 ? 'text-ink' : 'text-ink/70 pl-4'}>{row.label}</dt>
+                                    <dd className="tabular-nums text-ink">{fmtLKR(row.amount)}</dd>
                                 </div>
                             ))}
+                        </dl>
+
+                        <div className="flex items-baseline justify-between">
+                            <span className="font-jakarta text-[11px] font-medium tracking-[0.12em] uppercase text-ink/70">Total</span>
+                            <span className="font-cinzel text-[28px] text-ink tabular-nums">{fmtLKR(selectedInvoice.total_amount)}</span>
                         </div>
 
-                        {taxes.length === 0 && (
-                            <div className="bg-stone-900 border border-white/10 p-12 text-center">
-                                <ShieldCheck className="w-8 h-8 text-stone-600 mx-auto mb-3" />
-                                <p className="font-jakarta text-sm text-stone-500">No tax configurations found.</p>
+                        <dl className="font-jakarta text-[13px] space-y-2">
+                            <div className="flex items-center justify-between">
+                                <dt className="text-ink/70">Paid</dt>
+                                <dd className="tabular-nums text-ink">{fmtLKR(selectedInvoice.total_paid)}</dd>
                             </div>
-                        )}
-                    </div>
-                )}
-
-            </div>
-
-            {/* ══════════════════════════════════════════════════════════════════════ */}
-            {/* ── Tax Breakdown Modal ──────────────────────────────────────────────── */}
-            {/* ══════════════════════════════════════════════════════════════════════ */}
-            {showTaxModal && selectedInvoice && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm">
-                    <div className="bg-stone-900 border border-white/10 w-full max-w-lg max-h-[90vh] overflow-y-auto shadow-2xl">
-                        {/* Modal Header */}
-                        <div className="flex items-start justify-between p-6 border-b border-white/10">
-                            <div>
-                                <p className="text-[10px] uppercase tracking-[0.2em] text-skynest-accent font-semibold font-jakarta mb-1">
-                                    Invoice Detail
-                                </p>
-                                <h2 className="font-cinzel text-xl uppercase tracking-wide text-stone-100">
-                                    Tax Breakdown
-                                </h2>
-                            </div>
-                            <button onClick={() => setShowTaxModal(false)} className="text-stone-400 hover:text-stone-100 transition-colors">
-                                <X size={18} />
-                            </button>
-                        </div>
-
-                        {/* Invoice Identity */}
-                        <div className="p-6 border-b border-white/10 space-y-1">
-                            <p className="font-jakarta font-semibold text-stone-200">{selectedInvoice.guest_name}</p>
-                            <p className="font-jakarta text-sm text-stone-400">{selectedInvoice.guest_email}</p>
-                            <p className="font-jakarta text-xs text-stone-500 mt-2">
-                                Room {selectedInvoice.room_number} · {selectedInvoice.branch_name} ·{' '}
-                                {selectedInvoice.nights} night{selectedInvoice.nights !== 1 ? 's' : ''}
-                            </p>
-                            <p className="font-jakarta text-xs text-stone-500">
-                                {fmtDate(selectedInvoice.check_in_date)} → {fmtDate(selectedInvoice.check_out_date)}
-                            </p>
-                        </div>
-
-                        {/* Tax Cascade Breakdown */}
-                        <div className="p-6 space-y-2">
-                            <p className="text-[10px] uppercase tracking-widest text-stone-500 font-jakarta font-semibold mb-4">
-                                Statutory Tax Cascade
-                            </p>
-                            {[
-                                { label: 'Base Room Charge', amount: selectedInvoice.base_amount, tier: 0 },
-                                { label: 'Service Charge (SC)', amount: selectedInvoice.sc_amount, tier: 1 },
-                                { label: 'Tourism Dev. Levy (TDL)', amount: selectedInvoice.tdl_amount, tier: 2 },
-                                { label: 'SSCL', amount: selectedInvoice.sscl_amount, tier: 3 },
-                                { label: 'VAT', amount: selectedInvoice.vat_amount, tier: 4 },
-                            ].map(row => (
-                                <div key={row.label} className={`flex items-center justify-between py-2 ${row.tier === 0 ? 'border-b border-white/10 pb-3 mb-1' : ''}`}>
-                                    <div className="flex items-center gap-3">
-                                        {row.tier > 0 && (
-                                            <span className="w-4 h-px bg-white/20 inline-block" />
-                                        )}
-                                        <span className={`font-jakarta text-sm ${row.tier === 0 ? 'font-semibold text-stone-200' : 'text-stone-400'}`}>
-                                            {row.label}
-                                        </span>
-                                    </div>
-                                    <span className={`font-jakarta font-medium ${row.tier === 0 ? 'text-stone-100' : 'text-stone-300'}`}>
-                                        {fmt(row.amount)}
-                                    </span>
-                                </div>
-                            ))}
-                            <div className="border-t-2 border-white/15 pt-3 mt-2 flex items-center justify-between">
-                                <span className="font-jakarta font-semibold text-sm text-stone-100">Grand Total</span>
-                                <span className="font-cinzel text-xl text-amber-400">{fmt(selectedInvoice.total_amount)}</span>
-                            </div>
-                        </div>
-
-                        {/* Payment Status */}
-                        <div className="px-6 pb-6 space-y-2">
-                            <div className="flex items-center justify-between py-2 border-t border-white/10">
-                                <span className="font-jakarta text-sm text-stone-400">Amount Paid</span>
-                                <span className="font-jakarta font-semibold text-emerald-400">{fmt(selectedInvoice.total_paid)}</span>
-                            </div>
-                            <div className="flex items-center justify-between py-2">
-                                <span className="font-jakarta text-sm text-stone-400">Balance Due</span>
-                                <span className="font-jakarta font-semibold text-rose-400">{fmt(selectedInvoice.balance_due)}</span>
+                            <div className="flex items-center justify-between">
+                                <dt className="text-ink/70">Balance due</dt>
+                                <dd className="tabular-nums text-ink font-medium">{fmtLKR(selectedInvoice.balance_due)}</dd>
                             </div>
                             <div className="flex items-center justify-between pt-2">
-                                <span className="font-jakarta text-xs text-stone-500">Status</span>
-                                <StatusBadge status={selectedInvoice.status} />
+                                <dt className="text-ink/70">Status</dt>
+                                <dd><StatusDot status={selectedInvoice.status} label={STATUS_LABEL[selectedInvoice.status]} /></dd>
                             </div>
-                        </div>
+                        </dl>
+                    </Modal>
+                );
+            })()}
 
-                        {/* Modal Footer */}
-                        <div className="px-6 py-4 border-t border-white/10 flex justify-end gap-3 bg-stone-950/40">
-                            <button
-                                onClick={() => setShowTaxModal(false)}
-                                className="px-5 py-2 text-xs font-jakarta font-semibold uppercase tracking-widest border border-white/10 text-stone-300 hover:text-stone-100 hover:border-white/25 transition-colors"
-                            >
-                                Close
-                            </button>
-                            {selectedInvoice.status !== 'SETTLED' && (
-                                <button
-                                    onClick={() => { setShowTaxModal(false); setPayAmount(toNum(selectedInvoice.balance_due).toFixed(2)); setShowPayModal(true); }}
-                                    className="px-5 py-2 text-xs font-jakarta font-semibold uppercase tracking-widest bg-skynest-accent text-white hover:bg-skynest-accent/90 transition-colors"
-                                >
-                                    Record Payment
-                                </button>
-                            )}
-                        </div>
-                    </div>
-                </div>
-            )}
-
-            {/* ══════════════════════════════════════════════════════════════════════ */}
-            {/* ── Record Payment Modal ─────────────────────────────────────────────── */}
-            {/* ══════════════════════════════════════════════════════════════════════ */}
+            {/* ── Record payment modal ──────────────────────────────────────────── */}
             {showPayModal && selectedInvoice && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm">
-                    <div className="bg-stone-900 border border-white/10 w-full max-w-md shadow-2xl">
-                        {/* Modal Header */}
-                        <div className="flex items-start justify-between p-6 border-b border-white/10">
-                            <div>
-                                <p className="text-[10px] uppercase tracking-[0.2em] text-skynest-accent font-semibold font-jakarta mb-1">
-                                    Payment
-                                </p>
-                                <h2 className="font-cinzel text-xl uppercase tracking-wide text-stone-100">
-                                    Record Payment
-                                </h2>
-                            </div>
-                            <button onClick={() => { setShowPayModal(false); setPayError(null); }} className="text-stone-400 hover:text-stone-100 transition-colors">
-                                <X size={18} />
-                            </button>
-                        </div>
-
-                        <div className="p-6 space-y-5">
-                            <div className="bg-stone-950/50 border border-white/10 p-4 rounded-sm">
-                                <p className="font-jakarta text-xs text-stone-400 mb-1">Guest</p>
-                                <p className="font-jakarta font-semibold text-sm text-stone-200">{selectedInvoice.guest_name}</p>
-                                <p className="font-jakarta text-xs text-stone-400 mt-1">
-                                    Balance due: <span className="text-rose-400 font-semibold">{fmt(selectedInvoice.balance_due)}</span>
-                                </p>
-                            </div>
-
-                            {/* Amount Field */}
-                            <div>
-                                <label className="block text-[10px] font-jakarta font-semibold uppercase tracking-widest text-stone-400 mb-2">
-                                    Payment Amount (LKR)
-                                </label>
-                                <input
-                                    type="number"
-                                    min="0.01"
-                                    step="0.01"
-                                    value={payAmount}
-                                    onChange={e => setPayAmount(e.target.value)}
-                                    className="w-full px-4 py-3 text-sm font-jakarta border border-white/10 bg-stone-950 text-stone-100 focus:border-skynest-accent outline-none transition-colors"
-                                    placeholder="0.00"
-                                />
-                            </div>
-
-                            {/* Payment Method */}
-                            <div>
-                                <label className="block text-[10px] font-jakarta font-semibold uppercase tracking-widest text-stone-400 mb-2">
-                                    Payment Method
-                                </label>
-                                <div className="grid grid-cols-3 gap-2">
-                                    {([
-                                        { value: 'CASH', label: 'Cash', icon: <Banknote size={14} /> },
-                                        { value: 'CREDIT_CARD', label: 'Card', icon: <CreditCard size={14} /> },
-                                        { value: 'BANK_TRANSFER', label: 'Bank', icon: <Landmark size={14} /> },
-                                    ] as { value: 'CASH' | 'CREDIT_CARD' | 'BANK_TRANSFER'; label: string; icon: React.ReactNode }[]).map(m => (
-                                        <button
-                                            key={m.value}
-                                            type="button"
-                                            onClick={() => setPayMethod(m.value)}
-                                            className={`flex flex-col items-center gap-1.5 py-3 px-2 border text-xs font-jakarta font-semibold transition-colors ${payMethod === m.value
-                                                ? 'border-skynest-accent text-skynest-accent bg-skynest-accent/10'
-                                                : 'border-white/10 text-stone-400 hover:border-white/20'
-                                                }`}
-                                        >
-                                            {m.icon} {m.label}
-                                        </button>
-                                    ))}
-                                </div>
-                            </div>
-
-                            {payError && (
-                                <p className="text-xs font-jakarta text-rose-300 bg-rose-500/10 border border-rose-500/30 px-3 py-2">
-                                    {payError}
-                                </p>
-                            )}
-                        </div>
-
-                        {/* Modal Footer */}
-                        <div className="px-6 py-4 border-t border-white/10 flex justify-end gap-3 bg-stone-950/40">
-                            <button
-                                onClick={() => { setShowPayModal(false); setPayError(null); }}
-                                disabled={payLoading}
-                                className="px-5 py-2 text-xs font-jakarta font-semibold uppercase tracking-widest border border-white/10 text-stone-300 hover:text-stone-100 hover:border-white/25 transition-colors disabled:opacity-50"
-                            >
-                                Cancel
-                            </button>
-                            <button
+                <Modal
+                    eyebrow="Payment"
+                    title="Record payment"
+                    onClose={() => { setShowPayModal(false); setPayError(null); }}
+                    footer={
+                        <>
+                            <Btn variant="ghost" onClick={() => { setShowPayModal(false); setPayError(null); }} disabled={payLoading}>Cancel</Btn>
+                            <Btn
+                                variant="primary"
                                 onClick={handleRecordPayment}
-                                disabled={payLoading || !payAmount || parseFloat(payAmount) <= 0}
-                                className="px-5 py-2 text-xs font-jakarta font-semibold uppercase tracking-widest bg-skynest-accent text-white hover:bg-skynest-accent/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                                loading={payLoading}
+                                disabled={!payAmount || parseFloat(payAmount) <= 0}
                             >
-                                {payLoading ? (
-                                    <><RefreshCw size={12} className="animate-spin" /> Processing…</>
-                                ) : (
-                                    <><CheckCircle size={12} /> Confirm Payment</>
-                                )}
-                            </button>
+                                Confirm payment
+                            </Btn>
+                        </>
+                    }
+                >
+                    <div className="flex items-baseline justify-between gap-4 pb-4 border-b border-skynest-hairline font-jakarta">
+                        <span className="text-[15px] text-ink">{selectedInvoice.guest_name}</span>
+                        <span className="text-[13px] text-ink/70">
+                            Balance <span className="text-ink font-medium tabular-nums">{fmtLKR(selectedInvoice.balance_due)}</span>
+                        </span>
+                    </div>
+
+                    <Field
+                        label="Amount (LKR)"
+                        type="number"
+                        min="0.01"
+                        step="0.01"
+                        value={payAmount}
+                        onChange={e => setPayAmount(e.target.value)}
+                        placeholder="0.00"
+                    />
+
+                    <div className="flex flex-col gap-2">
+                        <span className="font-jakarta text-[11px] font-medium tracking-[0.12em] uppercase text-ink/70">Method</span>
+                        <div className="grid grid-cols-3 gap-2" role="radiogroup" aria-label="Payment method">
+                            {PAY_METHODS.map(m => {
+                                const active = payMethod === m.value;
+                                const Icon = m.icon;
+                                return (
+                                    <button
+                                        key={m.value}
+                                        type="button"
+                                        role="radio"
+                                        aria-checked={active}
+                                        onClick={() => setPayMethod(m.value)}
+                                        className={`flex flex-col items-center gap-2 py-4 rounded-[4px] border font-jakarta text-[11px] font-medium tracking-[0.12em] uppercase transition-colors duration-300 ${
+                                            active ? 'border-ink bg-ink text-white' : 'border-skynest-hairline text-ink/70 hover:border-ink/30 hover:text-ink'
+                                        }`}
+                                    >
+                                        <Icon className="w-4 h-4" />
+                                        {m.label}
+                                    </button>
+                                );
+                            })}
                         </div>
                     </div>
-                </div>
-            )}
 
-        </div>
+                    {payError && (
+                        <p className="font-jakarta text-[13px] text-red-700">{payError}</p>
+                    )}
+                </Modal>
+            )}
+        </>
     );
 }

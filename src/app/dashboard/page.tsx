@@ -1,16 +1,19 @@
 "use client";
 
 import Link from "next/link";
-import Image from "next/image";
-import { usePathname } from "next/navigation";
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import gsap from "gsap";
 import {
-  RefreshCw, Activity, Database, Search, Phone, Mail, ArrowUpRight, ChevronDown,
+  Activity, Database, Phone, Mail, ArrowUpRight, ChevronDown,
 } from "lucide-react";
 import { useAuth } from "@/context/auth-context";
 import { apiFetch, ApiError } from "@/lib/api-client";
 import { ReceptionistHub } from "@/components/dashboard/receptionist/ReceptionistHub";
+import { DashboardHeader } from "@/components/dashboard/DashboardHeader";
+import {
+  fmtDate, fmtMoney, titleCase, initials,
+  StatusDot, SectionHeader, Segmented, SearchField, Empty, DashboardMasthead, RoomBoard,
+} from "@/components/dashboard/ui";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -129,119 +132,10 @@ function usePrefersReducedMotion(): boolean {
   return reduced;
 }
 
-function fmtDate(v?: string | null): string {
-  if (!v) return "—";
-  const d = new Date(v);
-  return isNaN(d.getTime()) ? v : d.toLocaleDateString("en-GB", { day: "2-digit", month: "short" });
-}
-
-function fmtMoney(n: number | null | undefined, decimals = 0): string {
-  return `$${Number(n ?? 0).toLocaleString("en-US", { minimumFractionDigits: decimals, maximumFractionDigits: decimals })}`;
-}
-
-function titleCase(s: string): string {
-  return s.toLowerCase().replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
-}
-
-function initials(first?: string | null, last?: string | null): string {
-  return `${first?.[0] ?? ""}${last?.[0] ?? ""}`.toUpperCase() || "—";
-}
-
-/** Branch photography for the masthead, matched on city name. */
-function mastheadImage(city?: string | null): string {
-  const c = (city ?? "").toLowerCase();
-  if (c.includes("galle")) return "/Galle.jpg";
-  if (c.includes("kandy")) return "/Kandy_hotel.jpg";
-  return "/Colombo.jpg";
-}
-
-// ── Status Indicator ──────────────────────────────────────────────────────────
-
-const STATUS_DOT: Record<string, string> = {
-  CHECKED_IN: "bg-emerald-500",
-  AVAILABLE: "bg-emerald-500",
-  ON_DUTY: "bg-emerald-500",
-  INSERT: "bg-emerald-500",
-  CONFIRMED: "bg-sky-500",
-  RESERVED: "bg-sky-500",
-  SCHEDULED: "bg-sky-500",
-  OCCUPIED: "bg-ink",
-  PENDING: "bg-amber-500",
-  UPDATE: "bg-amber-500",
-  CANCELLED: "bg-red-500",
-  DELETE: "bg-red-500",
-};
-
-function StatusDot({ status, label }: { status: string; label?: string }) {
-  const s = status.toUpperCase();
-  return (
-    <span className="inline-flex items-center gap-2 font-jakarta text-[11px] font-medium tracking-[0.12em] uppercase text-ink/70 whitespace-nowrap">
-      <span className={`w-2 h-2 shrink-0 rounded-full ${STATUS_DOT[s] ?? "bg-ink-faded"}`} />
-      {label ?? s.replace(/_/g, " ")}
-    </span>
-  );
-}
-
-// ── Section Header ────────────────────────────────────────────────────────────
-
-function SectionHeader({ index, title, children }: { index: string; title: string; children?: React.ReactNode }) {
-  return (
-    <div data-reveal className="flex flex-col md:flex-row md:items-end justify-between gap-6 pb-6 border-b border-skynest-hairline">
-      <div>
-        <p className="font-jakarta text-[11px] font-medium tracking-[0.16em] uppercase text-ink/70">{index}</p>
-        <h2 className="mt-2 font-cinzel text-[28px] md:text-[32px] leading-[1.1] text-ink">{title}</h2>
-      </div>
-      {children}
-    </div>
-  );
-}
-
-// ── Segmented Filter ──────────────────────────────────────────────────────────
-
-function Segmented<T extends string>({
-  options, value, onChange,
-}: {
-  options: { value: T; label: string; count?: number }[];
-  value: T;
-  onChange: (v: T) => void;
-}) {
-  return (
-    <div className="flex items-center gap-6 overflow-x-auto">
-      {options.map((o) => {
-        const active = o.value === value;
-        return (
-          <button
-            key={o.value}
-            onClick={() => onChange(o.value)}
-            className={`relative pb-2 font-jakarta text-[11px] font-medium tracking-[0.12em] uppercase whitespace-nowrap transition-colors duration-300 ${
-              active ? "text-ink" : "text-ink/70 hover:text-ink"
-            }`}
-          >
-            {o.label}
-            {o.count !== undefined && <span className="ml-1 text-ink/70 tabular-nums">{o.count}</span>}
-            <span
-              className={`absolute left-0 bottom-0 h-px bg-skynest-accent transition-all duration-300 ${active ? "w-full" : "w-0"}`}
-            />
-          </button>
-        );
-      })}
-    </div>
-  );
-}
-
-// ── Empty State ───────────────────────────────────────────────────────────────
-
-function Empty({ children }: { children: React.ReactNode }) {
-  return (
-    <p className="py-12 text-center font-jakarta text-[15px] text-ink/70">{children}</p>
-  );
-}
-
 // ── Main Page Component ───────────────────────────────────────────────────────
 
 export default function DashboardPage() {
-  const { user, loading: authLoading, logout } = useAuth();
-  const pathname = usePathname();
+  const { user, loading: authLoading } = useAuth();
   const reducedMotion = usePrefersReducedMotion();
   const mainRef = useRef<HTMLDivElement>(null);
 
@@ -384,20 +278,6 @@ export default function DashboardPage() {
   // Cross-branch view (admin, no property selected) needs branch labels to disambiguate room numbers.
   const showBranch = isAdminOrDba && !selectedBranch;
 
-  // Rooms grouped into one compact row per floor (and per branch in the cross-branch view).
-  const roomGroups = useMemo(() => {
-    const groups = new Map<string, { branch: string | null; floor: number; rooms: RoomOccupancyStatus[] }>();
-    for (const r of filteredRooms) {
-      const branch = showBranch ? (r.branch_name ?? "—") : null;
-      const key = `${branch ?? ""}|${r.floor}`;
-      if (!groups.has(key)) groups.set(key, { branch, floor: r.floor, rooms: [] });
-      groups.get(key)!.rooms.push(r);
-    }
-    return [...groups.values()].sort(
-      (a, b) => (a.branch ?? "").localeCompare(b.branch ?? "") || a.floor - b.floor
-    );
-  }, [filteredRooms, showBranch]);
-
   // ── Filtered In-House / Branch Guests ───────────────────────────────────────
   const inHouseGuests = useMemo(() => {
     let list = bookings;
@@ -435,22 +315,6 @@ export default function DashboardPage() {
     tomorrow: staffRoster.filter((s) => s.shift_status_tomorrow === "SCHEDULED").length,
   }), [staffRoster]);
 
-  // ── Navigation Items by Role ────────────────────────────────────────────────
-  const navItems = useMemo(() => {
-    const all = [
-      { href: "/dashboard", label: "Overview", roles: ["RECEPTIONIST", "SERVICE_STAFF", "MANAGER", "ADMINISTRATOR", "DBA"] },
-      { href: "/dashboard/staff", label: "Staff", roles: ["MANAGER", "ADMINISTRATOR", "DBA"] },
-      { href: "/dashboard/branches", label: "Branches", roles: ["ADMINISTRATOR", "DBA"] },
-      { href: "/dashboard/rooms", label: "Rooms", roles: ["RECEPTIONIST", "MANAGER", "ADMINISTRATOR", "DBA"] },
-      { href: "/dashboard/catalogue", label: "Catalogue", roles: ["RECEPTIONIST", "MANAGER", "ADMINISTRATOR", "DBA"] },
-      { href: "/dashboard/bookings", label: "Bookings", roles: ["RECEPTIONIST", "MANAGER", "ADMINISTRATOR", "DBA"] },
-      { href: "/dashboard/billing", label: "Billing", roles: ["RECEPTIONIST", "MANAGER", "ADMINISTRATOR", "DBA"] },
-    ];
-    if (!user) return [];
-    return all.filter((item) => item.roles.includes(user.role));
-  }, [user]);
-
-
   // ── Property Name Resolution ────────────────────────────────────────────────
   const propertyName = stats?.branch_name || user?.branchName || "Sky Nest Galle";
   const propertyCity = stats?.branch_city || "";
@@ -459,7 +323,6 @@ export default function DashboardPage() {
     ? (selectedBranchRow?.branch_name ?? "All Properties")
     : propertyName;
   const mastheadCity = isAdminOrDba ? selectedBranchRow?.city : propertyCity || propertyName;
-  const roleLabel = isManager ? "General Manager" : isReceptionist ? "Front Desk" : titleCase(user?.role ?? "");
   const todayLabel = new Date().toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long" });
   const occupancy = Math.min(100, Math.max(0, Number(stats?.occupancy_rate ?? 0)));
 
@@ -494,147 +357,46 @@ export default function DashboardPage() {
   return (
     <div ref={mainRef} className="min-h-screen bg-paper text-ink font-jakarta">
 
-      {/* ── Top Navigation Bar ────────────────────────────────────────────── */}
-      <header className="sticky top-0 z-50 bg-ink/90 backdrop-blur-[12px] border-b border-white/10">
-        <div className="max-w-[1440px] mx-auto px-6 md:px-12 h-16 flex items-center justify-between gap-8">
-          <Link href="/" className="flex items-center gap-4 shrink-0">
-            <span className="font-cinzel text-[17px] tracking-[0.2em] text-white">SKYNEST</span>
-            <span className="hidden lg:block w-px h-4 bg-white/20" />
-            <span className="hidden lg:block font-jakarta text-[11px] tracking-[0.12em] uppercase text-white/60">
-              {roleLabel}
-            </span>
-          </Link>
-
-          <nav className="hidden md:flex items-center gap-8">
-            {navItems.map(({ href, label }) => {
-              const active = pathname === href;
-              return (
-                <Link
-                  key={href}
-                  href={href}
-                  className={`relative py-2 font-jakarta text-[11px] font-medium tracking-[0.12em] uppercase transition-colors duration-300 ${
-                    active ? "text-white" : "text-white/70 hover:text-white"
-                  }`}
-                >
-                  {label}
-                  {active && <span className="absolute left-0 right-0 -bottom-1 h-px bg-skynest-accent" />}
-                </Link>
-              );
-            })}
-          </nav>
-
-          <div className="flex items-center gap-4 shrink-0">
-            <button
-              onClick={fetchAll}
-              disabled={loading}
-              aria-label="Refresh data"
-              title={`Updated ${lastRefresh.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })}`}
-              className="w-8 h-8 flex items-center justify-center text-white/70 hover:text-white transition-colors duration-300"
-            >
-              <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
-            </button>
-            {user && (
-              <span
-                title={`${user.firstName} ${user.lastName}`}
-                className="w-8 h-8 rounded-full border border-white/20 flex items-center justify-center font-jakarta text-[11px] font-medium tracking-[0.08em] text-white/80"
-              >
-                {initials(user.firstName, user.lastName)}
-              </span>
-            )}
-            <button
-              onClick={logout}
-              className="hidden sm:flex items-center px-4 py-2 font-jakarta text-[11px] font-medium tracking-[0.12em] uppercase text-white/70 border border-white/20 hover:text-white hover:border-skynest-accent transition-colors duration-300"
-            >
-              Sign Out
-            </button>
-          </div>
-        </div>
-      </header>
+      <DashboardHeader onRefresh={fetchAll} refreshing={loading} lastRefresh={lastRefresh} />
 
       {isReceptionist ? (
-        <main className="max-w-[1440px] mx-auto px-6 md:px-12 py-12 space-y-12">
-          <ReceptionistHub
-            user={user}
-            stats={stats}
-            bookings={bookings}
-            roomsStatus={roomsStatus}
-            propertyName={propertyName}
-            onRefresh={fetchAll}
-          />
-        </main>
+        <ReceptionistHub
+          user={user}
+          stats={stats}
+          bookings={bookings}
+          roomsStatus={roomsStatus}
+          propertyName={propertyName}
+          error={error}
+          onRefresh={fetchAll}
+        />
       ) : (
         <>
           {/* ── Masthead ──────────────────────────────────────────────────── */}
-          <section className="relative overflow-hidden bg-ink text-white">
-            <Image
-              src={mastheadImage(mastheadCity)}
-              alt=""
-              fill
-              priority
-              sizes="100vw"
-              className="object-cover opacity-30"
-            />
-            {/* Solid ink behind the title on the left; the photo only shows through on the right. */}
-            <div className="absolute inset-0 bg-gradient-to-r from-ink via-ink/90 to-ink/60" />
-            <div className="absolute inset-0 bg-gradient-to-t from-ink to-transparent" />
-
-            <div className="relative max-w-[1440px] mx-auto px-6 md:px-12 pt-12 md:pt-16 pb-8">
-              <div data-reveal className="flex flex-col md:flex-row md:items-end justify-between gap-8">
-                <div>
-                  <p className="font-jakarta text-[11px] font-medium tracking-[0.16em] uppercase text-white/60">{todayLabel}</p>
-                  <h1
-                    className="mt-2 font-cinzel font-normal leading-[1.05] text-white"
-                    style={{ fontSize: "clamp(2rem, 4vw, 3.5rem)" }}
-                  >
-                    {mastheadTitle}
-                  </h1>
-                </div>
-
-                {isAdminOrDba && (
-                  <label className="relative flex items-center gap-4 border-b border-white/20 focus-within:border-skynest-accent transition-colors duration-300">
-                    <span className="font-jakarta text-[11px] font-medium tracking-[0.12em] uppercase text-white/60">Property</span>
-                    <select
-                      value={selectedBranch}
-                      onChange={(e) => setSelectedBranch(e.target.value)}
-                      className="appearance-none bg-transparent py-2 pr-8 font-jakarta text-[15px] text-white focus:outline-none cursor-pointer"
-                    >
-                      <option value="" className="text-ink">All Properties</option>
-                      {branches.map((b) => (
-                        <option key={b.branch_id} value={b.branch_id} className="text-ink">
-                          {b.branch_name}
-                        </option>
-                      ))}
-                    </select>
-                    <ChevronDown className="absolute right-0 w-4 h-4 text-white/60 pointer-events-none" />
-                  </label>
-                )}
-              </div>
-
-              {error && (
-                <p className="mt-8 font-jakarta text-[13px] text-red-300">{error}</p>
-              )}
-
-              {/* KPI strip */}
-              <div className="mt-8 md:mt-12 grid grid-cols-2 lg:grid-cols-4 border-t border-white/10">
-                {kpis.map((k, i) => (
-                  <div
-                    key={k.label}
-                    data-reveal
-                    className={`relative pt-6 pb-2 pr-6 ${i % 2 === 1 ? "pl-6 border-l border-white/10" : ""} ${
-                      i > 0 ? "lg:pl-8 lg:border-l lg:border-white/10" : ""
-                    } ${i > 1 ? "border-t border-white/10 lg:border-t-0" : ""}`}
-                  >
-                    {"bar" in k && typeof k.bar === "number" && (
-                      <span className="absolute -top-px left-0 h-px bg-skynest-accent" style={{ width: `${k.bar}%` }} />
-                    )}
-                    <p className="font-jakarta text-[11px] font-medium tracking-[0.16em] uppercase text-white/60">{k.label}</p>
-                    <p className="mt-2 font-cinzel text-[32px] md:text-[40px] leading-none text-white tabular-nums">{k.value}</p>
-                    <p className="mt-2 font-jakarta text-[13px] text-white/60">{k.sub}</p>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </section>
+          <DashboardMasthead
+            eyebrow={todayLabel}
+            title={mastheadTitle}
+            imageKey={mastheadCity}
+            kpis={kpis}
+            error={error}
+            aside={isAdminOrDba && (
+              <label className="relative flex items-center gap-4 border-b border-white/20 focus-within:border-skynest-accent transition-colors duration-300">
+                <span className="font-jakarta text-[11px] font-medium tracking-[0.12em] uppercase text-white/60">Property</span>
+                <select
+                  value={selectedBranch}
+                  onChange={(e) => setSelectedBranch(e.target.value)}
+                  className="appearance-none bg-transparent py-2 pr-8 font-jakarta text-[15px] text-white focus:outline-none cursor-pointer"
+                >
+                  <option value="" className="text-ink">All Properties</option>
+                  {branches.map((b) => (
+                    <option key={b.branch_id} value={b.branch_id} className="text-ink">
+                      {b.branch_name}
+                    </option>
+                  ))}
+                </select>
+                <ChevronDown className="absolute right-0 w-4 h-4 text-white/60 pointer-events-none" />
+              </label>
+            )}
+          />
 
           <main className="max-w-[1440px] mx-auto px-6 md:px-12 py-12 md:py-16 space-y-16 md:space-y-20">
 
@@ -653,90 +415,13 @@ export default function DashboardPage() {
                 />
               </SectionHeader>
 
-              {filteredRooms.length === 0 ? (
-                <Empty>No rooms in this view.</Empty>
-              ) : (
-                <div className="divide-y divide-skynest-hairline">
-                  {roomGroups.map((group) => (
-                    <div
-                      key={`${group.branch ?? ""}|${group.floor}`}
-                      data-reveal
-                      className="flex flex-col md:flex-row gap-4 py-4 first:pt-0"
-                    >
-                      <div className="md:w-40 shrink-0 md:pt-4">
-                        {group.branch && <p className="font-jakarta text-[13px] text-ink">{group.branch}</p>}
-                        <p className="font-jakarta text-[11px] font-medium tracking-[0.16em] uppercase text-ink/70">
-                          Floor {group.floor}
-                        </p>
-                      </div>
-
-                      <div className="flex-1 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
-                        {group.rooms.map((room) => {
-                          const isOccupied = room.status === "OCCUPIED";
-                          const isAvailable = room.status === "AVAILABLE";
-                          const statusLabel = isOccupied
-                            ? "Occupied"
-                            : isAvailable
-                              ? "Available"
-                              : room.status === "RESERVED" ? "Reserved" : "Out of service";
-                          return (
-                            <div
-                              key={room.room_id}
-                              className={`flex flex-col gap-2 p-4 rounded-[4px] border transition-colors duration-300 ${
-                                isOccupied
-                                  ? "bg-ink text-white border-ink"
-                                  : "bg-paper border-skynest-hairline hover:border-ink/30"
-                              }`}
-                            >
-                              <div className="flex items-baseline justify-between gap-2">
-                                <span className={`font-cinzel text-[24px] leading-none ${isOccupied ? "text-white" : "text-ink"}`}>
-                                  {room.room_number}
-                                </span>
-                                <span className={`font-jakarta text-[11px] tracking-[0.08em] uppercase truncate ${isOccupied ? "text-white/70" : "text-ink/70"}`}>
-                                  {titleCase(room.type)}
-                                </span>
-                              </div>
-
-                              <p className={`flex items-center gap-2 font-jakarta text-[11px] font-medium tracking-[0.12em] uppercase ${isOccupied ? "text-white" : "text-ink"}`}>
-                                <span
-                                  className={`w-2 h-2 shrink-0 rounded-full ${
-                                    isOccupied ? "bg-skynest-accent" : isAvailable ? "bg-emerald-500" : room.status === "RESERVED" ? "bg-sky-500" : "bg-ink-faded"
-                                  }`}
-                                />
-                                {statusLabel}
-                              </p>
-
-                              <p className={`font-jakarta text-[12px] truncate ${isOccupied ? "text-white/70" : "text-ink/70"}`}>
-                                {isOccupied
-                                  ? `${room.guest_name || "Guest"}${room.check_out_date ? ` · until ${fmtDate(room.check_out_date)}` : ""}`
-                                  : isAvailable
-                                    ? `${fmtMoney(room.price_per_night)} / night`
-                                    : " "}
-                              </p>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
+              <RoomBoard rooms={filteredRooms} showBranch={showBranch} />
             </section>
 
             {/* ── 02 · Guests ───────────────────────────────────────────── */}
             <section className="space-y-8">
               <SectionHeader index="02 — Guests" title={isManager ? "In Residence" : "Reservations"}>
-                <label className="relative w-full md:w-72 flex items-center border-b border-skynest-hairline focus-within:border-skynest-accent transition-colors duration-300">
-                  <Search className="w-4 h-4 text-ink/50 shrink-0" />
-                  <input
-                    type="text"
-                    value={guestSearch}
-                    onChange={(e) => setGuestSearch(e.target.value)}
-                    placeholder="Search guest or room"
-                    aria-label="Search guest or room"
-                    className="w-full pl-4 py-2 bg-transparent font-jakarta text-[15px] text-ink placeholder:text-ink/60 focus:outline-none"
-                  />
-                </label>
+                <SearchField value={guestSearch} onChange={setGuestSearch} placeholder="Search guest or room" />
               </SectionHeader>
 
               {inHouseGuests.length === 0 ? (
