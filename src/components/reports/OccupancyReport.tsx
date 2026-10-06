@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { apiFetch } from '@/lib/api-client';
 import { exportToCsv } from '@/lib/export-csv';
 import { ReportFilterBar } from './ReportFilterBar';
@@ -34,13 +34,26 @@ interface OccupancyApiResponse {
 }
 
 export function OccupancyReport() {
-  const now = new Date();
-  const defaultStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
-  const defaultEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().split('T')[0];
+  // Current local date (YYYY-MM-DD)
+  const today = useMemo(() => {
+    const d = new Date();
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  }, []);
+
+  // Default start date: 1st of current month
+  const defaultStart = useMemo(() => {
+    const d = new Date();
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    return `${year}-${month}-01`;
+  }, []);
 
   const [branchId, setBranchId] = useState<string>('');
   const [startDate, setStartDate] = useState<string>(defaultStart);
-  const [endDate, setEndDate] = useState<string>(defaultEnd);
+  const [endDate, setEndDate] = useState<string>(today);
 
   const [loading, setLoading] = useState<boolean>(true);
   const [savingSnapshot, setSavingSnapshot] = useState<boolean>(false);
@@ -49,16 +62,27 @@ export function OccupancyReport() {
   const [error, setError] = useState<string | null>(null);
 
   const fetchReport = useCallback(async () => {
+    // Validation guards: no inverted ranges, no future dates
+    if (!startDate || !endDate) return;
+    if (startDate > endDate) {
+      setError('End date cannot be earlier than start date.');
+      return;
+    }
+    if (endDate > today) {
+      setError('Dates beyond today cannot be selected.');
+      return;
+    }
+
     setLoading(true);
     setError(null);
     setSnapshotMsg(null);
     try {
       const q = new URLSearchParams();
       if (branchId) q.set('branchId', branchId);
-      if (startDate) q.set('startDate', startDate);
-      if (endDate) q.set('endDate', endDate);
+      q.set('startDate', startDate);
+      q.set('endDate', endDate);
 
-      const res = await apiFetch<OccupancyApiResponse>(`/api/v1/reports/occupancy?${q.toString()}`);
+      const res = await apiFetch<OccupancyApiResponse>(`/reports/occupancy?${q.toString()}`);
       if (res && res.data) {
         setData(res.data);
       }
@@ -67,7 +91,7 @@ export function OccupancyReport() {
     } finally {
       setLoading(false);
     }
-  }, [branchId, startDate, endDate]);
+  }, [branchId, startDate, endDate, today]);
 
   useEffect(() => {
     fetchReport();
@@ -93,7 +117,7 @@ export function OccupancyReport() {
     setSavingSnapshot(true);
     setSnapshotMsg(null);
     try {
-      await apiFetch('/api/v1/reports/snapshots', {
+      await apiFetch('/reports/snapshots', {
         method: 'POST',
         body: JSON.stringify({
           reportType: 'OCCUPANCY',
@@ -116,7 +140,7 @@ export function OccupancyReport() {
 
   return (
     <div className="space-y-6">
-      {/* Shared Filter Bar */}
+      {/* Shared Filter Bar with safe Date constraints */}
       <ReportFilterBar
         selectedBranch={branchId}
         onBranchChange={setBranchId}
@@ -134,7 +158,7 @@ export function OccupancyReport() {
       {snapshotMsg && (
         <div className="p-3 bg-amber-500/10 border border-amber-500/30 text-amber-300 text-xs flex items-center justify-between">
           <span>{snapshotMsg}</span>
-          <button onClick={() => setSnapshotMsg(null)} className="text-amber-400 hover:text-white ml-2">Dismiss</button>
+          <button onClick={() => setSnapshotMsg(null)} className="text-amber-400 hover:text-white ml-2 cursor-pointer">Dismiss</button>
         </div>
       )}
 
@@ -191,7 +215,7 @@ export function OccupancyReport() {
           <button
             onClick={handleSaveSnapshot}
             disabled={savingSnapshot || loading || !data}
-            className="mt-3 w-full py-1.5 px-3 bg-amber-600/20 hover:bg-amber-600/30 border border-amber-500/40 text-amber-300 text-xs font-semibold uppercase tracking-wider transition disabled:opacity-50"
+            className="mt-3 w-full py-1.5 px-3 bg-amber-600/20 hover:bg-amber-600/30 border border-amber-500/40 text-amber-300 text-xs font-semibold uppercase tracking-wider transition disabled:opacity-50 cursor-pointer"
           >
             {savingSnapshot ? 'Archiving...' : 'Save Snapshot'}
           </button>
