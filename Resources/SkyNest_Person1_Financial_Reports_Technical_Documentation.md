@@ -253,3 +253,52 @@ const billingSummarySchema = z.object({
   branchId: z.string().uuid().optional().or(z.literal('')),
 });
 ```
+
+---
+
+## 7. Next.js 16 Editorial UI Implementation
+
+Both frontend components (`MonthlyRevenueReport.tsx` and `BillingSummaryReport.tsx`) integrate seamlessly into the `ReportsManagementPage` tab container, complying with all SkyNest design tokens:
+- **Typography:** `font-cinzel` for titles and KPI numbers, `font-jakarta` for descriptive labels, and monospace formatting for currency figures.
+- **Color Tokens:** `#D9722C` (`text-amber-400` / `skynest-accent`) for interactive highlights and service revenues; `text-ink` and `border-white/10` for high-contrast dark dashboard styling.
+- **Interactive Features:**
+  - Dynamic Fiscal Year selector for Report 4.
+  - Interactive Debtor Aging chip toggles (`All Ages`, `>30 Days`, `>60 Days`, `>90 Days`) for Report 2.
+  - Live search bar filtering by guest name, booking reference, or room number.
+  - Collapsible per-branch monthly breakdown cards.
+  - RFC 4180 compliant CSV export via client-side blob download (`exportToCsv`).
+
+---
+
+## 8. Rule B17 Snapshot Caching & Verification Results
+
+### 8.1 Audit Snapshot Archival (Rule B17)
+Both reports provide an **"Archive Snapshot (B17)"** button that persists the currently filtered dataset directly into the `report_snapshots` table as an immutable JSONB payload:
+```sql
+INSERT INTO report_snapshots (
+  report_type,
+  report_period_start,
+  report_period_end,
+  branch_id,
+  report_data
+) VALUES ($1, $2, $3, $4, $5::jsonb)
+RETURNING *;
+```
+Archived snapshots can be viewed anytime under the **Audit Snapshots** tab of `/dashboard/reports`.
+
+### 8.2 End-to-End Verification Matrix
+
+| Verification Target | Command / URL | Result |
+|---|---|---|
+| Backend TypeScript Build | `cd backend && npx tsc --noEmit` | **0 errors (Clean ✅)** |
+| Frontend TypeScript Build | `npx tsc --noEmit` | **0 errors (Clean ✅)** |
+| Report 4 API Endpoint | `GET /api/v1/reports/revenue/monthly?year=2026` | **HTTP 200 OK — Returns segregated room vs service revenue with 4-tier taxes** |
+| Report 2 API Endpoint | `GET /api/v1/reports/revenue/billing-summary?status=ALL` | **HTTP 200 OK — Returns invoices, debtor aging days, and balance due** |
+| Rule B17 Archival | `POST /api/v1/reports/snapshots` | **HTTP 201 Created — Frozen JSONB saved to live database** |
+| RFC 4180 CSV Download | UI Export Action | **Generates valid `.csv` file with quoted cells and headers** |
+
+---
+
+## 9. Conclusion
+
+The Financial & Revenue Intelligence Engine authored by Person 1 satisfies all requirements set forth in **SRS §4.8 (REQ-RPT-02 & REQ-RPT-03)**, enforces the statutory Sri Lankan indirect tax cascade, prevents Cartesian join explosions, and adheres to the Zero ORM and Live Database Truth architectural mandates.
