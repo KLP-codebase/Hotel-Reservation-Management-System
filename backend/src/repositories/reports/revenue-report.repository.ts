@@ -6,15 +6,31 @@ import { DbAdapter } from '../../config/db';
 
 // ── Report 4 Types ────────────────────────────────────────────────────────────
 
+/**
+ * MonthlyRevenueRow
+ * 
+ * Represents an aggregated financial summary for a single hotel branch over a
+ * specific calendar month, distinguishing room accommodation tariff revenue
+ * from ancillary guest service charges, alongside statutory taxes.
+ */
 export interface MonthlyRevenueRow {
-  month_key: string;         // e.g. "2026-01"
-  month_label: string;       // e.g. "Jan 2026"
+  /** YYYY-MM key used for indexing and chronological ordering (e.g. "2026-03") */
+  month_key: string;
+  /** Human-readable month label for display and reporting (e.g. "Mar 2026") */
+  month_label: string;
+  /** Unique UUID identifier of the hotel branch */
   branch_id: string;
+  /** Name of the hotel branch (e.g. "Sky Nest Kandy") */
   branch_name: string;
+  /** Base accommodation revenue derived from room tariffs and meal plans (in LKR) */
   total_room_revenue: string;
+  /** Ancillary service consumption revenue (dining, spa, laundry, transport in LKR) */
   total_service_revenue: string;
+  /** Total base turnover before taxes (room + service revenue in LKR) */
   subtotal_base_revenue: string;
+  /** Combined statutory taxes collected (SC + TDL + SSCL + VAT in LKR) */
   total_taxes_collected: string;
+  /** Final gross invoiced total including all statutory taxes (in LKR) */
   gross_revenue: string;
 }
 
