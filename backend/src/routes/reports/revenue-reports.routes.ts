@@ -14,6 +14,11 @@ const repo = new RevenueReportRepository(db);
 
 // ── Zod validation schemas ────────────────────────────────────────────────────
 
+/**
+ * Zod schema for validating query parameters passed to GET /api/v1/reports/revenue/monthly
+ * - year: 4-digit fiscal year between 2000 and 2100 (defaults to current year)
+ * - branchId: optional UUID for single-branch filtering, or empty string for all branches
+ */
 const monthlyRevenueSchema = z.object({
   year: z
     .string()
@@ -25,6 +30,13 @@ const monthlyRevenueSchema = z.object({
   branchId: z.string().uuid('branchId must be a valid UUID').optional().or(z.literal('')),
 });
 
+/**
+ * Zod schema for validating query parameters passed to GET /api/v1/reports/revenue/billing-summary
+ * - status: settlement status enum ('ALL' | 'UNPAID' | 'PARTIALLY_PAID' | 'SETTLED')
+ * - agingDays: minimum aging threshold in days (e.g. 30, 60, 90)
+ * - search: free-text search on guest name, booking ref, or room number
+ * - branchId: optional UUID for single-branch filtering
+ */
 const billingSummarySchema = z.object({
   status: z
     .enum(['ALL', 'UNPAID', 'PARTIALLY_PAID', 'SETTLED'])
