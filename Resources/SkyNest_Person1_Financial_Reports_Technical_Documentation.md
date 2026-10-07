@@ -134,3 +134,122 @@ JOIN service_totals_per_invoice st ON st.invoice_id = mi.invoice_id
 GROUP BY mi.month_key, mi.month_label, mi.month_num, mi.branch_id, mi.branch_name
 ORDER BY mi.month_key ASC, mi.branch_name ASC;
 ```
+
+---
+
+## 5. Report 2: Guest Billing Summary & Debtor Aging (Deep-Dive)
+
+### 5.1 Business Logic & Financial Integrity
+Front desk managers and financial controllers require live visibility over accounts receivable. A guest may generate an invoice, pay a partial deposit via credit card, and leave an unpaid balance. The query aggregates all receipts associated with each invoice, evaluates the balance due, and classifies aging status without duplicate counting.
+
+### 5.2 Mathematical Settlement Status Logic
+Given Invoice Total ($T$) and Sum of Payments ($P = \sum p_i$):
+- $\text{Balance Due} = T - P$
+- Status definition:
+  $$\text{Status} = \begin{cases} 
+  \text{SETTLED} & \text{if } (T - P) \le 0.01 \\
+  \text{PARTIALLY\_PAID} & \text{if } P > 0 \text{ and } (T - P) > 0.01 \\
+  \text{UNPAID} & \text{otherwise}
+  \end{cases}$$
+- Debtor aging days:
+  $$\text{Aging Days} = \text{CURRENT\_DATE} - \text{Invoice Date}$$
+
+### 5.3 Parameterized SQL Implementation
+```sql
+SELECT
+  i.invoice_id::text,
+  COALESCE(b.id, b.booking_id::text)                                             AS booking_reference,
+  CONCAT(COALESCE(g.first_name, ''), ' ', COALESCE(g.last_name, ''))            AS guest_name,
+  g.email                                                                        AS guest_email,
+  g.phone                                                                        AS guest_phone,
+  br.branch_name,
+  STRING_AGG(DISTINCT rm.number, ', ')                                           AS room_numbers,
+  COALESCE(i.subtotal, 0)::text                                                  AS base_amount,
+  COALESCE(i.sc_amount, 0)::text                                                 AS service_charge_tax,
+  COALESCE(i.tdl_amount, 0)::text                                                AS tdl_amount,
+  COALESCE(i.sscl_amount, 0)::text                                               AS sscl_amount,
+  COALESCE(i.vat_amount, 0)::text                                                AS vat_amount,
+  COALESCE(i.total_amount, 0)::text                                              AS total_amount,
+  COALESCE(SUM(COALESCE(p.amount_paid, p.amount, 0)), 0)::text                  AS total_paid,
+  ROUND(
+    COALESCE(i.total_amount, 0)
+    - COALESCE(SUM(COALESCE(p.amount_paid, p.amount, 0)), 0),
+    2
+  )::text                                                                        AS balance_due,
+  COALESCE(i.issued_at, i.created_at, CURRENT_TIMESTAMP)::text                  AS invoice_date,
+  (CURRENT_DATE - COALESCE(i.issued_at, i.created_at, CURRENT_TIMESTAMP)::date) AS aging_days,
+  CASE
+    WHEN (COALESCE(i.total_amount, 0)
+          - COALESCE(SUM(COALESCE(p.amount_paid, p.amount, 0)), 0)) <= 0.01
+         THEN 'SETTLED'
+    WHEN COALESCE(SUM(COALESCE(p.amount_paid, p.amount, 0)), 0) > 0
+         THEN 'PARTIALLY_PAID'
+    ELSE 'UNPAID'
+  END                                                                            AS computed_status
+FROM invoices i
+JOIN booking_rooms bkr
+  ON (bkr.booking_room_id = i.booking_room_id
+      OR bkr.booking_id::text = i.booking_room_id::text)
+JOIN bookings b
+  ON (b.booking_id = bkr.booking_id
+      OR b.id = bkr.booking_id::text)
+JOIN branches br ON br.branch_id = b.branch_id
+LEFT JOIN rooms rm ON rm.id = bkr.room_id
+LEFT JOIN guests g ON g.id = b.booked_by_guest_id
+LEFT JOIN payments p ON p.invoice_id = i.invoice_id
+WHERE ($1::uuid IS NULL OR b.branch_id = $1::uuid)
+  AND ($4::text IS NULL OR (
+    g.first_name ILIKE '%' || $4 || '%' OR
+    g.last_name  ILIKE '%' || $4 || '%' OR
+    b.id         ILIKE '%' || $4 || '%' OR
+    b.booking_id::text ILIKE '%' || $4 || '%' OR
+    rm.number    ILIKE '%' || $4 || '%'
+  ))
+GROUP BY
+  i.invoice_id, b.id, b.booking_id, g.first_name, g.last_name, g.email, g.phone,
+  br.branch_name, i.subtotal, i.sc_amount, i.tdl_amount, i.sscl_amount, i.vat_amount,
+  i.total_amount, i.issued_at, i.created_at
+HAVING ($2::text IS NULL OR $2 = 'ALL' OR
+  ($2 = 'UNPAID'
+    AND ROUND(COALESCE(i.total_amount, 0)
+              - COALESCE(SUM(COALESCE(p.amount_paid, p.amount, 0)), 0), 2) > 0.01
+    AND COALESCE(SUM(COALESCE(p.amount_paid, p.amount, 0)), 0) = 0)
+  OR ($2 = 'PARTIALLY_PAID'
+    AND COALESCE(SUM(COALESCE(p.amount_paid, p.amount, 0)), 0) > 0
+    AND ROUND(COALESCE(i.total_amount, 0)
+              - COALESCE(SUM(COALESCE(p.amount_paid, p.amount, 0)), 0), 2) > 0.01)
+  OR ($2 = 'SETTLED'
+    AND ROUND(COALESCE(i.total_amount, 0)
+              - COALESCE(SUM(COALESCE(p.amount_paid, p.amount, 0)), 0), 2) <= 0.01)
+)
+AND ($3::int IS NULL OR
+     (CURRENT_DATE - COALESCE(i.issued_at, i.created_at, CURRENT_TIMESTAMP)::date) >= $3::int)
+ORDER BY balance_due DESC, invoice_date DESC;
+```
+
+---
+
+## 6. REST API Architecture & Security Layer
+
+Both report endpoints are mounted on Express (`/api/v1/reports/revenue/*`) under rigid security governance:
+
+### 6.1 Role-Based Access Control (RBAC)
+- Financial reports expose company-wide turnover and customer receivables.
+- **Permitted Roles:** `ADMINISTRATOR`, `MANAGER`, `DBA`.
+- Non-privileged accounts (`RECEPTIONIST`, `SERVICE_STAFF`, `GUEST`) receive HTTP `403 Forbidden`.
+
+### 6.2 Zod Input Validation & Sanitization
+All query parameters are strictly verified prior to query execution:
+```typescript
+const monthlyRevenueSchema = z.object({
+  year: z.string().optional().transform(v => v ? parseInt(v, 10) : new Date().getFullYear()),
+  branchId: z.string().uuid().optional().or(z.literal('')),
+});
+
+const billingSummarySchema = z.object({
+  status: z.enum(['ALL', 'UNPAID', 'PARTIALLY_PAID', 'SETTLED']).optional().default('ALL'),
+  agingDays: z.string().optional().transform(v => v ? parseInt(v, 10) : null),
+  search: z.string().max(100).optional().or(z.literal('')),
+  branchId: z.string().uuid().optional().or(z.literal('')),
+});
+```
