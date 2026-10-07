@@ -16,7 +16,8 @@ import auditRoutes from './routes/audit.routes';
 import servicesRoutes from './routes/services.routes';
 import invoicesRoutes from './routes/invoices.routes';
 import taxRoutes from './routes/tax.routes';
-import serviceReportRoutes from './routes/reports/service-report.routes';
+import reportsRoutes from './routes/reports.routes';
+
 
 // ── GoF: Chain of Responsibility ──────────────────────────────────────────────
 // Each middleware added here is a node in the chain.
@@ -55,7 +56,8 @@ app.use('/api/v1/audit-logs', auditRoutes);
 app.use('/api/v1/services', servicesRoutes);
 app.use('/api/v1/invoices', invoicesRoutes);
 app.use('/api/v1/tax-configurations', taxRoutes);
-app.use('/api/v1/reports/services', serviceReportRoutes);
+app.use('/api/v1/reports', reportsRoutes);
+
 
 // ── 404 handler ────────────────────────────────────────────────────────────────
 app.use((_req, res) => {

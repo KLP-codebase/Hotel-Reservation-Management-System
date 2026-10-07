@@ -2,12 +2,13 @@ name: CI — Lint, Type-Check & Test
 
 on:
   push:
-    branches: [main, develop, "feature/**", "fix/**"]
+    branches: [develop, "feature/**", "fix/**"]
   pull_request:
     branches: [main, develop]
+  workflow_call:
 
 concurrency:
-  group: ci-${{ github.ref }}
+  group: ci-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -42,8 +43,8 @@ jobs:
       - name: Build
         run: npm run build
         env:
-          NEXT_PUBLIC_API_URL: https://api.yourdomain.com/api/v1
-          NEXT_PUBLIC_APP_URL: https://yourdomain.com
+          NEXT_PUBLIC_API_URL: http://localhost:4000
+          NEXT_PUBLIC_APP_URL: http://localhost:3000
 
   # ── Backend ───────────────────────────────────────────────────────────────────
   backend:
@@ -52,21 +53,6 @@ jobs:
     defaults:
       run:
         working-directory: backend
-
-    services:
-      postgres:
-        image: postgres:15-alpine
-        env:
-          POSTGRES_USER: test_user
-          POSTGRES_PASSWORD: test_password
-          POSTGRES_DB: hotel_rms_test
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
 
     steps:
       - name: Checkout code
@@ -87,10 +73,6 @@ jobs:
 
       - name: Type check
         run: npm run type-check
-
-      # TODO: load the raw SQL schema into the postgres service (init.sql vs
-      # database/migrations — pending team decision). Backend tests go here
-      # once a test script exists.
 
       - name: Build
         run: npm run build

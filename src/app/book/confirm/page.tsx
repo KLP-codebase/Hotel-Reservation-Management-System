@@ -805,7 +805,7 @@ function BookingConfirmContent() {
       <section className="relative z-10 flex flex-col items-center justify-center px-6 pt-36 pb-32 md:pt-40 md:pb-36 text-center overflow-hidden border-b border-skynest-hairline bg-ink shadow-[0_10px_30px_rgba(0,0,0,0.15)]">
         <div aria-hidden="true" className="absolute inset-0 pointer-events-none z-0 overflow-hidden">
           <img
-            src="/Booking.jpg"
+            src="/Booking.webp"
             alt=""
             className="w-full h-full object-cover scale-105"
             style={{
