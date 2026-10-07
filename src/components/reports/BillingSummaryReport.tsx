@@ -54,6 +54,14 @@ const AGING_OPTIONS = [
   { value: 90, label: '>90 Days' },
 ] as const;
 
+/**
+ * StatusBadge Component
+ * 
+ * Renders a color-coded status badge with an accompanying icon:
+ * - SETTLED: Emerald badge for fully settled invoices
+ * - PARTIALLY_PAID: Amber badge for invoices with recorded partial payments
+ * - UNPAID: Rose badge for folios with zero customer payments recorded
+ */
 function StatusBadge({ status }: { status: BillingSummaryRow['computed_status'] }) {
   const cfg = {
     SETTLED: { cls: 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20', icon: <CheckCircle2 size={12} />, label: 'Settled' },
