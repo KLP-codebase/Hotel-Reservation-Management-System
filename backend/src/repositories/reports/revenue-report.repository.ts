@@ -36,24 +36,49 @@ export interface MonthlyRevenueRow {
 
 // ── Report 2 Types ────────────────────────────────────────────────────────────
 
+/**
+ * BillingSummaryRow
+ * 
+ * Represents an individual invoice entry for accounts receivable reporting,
+ * including guest information, room numbers, tax details, payments received,
+ * outstanding balance, and debtor aging.
+ */
 export interface BillingSummaryRow {
+  /** UUID primary key of the invoice */
   invoice_id: string;
+  /** Human-readable alphanumeric booking code or UUID reference */
   booking_reference: string;
+  /** Concatenated first and last name of the registered guest */
   guest_name: string;
+  /** Contact email address of the guest, if registered */
   guest_email: string | null;
+  /** Contact telephone number of the guest, if registered */
   guest_phone: string | null;
+  /** Branch name where the reservation occurred */
   branch_name: string;
+  /** Comma-separated list of room numbers assigned to this booking */
   room_numbers: string | null;
+  /** Subtotal charge before taxes (in LKR) */
   base_amount: string;
+  /** Service charge tax component (10% in LKR) */
   service_charge_tax: string;
+  /** Tourism Development Levy component (1% in LKR) */
   tdl_amount: string;
+  /** Social Security Contribution Levy component (2.5% on 85% base in LKR) */
   sscl_amount: string;
+  /** Value Added Tax component (18% in LKR) */
   vat_amount: string;
+  /** Grand total invoiced including all statutory taxes (in LKR) */
   total_amount: string;
+  /** Aggregate of all verified customer payments recorded against this invoice (in LKR) */
   total_paid: string;
+  /** Remaining unsettled arrears balance due (total_amount - total_paid in LKR) */
   balance_due: string;
+  /** Date and time when the invoice was officially generated or issued */
   invoice_date: string;
+  /** Elapsed days between the invoice creation date and current server date */
   aging_days: number;
+  /** Computed settlement status based on balance due: 'SETTLED' | 'PARTIALLY_PAID' | 'UNPAID' */
   computed_status: 'SETTLED' | 'PARTIALLY_PAID' | 'UNPAID';
 }
 
