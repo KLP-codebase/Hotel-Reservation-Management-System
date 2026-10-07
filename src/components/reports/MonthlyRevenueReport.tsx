@@ -28,11 +28,22 @@ interface Props {
   year?: number;
 }
 
+/**
+ * Formats a numeric value or string representation into standard Sri Lankan Rupee currency display.
+ * @param v - Number or numeric string to format
+ * @returns Formatted currency string (e.g. "LKR 125,450.00")
+ */
 function fmt(v: string | number): string {
   const n = typeof v === 'string' ? toNum(v) : v;
   return 'LKR ' + n.toLocaleString('en-LK', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
+/**
+ * Calculates and formats the percentage ratio of a given revenue stream.
+ * @param part - Component revenue value
+ * @param total - Denominator base revenue
+ * @returns Percentage string with one decimal place (e.g. "68.4%")
+ */
 function pct(part: number, total: number): string {
   if (!total) return '0.0%';
   return ((part / total) * 100).toFixed(1) + '%';
