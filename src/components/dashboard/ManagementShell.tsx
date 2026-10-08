@@ -1,3 +1,4 @@
+import React from 'react';
 import { BarChart } from 'lucide-react';
 
 const navigation = [
@@ -7,3 +8,13 @@ const navigation = [
     icon: BarChart,
   },
 ];
+
+export function ManagementShell({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="flex min-h-screen flex-col">
+      <main className="flex-1">{children}</main>
+    </div>
+  );
+}
+
+export default ManagementShell;
