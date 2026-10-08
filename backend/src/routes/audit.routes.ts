@@ -66,7 +66,7 @@ router.get('/changes', async (req: Request, res: Response) => {
  */
 router.get('/entity/:tableName/:recordId', async (req: Request, res: Response) => {
   const { tableName, recordId } = req.params;
-  const history = await repo.getEntityHistory(tableName, recordId);
+  const history = await repo.getEntityHistory(tableName as string, recordId as string);
   res.json({ success: true, data: history });
 });
 
