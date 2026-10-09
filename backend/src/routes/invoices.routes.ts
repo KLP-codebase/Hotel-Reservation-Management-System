@@ -122,8 +122,7 @@ async function buildDbInvoice(bookingIdOrRoomId: string, specificBookingRoomId?:
   // 2. Fetch active services for all rooms in this booking
   const servicesRes = await db.query(
     `SELECT su.usage_id, su.booking_room_id, sc.service_name, sc.category, su.quantity, su.price_at_usage,
-            (su.quantity * su.price_at_usage) AS total_price, su.used_at,
-            su.notes, su.appointment_time, su.meal_time
+            (su.quantity * su.price_at_usage) AS total_price, su.used_at
      FROM service_usage su
      LEFT JOIN service_catalogue sc ON su.service_id = sc.service_id
      WHERE su.booking_room_id::text IN (
@@ -147,9 +146,9 @@ async function buildDbInvoice(bookingIdOrRoomId: string, specificBookingRoomId?:
       price_at_usage: Number(s.price_at_usage) || 0,
       total_price: Number(s.total_price) || 0,
       used_at: s.used_at ? new Date(s.used_at).toISOString() : new Date().toISOString(),
-      notes: s.notes || null,
-      appointment_time: s.appointment_time || null,
-      meal_time: s.meal_time || null,
+      notes: null,
+      appointment_time: null,
+      meal_time: null,
     };
   });
 
