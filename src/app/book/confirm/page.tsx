@@ -5,15 +5,10 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import gsap from 'gsap';
 import { ShaderBackground } from '@/components/ui/adisyon-shader';
+import { useBranches } from '@/hooks/useBranches';
 import { apiFetch, ApiError } from '@/lib/api-client';
 
 // ── Static Reference Data ───────────────────────────────────────────────────
-const BRANCHES = [
-  { id: '953fd827-751c-47eb-a201-e0aac4bc444a', name: 'Sky Nest Colombo' },
-  { id: 'af0167cd-c9eb-4ac5-ba22-cfd65cdc87a5', name: 'Sky Nest Kandy' },
-  { id: '30a7b55d-9440-45c2-a990-08821af210ba', name: 'Sky Nest Galle' },
-];
-
 const ROOM_TYPES = [
   { id: 'STANDARD', name: 'Standard Room', rate: 120, capacity: 2 },
   { id: 'DELUXE', name: 'Deluxe Room', rate: 180, capacity: 3 },
@@ -225,6 +220,7 @@ function BookingConfirmContent() {
   const childAgesParam = searchParams.get('child_ages') ?? '';
 
   // Resolve human-readable details
+  const { branches: BRANCHES } = useBranches();
   const branch = BRANCHES.find(b => b.id === branchIdStr);
   const roomType = ROOM_TYPES.find(r => r.id === roomTypeIdStr);
 
