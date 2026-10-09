@@ -198,14 +198,17 @@ CREATE TABLE IF NOT EXISTS service_catalogue (
 
 -- 9. Tax Configurations (Sri Lankan 4-Tier Cascade)
 CREATE TABLE IF NOT EXISTS tax_configurations (
-    tax_id         UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    tax_id         UUID PRIMARY KEY DEFAULT uuid_generate_v4(), --Genarate the Tax ID
     tax_name       VARCHAR(100) NOT NULL,
-    tax_percentage NUMERIC(6,4) NOT NULL,
+    tax_percentage NUMERIC(7,4) NOT NULL,
+    CHECK (tax_percentage >= 0 AND tax_percentage <= 100),
     is_active      BOOLEAN NOT NULL DEFAULT TRUE,
     effective_from DATE NOT NULL,
     effective_to   DATE,
     created_at     TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT uq_tax_name_date UNIQUE (tax_name, effective_from)
+    CONSTRAINT chk_effective_dates
+        CHECK (effective_to IS NULL OR effective_to >= effective_from)
 );
 
 -- 10. Bookings (Header)
