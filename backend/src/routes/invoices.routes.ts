@@ -2,8 +2,8 @@ import { Router, Request, Response } from "express";
 import { z } from "zod";
 import { authenticate } from "../middleware/auth.middleware";
 import { authorize } from "../middleware/rbac.middleware";
-import { inMemoryStore } from "../config/db-fallback";
 import { db } from "../config/db";
+import { Errors } from "../lib/errors";
 
 const router = Router();
 
@@ -296,10 +296,11 @@ async function buildDbInvoice(bookingIdOrRoomId: string, specificBookingRoomId?:
   const consolidatedBase = Math.round((consolidatedRoomCharges + consolidatedServiceCharges) * 100) / 100;
   const consolidatedTaxes = computeTaxCascade(consolidatedBase);
 
-  // Look up or auto-generate booking-level invoice
-  let invRes = await db.query(
+  // Look up or auto-generate booking-level invoice. It is stored on the first
+  // room line (invoices.booking_room_id is a NOT NULL FK), so look it up there.
+  const invRes = await db.query(
     `SELECT * FROM invoices WHERE booking_room_id::text = $1 OR booking_room_id::text = $2 ORDER BY generated_at DESC LIMIT 1`,
-    [actualBookingId, bookingFkId]
+    [primaryRow.booking_room_id, bookingFkId]
   );
 
   let invoiceId = invRes.rows[0]?.invoice_id;
@@ -321,15 +322,16 @@ async function buildDbInvoice(bookingIdOrRoomId: string, specificBookingRoomId?:
     );
   }
 
-  // Fetch all payments for this booking
+  // Fetch all payments for this booking, on any of its rooms' invoices
+  // (check-out settles per room, so payments can sit on every room line)
   const payRes = await db.query(
     `SELECT payment_id, invoice_id, amount, payment_date, payment_method
      FROM payments
      WHERE invoice_id IN (
-       SELECT invoice_id FROM invoices WHERE booking_room_id::text = $1 OR booking_room_id::text = $2 OR invoice_id = $3
+       SELECT invoice_id FROM invoices WHERE booking_room_id::text = ANY($1::text[]) OR invoice_id = $2
      )
      ORDER BY payment_date ASC`,
-    [actualBookingId, bookingFkId, invoiceId]
+    [allBookingRoomIds, invoiceId]
   );
 
   const payments = payRes.rows.map((p: any) => ({
@@ -492,13 +494,9 @@ router.get('/', async (req: Request, res: Response) => {
       );
     }
     res.json({ success: true, count: filtered.length, data: filtered });
-  } catch (err: any) {
+  } catch (err) {
     console.error("Error fetching invoices", err);
-    return res.status(500).json({
-      success: false,
-      message: "Internal Server Error fetching invoices",
-      error: err.message,
-    });
+    throw err; // error middleware maps it (503 when the database is down, else 500)
   }
 });
 
@@ -511,31 +509,10 @@ router.get("/:bookingId", async (req: Request, res: Response) => {
   const { bookingId } = req.params;
   const specificRoomId = typeof req.query.booking_room_id === "string" ? req.query.booking_room_id.trim() : undefined;
 
-  try {
-    const dbInvoice = await buildDbInvoice(bookingId, specificRoomId);
-    if (dbInvoice) {
-      res.json({ success: true, data: dbInvoice });
-      return;
-    }
-  } catch (err) {
-    console.error("Error fetching DB invoice, falling back to memory store:", err);
-  }
+  const dbInvoice = await buildDbInvoice(bookingId, specificRoomId);
+  if (!dbInvoice) throw Errors.notFound("Invoice for booking " + bookingId);
 
-  // Fallback to inMemoryStore
-  const invoice = inMemoryStore.getInvoice(bookingId);
-  if (!invoice) {
-    res.status(404).json({
-      success: false,
-      message: "Invoice not found for booking: " + bookingId,
-      code: "NOT_FOUND",
-    });
-    return;
-  }
-
-  res.json({
-    success: true,
-    data: invoice,
-  });
+  res.json({ success: true, data: dbInvoice });
 });
 
 /**
@@ -547,42 +524,22 @@ router.post("/:bookingId/generate", async (req: Request, res: Response) => {
   const { bookingId } = req.params;
   const specificRoomId = typeof req.query.booking_room_id === "string" ? req.query.booking_room_id.trim() : undefined;
 
-  try {
-    const dbInvoice = await buildDbInvoice(bookingId, specificRoomId);
-    if (dbInvoice) {
-      res.json({
-        success: true,
-        message: specificRoomId
-          ? "Single room tax bill formalized successfully"
-          : "Consolidated booking tax bill formalized successfully",
-        data: dbInvoice,
-      });
-      return;
-    }
-  } catch (err) {
-    console.error("Error generating DB invoice, falling back to memory store:", err);
-  }
-
-  const invoice = inMemoryStore.getInvoice(bookingId);
-  if (!invoice) {
-    res.status(404).json({
-      success: false,
-      message: "Cannot generate bill: booking not found",
-      code: "NOT_FOUND",
-    });
-    return;
-  }
+  const dbInvoice = await buildDbInvoice(bookingId, specificRoomId);
+  if (!dbInvoice) throw Errors.notFound("Booking " + bookingId);
 
   res.json({
     success: true,
-    message: "Final bill generated successfully with statutory tax cascade",
-    data: invoice,
+    message: specificRoomId
+      ? "Single room tax bill formalized successfully"
+      : "Consolidated booking tax bill formalized successfully",
+    data: dbInvoice,
   });
 });
 
 /**
  * POST /api/v1/invoices/:bookingId/payments
  * Records a partial deposit or final settlement payment (Rule B12).
+ * Any database failure is returned to the caller; nothing is ever recorded elsewhere.
  */
 router.post("/:bookingId/payments", async (req: Request, res: Response) => {
   const { bookingId } = req.params;
@@ -592,55 +549,35 @@ router.post("/:bookingId/payments", async (req: Request, res: Response) => {
     return;
   }
 
-  try {
-    const specificRoomId = parsed.data.booking_room_id;
-    const dbInvoice = await buildDbInvoice(bookingId, specificRoomId);
-    if (dbInvoice && dbInvoice.invoice_id) {
-      const payRes = await db.query(
-        `INSERT INTO payments (invoice_id, amount, payment_method, payment_date, reference_number)
-         VALUES ($1, $2, $3, NOW(), $4)
-         RETURNING payment_id, invoice_id, amount, payment_method, payment_date`,
-        [dbInvoice.invoice_id, parsed.data.amount, parsed.data.payment_method, parsed.data.reference_number || null]
-      );
+  const specificRoomId = parsed.data.booking_room_id;
+  const dbInvoice = await buildDbInvoice(bookingId, specificRoomId);
+  if (!dbInvoice || !dbInvoice.invoice_id) throw Errors.notFound("Invoice for booking " + bookingId);
 
-      const updatedInvoice = await buildDbInvoice(bookingId, specificRoomId);
+  const payRes = await db.query(
+    `INSERT INTO payments (invoice_id, amount, payment_method, payment_date, reference_number)
+     VALUES ($1, $2, $3, NOW(), $4)
+     RETURNING payment_id, invoice_id, amount, payment_method, payment_date`,
+    [dbInvoice.invoice_id, parsed.data.amount, parsed.data.payment_method, parsed.data.reference_number || null]
+  );
 
-      // If fully paid or settling, update invoice status
-      if (updatedInvoice && updatedInvoice.breakdown.balance_due <= 0) {
-        await db.query(
-          `UPDATE invoices SET status = 'SETTLED' WHERE invoice_id = $1`,
-          [dbInvoice.invoice_id]
-        );
-      }
+  const updatedInvoice = await buildDbInvoice(bookingId, specificRoomId);
 
-      res.status(201).json({
-        success: true,
-        message: "Payment recorded successfully in database",
-        data: {
-          payment: payRes.rows[0],
-          invoice: updatedInvoice,
-        },
-      });
-      return;
-    }
-  } catch (err) {
-    console.error("Error recording DB payment, falling back to memory store:", err);
+  // If fully paid or settling, update invoice status
+  if (updatedInvoice && updatedInvoice.breakdown.balance_due <= 0) {
+    await db.query(
+      `UPDATE invoices SET status = 'SETTLED' WHERE invoice_id = $1`,
+      [dbInvoice.invoice_id]
+    );
   }
 
-  try {
-    const result = inMemoryStore.addPayment(bookingId, parsed.data);
-    res.status(201).json({
-      success: true,
-      message: "Payment recorded successfully",
-      data: result,
-    });
-  } catch (err: any) {
-    res.status(400).json({
-      success: false,
-      message: err.message || "Failed to record payment",
-      code: "PAYMENT_FAILED",
-    });
-  }
+  res.status(201).json({
+    success: true,
+    message: "Payment recorded successfully",
+    data: {
+      payment: payRes.rows[0],
+      invoice: updatedInvoice,
+    },
+  });
 });
 
 export default router;

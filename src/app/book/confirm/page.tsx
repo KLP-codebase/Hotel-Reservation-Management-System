@@ -477,32 +477,18 @@ function BookingConfirmContent() {
     setError(null);
 
     try {
-      // 1. Find or create the guest record
-      type GuestRow = { id?: string; guest_id?: string; email?: string | null };
-      const pickGuestId = (g: GuestRow) => g.id || g.guest_id || '';
-
-      let guestId = '';
-      try {
-        const created = await apiFetch<{ data: GuestRow }>('/api/v1/guests', {
-          method: 'POST',
-          body: JSON.stringify({
-            first_name: firstName.trim(),
-            last_name: lastName.trim(),
-            email: email.trim(),
-            phone: phone.trim() || undefined,
-          }),
-        });
-        guestId = pickGuestId(created.data);
-      } catch (err) {
-        if (!(err instanceof ApiError) || err.status !== 409) throw err;
-        const found = await apiFetch<{ data: GuestRow[] }>(
-          `/api/v1/guests?search=${encodeURIComponent(email.trim())}`,
-        );
-        const match = found.data.find(
-          g => g.email?.toLowerCase() === email.trim().toLowerCase(),
-        );
-        if (match) guestId = pickGuestId(match);
-      }
+      // 1. Find or create the guest record (the API matches returning guests by email)
+      type GuestRow = { id?: string; guest_id?: string };
+      const guest = await apiFetch<{ data: GuestRow }>('/api/v1/guests', {
+        method: 'POST',
+        body: JSON.stringify({
+          first_name: firstName.trim(),
+          last_name: lastName.trim(),
+          email: email.trim(),
+          phone: phone.trim() || undefined,
+        }),
+      });
+      const guestId = guest.data.id || guest.data.guest_id || '';
 
       if (!guestId) {
         throw new Error('We could not save your guest details. Please try again.');

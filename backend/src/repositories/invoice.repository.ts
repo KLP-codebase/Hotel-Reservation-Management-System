@@ -1,4 +1,6 @@
+import { PoolClient } from 'pg';
 import { DbAdapter } from '../config/db';
+import { AppError } from '../lib/errors';
 
 export interface PaymentRecord {
   payment_id:       string;
@@ -99,6 +101,68 @@ export class InvoiceRepository {
     }
 
     return res.rows[0];
+  }
+
+  /**
+   * Check-out settlement. Must run inside the check-out transaction, AFTER the
+   * booking's room lines moved to CHECKED_OUT (that fires sp_generate_final_bill,
+   * so every room line has a fresh invoice).
+   *
+   * The balance is taken across the whole booking: earlier payments may sit on
+   * any of its invoices. With `settle` the remainder is paid off (split over the
+   * invoices that still owe, oldest room first) and every invoice is marked
+   * SETTLED. Without it, an outstanding balance aborts the check-out.
+   */
+  async settleBookingAtCheckout(
+    client: PoolClient,
+    bookingId: string,
+    opts: { settle: boolean; paymentMethod: string },
+  ): Promise<{ total: number; previouslyPaid: number; settledNow: number }> {
+    const { rows } = await client.query<{ invoice_id: string; total_amount: string; paid: string }>(
+      `SELECT i.invoice_id, i.total_amount, COALESCE(p.paid, 0) AS paid
+       FROM booking_rooms br
+       JOIN invoices i ON i.booking_room_id = br.booking_room_id
+       LEFT JOIN (SELECT invoice_id, SUM(amount) AS paid FROM payments GROUP BY invoice_id) p
+              ON p.invoice_id = i.invoice_id
+       WHERE br.booking_id = $1 AND br.status = 'CHECKED_OUT'
+       ORDER BY br.created_at, br.booking_room_id
+       FOR UPDATE OF i`,
+      [bookingId]
+    );
+
+    const cents = (n: number) => Math.round(n * 100);
+    const total = rows.reduce((sum, r) => sum + cents(Number(r.total_amount)), 0);
+    const paid  = rows.reduce((sum, r) => sum + cents(Number(r.paid)), 0);
+    let remaining = total - paid;
+
+    if (remaining > 0 && !opts.settle) {
+      throw new AppError(409, 'OUTSTANDING_BALANCE',
+        `This stay has an outstanding balance of ${(remaining / 100).toFixed(2)}. Settle it before checking out.`);
+    }
+
+    let settledNow = 0;
+    for (const r of rows) {
+      if (remaining <= 0) break;
+      const owed = cents(Number(r.total_amount)) - cents(Number(r.paid));
+      if (owed <= 0) continue;
+      const amount = Math.min(owed, remaining);
+      await client.query(
+        `INSERT INTO payments (invoice_id, amount, payment_date, payment_method, reference_number)
+         VALUES ($1, $2, CURRENT_TIMESTAMP, $3, $4)`,
+        [r.invoice_id, (amount / 100).toFixed(2), opts.paymentMethod, `CHECKOUT-${bookingId.slice(0, 8).toUpperCase()}`]
+      );
+      remaining -= amount;
+      settledNow += amount;
+    }
+
+    if (rows.length > 0) {
+      await client.query(
+        `UPDATE invoices SET status = 'SETTLED' WHERE invoice_id = ANY($1::uuid[])`,
+        [rows.map(r => r.invoice_id)]
+      );
+    }
+
+    return { total: total / 100, previouslyPaid: paid / 100, settledNow: settledNow / 100 };
   }
 
   /**
