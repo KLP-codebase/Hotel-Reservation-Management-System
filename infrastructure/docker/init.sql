@@ -196,7 +196,7 @@ CREATE TABLE IF NOT EXISTS service_catalogue (
     CONSTRAINT uq_branch_service UNIQUE (branch_id, service_name)
 );
 
--- 9. Tax Configurations (Sri Lankan 4-Tier Cascade)
+-- 9. Tax Configurations (Sri Lankan 4-Tier Cascade) /(P04-N)
 CREATE TABLE IF NOT EXISTS tax_configurations (
     tax_id         UUID PRIMARY KEY DEFAULT uuid_generate_v4(), --Genarate the Tax ID
     tax_name       VARCHAR(100) NOT NULL,
@@ -206,7 +206,7 @@ CREATE TABLE IF NOT EXISTS tax_configurations (
     effective_from DATE NOT NULL,
     effective_to   DATE,
     created_at     TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT uq_tax_name_date UNIQUE (tax_name, effective_from)
+    CONSTRAINT uq_tax_name_date UNIQUE (tax_name, effective_from),
     CONSTRAINT chk_effective_dates
         CHECK (effective_to IS NULL OR effective_to >= effective_from)
 );
@@ -253,13 +253,14 @@ CREATE TABLE IF NOT EXISTS accompanying_guests (
     verified_by_staff_id UUID REFERENCES staff(staff_id) ON DELETE SET NULL
 );
 
--- 13. Service Usage
+-- 13. Service Usage (P04-N)
 CREATE TABLE IF NOT EXISTS service_usage (
     usage_id         UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     booking_room_id  UUID NOT NULL REFERENCES booking_rooms(booking_room_id) ON DELETE CASCADE,
     service_id       INT NOT NULL REFERENCES service_catalogue(service_id) ON DELETE RESTRICT,
     quantity         INT NOT NULL DEFAULT 1 CHECK (quantity > 0),
     price_at_usage   NUMERIC(10,2) NOT NULL,
+    CHECK (price_at_usage >= 0),
     used_at          TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
