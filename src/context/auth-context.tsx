@@ -18,26 +18,60 @@ interface AuthContextValue {
 const AuthContext = createContext<AuthContextValue | null>(null);
 
 export function AuthProvider({ children }: PropsWithChildren) {
-  const [user,    setUser]    = useState<UserProfile | null>(null);
+  const [user, setUser] = useState<UserProfile | null>(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const cached = localStorage.getItem('skynest_user');
+        return cached ? JSON.parse(cached) : null;
+      } catch {
+        return null;
+      }
+    }
+    return null;
+  });
   const [loading, setLoading] = useState(true);
 
   // Restore session on mount
   useEffect(() => {
     authClient.me()
-      .then(setUser)
-      .catch(() => setUser(null))
+      .then((profile) => {
+        setUser(profile);
+        if (typeof window !== 'undefined') {
+          try {
+            localStorage.setItem('skynest_user', JSON.stringify(profile));
+          } catch {}
+        }
+      })
+      .catch(() => {
+        setUser(null);
+        if (typeof window !== 'undefined') {
+          try {
+            localStorage.removeItem('skynest_user');
+          } catch {}
+        }
+      })
       .finally(() => setLoading(false));
   }, []);
 
   const login = useCallback(async (dto: LoginDto): Promise<UserProfile> => {
     const profile = await authClient.login(dto);
     setUser(profile); // Notifies all useAuth() Observers
+    if (typeof window !== 'undefined') {
+      try {
+        localStorage.setItem('skynest_user', JSON.stringify(profile));
+      } catch {}
+    }
     return profile;
   }, []);
 
   const logout = useCallback(async () => {
     await authClient.logout();
     setUser(null); // Notifies all useAuth() Observers
+    if (typeof window !== 'undefined') {
+      try {
+        localStorage.removeItem('skynest_user');
+      } catch {}
+    }
     window.location.replace('/login');
   }, []);
 
