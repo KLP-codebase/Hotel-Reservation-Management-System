@@ -1,6 +1,6 @@
 import { Pool, PoolClient, QueryResult, QueryResultRow } from 'pg';
 import { env } from './env';
-import { inMemoryStore } from './db-fallback';
+import { Errors } from '../lib/errors';
 
 // ── GoF: Adapter interface ─────────────────────────────────────────────────────
 // All repositories depend on DbAdapter — never on pg directly.
@@ -22,106 +22,66 @@ class DatabasePool {
         connectionString: env.DATABASE_URL,
         max: 20,
         idleTimeoutMillis: 30_000,
-        connectionTimeoutMillis: 3_000,
+        connectionTimeoutMillis: 10_000, // Neon free tier cold-starts after idle suspend
       });
 
+      // An idle client losing its connection must not crash the process;
+      // the next query on a fresh client surfaces the outage as 503.
       DatabasePool.instance.on('error', (err) => {
-        // Pool level errors caught silently when using fallback
+        console.error('[db] idle client error:', err.message);
       });
     }
     return DatabasePool.instance;
   }
 }
 
-// ── GoF: Adapter (concrete) with Resilience / Fallback Strategy ────────────────
-class ResilientPgAdapter implements DbAdapter {
-  private useFallback = false;
-  private lastFallbackCheck = 0;
+// Errors that mean "the database is not reachable right now" (as opposed to a bad query).
+const CONNECTION_ERROR_CODES = new Set(['ECONNREFUSED', 'ECONNRESET', 'ETIMEDOUT', 'ENOTFOUND', 'EPIPE']);
 
+function isConnectionError(err: unknown): boolean {
+  const e = err as { code?: string; message?: string } | null;
+  return (
+    CONNECTION_ERROR_CODES.has(e?.code ?? '') ||
+    /ECONNREFUSED|ECONNRESET|ETIMEDOUT|Connection terminated|timeout exceeded when trying to connect/i.test(e?.message ?? '')
+  );
+}
+
+// ── GoF: Adapter (concrete) ────────────────────────────────────────────────────
+// An unreachable database surfaces as 503 DB_UNAVAILABLE. There is deliberately
+// no in-memory fallback: a write must either reach PostgreSQL or fail visibly.
+class PgAdapter implements DbAdapter {
   async query<T extends QueryResultRow = QueryResultRow>(sql: string, params?: unknown[]): Promise<QueryResult<T>> {
-    if (this.useFallback) {
-      const now = Date.now();
-      if (now - this.lastFallbackCheck > 4_000) {
-        this.lastFallbackCheck = now;
-        try {
-          const res = await DatabasePool.getInstance().query<T>(sql, params ?? []);
-          console.log('✅  PostgreSQL connection restored. Exiting in-memory fallback.');
-          this.useFallback = false;
-          return res;
-        } catch {
-          // Still offline, continue with fallback
-        }
-      }
-      return inMemoryStore.query<T>(sql, params ?? []);
-    }
-
     try {
       return await DatabasePool.getInstance().query<T>(sql, params ?? []);
-    } catch (err: any) {
-      if (
-        err?.code === 'ECONNREFUSED' ||
-        err?.message?.includes('ECONNREFUSED') ||
-        err?.message?.includes('connect ECONNREFUSED')
-      ) {
-        if (!this.useFallback) {
-          console.warn('⚠️  PostgreSQL port 5432 offline. Activated in-memory resilient database fallback.');
-          this.useFallback = true;
-          this.lastFallbackCheck = Date.now();
-        }
-        return inMemoryStore.query<T>(sql, params ?? []);
-      }
+    } catch (err) {
+      if (isConnectionError(err)) throw Errors.dbUnavailable();
       throw err;
     }
   }
 
   async transaction<T>(fn: (client: PoolClient) => Promise<T>): Promise<T> {
-    if (this.useFallback) {
-      const now = Date.now();
-      if (now - this.lastFallbackCheck > 4_000) {
-        this.lastFallbackCheck = now;
-        try {
-          const testClient = await DatabasePool.getInstance().connect();
-          testClient.release();
-          console.log('✅  PostgreSQL connection restored. Exiting in-memory fallback.');
-          this.useFallback = false;
-        } catch {
-          // Still offline
-        }
-      }
-      if (this.useFallback) {
-        return fn({ query: (sql: string, params?: any[]) => inMemoryStore.query(sql, params) } as unknown as PoolClient);
-      }
+    let client: PoolClient;
+    try {
+      client = await DatabasePool.getInstance().connect();
+    } catch (err) {
+      if (isConnectionError(err)) throw Errors.dbUnavailable();
+      throw err;
     }
 
     try {
-      const client = await DatabasePool.getInstance().connect();
-      try {
-        await client.query('BEGIN');
-        const result = await fn(client);
-        await client.query('COMMIT');
-        return result;
-      } catch (err) {
-        await client.query('ROLLBACK');
-        throw err;
-      } finally {
-        client.release();
-      }
-    } catch (err: any) {
-      if (
-        err?.code === 'ECONNREFUSED' ||
-        err?.message?.includes('ECONNREFUSED') ||
-        err?.message?.includes('connect ECONNREFUSED')
-      ) {
-        if (!this.useFallback) {
-          console.warn('⚠️  PostgreSQL port 5432 offline. Activated in-memory resilient database fallback.');
-          this.useFallback = true;
-          this.lastFallbackCheck = Date.now();
-        }
-        return fn({ query: (sql: string, params?: any[]) => inMemoryStore.query(sql, params) } as unknown as PoolClient);
-      }
+      await client.query('BEGIN');
+      const result = await fn(client);
+      await client.query('COMMIT');
+      return result;
+    } catch (err) {
+      // ROLLBACK itself fails if the connection dropped mid-transaction; the original error matters more.
+      await client.query('ROLLBACK').catch(() => {});
+      if (isConnectionError(err)) throw Errors.dbUnavailable();
       throw err;
+    } finally {
+      client.release();
     }
   }
 }
 
-export const db: DbAdapter = new ResilientPgAdapter();
+export const db: DbAdapter = new PgAdapter();

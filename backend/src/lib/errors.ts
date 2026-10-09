@@ -20,4 +20,5 @@ export const Errors = {
   conflict:      (msg: string)    => new AppError(409, 'CONFLICT', msg),
   invalidCreds:  ()               => new AppError(401, 'INVALID_CREDENTIALS', 'Invalid username or password'),
   internal:      ()               => new AppError(500, 'INTERNAL', 'Internal server error'),
+  dbUnavailable: ()               => new AppError(503, 'DB_UNAVAILABLE', 'The database is temporarily unavailable. Please try again shortly.'),
 } as const;

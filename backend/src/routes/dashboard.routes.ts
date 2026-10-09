@@ -1,10 +1,15 @@
-import { inMemoryStore } from '../config/db-fallback';
 import { Router, Request, Response } from 'express';
+import { PoolClient } from 'pg';
+import { z } from 'zod';
 import { db } from '../config/db';
 import { authenticate } from '../middleware/auth.middleware';
 import { authorize } from '../middleware/rbac.middleware';
+import { validate } from '../middleware/validate.middleware';
 import { DashboardRepository } from '../repositories/dashboard.repository';
 import { AuditRepository } from '../repositories/audit.repository';
+import { BookingRepository } from '../repositories/booking.repository';
+import { InvoiceRepository } from '../repositories/invoice.repository';
+import { AppError, Errors } from '../lib/errors';
 
 // ── GoF: Chain of Responsibility ──────────────────────────────────────────────
 // Route pipeline: authenticate → authorize(ADMINISTRATOR, MANAGER, DBA) → handler
@@ -14,6 +19,8 @@ import { AuditRepository } from '../repositories/audit.repository';
 const router = Router();
 const repo      = new DashboardRepository(db);
 const auditRepo = new AuditRepository(db);
+const bookingRepo = new BookingRepository(db);
+const invoiceRepo = new InvoiceRepository(db);
 
 // Apply authentication and RBAC to ALL dashboard routes
 router.use(authenticate);
@@ -94,50 +101,109 @@ router.get('/staff-roster', async (req: Request, res: Response) => {
 });
 
 
+const CheckInSchema = z.object({
+  bookingId:     z.string().uuid('bookingId must be a valid UUID'),
+  // Room line that the accompanying guests stay in; defaults to the booking's first room.
+  bookingRoomId: z.string().uuid().optional(),
+  accompanyingGuests: z.array(z.object({
+    first_name:     z.string().trim().min(1, 'First name is required'),
+    last_name:      z.string().trim().min(1, 'Last name is required'),
+    id_passport_no: z.string().trim().min(1, 'ID or Passport number is required'),
+  })).default([]),
+});
+
+const CheckOutSchema = z.object({
+  bookingId:     z.string().uuid('bookingId must be a valid UUID'),
+  paymentMethod: z.enum(['CASH', 'CREDIT_CARD', 'BANK_TRANSFER', 'ONLINE']).default('CASH'),
+  // true = pay off any outstanding balance as part of check-out
+  settleBalance: z.boolean().default(false),
+});
+
+// Locks the booking and checks that this user may move it out of `expected`.
+async function lockForTransition(
+  client: PoolClient,
+  req: Request,
+  bookingId: string,
+  expected: string,
+  action: string,
+) {
+  const booking = await bookingRepo.lockHeader(client, bookingId);
+  if (!booking) throw Errors.notFound('Booking');
+
+  const branchScope = await resolveBranchScope(req);
+  if (branchScope && booking.branch_id !== branchScope) {
+    throw Errors.forbidden('This booking belongs to another branch');
+  }
+  if (booking.status !== expected) {
+    throw new AppError(409, 'INVALID_STATUS_TRANSITION',
+      `Only ${expected.toLowerCase().replace('_', '-')} bookings can be ${action} (this one is ${booking.status})`);
+  }
+  return booking;
+}
+
 /**
  * POST /api/v1/dashboard/check-in
- * Front desk check-in operation for receptionist / operations.
+ * Front desk check-in: CONFIRMED → CHECKED_IN for the booking and all its rooms
+ * (rooms become OCCUPIED via trigger) and records accompanying guests — one transaction.
  */
-router.post('/check-in', async (req: Request, res: Response) => {
-  const { bookingId, roomNumber, keycardIssued, accompanyingGuests } = req.body;
-  if (!bookingId) {
-    res.status(422).json({ success: false, message: 'bookingId is required' });
-    return;
-  }
+router.post('/check-in', validate(CheckInSchema), async (req: Request, res: Response) => {
+  const { bookingId, bookingRoomId, accompanyingGuests } = req.body as z.infer<typeof CheckInSchema>;
 
-  try {
-    const updated = inMemoryStore.checkIn(bookingId, { roomNumber, keycardNumber: keycardIssued ? 'KEY-' + roomNumber : undefined, accompanyingGuests });
-    res.json({
-      success: true,
-      message: 'Guest successfully checked in. Keycard issued.',
-      data: updated,
-    });
-  } catch (err: any) {
-    res.status(400).json({ success: false, message: err.message || 'Check-in failed' });
-  }
+  const updated = await db.transaction(async (client) => {
+    await lockForTransition(client, req, bookingId, 'CONFIRMED', 'checked in');
+
+    const result = await bookingRepo.transitionStatus(client, bookingId, 'CONFIRMED', 'CHECKED_IN');
+    if (!result) throw Errors.conflict('Booking status was changed by someone else. Reload and try again.');
+
+    if (accompanyingGuests.length > 0) {
+      const lines = await bookingRepo.findLiveRoomLines(client, bookingId);
+      const target = bookingRoomId ?? lines[0]?.booking_room_id;
+      if (!target || !lines.some(l => l.booking_room_id === target)) {
+        throw Errors.badRequest('Room line does not belong to this booking');
+      }
+      await bookingRepo.insertAccompanyingGuests(client, target, accompanyingGuests);
+    }
+
+    return result;
+  });
+
+  res.json({
+    success: true,
+    message: 'Guest successfully checked in.',
+    data: updated,
+  });
 });
 
 /**
  * POST /api/v1/dashboard/check-out
- * Front desk check-out operation and final folio settlement.
+ * Front desk check-out: CHECKED_IN → CHECKED_OUT for the booking and all its rooms.
+ * The trigger regenerates each room's final invoice; any balance left is either
+ * settled here (settleBalance) or blocks the check-out — one transaction.
  */
-router.post('/check-out', async (req: Request, res: Response) => {
-  const { bookingId, paymentMethod, settleBalance } = req.body;
-  if (!bookingId) {
-    res.status(422).json({ success: false, message: 'bookingId is required' });
-    return;
-  }
+router.post('/check-out', validate(CheckOutSchema), async (req: Request, res: Response) => {
+  const { bookingId, paymentMethod, settleBalance } = req.body as z.infer<typeof CheckOutSchema>;
 
-  try {
-    const updated = inMemoryStore.checkOut(bookingId, { paymentMethod, settleBalance });
-    res.json({
-      success: true,
-      message: 'Guest checkout completed. Folio settled.',
-      data: updated,
+  const outcome = await db.transaction(async (client) => {
+    await lockForTransition(client, req, bookingId, 'CHECKED_IN', 'checked out');
+
+    const result = await bookingRepo.transitionStatus(client, bookingId, 'CHECKED_IN', 'CHECKED_OUT');
+    if (!result) throw Errors.conflict('Booking status was changed by someone else. Reload and try again.');
+
+    const settlement = await invoiceRepo.settleBookingAtCheckout(client, bookingId, {
+      settle: settleBalance,
+      paymentMethod,
     });
-  } catch (err: any) {
-    res.status(400).json({ success: false, message: err.message || 'Checkout failed' });
-  }
+
+    return { ...result, settlement };
+  });
+
+  res.json({
+    success: true,
+    message: outcome.settlement.settledNow > 0
+      ? `Guest checked out. Balance of ${outcome.settlement.settledNow.toFixed(2)} settled.`
+      : 'Guest checked out. Folio settled.',
+    data: outcome,
+  });
 });
 
 

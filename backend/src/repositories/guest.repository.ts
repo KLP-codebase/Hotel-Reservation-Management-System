@@ -77,6 +77,38 @@ export class GuestRepository extends BaseRepository<Guest, CreateGuestDto, Updat
         };
     }
 
+    // Public booking flow: reuse the guest with this email, or create one.
+    // An existing guest is returned as ids only, so the public caller never
+    // sees another person's stored name or phone number.
+    async findOrCreateByEmail(
+        dto: CreateGuestDto & { email: string },
+    ): Promise<
+        | { created: true; guest: Guest }
+        | { created: false; guest: { id: string; guest_id: string } }
+    > {
+        const findExisting = async () => {
+            const { rows } = await this.db.query<{ id: string; guest_id: string }>(
+                `SELECT id, guest_id FROM guests WHERE LOWER(email) = LOWER($1) LIMIT 1`,
+                [dto.email]
+            );
+            return rows[0] ?? null;
+        };
+
+        const existing = await findExisting();
+        if (existing) return { created: false, guest: existing };
+
+        try {
+            return { created: true, guest: await this.create(dto) };
+        } catch (err) {
+            // 23505 = unique_violation: someone created this email between our SELECT and INSERT
+            if ((err as { code?: string })?.code === '23505') {
+                const raced = await findExisting();
+                if (raced) return { created: false, guest: raced };
+            }
+            throw err;
+        }
+    }
+
     // Extra: search by name / email / phone (not in BaseRepository — unique to guests)
     async search(query: string): Promise<Guest[]> {
         const term = `%${query.toLowerCase()}%`;

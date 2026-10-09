@@ -4,9 +4,15 @@ import { db } from '../config/db';
 import { BookingRepository } from '../repositories/booking.repository';
 import { Errors } from '../lib/errors';
 import { isUuid } from '../lib/uuid';
+import { authenticate } from '../middleware/auth.middleware';
+import { authorize } from '../middleware/rbac.middleware';
 
 const router = Router();
 const repo = new BookingRepository(db);
+
+// Staff only — accompanying guests are recorded at the front desk.
+router.use(authenticate);
+router.use(authorize('RECEPTIONIST', 'MANAGER', 'ADMINISTRATOR', 'DBA'));
 
 const AccompanyingGuestSchema = z.object({
     first_name: z.string().min(1, 'First name is required'),

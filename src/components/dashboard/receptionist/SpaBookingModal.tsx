@@ -121,6 +121,7 @@ export function SpaBookingModal({ isOpen, onClose, booking, onOrderPlaced }: Spa
       const res = await apiFetch(`/api/v1/services/folio/${booking.booking_id}`, {
         method: "POST",
         body: JSON.stringify({
+          booking_room_id:  booking.booking_room_id || undefined,
           service_name:     selectedTreatment.name,
           category:         "Wellness",
           quantity:         1,
