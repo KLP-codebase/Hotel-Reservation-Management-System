@@ -914,7 +914,7 @@ function IntroSection({ reducedMotion }: { reducedMotion: boolean }) {
               ref={titleRef}
               className="font-cinzel font-normal uppercase leading-[1.12] tracking-[0.04em] text-ink w-full pl-0"
               style={{
-                fontSize: "clamp(22px, 3.2vw, 45px)",
+                fontSize: "clamp(22px, 3.2vw, 40px)",
               }}
               aria-label={STORY_LINES.join(" ")}
             >
@@ -1196,7 +1196,7 @@ function CoastalInterludeSection({ reducedMotion }: { reducedMotion: boolean }) 
               ref={titleRef}
               className="font-cinzel font-normal uppercase leading-[1.12] tracking-[0.04em] text-ink w-full pl-0"
               style={{
-                fontSize: "clamp(22px, 3.2vw, 45px)",
+                fontSize: "clamp(22px, 3.2vw, 40px)",
               }}
               aria-label={COASTAL_STORY_LINES.join(" ")}
             >
@@ -1459,7 +1459,7 @@ function ColomboCityInterludeSection({ reducedMotion }: { reducedMotion: boolean
               ref={titleRef}
               className="font-cinzel font-normal uppercase leading-[1.12] tracking-[0.04em] text-ink w-full pl-0"
               style={{
-                fontSize: "clamp(22px, 3.2vw, 45px)",
+                fontSize: "clamp(22px, 3.2vw, 40px)",
               }}
               aria-label={COLOMBO_STORY_LINES.join(" ")}
             >
