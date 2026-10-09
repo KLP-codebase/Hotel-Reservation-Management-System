@@ -268,14 +268,14 @@ CREATE TABLE IF NOT EXISTS service_usage (
 CREATE TABLE IF NOT EXISTS invoices (
     invoice_id          UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     booking_room_id     UUID NOT NULL UNIQUE REFERENCES booking_rooms(booking_room_id) ON DELETE RESTRICT,
-    room_charges        NUMERIC(12,2) NOT NULL DEFAULT 0,
-    service_charges     NUMERIC(12,2) NOT NULL DEFAULT 0,
-    discount_amount     NUMERIC(12,2) NOT NULL DEFAULT 0,
-    service_charge_tax  NUMERIC(12,2) NOT NULL DEFAULT 0,
-    tdl_amount          NUMERIC(12,2) NOT NULL DEFAULT 0,
-    ssc_amount          NUMERIC(12,2) NOT NULL DEFAULT 0,
-    vat_amount          NUMERIC(12,2) NOT NULL DEFAULT 0,
-    total_amount        NUMERIC(12,2) NOT NULL DEFAULT 0,
+    room_charges        NUMERIC(12,2) NOT NULL DEFAULT 0, CHECK (room_charges >= 0),
+    service_charges     NUMERIC(12,2) NOT NULL DEFAULT 0, CHECK (service_charges >= 0),
+    discount_amount     NUMERIC(12,2) NOT NULL DEFAULT 0, CHECK (discount_amount >= 0),
+    service_charge_tax  NUMERIC(12,2) NOT NULL DEFAULT 0, CHECK (service_charge_tax >= 0),
+    tdl_amount          NUMERIC(12,2) NOT NULL DEFAULT 0, CHECK (tdl_amount >= 0),
+    ssc_amount          NUMERIC(12,2) NOT NULL DEFAULT 0, CHECK (ssc_amount >= 0),
+    vat_amount          NUMERIC(12,2) NOT NULL DEFAULT 0, CHECK (vat_amount >= 0),
+    total_amount        NUMERIC(12,2) NOT NULL DEFAULT 0, CHECK (total_amount >= 0),
     status              VARCHAR(50) NOT NULL DEFAULT 'OPEN',
     generated_at        TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
