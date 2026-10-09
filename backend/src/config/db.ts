@@ -22,7 +22,7 @@ class DatabasePool {
         connectionString: env.DATABASE_URL,
         max: 20,
         idleTimeoutMillis: 30_000,
-        connectionTimeoutMillis: 3_000,
+        connectionTimeoutMillis: 10_000, // Neon free tier cold-starts after idle suspend
       });
 
       DatabasePool.instance.on('error', (err) => {
@@ -31,6 +31,16 @@ class DatabasePool {
     }
     return DatabasePool.instance;
   }
+}
+
+// Errors that mean "the database is not reachable right now" (as opposed to a bad query).
+const CONNECTION_ERROR_CODES = new Set(['ECONNREFUSED', 'ECONNRESET', 'ETIMEDOUT', 'ENOTFOUND', 'EPIPE']);
+
+function isConnectionError(err: any): boolean {
+  return (
+    CONNECTION_ERROR_CODES.has(err?.code) ||
+    /ECONNREFUSED|ECONNRESET|ETIMEDOUT|Connection terminated|timeout exceeded when trying to connect/i.test(err?.message ?? '')
+  );
 }
 
 // ── GoF: Adapter (concrete) with Resilience / Fallback Strategy ────────────────
@@ -58,13 +68,9 @@ class ResilientPgAdapter implements DbAdapter {
     try {
       return await DatabasePool.getInstance().query<T>(sql, params ?? []);
     } catch (err: any) {
-      if (
-        err?.code === 'ECONNREFUSED' ||
-        err?.message?.includes('ECONNREFUSED') ||
-        err?.message?.includes('connect ECONNREFUSED')
-      ) {
+      if (isConnectionError(err)) {
         if (!this.useFallback) {
-          console.warn('⚠️  PostgreSQL port 5432 offline. Activated in-memory resilient database fallback.');
+          console.warn('⚠️  PostgreSQL unreachable. Activated in-memory resilient database fallback.');
           this.useFallback = true;
           this.lastFallbackCheck = Date.now();
         }
@@ -107,13 +113,9 @@ class ResilientPgAdapter implements DbAdapter {
         client.release();
       }
     } catch (err: any) {
-      if (
-        err?.code === 'ECONNREFUSED' ||
-        err?.message?.includes('ECONNREFUSED') ||
-        err?.message?.includes('connect ECONNREFUSED')
-      ) {
+      if (isConnectionError(err)) {
         if (!this.useFallback) {
-          console.warn('⚠️  PostgreSQL port 5432 offline. Activated in-memory resilient database fallback.');
+          console.warn('⚠️  PostgreSQL unreachable. Activated in-memory resilient database fallback.');
           this.useFallback = true;
           this.lastFallbackCheck = Date.now();
         }
