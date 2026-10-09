@@ -498,7 +498,7 @@ function SkyNestNav({
         ].join(" ")}
       >
         <div className="space-y-1 pt-16">
-          {[...NAV_LINKS, { label: "Rates", href: "#rates" }, { label: "Book Now", href: "/book" }, { label: "Sign In", href: "/login" }].map(
+          {[...NAV_LINKS, { label: "Contact", href: "#contact" }, { label: "Book Now", href: "/book" }, { label: "Sign In", href: "/login" }].map(
 
             (link, i) => (
               <a
