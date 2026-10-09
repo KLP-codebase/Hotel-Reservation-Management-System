@@ -97,9 +97,9 @@ export class BookingRepository {
         // 1. Lock the room row. Two requests booking the same room now queue up
         //    here, so the overlap check below cannot race.
         const roomResult = await client.query<{
-            id: string; number: string | null; branch_id: string; price_per_night: string;
+            id: string; number: string | null; branch_id: string; price_per_night: string; room_type_id: number | null;
         }>(`
-            SELECT id, number, branch_id, price_per_night
+            SELECT id, number, branch_id, price_per_night, room_type_id
             FROM rooms
             WHERE id = $1
             FOR UPDATE
@@ -142,7 +142,7 @@ export class BookingRepository {
                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
                 RETURNING booking_room_id, rate_at_booking
             `, [
-                bookingId, line.primary_guest_id, line.room_type_id ?? null,
+                bookingId, line.primary_guest_id, line.room_type_id ?? room.room_type_id ?? null,
                 room.id, line.plan_id ?? 1, line.check_in_date,
                 line.check_out_date, room.price_per_night,
             ]);
@@ -203,7 +203,7 @@ export class BookingRepository {
                 br.booking_room_id,
                 br.status,
                 r.number AS room_number,
-                rt.type_name AS room_type_name,
+                COALESCE(rt.type_name, r.type::text) AS room_type_name,
                 mp.plan_name AS meal_plan_name,
                 br.check_in_date::text AS check_in_date,
                 br.check_out_date::text AS check_out_date,
@@ -227,7 +227,7 @@ export class BookingRepository {
             LEFT JOIN meal_plans mp ON mp.plan_id = br.plan_id
             LEFT JOIN accompanying_guests ag ON ag.booking_room_id = br.booking_room_id
             WHERE br.booking_id = $1
-            GROUP BY br.booking_room_id, br.status, r.number, rt.type_name, mp.plan_name,
+            GROUP BY br.booking_room_id, br.status, r.number, r.type, rt.type_name, mp.plan_name,
                      br.check_in_date, br.check_out_date, br.rate_at_booking
         `, [bookingId]);
 
