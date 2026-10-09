@@ -197,16 +197,19 @@ CREATE TABLE IF NOT EXISTS service_catalogue (
     CONSTRAINT uq_branch_service UNIQUE (branch_id, service_name)
 );
 
--- 9. Tax Configurations (Sri Lankan 4-Tier Cascade)
+-- 9. Tax Configurations (Sri Lankan 4-Tier Cascade) /(P04-N)
 CREATE TABLE IF NOT EXISTS tax_configurations (
-    tax_id         UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    tax_id         UUID PRIMARY KEY DEFAULT uuid_generate_v4(), --Genarate the Tax ID
     tax_name       VARCHAR(100) NOT NULL,
-    tax_percentage NUMERIC(6,4) NOT NULL,
+    tax_percentage NUMERIC(7,4) NOT NULL,
+    CHECK (tax_percentage >= 0 AND tax_percentage <= 100),
     is_active      BOOLEAN NOT NULL DEFAULT TRUE,
     effective_from DATE NOT NULL,
     effective_to   DATE,
     created_at     TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT uq_tax_name_date UNIQUE (tax_name, effective_from)
+    CONSTRAINT uq_tax_name_date UNIQUE (tax_name, effective_from),
+    CONSTRAINT chk_effective_dates
+        CHECK (effective_to IS NULL OR effective_to >= effective_from)
 );
 
 -- 10. Bookings (Header)
@@ -260,13 +263,14 @@ CREATE TABLE IF NOT EXISTS accompanying_guests (
     verified_by_staff_id UUID REFERENCES staff(staff_id) ON DELETE SET NULL
 );
 
--- 13. Service Usage
+-- 13. Service Usage (P04-N)
 CREATE TABLE IF NOT EXISTS service_usage (
     usage_id         UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     booking_room_id  UUID NOT NULL REFERENCES booking_rooms(booking_room_id) ON DELETE CASCADE,
     service_id       INT NOT NULL REFERENCES service_catalogue(service_id) ON DELETE RESTRICT,
     quantity         INT NOT NULL DEFAULT 1 CHECK (quantity > 0),
     price_at_usage   NUMERIC(10,2) NOT NULL,
+    CHECK (price_at_usage >= 0),
     used_at          TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -274,14 +278,14 @@ CREATE TABLE IF NOT EXISTS service_usage (
 CREATE TABLE IF NOT EXISTS invoices (
     invoice_id          UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     booking_room_id     UUID NOT NULL UNIQUE REFERENCES booking_rooms(booking_room_id) ON DELETE RESTRICT,
-    room_charges        NUMERIC(12,2) NOT NULL DEFAULT 0,
-    service_charges     NUMERIC(12,2) NOT NULL DEFAULT 0,
-    discount_amount     NUMERIC(12,2) NOT NULL DEFAULT 0,
-    service_charge_tax  NUMERIC(12,2) NOT NULL DEFAULT 0,
-    tdl_amount          NUMERIC(12,2) NOT NULL DEFAULT 0,
-    ssc_amount          NUMERIC(12,2) NOT NULL DEFAULT 0,
-    vat_amount          NUMERIC(12,2) NOT NULL DEFAULT 0,
-    total_amount        NUMERIC(12,2) NOT NULL DEFAULT 0,
+    room_charges        NUMERIC(12,2) NOT NULL DEFAULT 0, CHECK (room_charges >= 0),
+    service_charges     NUMERIC(12,2) NOT NULL DEFAULT 0, CHECK (service_charges >= 0),
+    discount_amount     NUMERIC(12,2) NOT NULL DEFAULT 0, CHECK (discount_amount >= 0),
+    service_charge_tax  NUMERIC(12,2) NOT NULL DEFAULT 0, CHECK (service_charge_tax >= 0),
+    tdl_amount          NUMERIC(12,2) NOT NULL DEFAULT 0, CHECK (tdl_amount >= 0),
+    ssc_amount          NUMERIC(12,2) NOT NULL DEFAULT 0, CHECK (ssc_amount >= 0),
+    vat_amount          NUMERIC(12,2) NOT NULL DEFAULT 0, CHECK (vat_amount >= 0),
+    total_amount        NUMERIC(12,2) NOT NULL DEFAULT 0, CHECK (total_amount >= 0),
     status              VARCHAR(50) NOT NULL DEFAULT 'OPEN',
     generated_at        TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
