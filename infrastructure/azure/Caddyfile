@@ -7,9 +7,16 @@
 		reverse_proxy backend:4000
 	}
 
+	# Static images: replace Next.js's "max-age=0" with a 7-day cache.
+	# header_down overwrites the upstream value (a plain `header` would add a second one).
+	@images path *.jpg *.jpeg *.png *.webp *.avif
+	handle @images {
+		reverse_proxy frontend:3000 {
+			header_down Cache-Control "public, max-age=604800"
+		}
+	}
+
 	handle {
-		@images path *.jpg *.jpeg *.png *.webp *.avif
-		header @images Cache-Control "public, max-age=604800"
 		reverse_proxy frontend:3000
 	}
 }

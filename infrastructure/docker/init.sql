@@ -102,6 +102,7 @@ CREATE TABLE IF NOT EXISTS branches (
 -- 2. Guests
 CREATE TABLE IF NOT EXISTS guests (
     guest_id        UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id              VARCHAR(36) UNIQUE DEFAULT uuid_generate_v4()::text,  -- legacy id; bookings.booked_by_guest_id holds this
     first_name      VARCHAR(100) NOT NULL,
     last_name       VARCHAR(100) NOT NULL,
     email           VARCHAR(255) UNIQUE NOT NULL,
@@ -216,10 +217,19 @@ CREATE TABLE IF NOT EXISTS bookings (
     booking_id          UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     id                  VARCHAR(36) UNIQUE DEFAULT uuid_generate_v4()::text,
     branch_id           UUID NOT NULL REFERENCES branches(branch_id) ON DELETE RESTRICT,
-    booked_by_guest_id  UUID REFERENCES guests(guest_id) ON DELETE SET NULL,
+    -- Live-schema parity: guest refs are VARCHAR holding guests.id (no FK; seed data may hold non-UUID ids)
+    booked_by_guest_id  VARCHAR(36),
+    guest_id            VARCHAR(36),
     booked_by_staff_id  UUID REFERENCES staff(staff_id) ON DELETE SET NULL,
     status              VARCHAR(50) NOT NULL DEFAULT 'PENDING',
     notes               TEXT,
+    special_requests    TEXT,
+    adults              INT,
+    children            INT,
+    -- Legacy single-room columns, still read by availability/overlap checks
+    room_id             VARCHAR(36) REFERENCES rooms(id) ON DELETE SET NULL,
+    check_in            TIMESTAMP,
+    check_out           TIMESTAMP,
     created_at          TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at          TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     CHECK (booked_by_guest_id IS NOT NULL OR booked_by_staff_id IS NOT NULL)
@@ -230,8 +240,8 @@ CREATE TABLE IF NOT EXISTS booking_rooms (
     booking_room_id  UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     booking_id       UUID NOT NULL REFERENCES bookings(booking_id) ON DELETE CASCADE,
     primary_guest_id UUID NOT NULL REFERENCES guests(guest_id) ON DELETE RESTRICT,
-    room_type_id     INT NOT NULL REFERENCES room_types(room_type_id) ON DELETE RESTRICT,
-    room_id          INT REFERENCES rooms(room_id) ON DELETE RESTRICT,
+    room_type_id     INT REFERENCES room_types(room_type_id) ON DELETE RESTRICT,
+    room_id          VARCHAR(36) REFERENCES rooms(id) ON DELETE RESTRICT,  -- rooms.id (varchar), as on the live schema
     plan_id          INT NOT NULL REFERENCES meal_plans(plan_id) ON DELETE RESTRICT,
     check_in_date    DATE NOT NULL,
     check_out_date   DATE NOT NULL,
@@ -545,7 +555,7 @@ $$;
 
 -- fn_check_room_availability
 CREATE OR REPLACE FUNCTION fn_check_room_availability(
-    p_room_id      INT,
+    p_room_id      VARCHAR,
     p_check_in     DATE,
     p_check_out    DATE,
     p_exclude_booking_room_id UUID DEFAULT NULL
@@ -647,15 +657,15 @@ BEGIN
     END IF;
 
     IF TG_OP = 'INSERT' AND NEW.status = 'CHECKED_IN' THEN
-        UPDATE rooms SET status = 'OCCUPIED' WHERE room_id = NEW.room_id;
+        UPDATE rooms SET status = 'OCCUPIED' WHERE id = NEW.room_id;
 
     ELSIF TG_OP = 'UPDATE' AND OLD.status IS DISTINCT FROM NEW.status THEN
         IF NEW.status = 'CHECKED_IN' THEN
-            UPDATE rooms SET status = 'OCCUPIED' WHERE room_id = NEW.room_id;
+            UPDATE rooms SET status = 'OCCUPIED' WHERE id = NEW.room_id;
         ELSIF NEW.status = 'CHECKED_OUT' THEN
-            UPDATE rooms SET status = 'MAINTENANCE' WHERE room_id = NEW.room_id;
+            UPDATE rooms SET status = 'MAINTENANCE' WHERE id = NEW.room_id;
         ELSIF NEW.status = 'CANCELLED' AND OLD.status = 'CHECKED_IN' THEN
-            UPDATE rooms SET status = 'AVAILABLE' WHERE room_id = NEW.room_id;
+            UPDATE rooms SET status = 'AVAILABLE' WHERE id = NEW.room_id;
         END IF;
     END IF;
 
@@ -774,9 +784,9 @@ SELECT
     inv.generated_at      AS invoice_generated_at
 FROM bookings b
 JOIN branches brk ON brk.branch_id = b.branch_id
-LEFT JOIN guests g ON g.guest_id = b.booked_by_guest_id
+LEFT JOIN guests g ON g.id = b.booked_by_guest_id
 LEFT JOIN booking_rooms br ON br.booking_id = b.booking_id
-LEFT JOIN rooms r ON r.room_id = br.room_id
+LEFT JOIN rooms r ON r.id = br.room_id
 LEFT JOIN room_types rt ON rt.room_type_id = br.room_type_id
 LEFT JOIN meal_plans mp ON mp.plan_id = br.plan_id
 LEFT JOIN invoices inv ON inv.booking_room_id = br.booking_room_id;
@@ -1057,8 +1067,8 @@ DECLARE
     v_kandy_id   UUID := 'b3333333-3333-3333-3333-333333333333';
 
     -- Bcrypt hashes:
-    -- admin_hash accepts both 'admin2025' and 'SkyNest2025!'
-    v_hash VARCHAR := '$2a$10$xm85S0x8C/4XYA6KxrX3eeGZ3N1eifAuxcsKMZYAjMuKz5lidYt8K';
+    -- bcrypt hash of 'SkyNest2025!' (shared by all seed accounts)
+    v_hash VARCHAR := '$2a$10$7/eAi7.sf96JRCdmbPKkPugkC5Cg53h/O8bd4Gt.lUIfzK8IF9y.C';
 
     v_admin_staff_id        UUID;
     v_manager_staff_id      UUID;
@@ -1069,48 +1079,48 @@ DECLARE
 BEGIN
     -- 1. Administrator (Colombo)
     INSERT INTO staff (staff_id, branch_id, first_name, last_name, email, phone, role)
-    VALUES ('s1111111-1111-1111-1111-111111111111', v_colombo_id, 'Kavindi', 'Jayawardena', 'admin@skynest.lk', '+94 77 100 0004', 'ADMINISTRATOR')
+    VALUES ('c1111111-1111-1111-1111-111111111111', v_colombo_id, 'Kavindi', 'Jayawardena', 'admin@skynest.lk', '+94 77 100 0004', 'ADMINISTRATOR')
     ON CONFLICT (email) DO UPDATE SET role = EXCLUDED.role
     RETURNING staff_id INTO v_admin_staff_id;
 
     -- 2. Manager (Galle)
     INSERT INTO staff (staff_id, branch_id, first_name, last_name, email, phone, role)
-    VALUES ('s2222222-2222-2222-2222-222222222222', v_galle_id, 'Dilshan', 'Fernando', 'manager@skynest.lk', '+94 77 100 0003', 'MANAGER')
+    VALUES ('c2222222-2222-2222-2222-222222222222', v_galle_id, 'Dilshan', 'Fernando', 'manager@skynest.lk', '+94 77 100 0003', 'MANAGER')
     ON CONFLICT (email) DO UPDATE SET role = EXCLUDED.role
     RETURNING staff_id INTO v_manager_staff_id;
 
     -- 3. Receptionist (Colombo)
     INSERT INTO staff (staff_id, branch_id, first_name, last_name, email, phone, role)
-    VALUES ('s3333333-3333-3333-3333-333333333333', v_colombo_id, 'Amara', 'Perera', 'receptionist@skynest.lk', '+94 77 100 0001', 'RECEPTIONIST')
+    VALUES ('c3333333-3333-3333-3333-333333333333', v_colombo_id, 'Amara', 'Perera', 'receptionist@skynest.lk', '+94 77 100 0001', 'RECEPTIONIST')
     ON CONFLICT (email) DO UPDATE SET role = EXCLUDED.role
     RETURNING staff_id INTO v_receptionist_staff_id;
 
     -- 4. Service Staff (Kandy)
     INSERT INTO staff (staff_id, branch_id, first_name, last_name, email, phone, role)
-    VALUES ('s4444444-4444-4444-4444-444444444444', v_kandy_id, 'Nuwan', 'Silva', 'service@skynest.lk', '+94 77 100 0002', 'SERVICE_STAFF')
+    VALUES ('c4444444-4444-4444-4444-444444444444', v_kandy_id, 'Nuwan', 'Silva', 'service@skynest.lk', '+94 77 100 0002', 'SERVICE_STAFF')
     ON CONFLICT (email) DO UPDATE SET role = EXCLUDED.role
     RETURNING staff_id INTO v_service_staff_id;
 
     -- 5. Guest Portal User
     INSERT INTO staff (staff_id, branch_id, first_name, last_name, email, phone, role)
-    VALUES ('s5555555-5555-5555-5555-555555555555', NULL, 'Guest', 'User', 'guest@skynest.lk', NULL, 'GUEST')
+    VALUES ('c5555555-5555-5555-5555-555555555555', NULL, 'Guest', 'User', 'guest@skynest.lk', NULL, 'GUEST')
     ON CONFLICT (email) DO UPDATE SET role = EXCLUDED.role
     RETURNING staff_id INTO v_guest_staff_id;
 
     -- 6. DBA
     INSERT INTO staff (staff_id, branch_id, first_name, last_name, email, phone, role)
-    VALUES ('s6666666-6666-6666-6666-666666666666', NULL, 'System', 'DBA', 'dba@skynest.lk', '+94 77 100 0005', 'DBA')
+    VALUES ('c6666666-6666-6666-6666-666666666666', NULL, 'System', 'DBA', 'dba@skynest.lk', '+94 77 100 0005', 'DBA')
     ON CONFLICT (email) DO UPDATE SET role = EXCLUDED.role
     RETURNING staff_id INTO v_dba_staff_id;
 
     -- Seed User Accounts
     INSERT INTO user_accounts (user_account_id, staff_id, username, password_hash, account_type) VALUES
-        ('u1111111-1111-1111-1111-111111111111', v_admin_staff_id,        'admin',        v_hash, 'ADMINISTRATOR'),
-        ('u2222222-2222-2222-2222-222222222222', v_manager_staff_id,      'manager',      v_hash, 'MANAGER'),
-        ('u3333333-3333-3333-3333-333333333333', v_receptionist_staff_id, 'receptionist', v_hash, 'RECEPTIONIST'),
-        ('u4444444-4444-4444-4444-444444444444', v_service_staff_id,      'service',      v_hash, 'SERVICE_STAFF'),
-        ('u5555555-5555-5555-5555-555555555555', v_guest_staff_id,        'guest',        v_hash, 'GUEST'),
-        ('u6666666-6666-6666-6666-666666666666', v_dba_staff_id,          'dba',          v_hash, 'DBA')
+        ('d1111111-1111-1111-1111-111111111111', v_admin_staff_id,        'admin',        v_hash, 'ADMINISTRATOR'),
+        ('d2222222-2222-2222-2222-222222222222', v_manager_staff_id,      'manager',      v_hash, 'MANAGER'),
+        ('d3333333-3333-3333-3333-333333333333', v_receptionist_staff_id, 'receptionist', v_hash, 'RECEPTIONIST'),
+        ('d4444444-4444-4444-4444-444444444444', v_service_staff_id,      'service',      v_hash, 'SERVICE_STAFF'),
+        ('d5555555-5555-5555-5555-555555555555', v_guest_staff_id,        'guest',        v_hash, 'GUEST'),
+        ('d6666666-6666-6666-6666-666666666666', v_dba_staff_id,          'dba',          v_hash, 'DBA')
     ON CONFLICT (username) DO UPDATE SET
         password_hash = EXCLUDED.password_hash,
         account_type  = EXCLUDED.account_type;

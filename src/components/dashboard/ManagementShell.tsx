@@ -1,17 +1,20 @@
-"use client";
+import React from 'react';
+import { BarChart } from 'lucide-react';
 
-import { DashboardHeader } from "./DashboardHeader";
+const navigation = [
+  {
+    name: 'Service Usage Breakdown',
+    href: '/reports/service-usage',
+    icon: BarChart,
+  },
+];
 
-/**
- * Shared Sky Nest management shell for all management screens.
- * Uses the light editorial theme (bg-paper text-ink font-jakarta) and sticky DashboardHeader.
- */
 export function ManagementShell({ children }: { children: React.ReactNode }) {
   return (
-    <div className="min-h-screen bg-paper text-ink font-jakarta">
-      <DashboardHeader />
-      {children}
+    <div className="flex min-h-screen flex-col">
+      <main className="flex-1">{children}</main>
     </div>
   );
 }
 
+export default ManagementShell;
