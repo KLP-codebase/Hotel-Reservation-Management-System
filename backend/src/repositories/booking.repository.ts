@@ -282,28 +282,77 @@ ORDER BY b.created_at DESC
         fromStatus: string,
         toStatus: string,
     ): Promise<{ booking_id: string; status: string } | null> {
-        return this.db.transaction(async (client) => {
-            const result = await client.query<{ booking_id: string; status: string }>(`
-                UPDATE bookings
-                SET status = $1, updated_at = CURRENT_TIMESTAMP
-                WHERE booking_id = $2 AND status = $3
-                RETURNING booking_id, status
-            `, [toStatus, bookingId, fromStatus]);
+        return this.db.transaction((client) => this.transitionStatus(client, bookingId, fromStatus, toStatus));
+    }
 
-            if (!result.rows[0]) return null;
+    // Same as updateStatus(), for callers that need more work in the same transaction.
+    // The booking's live room lines follow it, which fires the booking_rooms triggers:
+    //   CHECKED_IN  → rooms.status = OCCUPIED            (fn_sync_room_status)
+    //   CHECKED_OUT → rooms.status = MAINTENANCE, and the
+    //                 room's invoice is (re)generated     (fn_auto_bill_on_checkout)
+    //   CANCELLED   → the dates are freed for new bookings (no_double_booking ignores CANCELLED)
+    async transitionStatus(
+        client: PoolClient,
+        bookingId: string,
+        fromStatus: string,
+        toStatus: string,
+    ): Promise<{ booking_id: string; status: string } | null> {
+        const result = await client.query<{ booking_id: string; status: string }>(`
+            UPDATE bookings
+            SET status = $1, updated_at = CURRENT_TIMESTAMP
+            WHERE booking_id = $2 AND status = $3
+            RETURNING booking_id, status
+        `, [toStatus, bookingId, fromStatus]);
 
-            // If the booking is cancelled, also cancel its rooms so the dates are freed up
-            // (same transaction — both happen or neither does)
-            if (toStatus === 'CANCELLED') {
-                await client.query(`
-                    UPDATE booking_rooms
-                    SET status = 'CANCELLED'
-                    WHERE booking_id = $1
-                `, [bookingId]);
-            }
+        if (!result.rows[0]) return null;
 
-            return result.rows[0];
-        });
+        if (toStatus === 'CHECKED_IN' || toStatus === 'CHECKED_OUT' || toStatus === 'CANCELLED') {
+            await client.query(`
+                UPDATE booking_rooms
+                SET status = $1
+                WHERE booking_id = $2 AND status NOT IN ('CANCELLED', $1)
+            `, [toStatus, bookingId]);
+        }
+
+        return result.rows[0];
+    }
+
+    // Reads the booking header and locks it until the transaction ends, so a
+    // concurrent check-in / check-out of the same booking waits its turn.
+    async lockHeader(client: PoolClient, bookingId: string) {
+        const result = await client.query<{ booking_id: string; branch_id: string; status: string }>(`
+            SELECT booking_id, branch_id, status
+            FROM bookings
+            WHERE booking_id = $1
+            FOR UPDATE
+        `, [bookingId]);
+
+        return result.rows[0] ?? null;
+    }
+
+    // The booking's room lines that still count (not cancelled), oldest first.
+    async findLiveRoomLines(client: PoolClient, bookingId: string) {
+        const result = await client.query<{ booking_room_id: string }>(`
+            SELECT booking_room_id
+            FROM booking_rooms
+            WHERE booking_id = $1 AND status <> 'CANCELLED'
+            ORDER BY created_at, booking_room_id
+        `, [bookingId]);
+
+        return result.rows;
+    }
+
+    async insertAccompanyingGuests(
+        client: PoolClient,
+        bookingRoomId: string,
+        guests: Omit<AddAccompanyingGuestInput, 'booking_room_id'>[],
+    ): Promise<void> {
+        for (const g of guests) {
+            await client.query(`
+                INSERT INTO accompanying_guests (booking_room_id, first_name, last_name, id_passport_no)
+                VALUES ($1, $2, $3, $4)
+            `, [bookingRoomId, g.first_name, g.last_name, g.id_passport_no]);
+        }
     }
 
     async addAccompanyingGuest(input: AddAccompanyingGuestInput) {

@@ -37,33 +37,38 @@ Items are ordered by priority. Line numbers are as of commit `163c5a6` and may d
 
 ## P1 — Features that report success but save nothing
 
-- [ ] **Make receptionist check-in / check-out write to PostgreSQL.**
-  [dashboard.routes.ts:101-145](backend/src/routes/dashboard.routes.ts#L101-L145) only updates the
-  in-memory seed store. The modal shows success, but the booking is still `CONFIRMED` after a reload.
-  - Fix: reuse `BookingRepository.updateStatus()` (the same path as `PATCH /bookings/:id/status`) and
-    update `booking_rooms.status` / `rooms.status` in the same transaction.
+- [x] **Make receptionist check-in / check-out write to PostgreSQL.** They only updated the
+  in-memory seed store, so the booking was still `CONFIRMED` after a reload.
+  - Done: [dashboard.routes.ts](backend/src/routes/dashboard.routes.ts) now locks the booking and
+    moves it and all its room lines in one transaction. The existing triggers set the room to
+    `OCCUPIED` / `MAINTENANCE` and generate each room's final invoice. Accompanying guests are saved.
+    Staff can only act on their own branch's bookings.
+  - Check-out settles any outstanding balance with the chosen payment method, or refuses (409) when
+    `settleBalance` is false; either way nothing is half-done.
+  - `PATCH /bookings/:id/status` uses the same code, so room lines now follow the booking there too
+    (before, only `CANCELLED` did). Existing data still has one mismatch: booking `e9e27db3…` is
+    `CHECKED_OUT` but its room line is `CONFIRMED`.
 
-- [ ] **Fix dining and spa folio inserts.** The live `service_usage` table has no `notes`,
-  `appointment_time` or `meal_time` columns, so the insert at
-  [services.routes.ts:498](backend/src/routes/services.routes.ts#L498) always fails. It then falls
-  back to memory and returns `201`. The live table has **0 rows**.
-  - Fix: add the columns with a migration (apply to Railway and to `init.sql`), or drop them from the
-    insert.
-  - Also fix: the invoice update after the insert (and in `DELETE /folio/:usageId`) writes
-    `subtotal`, `sc_amount`, `sscl_amount`, `updated_at`, which don't exist on `invoices`. The real
-    columns are `service_charges`, `service_charge_tax`, `ssc_amount`.
-  - Also fix: `booking_room_id` is set to `bookings.id`, not a real `booking_room_id`.
+- [x] **Fix dining and spa folio inserts.** The insert used three columns that didn't exist, failed
+  every time, and fell back to memory.
+  - Done: migration [016_service_usage_folio_details.sql](database/migrations/016_service_usage_folio_details.sql)
+    adds `notes`, `appointment_time`, `meal_time` (applied to Railway; mirrored in `init.sql`).
+  - Done: charges go to a real `booking_room_id` (the modals now send it); the room's stored invoice
+    is refreshed with `sp_generate_final_bill` in the same transaction; voiding a charge does the same.
+  - Done: spa slots are read from the database, and booking a slot that's already taken at that
+    branch returns 409.
+  - Prices still come from the client; see "Take folio prices from the catalogue" below.
 
-- [ ] **Stop faking successful payments.** If the database insert fails,
-  [invoices.routes.ts:630](backend/src/routes/invoices.routes.ts#L630) records the payment in memory
-  and still answers "Payment recorded successfully". Return the error instead.
+- [x] **Stop faking successful payments.**
+  - Done: payment, invoice view and generate errors now reach the client; an unknown booking is 404.
+  - Also fixed: after the first view, every view of a whole-booking invoice tried to insert it again
+    and hit the unique constraint (409). The fallback used to hide this. It's now found on the room
+    line it's stored on, and the paid total includes payments on all of the booking's room invoices.
 
-- [ ] **Remove the in-memory fallback for writes.** [db.ts](backend/src/config/db.ts) switches to
-  [db-fallback.ts](backend/src/config/db-fallback.ts) when PostgreSQL is unreachable. That store
-  returns empty rows for every INSERT/UPDATE and re-runs failed transactions against memory, so writes
-  look successful but are lost.
-  - Fix: return 503 when the database is down. Also remove the direct `inMemoryStore` calls in
-    `dashboard.routes.ts`, `invoices.routes.ts` and `services.routes.ts`.
+- [x] **Remove the in-memory fallback for writes.**
+  - Done: [db.ts](backend/src/config/db.ts) returns 503 `DB_UNAVAILABLE` when PostgreSQL is
+    unreachable (including login, which used to accept the seed accounts from memory).
+    `db-fallback.ts` is deleted and no route uses an in-memory store.
 
 ---
 
@@ -136,6 +141,8 @@ Items are ordered by priority. Line numbers are as of commit `163c5a6` and may d
   first spa-slot lookup each day, rewriting `booking_rooms` dates for 14 hardcoded booking IDs. Two of
   them (`797f97aa-…`, `32d5a06a-…`) look like real bookings, not seed data. Changing dates also
   changes invoice totals. Remove it, or limit it to a local seed script.
+  - Note: on the live schema the whole statement currently fails (`invalid input syntax for type
+    integer: "11111111-…"`) and is rolled back, so in practice it does nothing except log a warning.
 
 - [ ] **Make branch assignment consistent.**
   - [auth.service.ts:65](backend/src/services/auth.service.ts#L65) and `me()` silently assign a

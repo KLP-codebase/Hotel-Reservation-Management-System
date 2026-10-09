@@ -46,8 +46,7 @@ export function CheckInModal({ isOpen, onClose, booking, onCheckInDone }: CheckI
         method: "POST",
         body: JSON.stringify({
           bookingId:          booking.booking_id,
-          roomNumber:         booking.room_number,
-          keycardIssued:      true,
+          bookingRoomId:      booking.booking_room_id || undefined,
           accompanyingGuests: accompanying.filter((a) => a.first_name.trim() && a.last_name.trim()),
         }),
       });

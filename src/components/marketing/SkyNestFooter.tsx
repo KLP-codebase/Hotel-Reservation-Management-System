@@ -234,7 +234,7 @@ export function SkyNestFooter() {
           <span
             className="font-jakarta font-black text-ink leading-[0.8] uppercase block w-full text-center select-none"
             style={{
-              fontSize: "clamp(64px, 16.5vw, 240px)",
+              fontSize: "clamp(46px, 16.5vw, 240px)",
               letterSpacing: "-0.025em",
             }}
           >
@@ -243,12 +243,12 @@ export function SkyNestFooter() {
         </div>
 
         {/* ── BOTTOM LUXURY SEAL & LEGAL STRIP ── */}
-        <div className="border-t border-ink/[0.12] py-5 flex flex-col xl:flex-row items-center justify-between gap-5 text-ink/60 font-jakarta">
+        <div className="border-t border-ink/[0.12] py-5 flex flex-col xl:flex-row items-center justify-between gap-5 text-ink/60 font-jakarta text-center xl:text-left">
 
           {/* Left: Badges */}
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center justify-center gap-2 sm:gap-3">
             <CrossGlyph className="w-2.5 h-2.5 text-ink/35" />
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center justify-center gap-1.5 sm:gap-2">
               {[
                 { label: "LK", title: "Sri Lanka Heritage" },
                 { label: "CE", title: "Ceylon Standard" },

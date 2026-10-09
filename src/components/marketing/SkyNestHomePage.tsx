@@ -81,7 +81,7 @@ function GlobalGridOverlay() {
   return (
     <div
       aria-hidden="true"
-      className="pointer-events-none fixed inset-0 z-[9999]"
+      className="pointer-events-none fixed inset-0 z-[9999] hidden sm:block"
       style={{ isolation: "isolate" }}
     >
       <svg
@@ -221,7 +221,7 @@ function SweepingOrbitalEmblem({
   return (
     <div
       ref={containerRef}
-      className="relative inline-flex items-center justify-start w-72 md:w-96 h-20 md:h-24 select-none mb-6 md:mb-8"
+      className="relative inline-flex items-center justify-start w-full max-w-[280px] sm:max-w-xs md:max-w-sm h-16 sm:h-20 md:h-24 select-none mb-6 md:mb-8"
     >
       <svg
         aria-hidden="true"
@@ -251,7 +251,7 @@ function SweepingOrbitalEmblem({
       </svg>
       <span
         ref={labelRef}
-        className="absolute left-[50%] top-[50%] -translate-x-1/2 -translate-y-1/2 font-cinzel italic text-[12px] md:text-[14px] tracking-[0.08em] text-ink/80 whitespace-nowrap"
+        className="absolute left-[50%] top-[50%] -translate-x-1/2 -translate-y-1/2 font-cinzel italic text-[11px] sm:text-[12px] md:text-[14px] tracking-[0.08em] text-ink/80 whitespace-nowrap"
         style={{ fontStyle: "italic" }}
       >
         {label}
@@ -363,7 +363,7 @@ function SkyNestNav({
         className="fixed top-0 left-0 right-0 z-50 transition-colors duration-150"
         style={bgStyle}
       >
-        <div className="flex items-center justify-between h-14 md:h-16 px-6 md:px-8">
+        <div className="flex items-center justify-between h-14 md:h-16 px-4 sm:px-6 md:px-8">
           {/* Left — nav links as White Desert bordered buttons */}
           <div className="hidden md:flex items-center gap-2.5">
             {NAV_LINKS.map((link) => (
@@ -380,7 +380,7 @@ function SkyNestNav({
           </div>
 
           {/* Center — wordmark */}
-          <div className="absolute left-1/2 -translate-x-1/2 flex items-center">
+          <div className="flex items-center md:absolute md:left-1/2 md:-translate-x-1/2">
             <a
               href="/"
               id="nav-wordmark"
@@ -388,11 +388,11 @@ function SkyNestNav({
               className="flex flex-col items-center gap-0.5 group focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-white/50 rounded-sm"
             >
               <MountainGlyph
-                className="w-7 h-auto"
+                className="w-6 sm:w-7 h-auto"
                 style={{ color: wordmarkColor } as React.CSSProperties}
               />
               <span
-                className="font-jakarta font-700 text-[11px] tracking-[0.35em] uppercase select-none"
+                className="font-jakarta font-bold text-[10px] sm:text-[11px] tracking-[0.35em] uppercase select-none"
                 style={{ color: wordmarkColor }}
               >
                 SKYNEST
@@ -449,37 +449,52 @@ function SkyNestNav({
             )}
           </div>
 
-
-          {/* Mobile hamburger */}
-          <button
-            id="nav-hamburger"
-            onClick={toggleMenu}
-            aria-expanded={menuOpen}
-            aria-controls="nav-mobile-menu"
-            aria-label={menuOpen ? "Close menu" : "Open menu"}
-            className="md:hidden flex items-center justify-center w-14 border-l border-white/[0.12] text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-white/50"
-          >
-            <span className="relative w-5 h-4 flex flex-col justify-between">
-              <span
-                className={[
-                  "block h-px bg-white origin-center transition-all duration-300 ease-out",
-                  menuOpen ? "rotate-45 translate-y-[7.5px]" : "",
-                ].join(" ")}
-              />
-              <span
-                className={[
-                  "block h-px bg-white transition-all duration-300 ease-out",
-                  menuOpen ? "opacity-0 scale-x-50" : "",
-                ].join(" ")}
-              />
-              <span
-                className={[
-                  "block h-px bg-white origin-center transition-all duration-300 ease-out",
-                  menuOpen ? "-rotate-45 -translate-y-[7.5px]" : "",
-                ].join(" ")}
-              />
-            </span>
-          </button>
+          {/* Mobile Right Controls: Book CTA + Hamburger */}
+          <div className="flex md:hidden items-center gap-2">
+            <a
+              href="/book"
+              id="mobile-quick-book"
+              className="px-3 py-1.5 text-[10px] font-jakarta font-semibold tracking-[0.12em] uppercase border transition-colors duration-200"
+              style={bookStyle}
+            >
+              Book
+            </a>
+            <button
+              id="nav-hamburger"
+              onClick={toggleMenu}
+              aria-expanded={menuOpen}
+              aria-controls="nav-mobile-menu"
+              aria-label={menuOpen ? "Close menu" : "Open menu"}
+              className="flex items-center justify-center w-9 h-9 border transition-colors duration-200 rounded-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-white/50"
+              style={{
+                borderColor: menuOpen ? "rgba(255,255,255,0.2)" : borderColor,
+              }}
+            >
+              <span className="relative w-4 h-3 flex flex-col justify-between">
+                <span
+                  className={[
+                    "block h-px origin-center transition-all duration-300 ease-out",
+                    menuOpen ? "rotate-45 translate-y-[5.5px] !bg-white" : "",
+                  ].join(" ")}
+                  style={{ backgroundColor: menuOpen ? "white" : textColor }}
+                />
+                <span
+                  className={[
+                    "block h-px transition-all duration-300 ease-out",
+                    menuOpen ? "opacity-0 scale-x-50 !bg-white" : "",
+                  ].join(" ")}
+                  style={{ backgroundColor: menuOpen ? "white" : textColor }}
+                />
+                <span
+                  className={[
+                    "block h-px origin-center transition-all duration-300 ease-out",
+                    menuOpen ? "-rotate-45 -translate-y-[5.5px] !bg-white" : "",
+                  ].join(" ")}
+                  style={{ backgroundColor: menuOpen ? "white" : textColor }}
+                />
+              </span>
+            </button>
+          </div>
         </div>
       </nav>
 
@@ -491,38 +506,72 @@ function SkyNestNav({
         aria-label="Navigation menu"
         className={[
           "fixed inset-0 z-40 md:hidden",
-          "bg-ink/[0.97] backdrop-blur-2xl",
+          "bg-ink/[0.98] backdrop-blur-2xl",
           "flex flex-col justify-center px-8",
           "transition-opacity duration-500 ease-out",
           menuOpen ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none",
         ].join(" ")}
       >
-        <div className="space-y-1 pt-16">
-          {[...NAV_LINKS, { label: "Rates", href: "#rates" }, { label: "Book Now", href: "/book" }, { label: "Sign In", href: "/login" }].map(
+        <div className="space-y-1 pt-12">
+          {[
+            ...NAV_LINKS,
+            { label: "Rates", href: "#rates" },
+            { label: "Book Now", href: "/book" },
+          ].map((link, i) => (
+            <a
+              key={link.label}
+              href={link.href}
+              id={`mobile-nav-${link.label.toLowerCase().replace(/\s+/g, "-")}`}
+              onClick={() => setMenuOpen(false)}
+              className={[
+                "block py-3.5 font-jakarta font-semibold text-2xl sm:text-3xl text-white/80 hover:text-white",
+                "border-b border-white/[0.08]",
+                "transition-all duration-500 ease-out",
+                "focus-visible:outline-none focus-visible:text-white",
+                menuOpen ? "translate-y-0 opacity-100" : "translate-y-6 opacity-0",
+              ].join(" ")}
+              style={{
+                transitionDelay: menuOpen ? `${i * 60 + 100}ms` : "0ms",
+              }}
+            >
+              {link.label}
+            </a>
+          ))}
 
-            (link, i) => (
+          {/* Auth link in mobile menu */}
+          <div className="pt-4">
+            {user ? (
+              <div className="flex flex-col gap-2">
+                {user.role?.toUpperCase() !== 'GUEST' && (
+                  <a
+                    href="/dashboard"
+                    onClick={() => setMenuOpen(false)}
+                    className="block py-3 font-jakarta font-semibold text-xl text-amber-400 hover:text-amber-300"
+                  >
+                    Staff Dashboard
+                  </a>
+                )}
+                <button
+                  onClick={() => {
+                    setMenuOpen(false);
+                    logout();
+                  }}
+                  className="text-left py-2 font-jakarta font-semibold text-lg text-red-400 hover:text-red-300"
+                >
+                  Log Out ({user.firstName})
+                </button>
+              </div>
+            ) : (
               <a
-                key={link.label}
-                href={link.href}
-                id={`mobile-nav-${link.label.toLowerCase().replace(" ", "-")}`}
+                href="/login"
+                id="mobile-nav-sign-in"
                 onClick={() => setMenuOpen(false)}
-                className={[
-                  "block py-4 font-jakarta font-semibold text-3xl text-white/80 hover:text-white",
-                  "border-b border-white/[0.08]",
-                  "transition-all duration-500 ease-out",
-                  "focus-visible:outline-none focus-visible:text-white",
-                  menuOpen
-                    ? "translate-y-0 opacity-100"
-                    : "translate-y-6 opacity-0",
-                ].join(" ")}
-                style={{
-                  transitionDelay: menuOpen ? `${i * 60 + 100}ms` : "0ms",
-                }}
+                className="block py-3 font-jakarta font-semibold text-xl text-amber-400 hover:text-amber-300"
               >
-                {link.label}
+                Sign In
               </a>
-            )
-          )}
+            )}
+          </div>
         </div>
       </div>
     </>
@@ -615,12 +664,12 @@ function HeroSection({
       {/* Top row: eyebrow left + explore right */}
       <div
         ref={topRowRef}
-        className="relative flex items-start justify-between px-6 md:px-12 pt-24 md:pt-28 pb-0 z-10"
+        className="relative flex flex-col sm:flex-row sm:items-start sm:justify-between px-6 sm:px-8 md:px-12 pt-20 sm:pt-24 md:pt-28 pb-0 gap-4 sm:gap-6 z-10"
         style={{ willChange: "transform, opacity" }}
       >
         {/* Eyebrow */}
         <p
-          className="font-cinzel font-normal italic text-white/75 text-[13px] md:text-[15px] leading-relaxed max-w-[200px] md:max-w-none"
+          className="font-cinzel font-normal italic text-white/75 text-[12px] sm:text-[13px] md:text-[15px] leading-relaxed max-w-[280px] sm:max-w-none"
           style={{ fontStyle: "italic" }}
         >
           Three branches.
@@ -632,7 +681,7 @@ function HeroSection({
         <a
           href="#branches"
           id="hero-explore-cta"
-          className="flex items-center gap-2 font-jakarta text-[11px] md:text-[12px] font-medium tracking-[0.15em] uppercase text-white/80 hover:text-white border border-white/20 hover:border-white/40 px-4 py-2.5 transition-all duration-300 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white/60"
+          className="self-start sm:self-auto flex items-center gap-2 font-jakarta text-[10px] sm:text-[11px] md:text-[12px] font-medium tracking-[0.15em] uppercase text-white/80 hover:text-white border border-white/20 hover:border-white/40 px-3.5 sm:px-4 py-2 sm:py-2.5 transition-all duration-300 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white/60"
         >
           <span>Explore Branches</span>
           <ChevronRight className="w-3 h-3" />
@@ -643,13 +692,13 @@ function HeroSection({
       <div
         ref={wordmarkRef}
         aria-hidden="true"
-        className="relative z-10 flex-1 flex items-end justify-center overflow-hidden pointer-events-none select-none w-full"
+        className="relative z-10 flex-1 flex items-end justify-center overflow-hidden pointer-events-none select-none w-full px-4"
         style={{ willChange: "transform, opacity" }}
       >
         <span
           className="font-cinzel font-normal leading-[0.85] text-white text-center whitespace-nowrap block w-full uppercase"
           style={{
-            fontSize: "clamp(100px, 21vw, 260px)",
+            fontSize: "clamp(46px, 17.5vw, 260px)",
             letterSpacing: "0.03em",
             paddingBottom: "clamp(4px, 1.5vw, 8px)",
           }}
@@ -704,7 +753,7 @@ function CloudTransition() {
     <div
       ref={containerRef}
       aria-hidden="true"
-      className="relative z-10 h-[70dvh] pointer-events-none overflow-hidden"
+      className="relative z-10 h-[50dvh] sm:h-[60dvh] md:h-[70dvh] pointer-events-none overflow-hidden"
     >
       {/* Positioner 1 */}
       <div
@@ -839,7 +888,7 @@ function IntroSection({ reducedMotion }: { reducedMotion: boolean }) {
       {/* 6-column hairline grid */}
       <div
         aria-hidden="true"
-        className="pointer-events-none absolute inset-0 flex"
+        className="pointer-events-none absolute inset-0 hidden sm:flex"
         style={{ zIndex: 1 }}
       >
         {Array.from({ length: 6 }).map((_, i) => (
@@ -850,13 +899,13 @@ function IntroSection({ reducedMotion }: { reducedMotion: boolean }) {
         ))}
       </div>
 
-      <div className="relative z-10 w-full">
+      <div className="relative z-10 w-full max-w-[1440px] mx-auto px-6 sm:px-10 md:px-12">
         <div className="grid grid-cols-1 md:grid-cols-6 items-start">
           {/* Columns 1 & 2 */}
           <div className="hidden md:block md:col-start-1 md:col-end-3" />
 
           {/* Columns 3, 4, 5 */}
-          <div className="md:col-start-3 md:col-end-6 pl-0 pr-4 md:pr-8 flex flex-col items-start">
+          <div className="md:col-start-3 md:col-end-6 md:pl-0 md:pr-8 flex flex-col items-start w-full">
             <div ref={emblemRef}>
               <SweepingOrbitalEmblem label="The SkyNest Standard" reducedMotion={reducedMotion} />
             </div>
@@ -865,7 +914,7 @@ function IntroSection({ reducedMotion }: { reducedMotion: boolean }) {
               ref={titleRef}
               className="font-cinzel font-normal uppercase leading-[1.12] tracking-[0.04em] text-ink w-full pl-0"
               style={{
-                fontSize: "clamp(24px, 3.2vw, 45px)",
+                fontSize: "clamp(22px, 3.2vw, 40px)",
               }}
               aria-label={STORY_LINES.join(" ")}
             >
@@ -981,7 +1030,7 @@ function KandyBranchSection({ reducedMotion }: { reducedMotion: boolean }) {
       aria-label="SkyNest Kandy branch"
       className="relative bg-paper overflow-hidden w-full"
     >
-      <div className="relative w-full aspect-[3/2] overflow-hidden">
+      <div className="relative w-full min-h-[460px] sm:min-h-[520px] md:min-h-0 md:aspect-[3/2] overflow-hidden">
         {/* Parallax background image */}
         <div className="absolute inset-0 w-full h-full z-0 overflow-hidden">
           {/* Feathered top gradient */}
@@ -1006,7 +1055,7 @@ function KandyBranchSection({ reducedMotion }: { reducedMotion: boolean }) {
         </div>
 
         {/* 6-column grid lines */}
-        <div className="absolute inset-0 pointer-events-none z-[5]">
+        <div className="absolute inset-0 pointer-events-none z-[5] hidden sm:block">
           <HairlineGrid count={5} color="border-white/[0.15] md:border-white/[0.12]" />
         </div>
 
@@ -1015,7 +1064,7 @@ function KandyBranchSection({ reducedMotion }: { reducedMotion: boolean }) {
           aria-hidden="false"
           className="absolute inset-0 pointer-events-none z-10"
         >
-          <div className="relative h-full mx-auto max-w-[1400px] px-6 md:px-16 flex flex-col justify-start pt-12 md:pt-20 gap-2.5 md:gap-4">
+          <div className="relative h-full mx-auto max-w-[1400px] px-6 sm:px-10 md:px-16 flex flex-col justify-start pt-14 sm:pt-16 md:pt-20 gap-2.5 md:gap-4">
             <span
               ref={labelRef}
               className="font-jakarta text-[11px] md:text-[12px] font-bold tracking-[0.3em] uppercase text-ink/80 drop-shadow-sm"
@@ -1030,7 +1079,7 @@ function KandyBranchSection({ reducedMotion }: { reducedMotion: boolean }) {
               ref={titleRef}
               className="font-cinzel text-ink leading-[1.05] drop-shadow-sm uppercase tracking-[0.03em]"
               style={{
-                fontSize: "clamp(32px, 4.8vw, 72px)",
+                fontSize: "clamp(28px, 4.8vw, 72px)",
                 willChange: "transform, opacity",
               }}
             >
@@ -1121,7 +1170,7 @@ function CoastalInterludeSection({ reducedMotion }: { reducedMotion: boolean }) 
       {/* 6-column hairline grid */}
       <div
         aria-hidden="true"
-        className="pointer-events-none absolute inset-0 flex"
+        className="pointer-events-none absolute inset-0 hidden sm:flex"
         style={{ zIndex: 1 }}
       >
         {Array.from({ length: 6 }).map((_, i) => (
@@ -1132,13 +1181,13 @@ function CoastalInterludeSection({ reducedMotion }: { reducedMotion: boolean }) 
         ))}
       </div>
 
-      <div className="relative z-10 w-full">
+      <div className="relative z-10 w-full max-w-[1440px] mx-auto px-6 sm:px-10 md:px-12">
         <div className="grid grid-cols-1 md:grid-cols-6 items-start">
           {/* Columns 1 & 2 */}
           <div className="hidden md:block md:col-start-1 md:col-end-3" />
 
           {/* Columns 3, 4, 5 */}
-          <div className="md:col-start-3 md:col-end-6 pl-0 pr-4 md:pr-8 flex flex-col items-start">
+          <div className="md:col-start-3 md:col-end-6 md:pl-0 md:pr-8 flex flex-col items-start w-full">
             <div ref={emblemRef}>
               <SweepingOrbitalEmblem label="The Coastal Sanctuary" reducedMotion={reducedMotion} />
             </div>
@@ -1147,7 +1196,7 @@ function CoastalInterludeSection({ reducedMotion }: { reducedMotion: boolean }) 
               ref={titleRef}
               className="font-cinzel font-normal uppercase leading-[1.12] tracking-[0.04em] text-ink w-full pl-0"
               style={{
-                fontSize: "clamp(24px, 3.2vw, 45px)",
+                fontSize: "clamp(22px, 3.2vw, 40px)",
               }}
               aria-label={COASTAL_STORY_LINES.join(" ")}
             >
@@ -1244,7 +1293,7 @@ function GalleBranchSection({ reducedMotion }: { reducedMotion: boolean }) {
       aria-label="SkyNest Galle branch"
       className="relative bg-paper overflow-hidden w-full"
     >
-      <div className="relative w-full aspect-[3/2] overflow-hidden">
+      <div className="relative w-full min-h-[460px] sm:min-h-[520px] md:min-h-0 md:aspect-[3/2] overflow-hidden">
         {/* Parallax background image */}
         <div className="absolute inset-0 w-full h-full z-0 overflow-hidden">
           {/* Feathered top gradient */}
@@ -1269,7 +1318,7 @@ function GalleBranchSection({ reducedMotion }: { reducedMotion: boolean }) {
         </div>
 
         {/* 6-column grid lines */}
-        <div className="absolute inset-0 pointer-events-none z-[5]">
+        <div className="absolute inset-0 pointer-events-none z-[5] hidden sm:block">
           <HairlineGrid count={5} color="border-white/[0.15] md:border-white/[0.12]" />
         </div>
 
@@ -1278,10 +1327,10 @@ function GalleBranchSection({ reducedMotion }: { reducedMotion: boolean }) {
           aria-hidden="false"
           className="absolute inset-0 pointer-events-none z-10"
         >
-          <div className="relative h-full mx-auto max-w-[1400px] px-6 md:px-16 flex flex-col items-end justify-start pt-12 md:pt-20 gap-2.5 md:gap-4 text-right">
+          <div className="relative h-full mx-auto max-w-[1400px] px-6 sm:px-10 md:px-16 flex flex-col items-start sm:items-end justify-start pt-14 sm:pt-16 md:pt-20 gap-2.5 md:gap-4 text-left sm:text-right">
             <span
               ref={labelRef}
-              className="font-jakarta text-[11px] md:text-[12px] font-bold tracking-[0.3em] uppercase text-ink/80 drop-shadow-sm text-right"
+              className="font-jakarta text-[11px] md:text-[12px] font-bold tracking-[0.3em] uppercase text-ink/80 drop-shadow-sm text-left sm:text-right"
               style={{
                 willChange: "transform, opacity",
               }}
@@ -1291,9 +1340,9 @@ function GalleBranchSection({ reducedMotion }: { reducedMotion: boolean }) {
 
             <h2
               ref={titleRef}
-              className="font-cinzel text-ink leading-[1.05] drop-shadow-sm uppercase tracking-[0.03em] text-right"
+              className="font-cinzel text-ink leading-[1.05] drop-shadow-sm uppercase tracking-[0.03em] text-left sm:text-right"
               style={{
-                fontSize: "clamp(32px, 4.8vw, 72px)",
+                fontSize: "clamp(28px, 4.8vw, 72px)",
                 willChange: "transform, opacity",
               }}
             >
@@ -1302,7 +1351,7 @@ function GalleBranchSection({ reducedMotion }: { reducedMotion: boolean }) {
 
             <p
               ref={lineRef}
-              className="font-cinzel italic text-ink/75 max-w-lg leading-relaxed text-sm md:text-lg drop-shadow-sm text-right"
+              className="font-cinzel italic text-ink/75 max-w-lg leading-relaxed text-sm md:text-lg drop-shadow-sm text-left sm:text-right"
               style={{
                 willChange: "transform, opacity",
               }}
@@ -1384,7 +1433,7 @@ function ColomboCityInterludeSection({ reducedMotion }: { reducedMotion: boolean
       {/* 6-column hairline grid */}
       <div
         aria-hidden="true"
-        className="pointer-events-none absolute inset-0 flex"
+        className="pointer-events-none absolute inset-0 hidden sm:flex"
         style={{ zIndex: 1 }}
       >
         {Array.from({ length: 6 }).map((_, i) => (
@@ -1395,13 +1444,13 @@ function ColomboCityInterludeSection({ reducedMotion }: { reducedMotion: boolean
         ))}
       </div>
 
-      <div className="relative z-10 w-full">
+      <div className="relative z-10 w-full max-w-[1440px] mx-auto px-6 sm:px-10 md:px-12">
         <div className="grid grid-cols-1 md:grid-cols-6 items-start">
           {/* Columns 1 & 2 */}
           <div className="hidden md:block md:col-start-1 md:col-end-3" />
 
           {/* Columns 3, 4, 5 */}
-          <div className="md:col-start-3 md:col-end-6 pl-0 pr-4 md:pr-8 flex flex-col items-start">
+          <div className="md:col-start-3 md:col-end-6 md:pl-0 md:pr-8 flex flex-col items-start w-full">
             <div ref={emblemRef}>
               <SweepingOrbitalEmblem label="The Urban Sanctuary" reducedMotion={reducedMotion} />
             </div>
@@ -1410,7 +1459,7 @@ function ColomboCityInterludeSection({ reducedMotion }: { reducedMotion: boolean
               ref={titleRef}
               className="font-cinzel font-normal uppercase leading-[1.12] tracking-[0.04em] text-ink w-full pl-0"
               style={{
-                fontSize: "clamp(24px, 3.2vw, 45px)",
+                fontSize: "clamp(22px, 3.2vw, 40px)",
               }}
               aria-label={COLOMBO_STORY_LINES.join(" ")}
             >
@@ -1507,7 +1556,7 @@ function ColomboBranchSection({ reducedMotion }: { reducedMotion: boolean }) {
       aria-label="SkyNest Colombo branch"
       className="relative bg-paper overflow-hidden w-full"
     >
-      <div className="relative w-full aspect-[3/2] overflow-hidden">
+      <div className="relative w-full min-h-[460px] sm:min-h-[520px] md:min-h-0 md:aspect-[3/2] overflow-hidden">
         {/* Parallax background image */}
         <div className="absolute inset-0 w-full h-full z-0 overflow-hidden">
           {/* Feathered top gradient */}
@@ -1532,7 +1581,7 @@ function ColomboBranchSection({ reducedMotion }: { reducedMotion: boolean }) {
         </div>
 
         {/* 6-column grid lines */}
-        <div className="absolute inset-0 pointer-events-none z-[5]">
+        <div className="absolute inset-0 pointer-events-none z-[5] hidden sm:block">
           <HairlineGrid count={5} color="border-white/[0.15] md:border-white/[0.12]" />
         </div>
 
@@ -1541,7 +1590,7 @@ function ColomboBranchSection({ reducedMotion }: { reducedMotion: boolean }) {
           aria-hidden="false"
           className="absolute inset-0 pointer-events-none z-10"
         >
-          <div className="relative h-full mx-auto max-w-[1400px] px-6 md:px-16 flex flex-col justify-start pt-12 md:pt-20 gap-2.5 md:gap-4">
+          <div className="relative h-full mx-auto max-w-[1400px] px-6 sm:px-10 md:px-16 flex flex-col justify-start pt-14 sm:pt-16 md:pt-20 gap-2.5 md:gap-4">
             <span
               ref={labelRef}
               className="font-jakarta text-[11px] md:text-[12px] font-bold tracking-[0.3em] uppercase text-ink/80 drop-shadow-sm"
@@ -1557,7 +1606,7 @@ function ColomboBranchSection({ reducedMotion }: { reducedMotion: boolean }) {
               ref={titleRef}
               className="font-cinzel text-ink leading-[1.05] drop-shadow-sm uppercase tracking-[0.03em]"
               style={{
-                fontSize: "clamp(32px, 4.8vw, 72px)",
+                fontSize: "clamp(28px, 4.8vw, 72px)",
                 willChange: "transform, opacity",
                 opacity: reducedMotion ? 1 : 0,
               }}
