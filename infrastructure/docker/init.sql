@@ -271,7 +271,10 @@ CREATE TABLE IF NOT EXISTS service_usage (
     quantity         INT NOT NULL DEFAULT 1 CHECK (quantity > 0),
     price_at_usage   NUMERIC(10,2) NOT NULL,
     CHECK (price_at_usage >= 0),
-    used_at          TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+    used_at          TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    notes            TEXT,                -- migration 016
+    appointment_time VARCHAR(5),          -- spa slot HH:MM; date is used_at::date
+    meal_time        VARCHAR(20)          -- BREAKFAST / LUNCH / DINNER / ALL_DAY
 );
 
 -- 14. Invoices

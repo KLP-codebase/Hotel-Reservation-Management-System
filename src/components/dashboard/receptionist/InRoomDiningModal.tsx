@@ -104,6 +104,7 @@ export function InRoomDiningModal({ isOpen, onClose, booking, onOrderPlaced }: I
         await apiFetch(`/api/v1/services/folio/${booking.booking_id}`, {
           method: "POST",
           body: JSON.stringify({
+            booking_room_id: booking.booking_room_id || undefined,
             service_name:   item.name,
             category:       "Dining",
             meal_time:      item.meal_time,
