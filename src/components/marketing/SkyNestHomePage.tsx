@@ -67,81 +67,7 @@ function usePrefersReducedMotion(): boolean {
 // Sub-components
 // ---------------------------------------------------------------------------
 
-/**
- * GlobalGridOverlay — one fixed full-page SVG with 6 vertical lines.
- * Each line is painted with a linearGradient that transitions the stroke colour
- * from white (on dark hero/image sections) to a dark tint (on light paper sections).
- */
-function GlobalGridOverlay() {
-  const COLS = 6;
-  const xs = Array.from({ length: COLS + 1 }, (_, i) =>
-    ((i / COLS) * 100).toFixed(4) + "%"
-  );
 
-  return (
-    <div
-      aria-hidden="true"
-      className="pointer-events-none fixed inset-0 z-[9999] hidden sm:block"
-      style={{ isolation: "isolate" }}
-    >
-      <svg
-        xmlns="http://www.w3.org/2000/svg"
-        className="w-full h-full"
-        preserveAspectRatio="none"
-        style={{ display: "block" }}
-      >
-        <defs>
-          <linearGradient id="grid-line-grad" x1="0" y1="0" x2="0" y2="1" gradientUnits="objectBoundingBox">
-            <stop offset="0%" stopColor="rgba(255,255,255,0.18)" />
-            <stop offset="36%" stopColor="rgba(255,255,255,0.18)" />
-            <stop offset="46%" stopColor="rgba(11,37,64,0.10)" />
-            <stop offset="62%" stopColor="rgba(11,37,64,0.10)" />
-            <stop offset="70%" stopColor="rgba(255,255,255,0.15)" />
-            <stop offset="80%" stopColor="rgba(255,255,255,0.15)" />
-            <stop offset="88%" stopColor="rgba(11,37,64,0.10)" />
-            <stop offset="100%" stopColor="rgba(11,37,64,0.10)" />
-          </linearGradient>
-        </defs>
-
-        {xs.map((x, i) => (
-          <line
-            key={i}
-            x1={x}
-            y1="0"
-            x2={x}
-            y2="100%"
-            stroke="url(#grid-line-grad)"
-            strokeWidth="0.6"
-          />
-        ))}
-      </svg>
-    </div>
-  );
-}
-
-/** Vertical hairline grid columns */
-function HairlineGrid({
-  count = 5,
-  color = "border-white/[0.07]",
-}: {
-  count?: number;
-  color?: string;
-}) {
-  return (
-    <div
-      aria-hidden="true"
-      className="pointer-events-none absolute inset-0 flex"
-      style={{ zIndex: 1 }}
-    >
-      {Array.from({ length: count + 1 }).map((_, i) => (
-        <div
-          key={i}
-          className={`flex-1 border-l ${color} last:border-r`}
-        />
-      ))}
-    </div>
-  );
-}
 
 /** White Desert-style mountain glyph */
 function MountainGlyph({ className = "", style }: { className?: string; style?: React.CSSProperties }) {
@@ -658,8 +584,7 @@ function HeroSection({
         />
       </div>
 
-      {/* Hairline grid */}
-      <HairlineGrid count={5} />
+
 
       {/* Top row: eyebrow left + explore right */}
       <div
@@ -885,19 +810,7 @@ function IntroSection({ reducedMotion }: { reducedMotion: boolean }) {
       aria-label="SkyNest Hotels story"
       className="relative bg-paper overflow-hidden py-14 md:py-20"
     >
-      {/* 6-column hairline grid */}
-      <div
-        aria-hidden="true"
-        className="pointer-events-none absolute inset-0 hidden sm:flex"
-        style={{ zIndex: 1 }}
-      >
-        {Array.from({ length: 6 }).map((_, i) => (
-          <div
-            key={i}
-            className="flex-1 border-l border-ink/[0.06] last:border-r"
-          />
-        ))}
-      </div>
+
 
       <div className="relative z-10 w-full max-w-[1440px] mx-auto px-6 sm:px-10 md:px-12">
         <div className="grid grid-cols-1 md:grid-cols-6 items-start">
@@ -1054,10 +967,7 @@ function KandyBranchSection({ reducedMotion }: { reducedMotion: boolean }) {
           />
         </div>
 
-        {/* 6-column grid lines */}
-        <div className="absolute inset-0 pointer-events-none z-[5] hidden sm:block">
-          <HairlineGrid count={5} color="border-white/[0.15] md:border-white/[0.12]" />
-        </div>
+
 
         {/* Text overlay */}
         <div
@@ -1167,19 +1077,7 @@ function CoastalInterludeSection({ reducedMotion }: { reducedMotion: boolean }) 
       aria-label="SkyNest Southern Coast story"
       className="relative bg-paper overflow-hidden py-14 md:py-20"
     >
-      {/* 6-column hairline grid */}
-      <div
-        aria-hidden="true"
-        className="pointer-events-none absolute inset-0 hidden sm:flex"
-        style={{ zIndex: 1 }}
-      >
-        {Array.from({ length: 6 }).map((_, i) => (
-          <div
-            key={i}
-            className="flex-1 border-l border-ink/[0.06] last:border-r"
-          />
-        ))}
-      </div>
+
 
       <div className="relative z-10 w-full max-w-[1440px] mx-auto px-6 sm:px-10 md:px-12">
         <div className="grid grid-cols-1 md:grid-cols-6 items-start">
@@ -1317,10 +1215,7 @@ function GalleBranchSection({ reducedMotion }: { reducedMotion: boolean }) {
           />
         </div>
 
-        {/* 6-column grid lines */}
-        <div className="absolute inset-0 pointer-events-none z-[5] hidden sm:block">
-          <HairlineGrid count={5} color="border-white/[0.15] md:border-white/[0.12]" />
-        </div>
+
 
         {/* Text overlay */}
         <div
@@ -1430,19 +1325,7 @@ function ColomboCityInterludeSection({ reducedMotion }: { reducedMotion: boolean
       aria-label="SkyNest Colombo city story"
       className="relative bg-paper overflow-hidden py-14 md:py-20"
     >
-      {/* 6-column hairline grid */}
-      <div
-        aria-hidden="true"
-        className="pointer-events-none absolute inset-0 hidden sm:flex"
-        style={{ zIndex: 1 }}
-      >
-        {Array.from({ length: 6 }).map((_, i) => (
-          <div
-            key={i}
-            className="flex-1 border-l border-ink/[0.06] last:border-r"
-          />
-        ))}
-      </div>
+
 
       <div className="relative z-10 w-full max-w-[1440px] mx-auto px-6 sm:px-10 md:px-12">
         <div className="grid grid-cols-1 md:grid-cols-6 items-start">
@@ -1580,10 +1463,7 @@ function ColomboBranchSection({ reducedMotion }: { reducedMotion: boolean }) {
           />
         </div>
 
-        {/* 6-column grid lines */}
-        <div className="absolute inset-0 pointer-events-none z-[5] hidden sm:block">
-          <HairlineGrid count={5} color="border-white/[0.15] md:border-white/[0.12]" />
-        </div>
+
 
         {/* Text overlay — left-aligned (mirrors Kandy) */}
         <div
@@ -1662,8 +1542,7 @@ export default function SkyNestHomePage() {
 
   return (
     <div className="relative bg-paper">
-      {/* Single global adaptive grid */}
-      <GlobalGridOverlay />
+
 
       <a
         href="#story"
