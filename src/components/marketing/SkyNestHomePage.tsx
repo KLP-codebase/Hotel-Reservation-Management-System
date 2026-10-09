@@ -19,8 +19,7 @@ interface NavLink {
 // Constants
 // ---------------------------------------------------------------------------
 const NAV_LINKS: NavLink[] = [
-  { label: "Stay", href: "#stay" },
-  { label: "Dining", href: "#dining" },
+  { label: "Rates", href: "#rates" },
   { label: "About", href: "#about" },
 ];
 
@@ -403,13 +402,14 @@ function SkyNestNav({
           {/* Right — CTA buttons */}
           <div className="hidden md:flex items-center gap-2.5">
             <a
-              href="#rates"
-              id="nav-cta-rates"
+              href="#contact"
+              id="nav-cta-contact"
               className="flex items-center px-6 py-2.5 text-[11px] md:text-[12px] font-jakarta font-medium tracking-[0.12em] uppercase border transition-[border-color,background-color] duration-200"
               style={linkStyle}
             >
-              Rates
+              Contact
             </a>
+
             <a
               href="/book"
               id="nav-cta-book-now"
