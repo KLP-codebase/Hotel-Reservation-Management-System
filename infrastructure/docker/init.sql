@@ -239,7 +239,7 @@ CREATE TABLE IF NOT EXISTS bookings (
 CREATE TABLE IF NOT EXISTS booking_rooms (
     booking_room_id  UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     booking_id       UUID NOT NULL REFERENCES bookings(booking_id) ON DELETE CASCADE,
-    primary_guest_id UUID NOT NULL REFERENCES guests(guest_id) ON DELETE RESTRICT,
+    primary_guest_id VARCHAR(36) NOT NULL,  -- guests.id (varchar), no FK — live-schema convention
     room_type_id     INT REFERENCES room_types(room_type_id) ON DELETE RESTRICT,
     room_id          VARCHAR(36) REFERENCES rooms(id) ON DELETE RESTRICT,  -- rooms.id (varchar), as on the live schema
     plan_id          INT NOT NULL REFERENCES meal_plans(plan_id) ON DELETE RESTRICT,
@@ -597,45 +597,34 @@ RETURNS TRIGGER
 LANGUAGE plpgsql
 AS $$
 DECLARE
+    v_key    TEXT;
     v_rec_id TEXT;
 BEGIN
+    v_key := CASE TG_TABLE_NAME
+        WHEN 'bookings'      THEN 'booking_id'
+        WHEN 'booking_rooms' THEN 'booking_room_id'
+        WHEN 'guests'        THEN 'guest_id'
+        WHEN 'invoices'      THEN 'invoice_id'
+        WHEN 'service_usage' THEN 'usage_id'
+        ELSE 'booking_room_id'
+    END;
+
     IF TG_OP = 'DELETE' THEN
-        v_rec_id := CASE TG_TABLE_NAME
-            WHEN 'bookings'        THEN OLD.booking_id::TEXT
-            WHEN 'booking_rooms'   THEN OLD.booking_room_id::TEXT
-            WHEN 'guests'          THEN OLD.guest_id::TEXT
-            WHEN 'invoices'        THEN OLD.invoice_id::TEXT
-            WHEN 'service_usage'   THEN OLD.usage_id::TEXT
-            ELSE COALESCE(OLD.booking_room_id::TEXT, 'UNKNOWN')
-        END;
+        v_rec_id := COALESCE(to_jsonb(OLD) ->> v_key, 'UNKNOWN');
 
         INSERT INTO change_log (table_name, record_id, operation, old_data, new_data, db_user)
         VALUES (TG_TABLE_NAME, v_rec_id, 'DELETE', to_jsonb(OLD), NULL, CURRENT_USER);
         RETURN OLD;
 
     ELSIF TG_OP = 'UPDATE' THEN
-        v_rec_id := CASE TG_TABLE_NAME
-            WHEN 'bookings'        THEN NEW.booking_id::TEXT
-            WHEN 'booking_rooms'   THEN NEW.booking_room_id::TEXT
-            WHEN 'guests'          THEN NEW.guest_id::TEXT
-            WHEN 'invoices'        THEN NEW.invoice_id::TEXT
-            WHEN 'service_usage'   THEN NEW.usage_id::TEXT
-            ELSE COALESCE(NEW.booking_room_id::TEXT, 'UNKNOWN')
-        END;
+        v_rec_id := COALESCE(to_jsonb(NEW) ->> v_key, 'UNKNOWN');
 
         INSERT INTO change_log (table_name, record_id, operation, old_data, new_data, db_user)
         VALUES (TG_TABLE_NAME, v_rec_id, 'UPDATE', to_jsonb(OLD), to_jsonb(NEW), CURRENT_USER);
         RETURN NEW;
 
     ELSIF TG_OP = 'INSERT' THEN
-        v_rec_id := CASE TG_TABLE_NAME
-            WHEN 'bookings'        THEN NEW.booking_id::TEXT
-            WHEN 'booking_rooms'   THEN NEW.booking_room_id::TEXT
-            WHEN 'guests'          THEN NEW.guest_id::TEXT
-            WHEN 'invoices'        THEN NEW.invoice_id::TEXT
-            WHEN 'service_usage'   THEN NEW.usage_id::TEXT
-            ELSE COALESCE(NEW.booking_room_id::TEXT, 'UNKNOWN')
-        END;
+        v_rec_id := COALESCE(to_jsonb(NEW) ->> v_key, 'UNKNOWN');
 
         INSERT INTO change_log (table_name, record_id, operation, old_data, new_data, db_user)
         VALUES (TG_TABLE_NAME, v_rec_id, 'INSERT', NULL, to_jsonb(NEW), CURRENT_USER);
