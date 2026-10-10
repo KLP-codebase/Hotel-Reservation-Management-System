@@ -89,7 +89,7 @@ export function SkyNestFooter() {
 
   return (
     <footer
-      id="footer"
+      id="contact"
       aria-label="SkyNest Hotels footer"
       className="relative bg-paper text-ink overflow-hidden border-t border-ink/[0.08]"
     >
