@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import Link from 'next/link';
 import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
@@ -9,24 +9,32 @@ import {
   Users,
   Maximize2,
   Check,
-  ChevronDown,
-  ChevronLeft,
   ChevronRight,
-  ArrowRight,
+  ChevronDown,
   Sparkles,
   Utensils,
   Coffee,
   Wine,
+  Sun,
+  Moon,
+  Clock,
+  ShieldCheck,
+  ArrowRight,
+  MapPin,
+  Menu,
+  X,
 } from 'lucide-react';
 import { useAuth } from '@/context/auth-context';
-import { SkyNestFooter } from '@/components/marketing/SkyNestFooter';
+import SkyNestFooter from '@/components/marketing/SkyNestFooter';
 
-// ── Utility: Respect prefers-reduced-motion ───────────────────────────────────
+// ── Motion Guard ──────────────────────────────────────────────────────────────
+
 function usePrefersReducedMotion(): boolean {
-  const [reduced, setReduced] = useState(false);
+  const [reduced, setReduced] = useState(
+    () => typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches
+  );
   useEffect(() => {
     const mql = window.matchMedia('(prefers-reduced-motion: reduce)');
-    setReduced(mql.matches);
     const handler = (e: MediaQueryListEvent) => setReduced(e.matches);
     mql.addEventListener('change', handler);
     return () => mql.removeEventListener('change', handler);
@@ -34,7 +42,8 @@ function usePrefersReducedMotion(): boolean {
   return reduced;
 }
 
-/** White Desert-style mountain glyph */
+// ── Mountain Glyph ────────────────────────────────────────────────────────────
+
 function MountainGlyph({ className = '', style }: { className?: string; style?: React.CSSProperties }) {
   return (
     <svg
@@ -56,383 +65,95 @@ function MountainGlyph({ className = '', style }: { className?: string; style?: 
   );
 }
 
-/** Grand sweeping orbital emblem with SVG line-drawing scroll animation */
-function SweepingOrbitalEmblem({
-  label = "The SkyNest Standard",
-  reducedMotion = false,
-}: {
-  label?: string;
-  reducedMotion?: boolean;
-}) {
-  const containerRef = useRef<HTMLDivElement>(null);
-  const path1Ref = useRef<SVGPathElement>(null);
-  const path2Ref = useRef<SVGEllipseElement>(null);
-  const labelRef = useRef<HTMLSpanElement>(null);
+// ── Data: Room Tiers ──────────────────────────────────────────────────────────
 
-  useEffect(() => {
-    gsap.registerPlugin(ScrollTrigger);
-
-    if (reducedMotion) {
-      if (path1Ref.current) gsap.set(path1Ref.current, { strokeDashoffset: 0 });
-      if (path2Ref.current) gsap.set(path2Ref.current, { strokeDashoffset: 0 });
-      if (labelRef.current) gsap.set(labelRef.current, { opacity: 1 });
-      return;
-    }
-
-    const p1 = path1Ref.current;
-    const p2 = path2Ref.current;
-    const lbl = labelRef.current;
-    if (!p1 || !p2 || !lbl || !containerRef.current) return;
-
-    const len1 = p1.getTotalLength ? p1.getTotalLength() : 700;
-    const len2 = 600;
-
-    gsap.set(p1, { strokeDasharray: len1, strokeDashoffset: len1 });
-    gsap.set(p2, { strokeDasharray: len2, strokeDashoffset: len2 });
-    gsap.set(lbl, { opacity: 0, scale: 0.95 });
-
-    const ctx = gsap.context(() => {
-      const tl = gsap.timeline({
-        scrollTrigger: {
-          trigger: containerRef.current,
-          start: "top 95%",
-          end: "top 65%",
-          scrub: 0.8,
-        },
-      });
-
-      tl.to(p1, { strokeDashoffset: 0, ease: "power1.out" }, 0);
-      tl.to(p2, { strokeDashoffset: 0, ease: "power1.out" }, 0.08);
-      tl.to(lbl, { opacity: 1, scale: 1, ease: "power2.out" }, 0.16);
-    }, containerRef);
-
-    return () => ctx.revert();
-  }, [reducedMotion]);
-
-  return (
-    <div
-      ref={containerRef}
-      className="relative inline-flex items-center justify-start w-full max-w-[280px] sm:max-w-xs md:max-w-sm h-16 sm:h-20 md:h-24 select-none mb-6 md:mb-8"
-    >
-      <svg
-        aria-hidden="true"
-        viewBox="0 0 340 90"
-        fill="none"
-        xmlns="http://www.w3.org/2000/svg"
-        className="w-full h-full pointer-events-none overflow-visible"
-      >
-        <path
-          ref={path1Ref}
-          d="M 2 62 C 32 62, 110 62, 205 48 C 285 36, 310 10, 235 10 C 140 10, 24 32, 38 56 C 45 74, 125 82, 255 62"
-          stroke="#0B2540"
-          strokeWidth="0.45"
-          opacity="0.32"
-          strokeLinecap="round"
-        />
-        <ellipse
-          ref={path2Ref}
-          cx="170"
-          cy="45"
-          rx="94"
-          ry="22"
-          stroke="#0B2540"
-          strokeWidth="0.42"
-          opacity="0.35"
-        />
-      </svg>
-      <span
-        ref={labelRef}
-        className="absolute left-[50%] top-[50%] -translate-x-1/2 -translate-y-1/2 font-cinzel italic text-[11px] sm:text-[12px] md:text-[14px] tracking-[0.08em] text-ink/80 whitespace-nowrap"
-        style={{ fontStyle: "italic" }}
-      >
-        {label}
-      </span>
-    </div>
-  );
-}
-
-// ── 12 Sanctuary Room Tiles Data across 3 Hotels ─────────────────────────────
-export type HotelKey = 'KANDY' | 'GALLE' | 'COLOMBO';
-
-export interface SanctuaryRoomTile {
+interface RoomTier {
   id: string;
-  roomType: 'STANDARD' | 'DELUXE' | 'SUITE' | 'PRESIDENTIAL';
-  hotelKey: HotelKey;
-  hotelName: string;
-  hotelSubtitle: string;
   name: string;
   tagline: string;
   usdRate: number;
   capacity: number;
   sizeM2: number;
   sizeSqFt: number;
-  scaleLabel: string;
+  properties: string[];
   image: string;
   highlights: string[];
 }
 
-export const SANCTUARY_TILES: SanctuaryRoomTile[] = [
-  // ── KANDY HIGHLAND SANCTUARY (Tiles 1-4) ──
+const ROOM_TIERS: RoomTier[] = [
   {
-    id: 'KANDY-STANDARD',
-    roomType: 'STANDARD',
-    hotelKey: 'KANDY',
-    hotelName: 'Sky Nest Kandy',
-    hotelSubtitle: 'Misty Hill Country Haven',
-    name: 'Standard Haven',
-    tagline: 'Intimate serenity with handcrafted Ceylon teak finishes',
+    id: 'STANDARD',
+    name: 'Standard Room',
+    tagline: 'Refined serenity with handcrafted Ceylon teak accents',
     usdRate: 120,
     capacity: 2,
     sizeM2: 38,
     sizeSqFt: 410,
-    scaleLabel: 'Cozy Haven • 38 m²',
-    image: '/standard_room.jpg',
+    properties: ['Colombo', 'Galle', 'Kandy'],
+    image: '/about_lobby.jpg',
     highlights: [
-      'Handcrafted dark Ceylon teak accents & shutters',
-      'Highland mist courtyard views & garden quietude',
-      'Artisanal Ceylon silver-tip tea & French press bar',
-      'Botanical rainfall shower with organic extracts',
+      'Handcrafted Ceylon teak finishes & hardwood floors',
+      'City or landscaped courtyard garden vistas',
+      'Artisanal Ceylon loose-leaf tea & French press bar',
+      'Rain shower with botanical organic extracts',
     ],
   },
   {
-    id: 'KANDY-DELUXE',
-    roomType: 'DELUXE',
-    hotelKey: 'KANDY',
-    hotelName: 'Sky Nest Kandy',
-    hotelSubtitle: 'Misty Hill Country Haven',
-    name: 'Deluxe Veranda',
-    tagline: 'Generous highland light, private balcony, and mountain breeze',
+    id: 'DELUXE',
+    name: 'Deluxe Room',
+    tagline: 'Generous light, private veranda, and horizon sea breeze',
     usdRate: 180,
     capacity: 3,
     sizeM2: 52,
     sizeSqFt: 560,
-    scaleLabel: 'Generous Space • 52 m²',
-    image: '/deluxe_room.jpg',
+    properties: ['Colombo', 'Galle', 'Kandy'],
+    image: '/colorful-buildings-reflect-in-pool-on-a-sunny-day-2026-03-24-04-06-42-utc.webp',
     highlights: [
       'Private open-air veranda with rattan lounging chairs',
-      'Four-poster draped canopy bed with fine Ceylon linens',
-      'Panoramic vistas of the Knuckles mountain range',
-      'Evening lemongrass turndown ritual & fireside warmers',
+      'Freestanding deep marble soaking tub & dual vanities',
+      'Panoramic vistas of the Indian Ocean or misty peaks',
+      'Evening turndown ritual with Ceylon lemongrass infusions',
     ],
   },
   {
-    id: 'KANDY-SUITE',
-    roomType: 'SUITE',
-    hotelKey: 'KANDY',
-    hotelName: 'Sky Nest Kandy',
-    hotelSubtitle: 'Misty Hill Country Haven',
-    name: 'Executive Hill Suite',
+    id: 'SUITE',
+    name: 'Executive Suite',
     tagline: 'Dual-chamber sanctuary with private heated plunge pool',
     usdRate: 280,
     capacity: 4,
     sizeM2: 85,
     sizeSqFt: 915,
-    scaleLabel: 'Dual-Chamber • 85 m²',
+    properties: ['Colombo', 'Galle', 'Kandy'],
     image: '/about_suite.jpg',
     highlights: [
-      'Separate living salon and master bedchamber',
-      'Private outdoor heated plunge pool overlooking valleys',
-      'Dedicated personal butler station & tea sommelier',
-      'Curated artisanal bar with single-estate Ceylon harvests',
+      'Separate living salon and private master bedchamber',
+      'Private outdoor heated plunge pool with ocean views',
+      'Dedicated butler station & complimentary daily pressing',
+      'Curated artisanal bar with single-estate Ceylon teas',
     ],
   },
   {
-    id: 'KANDY-PRESIDENTIAL',
-    roomType: 'PRESIDENTIAL',
-    hotelKey: 'KANDY',
-    hotelName: 'Sky Nest Kandy',
-    hotelSubtitle: 'Misty Hill Country Haven',
-    name: 'Presidential Penthouse',
-    tagline: 'The pinnacle of highland majesty with panoramic 360° decks',
+    id: 'PRESIDENTIAL',
+    name: 'Presidential Suite',
+    tagline: 'The pinnacle of island hospitality with dedicated 24/7 butler',
     usdRate: 500,
     capacity: 6,
     sizeM2: 160,
     sizeSqFt: 1720,
-    scaleLabel: 'Palatial Penthouse • 160 m²',
+    properties: ['Colombo', 'Galle', 'Kandy'],
     image: '/pillar_architecture.jpg',
     highlights: [
-      'Wrap-around high-altitude terrace & private firepit',
-      'Private chef dining salon for bespoke highland degustations',
+      'Panoramic penthouse wrap-around terrace & sunset deck',
+      'Private chef\'s dining room for bespoke degustations',
       '24/7 dedicated personal butler and concierge service',
-      'Complimentary private luxury chauffeur transfers',
-    ],
-  },
-
-  // ── GALLE COASTAL FORTRESS (Tiles 5-8) ──
-  {
-    id: 'GALLE-STANDARD',
-    roomType: 'STANDARD',
-    hotelKey: 'GALLE',
-    hotelName: 'Sky Nest Galle',
-    hotelSubtitle: 'Historic Ocean Bastion',
-    name: 'Standard Bastion Room',
-    tagline: 'Refined colonial calm with whitewashed Dutch archways',
-    usdRate: 120,
-    capacity: 2,
-    sizeM2: 38,
-    sizeSqFt: 410,
-    scaleLabel: 'Cozy Haven • 38 m²',
-    image: '/standard_room.jpg',
-    highlights: [
-      'Dutch colonial teak finishes and polished terracotta',
-      'Courtyard frangipani garden and fountain vistas',
-      'Artisanal Ceylon loose-leaf tea & iced herbal infusions',
-      'Cooling rain shower with botanical lemongrass extracts',
-    ],
-  },
-  {
-    id: 'GALLE-DELUXE',
-    roomType: 'DELUXE',
-    hotelKey: 'GALLE',
-    hotelName: 'Sky Nest Galle',
-    hotelSubtitle: 'Historic Ocean Bastion',
-    name: 'Deluxe Ocean Veranda',
-    tagline: 'Generous coastal suite with open balcony and ocean horizons',
-    usdRate: 180,
-    capacity: 3,
-    sizeM2: 52,
-    sizeSqFt: 560,
-    scaleLabel: 'Generous Space • 52 m²',
-    image: '/deluxe_room.jpg',
-    highlights: [
-      'Private veranda with rattan loungers overlooking surf',
-      'Freestanding deep marble tub & dual vanity dressing suite',
-      'Four-poster draped canopy bed catching Indian Ocean breezes',
-      'Sunset turndown with chilled king coconut water',
-    ],
-  },
-  {
-    id: 'GALLE-SUITE',
-    roomType: 'SUITE',
-    hotelKey: 'GALLE',
-    hotelName: 'Sky Nest Galle',
-    hotelSubtitle: 'Historic Ocean Bastion',
-    name: 'Executive Coastal Suite',
-    tagline: 'Spacious dual salon with private ocean-facing plunge pool',
-    usdRate: 280,
-    capacity: 4,
-    sizeM2: 85,
-    sizeSqFt: 915,
-    scaleLabel: 'Dual-Chamber • 85 m²',
-    image: '/about_suite.jpg',
-    highlights: [
-      'Separate oceanfront sitting salon and private bedchamber',
-      'Private heated infinity plunge pool overlooking lighthouse',
-      'Dedicated personal butler & daily laundry pressing',
-      'Bespoke afternoon Ceylon High Tea delivered to your suite',
-    ],
-  },
-  {
-    id: 'GALLE-PRESIDENTIAL',
-    roomType: 'PRESIDENTIAL',
-    hotelKey: 'GALLE',
-    hotelName: 'Sky Nest Galle',
-    hotelSubtitle: 'Historic Ocean Bastion',
-    name: 'Presidential Fortress Suite',
-    tagline: 'Grand colonial ocean residence overlooking the ramparts',
-    usdRate: 500,
-    capacity: 6,
-    sizeM2: 160,
-    sizeSqFt: 1720,
-    scaleLabel: 'Palatial Penthouse • 160 m²',
-    image: '/pillar_architecture.jpg',
-    highlights: [
-      'Private rooftop sunset terrace facing the historic ramparts',
-      'Private dining salon with dedicated resident seafood chef',
-      '24/7 personal butler and maritime heritage concierge',
-      'Complimentary airport private chauffeur transfer',
-    ],
-  },
-
-  // ── COLOMBO URBAN PORT SANCTUARY (Tiles 9-12) ──
-  {
-    id: 'COLOMBO-STANDARD',
-    roomType: 'STANDARD',
-    hotelKey: 'COLOMBO',
-    hotelName: 'Sky Nest Colombo',
-    hotelSubtitle: 'Harbour City Sanctuary',
-    name: 'Standard Urban Haven',
-    tagline: 'Restful minimalist teak retreat amidst the capital rhythm',
-    usdRate: 120,
-    capacity: 2,
-    sizeM2: 38,
-    sizeSqFt: 410,
-    scaleLabel: 'Cozy Haven • 38 m²',
-    image: '/standard_room.jpg',
-    highlights: [
-      'Handcrafted Ceylon teak paneling and acoustic soundproofing',
-      'Skyline and lush landscaped courtyard garden vistas',
-      'Artisanal espresso machine & single-estate Ceylon tea bar',
-      'Spa rain shower with organic botanical sea salt scrubs',
-    ],
-  },
-  {
-    id: 'COLOMBO-DELUXE',
-    roomType: 'DELUXE',
-    hotelKey: 'COLOMBO',
-    hotelName: 'Sky Nest Colombo',
-    hotelSubtitle: 'Harbour City Sanctuary',
-    name: 'Deluxe Harbour Room',
-    tagline: 'Spacious urban luxury with private balcony and ocean vistas',
-    usdRate: 180,
-    capacity: 3,
-    sizeM2: 52,
-    sizeSqFt: 560,
-    scaleLabel: 'Generous Space • 52 m²',
-    image: '/deluxe_room.jpg',
-    highlights: [
-      'Private veranda with rattan seating over the harbour waters',
-      'Draped canopy king bed and generous executive work desk',
-      'Deep marble soaking tub and dual vanities with luxury amenities',
-      'Complimentary evening cocktails at the Sky Lounge',
-    ],
-  },
-  {
-    id: 'COLOMBO-SUITE',
-    roomType: 'SUITE',
-    hotelKey: 'COLOMBO',
-    hotelName: 'Sky Nest Colombo',
-    hotelSubtitle: 'Harbour City Sanctuary',
-    name: 'Executive Skyline Suite',
-    tagline: 'Grand dual-salon with private infinity plunge pool',
-    usdRate: 280,
-    capacity: 4,
-    sizeM2: 85,
-    sizeSqFt: 915,
-    scaleLabel: 'Dual-Chamber • 85 m²',
-    image: '/about_suite.jpg',
-    highlights: [
-      'Separate entertainment salon and private master quarters',
-      'Private heated plunge pool with skyline city & sea views',
-      'Dedicated personal butler and business concierge service',
-      'Private boardroom access and complimentary airport transfers',
-    ],
-  },
-  {
-    id: 'COLOMBO-PRESIDENTIAL',
-    roomType: 'PRESIDENTIAL',
-    hotelKey: 'COLOMBO',
-    hotelName: 'Sky Nest Colombo',
-    hotelSubtitle: 'Harbour City Sanctuary',
-    name: 'Presidential Harbour Penthouse',
-    tagline: 'The pinnacle of island urban sophistication with private elevator',
-    usdRate: 500,
-    capacity: 6,
-    sizeM2: 160,
-    sizeSqFt: 1720,
-    scaleLabel: 'Palatial Penthouse • 160 m²',
-    image: '/pillar_architecture.jpg',
-    highlights: [
-      'Double-height floor-to-ceiling panoramic ocean glass',
-      'Private 10-seat dining room & private master chef kitchen',
-      '24/7 dedicated butler, chauffeur, and security concierge',
-      'Helipad transfers and VIP fast-track international arrival',
+      'Complimentary private airport chauffeur transfer',
     ],
   },
 ];
 
-// ── Meal Plans Data ──────────────────────────────────────────────────────────
-export interface MealPlan {
+// ── Data: Meal Plans ──────────────────────────────────────────────────────────
+
+interface MealPlan {
   id: string;
   name: string;
   code: string;
@@ -443,7 +164,7 @@ export interface MealPlan {
   highlight: string;
 }
 
-export const MEAL_PLANS: MealPlan[] = [
+const MEAL_PLANS: MealPlan[] = [
   {
     id: 'RO',
     name: 'Room Only',
@@ -510,142 +231,147 @@ export const MEAL_PLANS: MealPlan[] = [
   },
 ];
 
-// ── Navigation Bar (Matching SkyNestNav in SkyNestHomePage) ──────────────────
+const USD_TO_LKR = 310;
+
+// ── Navigation Bar ────────────────────────────────────────────────────────────
+
 function RatesNav() {
   const { user } = useAuth();
-  const [navProgress, setNavProgress] = useState(0);
-
-  useEffect(() => {
-    const handleScroll = () => {
-      const scrollY = window.scrollY;
-      const p = Math.min(1, Math.max(0, scrollY / 180));
-      setNavProgress(p);
-    };
-    window.addEventListener('scroll', handleScroll, { passive: true });
-    handleScroll();
-    return () => window.removeEventListener('scroll', handleScroll);
-  }, []);
-
-  const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
-
-  const bgAlpha = lerp(0, 0.88, navProgress);
-  const blurAmt = lerp(0, 16, navProgress);
-  const borderAlpha = lerp(0, 0.08, navProgress);
-
-  const textR = lerp(255, 11, navProgress);
-  const textG = lerp(255, 37, navProgress);
-  const textB = lerp(255, 64, navProgress);
-  const textA = lerp(0.88, 0.72, navProgress);
-
-  const borderR = lerp(255, 11, navProgress);
-  const borderG = lerp(255, 37, navProgress);
-  const borderB = lerp(255, 64, navProgress);
-  const borderA = lerp(0.25, 0.18, navProgress);
-
-  const fillA = lerp(0.10, 0.04, navProgress);
-
-  const textColor = `rgba(${textR | 0},${textG | 0},${textB | 0},${textA.toFixed(2)})`;
-  const borderColor = `rgba(${borderR | 0},${borderG | 0},${borderB | 0},${borderA.toFixed(2)})`;
-  const fillColor = `rgba(${textR | 0},${textG | 0},${textB | 0},${fillA.toFixed(2)})`;
-
-  const bgStyle: React.CSSProperties = {
-    background: `rgba(253,252,250,${bgAlpha.toFixed(3)})`,
-    backdropFilter: `blur(${blurAmt.toFixed(1)}px)`,
-    WebkitBackdropFilter: `blur(${blurAmt.toFixed(1)}px)`,
-    borderBottom: `1px solid rgba(11,37,64,${borderAlpha.toFixed(3)})`,
-  };
-
-  const linkStyle: React.CSSProperties = {
-    color: textColor,
-    borderColor: borderColor,
-    background: fillColor,
-  };
-
-  const bookStyle: React.CSSProperties = {
-    color: textColor,
-    borderColor: `rgba(${borderR | 0},${borderG | 0},${borderB | 0},${(borderA * 1.4).toFixed(2)})`,
-    background: `rgba(${textR | 0},${textG | 0},${textB | 0},${(fillA * 1.8).toFixed(2)})`,
-  };
+  const [menuOpen, setMenuOpen] = useState(false);
 
   return (
-    <nav
-      id="rates-nav"
-      aria-label="Rates navigation"
-      className="fixed top-0 left-0 right-0 z-50 transition-colors duration-150"
-      style={bgStyle}
-    >
-      <div className="flex items-center justify-between h-14 md:h-16 px-4 sm:px-6 md:px-8">
-        <div className="hidden md:flex items-center gap-2.5">
-          <Link
-            href="/rates"
-            className="flex items-center px-6 py-2.5 text-[11px] md:text-[12px] font-jakarta font-medium tracking-[0.12em] uppercase border transition-[border-color,background-color] duration-200"
-            style={linkStyle}
-          >
-            Rates
-          </Link>
-          <Link
-            href="/#about"
-            className="flex items-center px-6 py-2.5 text-[11px] md:text-[12px] font-jakarta font-medium tracking-[0.12em] uppercase border transition-[border-color,background-color] duration-200"
-            style={linkStyle}
-          >
-            About
-          </Link>
-        </div>
-
-        <div className="flex items-center md:absolute md:left-1/2 md:-translate-x-1/2">
-          <Link
-            href="/"
-            className="flex items-center gap-2 group focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-skynest-accent"
-          >
-            <MountainGlyph className="w-6 h-auto" style={{ color: textColor }} />
-            <span
-              className="font-jakarta font-bold text-[11px] tracking-[0.35em] uppercase"
-              style={{ color: textColor }}
+    <>
+      <nav
+        id="rates-nav"
+        aria-label="Rates navigation"
+        className="fixed top-0 left-0 right-0 z-50 bg-ink/90 backdrop-blur-md border-b border-white/10 transition-colors duration-300"
+      >
+        <div className="max-w-[1440px] mx-auto flex items-center justify-between h-14 md:h-16 px-4 sm:px-6 md:px-8">
+          {/* Left links */}
+          <div className="hidden md:flex items-center gap-2.5">
+            <Link
+              href="/rates"
+              className="flex items-center px-5 py-2 text-[11px] md:text-[12px] font-jakarta font-medium tracking-[0.12em] uppercase border border-skynest-accent bg-skynest-accent/15 text-white transition-colors duration-200"
             >
+              Rates
+            </Link>
+            <Link
+              href="/#about"
+              className="flex items-center px-5 py-2 text-[11px] md:text-[12px] font-jakarta font-medium tracking-[0.12em] uppercase border border-white/20 text-white/80 hover:text-white hover:border-white/40 transition-colors duration-200"
+            >
+              About
+            </Link>
+          </div>
+
+          {/* Center Brand */}
+          <Link href="/" className="flex flex-col items-center gap-0.5 group">
+            <MountainGlyph className="w-6 sm:w-7 h-auto text-white/90" />
+            <span className="font-jakarta font-bold text-[10px] sm:text-[11px] tracking-[0.35em] uppercase text-white/90 select-none">
               SKYNEST
             </span>
           </Link>
-        </div>
 
-        <div className="flex items-center gap-2.5">
+          {/* Right links */}
+          <div className="hidden md:flex items-center gap-2.5">
+            <Link
+              href="/contact"
+              className="flex items-center px-5 py-2 text-[11px] md:text-[12px] font-jakarta font-medium tracking-[0.12em] uppercase border border-white/20 text-white/80 hover:text-white hover:border-white/40 transition-colors duration-200"
+            >
+              Contact
+            </Link>
+            <Link
+              href="/book"
+              className="flex items-center px-5 py-2 text-[11px] md:text-[12px] font-jakarta font-semibold tracking-[0.12em] uppercase border border-skynest-accent bg-skynest-accent text-white hover:bg-skynest-accent/90 transition-colors duration-200"
+            >
+              Book Now
+            </Link>
+            {user ? (
+              <Link
+                href={user.role === 'GUEST' ? '/dashboard/activity' : '/dashboard'}
+                className="flex items-center px-4 py-2 text-[11px] font-jakarta font-medium tracking-[0.12em] uppercase text-amber-400 border border-amber-500/30 hover:border-amber-400 bg-amber-500/10 transition-colors"
+              >
+                {user.role === 'GUEST' ? 'Activity' : 'Dashboard'}
+              </Link>
+            ) : (
+              <Link
+                href="/login"
+                className="flex items-center px-4 py-2 text-[11px] font-jakarta font-medium tracking-[0.12em] uppercase text-white/70 hover:text-white transition-colors"
+              >
+                Sign In
+              </Link>
+            )}
+          </div>
+
+          {/* Mobile hamburger */}
+          <button
+            type="button"
+            onClick={() => setMenuOpen(!menuOpen)}
+            aria-label="Toggle navigation menu"
+            className="md:hidden p-2 text-white/80 hover:text-white"
+          >
+            {menuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+          </button>
+        </div>
+      </nav>
+
+      {/* Mobile Drawer */}
+      {menuOpen && (
+        <div className="fixed inset-0 z-40 bg-ink/95 backdrop-blur-xl flex flex-col justify-center px-8 space-y-4 md:hidden">
+          <Link
+            href="/rates"
+            onClick={() => setMenuOpen(false)}
+            className="font-jakarta text-2xl font-semibold text-skynest-accent tracking-wider uppercase"
+          >
+            Rates &amp; Plans
+          </Link>
+          <Link
+            href="/#about"
+            onClick={() => setMenuOpen(false)}
+            className="font-jakarta text-2xl font-semibold text-white/80 hover:text-white tracking-wider uppercase"
+          >
+            About
+          </Link>
           <Link
             href="/contact"
-            className="hidden sm:flex items-center px-5 py-2 text-[11px] md:text-[12px] font-jakarta font-medium tracking-wider uppercase border transition-colors duration-200"
-            style={linkStyle}
+            onClick={() => setMenuOpen(false)}
+            className="font-jakarta text-2xl font-semibold text-white/80 hover:text-white tracking-wider uppercase"
           >
             Contact
           </Link>
           <Link
             href="/book"
-            className="flex items-center px-5 py-2 text-[11px] md:text-[12px] font-jakarta font-medium tracking-wider uppercase border transition-colors duration-200"
-            style={bookStyle}
+            onClick={() => setMenuOpen(false)}
+            className="font-jakarta text-2xl font-semibold text-white/80 hover:text-white tracking-wider uppercase"
           >
             Book Now
           </Link>
-          {user ? (
-            <Link
-              href="/dashboard"
-              className="hidden sm:flex items-center px-5 py-2 text-[11px] md:text-[12px] font-jakarta font-medium tracking-wider uppercase border transition-colors duration-200"
-              style={linkStyle}
-            >
-              Dashboard
-            </Link>
-          ) : (
-            <Link
-              href="/login"
-              className="hidden sm:flex items-center px-5 py-2 text-[11px] md:text-[12px] font-jakarta font-medium tracking-wider uppercase border transition-colors duration-200"
-              style={linkStyle}
-            >
-              Sign In
-            </Link>
-          )}
+          <div className="pt-4 border-t border-white/10">
+            {user ? (
+              <Link
+                href={user.role === 'GUEST' ? '/dashboard/activity' : '/dashboard'}
+                onClick={() => setMenuOpen(false)}
+                className="font-jakarta text-lg text-amber-400 font-semibold"
+              >
+                {user.role === 'GUEST' ? 'My Activity' : 'Staff Dashboard'}
+              </Link>
+            ) : (
+              <Link
+                href="/login"
+                onClick={() => setMenuOpen(false)}
+                className="font-jakarta text-lg text-white/70 hover:text-white"
+              >
+                Sign In
+              </Link>
+            )}
+          </div>
         </div>
-      </div>
-    </nav>
+      )}
+    </>
   );
 }
 
-// ── Cinematic Pinned Hero Section (Exact Duplicate of SkyNestHomePage) ─────────
+// ── Hero Section (Pinned with Parallax & Wordmark) ────────────────────────────
+
 function RatesHeroSection({ heroRef }: { heroRef: React.RefObject<HTMLDivElement | null> }) {
   const bgImgRef = useRef<HTMLImageElement>(null);
   const wordmarkRef = useRef<HTMLDivElement>(null);
@@ -664,7 +390,10 @@ function RatesHeroSection({ heroRef }: { heroRef: React.RefObject<HTMLDivElement
           end: '+=100%',
           scrub: 1.0,
         },
-        defaults: { ease: 'none', force3D: true },
+        defaults: {
+          ease: 'none',
+          force3D: true,
+        },
       });
 
       if (bgImgRef.current) {
@@ -685,9 +414,10 @@ function RatesHeroSection({ heroRef }: { heroRef: React.RefObject<HTMLDivElement
     <section
       ref={heroRef}
       id="rates-hero"
-      aria-label="SkyNest rates and sanctuaries hero"
+      aria-label="Rates and pricing hero"
       className="sticky top-0 h-[100dvh] overflow-hidden flex flex-col bg-ink z-0 select-none"
     >
+      {/* Background Image */}
       <div aria-hidden="true" className="absolute inset-0 pointer-events-none z-0 overflow-hidden">
         <img
           ref={bgImgRef}
@@ -695,54 +425,58 @@ function RatesHeroSection({ heroRef }: { heroRef: React.RefObject<HTMLDivElement
           alt=""
           className="w-full h-full object-cover object-center"
           style={{
-            filter: 'brightness(0.7) contrast(1.1)',
+            filter: 'brightness(0.68) contrast(1.12)',
             willChange: 'transform',
           }}
         />
+        {/* Deep Navy Radial Contrast Gradient */}
         <div
           className="absolute inset-0"
           style={{
             background:
-              'radial-gradient(ellipse 120% 70% at 50% 30%, rgba(11,37,64,0.35) 0%, rgba(7,28,48,0.6) 60%, rgba(11,37,64,0.85) 100%)',
+              'radial-gradient(ellipse 120% 70% at 50% 30%, rgba(11,37,64,0.35) 0%, rgba(7,28,48,0.65) 60%, rgba(11,37,64,0.9) 100%)',
           }}
         />
       </div>
 
+      {/* Top Metadata Row */}
       <div
         ref={topRowRef}
         className="relative flex flex-col sm:flex-row sm:items-start sm:justify-between px-6 sm:px-8 md:px-12 pt-20 sm:pt-24 md:pt-28 pb-0 gap-4 sm:gap-6 z-10"
         style={{ willChange: 'transform, opacity' }}
       >
-        <p
-          className="font-cinzel font-normal italic text-white/75 text-[12px] sm:text-[13px] md:text-[15px] leading-relaxed max-w-[320px] sm:max-w-none"
-          style={{ fontStyle: 'italic' }}
-        >
-          Three branches. Twelve sanctuaries.
-          <br />
-          One transparent tariff standard.
-        </p>
+        <div>
+          <p className="font-cinzel font-normal italic text-white/80 text-[12px] sm:text-[13px] md:text-[15px] leading-relaxed">
+            Transparent Sanctuary Pricing &bull; Sri Lanka
+            <br />
+            Three destinated havens. One standard of welcome.
+          </p>
+          <span className="inline-block mt-2 font-jakarta text-[10px] tracking-[0.16em] uppercase text-white/50">
+            Colombo &bull; Galle &bull; Kandy
+          </span>
+        </div>
 
         <a
-          href="#story"
-          className="self-start sm:self-auto flex items-center gap-2 font-jakarta text-[10px] sm:text-[11px] md:text-[12px] font-medium tracking-[0.15em] uppercase text-white/80 hover:text-white border border-white/20 hover:border-white/40 px-3.5 sm:px-4 py-2 sm:py-2.5 transition-all duration-300"
+          href="#rates-content"
+          className="self-start sm:self-auto flex items-center gap-2 font-jakarta text-[10px] sm:text-[11px] md:text-[12px] font-medium tracking-[0.15em] uppercase text-white/85 hover:text-white border border-white/20 hover:border-white/40 px-4 sm:px-5 py-2.5 sm:py-3 transition-all duration-300"
         >
-          <span>Explore 12 Sanctuaries</span>
-          <ChevronDown className="w-3.5 h-3.5 animate-bounce" />
+          <span>Explore Tiers &amp; Plans</span>
+          <ChevronDown className="w-3.5 h-3.5 text-skynest-accent animate-bounce" />
         </a>
       </div>
 
+      {/* Giant Wordmark */}
       <div
         ref={wordmarkRef}
         aria-hidden="true"
-        className="relative z-10 flex-1 flex items-end justify-center overflow-hidden pointer-events-none select-none w-full px-4"
+        className="relative z-10 flex-1 flex items-end justify-center pointer-events-none select-none w-full px-4 pb-2 sm:pb-4 overflow-visible"
         style={{ willChange: 'transform, opacity' }}
       >
         <span
           className="font-cinzel font-normal leading-[0.85] text-white text-center whitespace-nowrap block w-full uppercase"
           style={{
-            fontSize: 'clamp(40px, 15vw, 220px)',
-            letterSpacing: '0.03em',
-            paddingBottom: 'clamp(4px, 1.5vw, 8px)',
+            fontSize: 'clamp(36px, 13vw, 190px)',
+            letterSpacing: '0.04em',
           }}
         >
           RATES &amp; PLANS
@@ -752,18 +486,25 @@ function RatesHeroSection({ heroRef }: { heroRef: React.RefObject<HTMLDivElement
   );
 }
 
-// ── Cloud Transition (Exact Duplicate from SkyNestHomePage with White Fog) ───
+// ── Mystic Cloud Scrub Transition ─────────────────────────────────────────────
+
 function RatesCloudTransition() {
   const containerRef = useRef<HTMLDivElement>(null);
+  const wrapWispsRef = useRef<HTMLDivElement>(null);
   const wrap1Ref = useRef<HTMLDivElement>(null);
   const wrap2Ref = useRef<HTMLDivElement>(null);
+  const fogRef = useRef<HTMLDivElement>(null);
+  const reducedMotion = usePrefersReducedMotion();
 
   useEffect(() => {
+    if (reducedMotion || !containerRef.current) return;
     gsap.registerPlugin(ScrollTrigger);
 
-    gsap.set([wrap1Ref.current, wrap2Ref.current], { autoAlpha: 0 });
-    gsap.set(wrap1Ref.current, { y: '12%' });
-    gsap.set(wrap2Ref.current, { y: '20%' });
+    gsap.set([wrapWispsRef.current, wrap1Ref.current, wrap2Ref.current], { autoAlpha: 0 });
+    gsap.set(wrapWispsRef.current, { y: '16%', x: '-2.5%' });
+    gsap.set(wrap1Ref.current, { y: '12%', x: '1%' });
+    gsap.set(wrap2Ref.current, { y: '20%', x: '-1%' });
+    if (fogRef.current) gsap.set(fogRef.current, { opacity: 0.15 });
 
     const ctx = gsap.context(() => {
       const tl = gsap.timeline({
@@ -773,25 +514,63 @@ function RatesCloudTransition() {
           end: 'bottom bottom',
           scrub: 1.0,
         },
-        defaults: { ease: 'none', force3D: true },
+        defaults: {
+          ease: 'none',
+          force3D: true,
+        },
       });
 
-      tl.to(wrap1Ref.current, { y: '0%', autoAlpha: 1 }, 0);
-      tl.to(wrap2Ref.current, { y: '0%', autoAlpha: 1 }, 0.1);
+      if (wrapWispsRef.current) {
+        tl.to(wrapWispsRef.current, { y: '-6%', x: '3%', autoAlpha: 0.8 }, 0);
+      }
+      if (wrap1Ref.current) {
+        tl.to(wrap1Ref.current, { y: '0%', x: '-1.5%', autoAlpha: 1 }, 0);
+      }
+      if (wrap2Ref.current) {
+        tl.to(wrap2Ref.current, { y: '0%', x: '1.5%', autoAlpha: 1 }, 0.08);
+      }
+      if (fogRef.current) {
+        tl.to(fogRef.current, { opacity: 1 }, 0.04);
+      }
     }, containerRef);
 
     return () => ctx.revert();
-  }, []);
+  }, [reducedMotion]);
 
   return (
     <div
       ref={containerRef}
       aria-hidden="true"
-      className="relative z-10 h-[50dvh] sm:h-[60dvh] md:h-[70dvh] pointer-events-none overflow-hidden"
+      className="relative z-10 h-[50dvh] sm:h-[60dvh] md:h-[72dvh] pointer-events-none overflow-hidden select-none"
     >
+      {/* High-Altitude Wisps Layer */}
+      <div
+        ref={wrapWispsRef}
+        className="absolute bottom-10 sm:bottom-16 left-1/2 overflow-hidden pointer-events-none"
+        style={{
+          width: '240%',
+          height: '85%',
+          marginLeft: '-120%',
+          willChange: 'transform, opacity',
+        }}
+      >
+        <img
+          src="/clouds/cloud_wisps.webp"
+          alt=""
+          className="w-full h-full object-cover object-bottom select-none pointer-events-none opacity-80"
+          style={{
+            WebkitMaskImage:
+              'linear-gradient(to bottom, transparent 0%, rgba(0,0,0,0.2) 20%, rgba(0,0,0,0.75) 55%, black 80%)',
+            maskImage:
+              'linear-gradient(to bottom, transparent 0%, rgba(0,0,0,0.2) 20%, rgba(0,0,0,0.75) 55%, black 80%)',
+          }}
+        />
+      </div>
+
+      {/* Layer 1 — Base Clouds */}
       <div
         ref={wrap1Ref}
-        className="absolute bottom-0 left-1/2 overflow-hidden"
+        className="absolute bottom-0 left-1/2 overflow-hidden pointer-events-none"
         style={{
           width: '220%',
           height: '100%',
@@ -802,7 +581,7 @@ function RatesCloudTransition() {
         <img
           src="/07_Clouds.webp"
           alt=""
-          className="w-full h-full object-cover object-bottom"
+          className="w-full h-full object-cover object-bottom select-none pointer-events-none"
           style={{
             WebkitMaskImage:
               'linear-gradient(to bottom, transparent 0%, rgba(0,0,0,0.2) 18%, rgba(0,0,0,0.7) 38%, black 58%)',
@@ -812,9 +591,10 @@ function RatesCloudTransition() {
         />
       </div>
 
+      {/* Layer 2 — Denser Clouds */}
       <div
         ref={wrap2Ref}
-        className="absolute bottom-0 left-1/2 overflow-hidden"
+        className="absolute bottom-0 left-1/2 overflow-hidden pointer-events-none"
         style={{
           width: '220%',
           height: '85%',
@@ -825,7 +605,7 @@ function RatesCloudTransition() {
         <img
           src="/Clouds 3.webp"
           alt=""
-          className="w-full h-full object-cover object-bottom"
+          className="w-full h-full object-cover object-bottom select-none pointer-events-none"
           style={{
             WebkitMaskImage:
               'linear-gradient(to bottom, transparent 0%, rgba(0,0,0,0.4) 22%, rgba(0,0,0,0.9) 48%, black 65%)',
@@ -835,868 +615,573 @@ function RatesCloudTransition() {
         />
       </div>
 
-      {/* Dense white fog at the bottom — blends seamlessly into paper white */}
+      {/* Layer 3 — Dense white fog blending into #FDFCFA */}
       <div
-        className="absolute inset-x-0 bottom-0 h-[55%]"
+        ref={fogRef}
+        className="absolute inset-x-0 bottom-0 h-[60%] pointer-events-none"
         style={{
           background:
             'linear-gradient(to bottom, transparent 0%, rgba(253,252,250,0.3) 20%, rgba(253,252,250,0.7) 45%, rgba(253,252,250,0.95) 75%, #FDFCFA 100%)',
+          willChange: 'opacity',
         }}
       />
     </div>
   );
 }
 
-// ── White Header Below Clouds (Exact IntroSection Style from Landing Page) ────
-function RatesIntroHeaderSection({ reducedMotion }: { reducedMotion: boolean }) {
-  const sectionRef = useRef<HTMLElement>(null);
-  const titleRef = useRef<HTMLHeadingElement>(null);
-  const emblemRef = useRef<HTMLDivElement>(null);
-  const subTextRef = useRef<HTMLDivElement>(null);
+// ── Main Rates Page Component ─────────────────────────────────────────────────
 
-  const INTRO_LINES = [
-    'THREE SANCTUARIES, TWELVE EXPERIENCES —',
-    'TRANSPARENT NIGHTLY TARIFFS,',
-    'UNCOMPROMISING CEYLONESE LUXURY.',
-  ];
+export default function RatesPage() {
+  const heroRef = useRef<HTMLDivElement>(null);
+  const contentRef = useRef<HTMLDivElement>(null);
+  const reducedMotion = usePrefersReducedMotion();
 
-  useEffect(() => {
-    gsap.registerPlugin(ScrollTrigger);
+  // State
+  const [currency, setCurrency] = useState<'USD' | 'LKR'>('USD');
+  const [selectedBranch, setSelectedBranch] = useState<string>('ALL');
+  const [selectedRoomId, setSelectedRoomId] = useState<string>('DELUXE');
+  const [selectedPlanId, setSelectedPlanId] = useState<string>('HB');
 
-    const section = sectionRef.current;
-    const emblem = emblemRef.current;
-    const title = titleRef.current;
-    const subText = subTextRef.current;
-
-    if (reducedMotion || !section) return;
-
-    if (emblem) gsap.set(emblem, { opacity: 0, y: 15 });
-    if (title) gsap.set(title.children, { opacity: 0, y: '100%' });
-    if (subText) gsap.set(subText, { opacity: 0, y: 15 });
-
-    const ctx = gsap.context(() => {
-      const tl = gsap.timeline({
-        scrollTrigger: {
-          trigger: section,
-          start: 'top 90%',
-          toggleActions: 'play none none none',
-        },
-      });
-
-      if (emblem) {
-        tl.to(emblem, { opacity: 1, y: 0, duration: 0.4, ease: 'power2.out' });
-      }
-      if (title) {
-        tl.to(
-          title.children,
-          {
-            opacity: 1,
-            y: '0%',
-            duration: 0.5,
-            stagger: 0.08,
-            ease: 'power3.out',
-          },
-          emblem ? '-=0.25' : 0
-        );
-      }
-      if (subText) {
-        tl.to(subText, { opacity: 1, y: 0, duration: 0.45, ease: 'power2.out' }, '-=0.2');
-      }
-    }, section);
-
-    return () => ctx.revert();
-  }, [reducedMotion]);
-
-  return (
-    <section
-      ref={sectionRef}
-      id="story"
-      aria-label="Rates intro story"
-      className="relative bg-paper overflow-hidden py-14 md:py-20 -mt-1"
-    >
-      <div className="relative z-10 w-full max-w-[1440px] mx-auto px-6 sm:px-10 md:px-12">
-        <div className="grid grid-cols-1 md:grid-cols-6 items-start">
-          <div className="hidden md:block md:col-start-1 md:col-end-2" />
-
-          <div className="md:col-start-2 md:col-end-6 flex flex-col items-start w-full">
-            <div ref={emblemRef}>
-              <SweepingOrbitalEmblem label="The SkyNest Standard" reducedMotion={reducedMotion} />
-            </div>
-
-            <h1
-              ref={titleRef}
-              className="font-cinzel font-normal uppercase leading-[1.14] tracking-[0.035em] text-ink w-full"
-              style={{
-                fontSize: 'clamp(22px, 3.2vw, 38px)',
-              }}
-            >
-              {INTRO_LINES.map((line, i) => (
-                <div key={i} className="overflow-hidden block py-0.5">
-                  <span className="block font-cinzel font-normal uppercase tracking-[0.035em] text-ink will-change-transform">
-                    {line}
-                  </span>
-                </div>
-              ))}
-            </h1>
-
-            <div
-              ref={subTextRef}
-              className="mt-8 md:mt-10 flex flex-col sm:flex-row sm:items-baseline justify-between gap-6 pt-5 border-t border-skynest-hairline w-full"
-            >
-              <p className="font-jakarta text-[12px] md:text-[13px] leading-[1.8] text-ink/65 max-w-xl">
-                Every sanctuary at Sky Nest is sculpted around uncompromised stillness, handcrafted Ceylon teak, and unhurried hospitality. Browse all twelve sanctuaries across Kandy, Galle, and Colombo below.
-              </p>
-
-              <a
-                href="#sanctuaries-carousel"
-                className="self-start sm:self-auto inline-flex items-center gap-2 font-jakarta text-[10px] md:text-[11px] font-semibold tracking-[0.2em] uppercase text-ink whitespace-nowrap border-b border-ink/30 pb-0.5 hover:border-ink transition-colors duration-300"
-              >
-                <span>View All 12 Havens</span>
-                <ChevronRight className="w-3.5 h-3.5" />
-              </a>
-            </div>
-          </div>
-
-          <div className="hidden md:block md:col-start-6 md:col-end-7" />
-        </div>
-      </div>
-    </section>
-  );
-}
-
-// ── 12-Tile Right Scroll Carousel (Kandy, Galle, Colombo) ────────────────────
-function RatesSanctuaryCarousel({
-  selectedRoomId,
-  onSelectRoom,
-}: {
-  selectedRoomId: string;
-  onSelectRoom: (roomId: string) => void;
-}) {
-  const [activeHotel, setActiveHotel] = useState<HotelKey>('KANDY');
-  const carouselRef = useRef<HTMLDivElement>(null);
-  const tileRefs = useRef<(HTMLDivElement | null)[]>([]);
-
-  // Smooth jump to the 4 tiles of a selected hotel
-  const jumpToHotel = useCallback((hotelKey: HotelKey) => {
-    setActiveHotel(hotelKey);
-    let targetIndex = 0;
-    if (hotelKey === 'GALLE') targetIndex = 4;
-    if (hotelKey === 'COLOMBO') targetIndex = 8;
-
-    const targetEl = tileRefs.current[targetIndex];
-    if (targetEl && carouselRef.current) {
-      const containerLeft = carouselRef.current.getBoundingClientRect().left;
-      const targetLeft = targetEl.getBoundingClientRect().left;
-      const currentScroll = carouselRef.current.scrollLeft;
-      const scrollOffset = currentScroll + (targetLeft - containerLeft) - 32;
-
-      carouselRef.current.scrollTo({
-        left: Math.max(0, scrollOffset),
-        behavior: 'smooth',
-      });
+  // Currency Converter helper
+  const formatPrice = (usd: number) => {
+    if (currency === 'USD') {
+      return `$${usd.toLocaleString()}`;
     }
-  }, []);
-
-  // Left & right scroll helper
-  const scrollDelta = (delta: number) => {
-    if (carouselRef.current) {
-      carouselRef.current.scrollBy({ left: delta, behavior: 'smooth' });
-    }
+    const lkr = Math.round(usd * USD_TO_LKR);
+    return `LKR ${lkr.toLocaleString()}`;
   };
 
-  const HOTELS: { key: HotelKey; label: string; tag: string }[] = [
-    { key: 'KANDY', label: 'Sky Nest Kandy', tag: 'Highland Sanctuaries' },
-    { key: 'GALLE', label: 'Sky Nest Galle', tag: 'Coastal Bastions' },
-    { key: 'COLOMBO', label: 'Sky Nest Colombo', tag: 'Harbour Port Sanctuaries' },
-  ];
+  // Filtered Rooms
+  const filteredRooms = useMemo(() => {
+    if (selectedBranch === 'ALL') return ROOM_TIERS;
+    return ROOM_TIERS.filter((r) => r.properties.includes(selectedBranch));
+  }, [selectedBranch]);
+
+  // Selected Room & Meal Plan for Estimator
+  const currentRoom = ROOM_TIERS.find((r) => r.id === selectedRoomId) || ROOM_TIERS[1];
+  const currentPlan = MEAL_PLANS.find((p) => p.id === selectedPlanId) || MEAL_PLANS[2];
+
+  const subtotalUsd = currentRoom.usdRate + currentPlan.usdRate;
+  // Sri Lankan Tax Cascade (Rule B13: 10% SC, 1% TDL, 2.5% SSCL, 18% VAT)
+  const serviceChargeUsd = subtotalUsd * 0.10;
+  const tdlUsd = (subtotalUsd + serviceChargeUsd) * 0.01;
+  const ssclUsd = (subtotalUsd + serviceChargeUsd + tdlUsd) * 0.025;
+  const vatUsd = (subtotalUsd + serviceChargeUsd + tdlUsd + ssclUsd) * 0.18;
+  const totalWithTaxesUsd = subtotalUsd + serviceChargeUsd + tdlUsd + ssclUsd + vatUsd;
+
+  // Staggered reveal for cards
+  useEffect(() => {
+    if (reducedMotion || !contentRef.current) return;
+    gsap.registerPlugin(ScrollTrigger);
+
+    const ctx = gsap.context(() => {
+      const cards = contentRef.current?.querySelectorAll('[data-reveal]');
+      if (!cards || cards.length === 0) return;
+
+      gsap.fromTo(
+        cards,
+        { opacity: 0, y: 24 },
+        {
+          opacity: 1,
+          y: 0,
+          duration: 0.65,
+          stagger: 0.08,
+          ease: 'power2.out',
+          scrollTrigger: {
+            trigger: contentRef.current,
+            start: 'top 80%',
+          },
+        }
+      );
+    }, contentRef);
+
+    return () => ctx.revert();
+  }, [reducedMotion, selectedBranch]);
 
   return (
-    <section
-      id="sanctuaries-carousel"
-      aria-label="Sanctuary rooms 12-tile showcase"
-      className="relative bg-paper py-12 md:py-16 overflow-hidden"
-    >
-      <div className="max-w-[1440px] mx-auto px-6 sm:px-10 md:px-12 mb-8">
-        <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 pb-6 border-b border-skynest-hairline">
-          <div>
-            <span className="font-jakarta text-[11px] font-bold tracking-[0.25em] uppercase text-skynest-accent block mb-2">
-              01 &nbsp;/&nbsp; Twelve Sanctuaries Across The Island
+    <div className="relative bg-paper text-ink selection:bg-skynest-accent selection:text-white font-jakarta">
+      {/* ── Fixed Navigation Bar ── */}
+      <RatesNav />
+
+      {/* ── 1. CINEMATIC PINNED HERO SECTION ── */}
+      <RatesHeroSection heroRef={heroRef} />
+
+      {/* ── 2. MYSTIC CLOUD TRANSITION ── */}
+      <RatesCloudTransition />
+
+      {/* ── 3. MAIN RATES & MEAL PLANS CONTENT ── */}
+      <div
+        id="rates-content"
+        ref={contentRef}
+        className="relative z-20 bg-paper min-h-screen pt-4 sm:pt-8 pb-32"
+      >
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 space-y-20">
+
+          {/* Section Introduction */}
+          <div className="text-center space-y-3 pt-6" data-reveal>
+            <MountainGlyph className="w-6 h-auto text-skynest-accent mx-auto" />
+            <span className="font-jakarta text-[11px] font-semibold tracking-[0.2em] text-ink/50 uppercase block">
+              Transparent Sanctuary Tariffs
             </span>
-            <h2 className="font-cinzel text-2xl sm:text-3xl md:text-4xl uppercase tracking-[0.03em] text-ink">
-              Explore Our Sanctuaries
-            </h2>
-            <p className="font-jakarta text-xs sm:text-sm text-ink/60 mt-1 max-w-xl">
-              Select a destination below to right-scroll and focus on its four tailored havens. Non-active destination tiles blur seamlessly on the sides.
+            <h1 className="font-cinzel text-3xl sm:text-4xl lg:text-5xl font-bold tracking-[0.06em] text-ink uppercase">
+              Sanctuary Rooms &amp; Nightly Rates
+            </h1>
+            <p className="font-jakarta text-xs sm:text-sm text-ink/70 max-w-2xl mx-auto leading-relaxed">
+              Every room and suite at Sky Nest is sculpted around uncompromised spaciousness, bespoke personalized service, and architectural stillness across our three island destinations.
             </p>
           </div>
 
-          {/* Hotel Jump Buttons & Navigation Controls */}
-          <div className="flex flex-wrap items-center gap-2">
-            {HOTELS.map((h) => {
-              const isActive = activeHotel === h.key;
-              return (
+          {/* ── Control Bar: Property Filter + Currency Toggle ── */}
+          <div
+            className="flex flex-col sm:flex-row items-center justify-between gap-4 p-4 bg-white border border-skynest-hairline shadow-sm"
+            data-reveal
+          >
+            {/* Property Filter */}
+            <div className="flex flex-wrap items-center gap-1.5 w-full sm:w-auto">
+              <span className="text-[11px] font-semibold uppercase tracking-wider text-ink/50 mr-2">
+                Property:
+              </span>
+              {[
+                { id: 'ALL', label: 'All Sanctuaries' },
+                { id: 'Colombo', label: 'Colombo' },
+                { id: 'Galle', label: 'Galle' },
+                { id: 'Kandy', label: 'Kandy' },
+              ].map((prop) => (
                 <button
-                  key={h.key}
+                  key={prop.id}
                   type="button"
-                  onClick={() => jumpToHotel(h.key)}
-                  className={`px-4 sm:px-5 py-2.5 text-xs font-jakarta uppercase tracking-wider font-semibold border transition-all duration-300 ${
-                    isActive
-                      ? 'bg-ink text-paper border-ink shadow-sm'
-                      : 'bg-white text-ink/70 border-skynest-hairline hover:border-ink hover:text-ink'
+                  onClick={() => setSelectedBranch(prop.id)}
+                  className={`px-3 py-1.5 text-xs font-jakarta transition-colors border ${
+                    selectedBranch === prop.id
+                      ? 'bg-ink text-white border-ink font-semibold'
+                      : 'bg-white text-ink/70 border-skynest-hairline hover:border-ink'
                   }`}
                 >
-                  <span>{h.label}</span>
+                  {prop.label}
                 </button>
-              );
-            })}
+              ))}
+            </div>
 
-            {/* Left / Right arrow navigation */}
-            <div className="inline-flex items-center gap-1 ml-2">
-              <button
-                type="button"
-                onClick={() => scrollDelta(-340)}
-                aria-label="Scroll left"
-                className="w-9 h-9 border border-skynest-hairline bg-white hover:border-ink text-ink flex items-center justify-center transition-colors"
-              >
-                <ChevronLeft className="w-4 h-4" />
-              </button>
-              <button
-                type="button"
-                onClick={() => scrollDelta(340)}
-                aria-label="Scroll right"
-                className="w-9 h-9 border border-skynest-hairline bg-white hover:border-ink text-ink flex items-center justify-center transition-colors"
-              >
-                <ChevronRight className="w-4 h-4" />
-              </button>
+            {/* Currency Toggle */}
+            <div className="flex items-center gap-2 self-end sm:self-auto">
+              <span className="text-[11px] font-semibold uppercase tracking-wider text-ink/50">
+                Currency:
+              </span>
+              <div className="flex border border-skynest-hairline bg-stone-100 p-0.5">
+                <button
+                  type="button"
+                  onClick={() => setCurrency('USD')}
+                  className={`px-3 py-1 text-xs font-semibold transition-colors ${
+                    currency === 'USD' ? 'bg-white text-ink shadow-sm' : 'text-ink/60 hover:text-ink'
+                  }`}
+                >
+                  USD ($)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setCurrency('LKR')}
+                  className={`px-3 py-1 text-xs font-semibold transition-colors ${
+                    currency === 'LKR' ? 'bg-white text-ink shadow-sm' : 'text-ink/60 hover:text-ink'
+                  }`}
+                >
+                  LKR (Rs)
+                </button>
+              </div>
             </div>
           </div>
-        </div>
-      </div>
 
-      {/* ── Carousel Track with Side Edge Blur Vignettes ── */}
-      <div className="relative w-full overflow-hidden">
-        {/* Left Side Vignette Blur Overlay */}
-        <div
-          aria-hidden="true"
-          className="pointer-events-none absolute left-0 top-0 bottom-0 w-8 sm:w-16 md:w-24 z-20"
-          style={{
-            background:
-              'linear-gradient(to right, #FDFCFA 0%, rgba(253,252,250,0.8) 40%, transparent 100%)',
-          }}
-        />
+          {/* ── 01 · Hotel Rooms Grid ── */}
+          <div className="space-y-6">
+            <div className="flex items-center justify-between border-b border-skynest-hairline pb-3" data-reveal>
+              <div>
+                <span className="font-jakarta text-[11px] font-bold tracking-[0.2em] uppercase text-skynest-accent">
+                  01 &mdash; Accommodations
+                </span>
+                <h2 className="font-cinzel text-2xl font-bold text-ink uppercase">Room &amp; Suite Collections</h2>
+              </div>
+              <span className="text-xs text-ink/50 font-jakarta">Nightly Base Rates</span>
+            </div>
 
-        {/* Right Side Vignette Blur Overlay */}
-        <div
-          aria-hidden="true"
-          className="pointer-events-none absolute right-0 top-0 bottom-0 w-8 sm:w-16 md:w-24 z-20"
-          style={{
-            background:
-              'linear-gradient(to left, #FDFCFA 0%, rgba(253,252,250,0.8) 40%, transparent 100%)',
-          }}
-        />
-
-        {/* Scrollable Track */}
-        <div
-          ref={carouselRef}
-          className="flex items-stretch gap-6 overflow-x-auto scrollbar-hide px-6 sm:px-12 md:px-16 py-4 scroll-smooth"
-          style={{
-            WebkitOverflowScrolling: 'touch',
-          }}
-        >
-          {SANCTUARY_TILES.map((tile, idx) => {
-            const isBelong = tile.hotelKey === activeHotel;
-            const isStandard = tile.roomType === 'STANDARD';
-            const isDeluxe = tile.roomType === 'DELUXE';
-            const isSuite = tile.roomType === 'SUITE';
-            const isPresidential = tile.roomType === 'PRESIDENTIAL';
-
-            // Distinct physical scale sizing per room category
-            const widthClass = isStandard
-              ? 'w-[280px] sm:w-[300px]'
-              : isDeluxe
-              ? 'w-[320px] sm:w-[340px]'
-              : isSuite
-              ? 'w-[350px] sm:w-[370px]'
-              : 'w-[370px] sm:w-[390px]';
-
-            const imgHeightClass = isStandard
-              ? 'h-44'
-              : isDeluxe
-              ? 'h-48'
-              : isSuite
-              ? 'h-52'
-              : 'h-56';
-
-            return (
-              <div
-                key={tile.id}
-                ref={(el) => {
-                  tileRefs.current[idx] = el;
-                }}
-                className={`flex-shrink-0 flex flex-col justify-between border bg-white transition-all duration-500 ${widthClass} ${
-                  isBelong
-                    ? 'opacity-100 filter-none scale-100 border-skynest-hairline shadow-sm hover:border-ink hover:shadow-md'
-                    : 'opacity-35 blur-[4px] scale-[0.97] pointer-events-none border-skynest-hairline/60'
-                }`}
-              >
-                <div>
-                  {/* Sanctuary Card Image with Scale Dimensions */}
-                  <div className={`relative overflow-hidden ${imgHeightClass} bg-ink/5`}>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+              {filteredRooms.map((room) => (
+                <div
+                  key={room.id}
+                  data-reveal
+                  className="group bg-white border border-skynest-hairline overflow-hidden flex flex-col justify-between shadow-sm hover:shadow-md transition-shadow"
+                >
+                  {/* Image with Tag */}
+                  <div className="relative h-64 overflow-hidden">
                     <img
-                      src={tile.image}
-                      alt={tile.name}
-                      className="w-full h-full object-cover transition-transform duration-700 ease-out hover:scale-105"
+                      src={room.image}
+                      alt={room.name}
+                      className="w-full h-full object-cover transition-transform duration-700 ease-out group-hover:scale-105"
                     />
-
-                    {/* Scale badge on image */}
-                    <div className="absolute top-3 left-3 bg-white/90 backdrop-blur-md px-2.5 py-1 border border-skynest-hairline text-[10px] font-jakarta font-semibold uppercase tracking-wider text-ink">
-                      {tile.scaleLabel}
+                    <div className="absolute inset-0 bg-gradient-to-t from-ink/90 via-ink/20 to-transparent" />
+                    <div className="absolute top-4 left-4 right-4 flex items-center justify-between">
+                      <span className="px-3 py-1 bg-ink/75 backdrop-blur-md text-white font-jakarta text-[10px] uppercase tracking-widest font-semibold border border-white/15">
+                        {room.properties.join(' · ')}
+                      </span>
+                      <span className="px-2.5 py-1 bg-skynest-accent text-white font-cinzel text-xs font-bold tracking-wider">
+                        {formatPrice(room.usdRate)} / NIGHT
+                      </span>
                     </div>
 
-                    {/* Hotel indicator badge */}
-                    <div className="absolute top-3 right-3 bg-ink/90 backdrop-blur-md px-2.5 py-1 text-[10px] font-jakarta font-bold uppercase tracking-wider text-paper">
-                      {tile.hotelKey}
+                    <div className="absolute bottom-4 left-4 right-4">
+                      <h3 className="font-cinzel text-2xl font-bold text-white tracking-wide">{room.name}</h3>
+                      <p className="font-jakarta text-xs text-white/80 line-clamp-1 mt-0.5">{room.tagline}</p>
                     </div>
                   </div>
 
-                  {/* Card Body */}
-                  <div className="p-5 sm:p-6 space-y-4">
-                    <div className="pb-3 border-b border-skynest-hairline">
-                      <span className="text-[10px] font-jakarta uppercase tracking-wider text-ink/50 block mb-0.5">
-                        {tile.hotelName} • {tile.hotelSubtitle}
-                      </span>
-                      <h3 className="font-cinzel text-lg sm:text-xl font-bold uppercase text-ink">
-                        {tile.name}
-                      </h3>
-                      <p className="font-jakarta text-[11px] text-ink/60 mt-1 italic leading-relaxed">
-                        {tile.tagline}
-                      </p>
-                    </div>
-
-                    {/* Price & Specs */}
-                    <div className="flex items-center justify-between">
+                  {/* Specs & Highlights */}
+                  <div className="p-6 space-y-6 flex-1 flex flex-col justify-between">
+                    {/* Dimension / Capacity badges */}
+                    <div className="grid grid-cols-3 gap-2 py-3 border-y border-skynest-hairline text-center text-xs font-jakarta">
                       <div>
-                        <span className="font-cinzel text-2xl font-bold text-skynest-accent">
-                          ${tile.usdRate}
-                        </span>
-                        <span className="text-[10px] font-jakarta text-ink/50 uppercase tracking-wider block">
-                          Per Night &bull; Net Base
-                        </span>
+                        <div className="text-ink/40 text-[10px] uppercase tracking-wider flex items-center justify-center gap-1">
+                          <Users className="w-3 h-3" /> Guests
+                        </div>
+                        <div className="font-semibold text-ink mt-0.5">Up to {room.capacity}</div>
                       </div>
-                      <div className="text-right space-y-0.5 text-[11px] font-jakarta text-ink/70">
-                        <div className="flex items-center gap-1 justify-end">
-                          <Users className="w-3.5 h-3.5 text-skynest-accent" />
-                          <span>Up to {tile.capacity} Guests</span>
+                      <div className="border-x border-skynest-hairline">
+                        <div className="text-ink/40 text-[10px] uppercase tracking-wider flex items-center justify-center gap-1">
+                          <Maximize2 className="w-3 h-3" /> Area
                         </div>
-                        <div className="flex items-center gap-1 justify-end">
-                          <Maximize2 className="w-3.5 h-3.5 text-skynest-accent" />
-                          <span>{tile.sizeM2} m² ({tile.sizeSqFt} sq ft)</span>
+                        <div className="font-semibold text-ink mt-0.5">{room.sizeM2} m² / {room.sizeSqFt} ft²</div>
+                      </div>
+                      <div>
+                        <div className="text-ink/40 text-[10px] uppercase tracking-wider flex items-center justify-center gap-1">
+                          <BedDouble className="w-3 h-3" /> Bed
                         </div>
+                        <div className="font-semibold text-ink mt-0.5">King / Twin</div>
                       </div>
                     </div>
 
-                    {/* Inclusions */}
-                    <div className="space-y-1.5 pt-2 border-t border-skynest-hairline">
-                      <span className="text-[9px] font-jakarta uppercase tracking-wider font-bold text-ink/40 block">
-                        Sanctuary Inclusions:
+                    {/* Feature list */}
+                    <div className="space-y-2">
+                      <span className="text-[10px] uppercase font-bold tracking-wider text-ink/50 block">
+                        Signature Sanctuary Amenities:
                       </span>
-                      <ul className="space-y-1 text-[11px] font-jakarta text-ink/75">
-                        {tile.highlights.slice(0, 3).map((h, i) => (
-                          <li key={i} className="flex items-start gap-1.5">
-                            <Check className="w-3 h-3 text-skynest-accent flex-shrink-0 mt-0.5" />
-                            <span className="line-clamp-1">{h}</span>
+                      <ul className="space-y-1.5 text-xs text-ink/75">
+                        {room.highlights.map((feat, i) => (
+                          <li key={i} className="flex items-start gap-2">
+                            <Check className="w-3.5 h-3.5 text-skynest-accent shrink-0 mt-0.5" />
+                            <span>{feat}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+
+                    {/* Book Button */}
+                    <div className="pt-4 border-t border-skynest-hairline flex items-center justify-between">
+                      <div>
+                        <div className="text-[10px] font-jakarta uppercase tracking-wider text-ink/40">From</div>
+                        <div className="font-cinzel text-xl font-bold text-ink">
+                          {formatPrice(room.usdRate)}{' '}
+                          <span className="text-xs font-sans font-normal text-ink/50">/ night</span>
+                        </div>
+                      </div>
+
+                      <Link
+                        href={`/book`}
+                        className="inline-flex items-center gap-2 px-5 py-2.5 bg-ink hover:bg-skynest-accent text-white font-jakarta text-xs font-semibold uppercase tracking-[0.15em] transition-colors"
+                      >
+                        <span>Reserve Suite</span>
+                        <ArrowRight className="w-3.5 h-3.5" />
+                      </Link>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* ── 02 · Ceylonese Gastronomy & Meal Plans ── */}
+          <div className="space-y-10 pt-8" data-reveal>
+            <div className="flex items-center justify-between border-b border-skynest-hairline pb-3">
+              <div>
+                <span className="font-jakarta text-[11px] font-bold tracking-[0.2em] uppercase text-skynest-accent">
+                  02 &mdash; Epicurean Journeys
+                </span>
+                <h2 className="font-cinzel text-2xl font-bold text-ink uppercase">Ceylonese Gastronomy &amp; Meal Plans</h2>
+              </div>
+              <span className="text-xs text-ink/50 font-jakarta">Culinary Tiers</span>
+            </div>
+
+            {/* Editorial Showcase with PR #84 Gastronomy Photo */}
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center bg-white border border-skynest-hairline p-6 lg:p-8 shadow-sm">
+              <div className="lg:col-span-5 relative overflow-hidden aspect-[4/3] sm:aspect-[16/10] lg:aspect-[4/3] shadow-md group">
+                <img
+                  src="/pillar_gastronomy.jpg"
+                  alt="Refined candlelit open-air dining with Ceylon silver teapot and infused tropical spice cuisine"
+                  className="w-full h-full object-cover transition-transform duration-700 ease-out group-hover:scale-105"
+                />
+                <div
+                  className="absolute inset-0"
+                  style={{
+                    background:
+                      'linear-gradient(to top, rgba(11,37,64,0.85) 0%, rgba(11,37,64,0.2) 60%, transparent 100%)',
+                  }}
+                />
+                <div className="absolute bottom-4 left-4 right-4 text-white">
+                  <span className="text-[10px] font-jakarta tracking-[0.2em] uppercase text-amber-300 font-semibold block">
+                    Living Heritage &bull; Ceylonese Flavours
+                  </span>
+                  <div className="font-cinzel text-lg font-bold">The Art of Island Tablecraft</div>
+                </div>
+              </div>
+
+              <div className="lg:col-span-7 space-y-4">
+                <span className="font-cinzel text-sm italic text-skynest-accent block">
+                  &ldquo;Ancient spice routes distilled into modern culinary poetry.&rdquo;
+                </span>
+                <h3 className="font-cinzel text-2xl font-bold text-ink">
+                  A Dining Experience Rooted in Island Abundance
+                </h3>
+                <p className="font-jakarta text-xs sm:text-sm text-ink/75 leading-relaxed">
+                  Every Sky Nest sanctuary celebrates Sri Lanka&apos;s rich agricultural tapestry. From coastal cinnamon-infused lagoon prawns to highland silver-tip tea tastings and fragrant coconut sambols prepared before you, our meal tiers are designed to seamlessly weave gourmet excellence into your itinerary.
+                </p>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 pt-2 text-xs font-jakarta">
+                  <div className="border border-skynest-hairline p-2.5 bg-paper">
+                    <Coffee className="w-4 h-4 text-skynest-accent mb-1" />
+                    <div className="font-semibold text-ink">Single-Estate Teas</div>
+                    <div className="text-[11px] text-ink/50">Hand-plucked Ceylon</div>
+                  </div>
+                  <div className="border border-skynest-hairline p-2.5 bg-paper">
+                    <Wine className="w-4 h-4 text-skynest-accent mb-1" />
+                    <div className="font-semibold text-ink">Curated Cellar</div>
+                    <div className="text-[11px] text-ink/50">Global pairings</div>
+                  </div>
+                  <div className="border border-skynest-hairline p-2.5 bg-paper col-span-2 sm:col-span-1">
+                    <Utensils className="w-4 h-4 text-skynest-accent mb-1" />
+                    <div className="font-semibold text-ink">Farm &amp; Ocean-to-Table</div>
+                    <div className="text-[11px] text-ink/50">Day-boat catches</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Meal Plan Tiers Grid */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+              {MEAL_PLANS.map((plan) => (
+                <div
+                  key={plan.id}
+                  className="bg-white border border-skynest-hairline p-6 flex flex-col justify-between hover:border-ink/50 transition-colors shadow-sm"
+                >
+                  <div className="space-y-4">
+                    <div>
+                      <span className="text-[10px] font-mono uppercase tracking-wider text-skynest-accent font-semibold block">
+                        {plan.code}
+                      </span>
+                      <h4 className="font-cinzel text-xl font-bold text-ink mt-1">{plan.name}</h4>
+                      <p className="font-jakarta text-xs text-ink/65 mt-1 leading-relaxed">{plan.tagline}</p>
+                    </div>
+
+                    <div className="py-3 border-y border-skynest-hairline">
+                      <div className="font-cinzel text-2xl font-bold text-ink">
+                        {plan.usdRate === 0 ? 'Included' : `+${formatPrice(plan.usdRate)}`}
+                      </div>
+                      <div className="text-[10px] font-jakarta text-ink/50 uppercase tracking-wider mt-0.5">
+                        {plan.usdRate === 0 ? 'Base stay inclusion' : 'Per guest / night'}
+                      </div>
+                    </div>
+
+                    {/* Meal Inclusions */}
+                    <div className="space-y-2">
+                      <span className="text-[10px] uppercase font-bold tracking-wider text-ink/50 block">
+                        Included Courses:
+                      </span>
+                      <ul className="space-y-1.5 text-xs font-jakarta">
+                        {plan.inclusions.map((inc, i) => (
+                          <li
+                            key={i}
+                            className={`flex items-center gap-2 ${
+                              inc.active ? 'text-ink font-medium' : 'text-ink/35 line-through'
+                            }`}
+                          >
+                            <span className={`w-1.5 h-1.5 rounded-full ${inc.active ? 'bg-skynest-accent' : 'bg-stone-300'}`} />
+                            <span>{inc.label}</span>
                           </li>
                         ))}
                       </ul>
                     </div>
                   </div>
+
+                  <div className="mt-6 pt-4 border-t border-skynest-hairline">
+                    <span className="text-[10px] text-skynest-accent font-semibold tracking-wider uppercase block mb-3">
+                      &bull; {plan.highlight}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setSelectedPlanId(plan.id)}
+                      className={`w-full py-2 text-xs font-jakarta font-semibold uppercase tracking-wider border transition-colors ${
+                        selectedPlanId === plan.id
+                          ? 'bg-ink text-white border-ink'
+                          : 'bg-white text-ink/80 border-skynest-hairline hover:border-ink'
+                      }`}
+                    >
+                      {selectedPlanId === plan.id ? 'Selected in Estimator' : 'Select Plan'}
+                    </button>
+                  </div>
                 </div>
-
-                {/* Card Action */}
-                <div className="p-5 sm:p-6 pt-0">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      onSelectRoom(tile.roomType);
-                      const el = document.getElementById('estimator-section');
-                      el?.scrollIntoView({ behavior: 'smooth' });
-                    }}
-                    className={`w-full py-2.5 text-xs font-jakarta font-semibold uppercase tracking-wider border transition-all duration-200 ${
-                      selectedRoomId === tile.roomType
-                        ? 'bg-ink text-paper border-ink'
-                        : 'bg-paper text-ink border-skynest-hairline hover:bg-ink hover:text-paper hover:border-ink'
-                    }`}
-                  >
-                    {selectedRoomId === tile.roomType ? 'Selected in Estimator' : 'Configure in Estimator'}
-                  </button>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      </div>
-    </section>
-  );
-}
-
-// ── Wide Gastronomy Parallax Banner (Edge-to-Edge Full Bleed) ─────────────────
-function RatesGastronomyBannerSection({ reducedMotion }: { reducedMotion: boolean }) {
-  const sectionRef = useRef<HTMLElement>(null);
-  const imgRef = useRef<HTMLImageElement>(null);
-  const labelRef = useRef<HTMLSpanElement>(null);
-  const titleRef = useRef<HTMLHeadingElement>(null);
-  const lineRef = useRef<HTMLParagraphElement>(null);
-
-  useEffect(() => {
-    if (reducedMotion || !sectionRef.current) return;
-    gsap.registerPlugin(ScrollTrigger);
-
-    const img = imgRef.current;
-    const label = labelRef.current;
-    const title = titleRef.current;
-    const line = lineRef.current;
-    const section = sectionRef.current;
-    if (!section || !img || !label || !title || !line) return;
-
-    gsap.set(img, { scale: 1.05, y: -30 });
-    gsap.set([label, title, line], { y: 15, opacity: 0 });
-
-    const ctx = gsap.context(() => {
-      gsap.to(img, {
-        y: 30,
-        scale: 1.0,
-        ease: 'none',
-        scrollTrigger: {
-          trigger: section,
-          start: 'top bottom',
-          end: 'bottom top',
-          scrub: 1.5,
-        },
-      });
-
-      const textTl = gsap.timeline({
-        scrollTrigger: {
-          trigger: section,
-          start: 'top 85%',
-          toggleActions: 'play none none none',
-        },
-      });
-
-      textTl
-        .to(label, { opacity: 1, y: 0, duration: 0.4, ease: 'power2.out' })
-        .to(title, { opacity: 1, y: 0, duration: 0.45, ease: 'power2.out' }, '-=0.25')
-        .to(line, { opacity: 1, y: 0, duration: 0.45, ease: 'power2.out' }, '-=0.25');
-    }, section);
-
-    return () => ctx.revert();
-  }, [reducedMotion]);
-
-  return (
-    <section
-      ref={sectionRef}
-      id="gastronomy"
-      aria-label="Ceylonese Gastronomy banner"
-      className="relative bg-paper overflow-hidden w-full my-8 md:my-14"
-    >
-      {/* Edge-to-edge full bleed aspect ratio */}
-      <div className="relative w-full min-h-[460px] sm:min-h-[520px] md:min-h-0 md:aspect-[21/9] lg:aspect-[24/9] overflow-hidden">
-        {/* Parallax background image */}
-        <div className="absolute inset-0 w-full h-full z-0 overflow-hidden">
-          {/* Feathered top gradient */}
-          <div
-            aria-hidden="true"
-            className="absolute inset-x-0 top-0 h-28 md:h-44 pointer-events-none z-[2]"
-            style={{
-              background:
-                'linear-gradient(to bottom, #FDFCFA 0%, rgba(253,252,250,0.85) 25%, rgba(253,252,250,0.3) 65%, transparent 100%)',
-            }}
-          />
-
-          <img
-            ref={imgRef}
-            src="/rates_gastronomy_wide.jpg"
-            alt="Sky Nest Ceylonese Gastronomy — Twilight beachside candlelit dining"
-            className="w-full h-full object-cover object-center"
-            style={{ willChange: 'transform' }}
-          />
-
-          {/* Feathered bottom gradient */}
-          <div
-            aria-hidden="true"
-            className="absolute inset-x-0 bottom-0 h-28 md:h-44 pointer-events-none z-[2]"
-            style={{
-              background:
-                'linear-gradient(to top, #FDFCFA 0%, rgba(253,252,250,0.85) 25%, rgba(253,252,250,0.3) 65%, transparent 100%)',
-            }}
-          />
-        </div>
-
-        {/* Text overlay — Mirrors Kandy section on landing page */}
-        <div aria-hidden="false" className="absolute inset-0 pointer-events-none z-10">
-          <div className="relative h-full mx-auto max-w-[1400px] px-6 sm:px-10 md:px-16 flex flex-col justify-start pt-14 sm:pt-16 md:pt-20 gap-2.5 md:gap-4">
-            <span
-              ref={labelRef}
-              className="font-jakarta text-[11px] md:text-[12px] font-bold tracking-[0.3em] uppercase text-white/90 drop-shadow-md"
-              style={{ willChange: 'transform, opacity' }}
-            >
-              02 &nbsp;/&nbsp; CEYLONESE GASTRONOMY
-            </span>
-
-            <h2
-              ref={titleRef}
-              className="font-cinzel text-white leading-[1.05] drop-shadow-lg uppercase tracking-[0.03em]"
-              style={{
-                fontSize: 'clamp(28px, 4.8vw, 68px)',
-                willChange: 'transform, opacity',
-              }}
-            >
-              Fine Living &amp; Dining
-            </h2>
-
-            <p
-              ref={lineRef}
-              className="font-cinzel italic text-white/90 max-w-xl leading-relaxed text-sm md:text-lg drop-shadow-md"
-              style={{ willChange: 'transform, opacity' }}
-            >
-              Where island spices, organic highland harvests, and the evening tides converge into an unhurried culinary rite.
-            </p>
+              ))}
+            </div>
           </div>
-        </div>
-      </div>
-    </section>
-  );
-}
 
-// ── 03 · Meal Plans Section (Clean Paper Luxury Aesthetic) ───────────────────
-function RatesMealPlansSection({
-  selectedPlanId,
-  onSelectPlan,
-}: {
-  selectedPlanId: string;
-  onSelectPlan: (planId: string) => void;
-}) {
-  return (
-    <section className="relative bg-paper py-12 md:py-16 max-w-6xl mx-auto px-6 sm:px-10">
-      <div className="text-center space-y-3 mb-12">
-        <MountainGlyph className="w-6 h-auto text-ink/40 mx-auto" />
-        <span className="font-jakarta text-[11px] font-bold tracking-[0.25em] uppercase text-skynest-accent block">
-          03 &nbsp;/&nbsp; Ceylonese Culinary Journeys
-        </span>
-        <h2 className="font-cinzel text-2xl sm:text-3xl md:text-4xl uppercase tracking-[0.03em] text-ink">
-          Curated Meal Plans
-        </h2>
-        <p className="font-jakarta text-xs sm:text-sm text-ink/60 max-w-2xl mx-auto leading-relaxed">
-          From unhurried morning egg hoppers to evening seaside degustations, select the culinary plan that complements your island itinerary.
-        </p>
-      </div>
+          {/* ── 03 · Interactive Nightly Rate Estimator ── */}
+          <div className="bg-white border border-skynest-hairline p-6 lg:p-8 space-y-6 shadow-sm" data-reveal>
+            <div className="border-b border-skynest-hairline pb-4 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+              <div>
+                <span className="font-jakarta text-[11px] font-bold tracking-[0.2em] uppercase text-skynest-accent">
+                  Interactive Tariff Calculator
+                </span>
+                <h3 className="font-cinzel text-xl font-bold text-ink uppercase">
+                  Nightly Sanctuary Tariff Breakdown
+                </h3>
+              </div>
+              <span className="text-xs font-jakarta text-ink/60">
+                Rule B13 &bull; Versioned Statutory Sri Lankan Taxes
+              </span>
+            </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {MEAL_PLANS.map((plan) => {
-          const isSelected = selectedPlanId === plan.id;
-          return (
-            <div
-              key={plan.id}
-              className={`border bg-white p-6 flex flex-col justify-between transition-all duration-300 ${
-                isSelected
-                  ? 'border-ink shadow-md ring-1 ring-ink'
-                  : 'border-skynest-hairline hover:border-ink/50'
-              }`}
-            >
-              <div className="space-y-4">
-                <div className="pb-3 border-b border-skynest-hairline">
-                  <span className="text-[10px] font-jakarta font-bold uppercase tracking-wider text-skynest-accent block">
-                    {plan.code}
-                  </span>
-                  <h3 className="font-cinzel text-lg font-bold uppercase text-ink mt-0.5">
-                    {plan.name}
-                  </h3>
-                  <div className="mt-2">
-                    <span className="font-cinzel text-2xl font-bold text-ink">
-                      {plan.usdRate === 0 ? 'Included' : `+$${plan.usdRate}`}
-                    </span>
-                    <span className="text-[10px] font-jakarta text-ink/40 uppercase block">
-                      Per Guest &bull; Per Night
-                    </span>
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+              {/* Selectors Column */}
+              <div className="lg:col-span-7 space-y-5">
+                <div>
+                  <label className="text-xs font-jakarta font-semibold uppercase tracking-wider text-ink/60 block mb-2">
+                    1. Select Sanctuary Room Category
+                  </label>
+                  <div className="grid grid-cols-2 gap-2">
+                    {ROOM_TIERS.map((r) => (
+                      <button
+                        key={r.id}
+                        type="button"
+                        onClick={() => setSelectedRoomId(r.id)}
+                        className={`p-3 text-left border transition-all ${
+                          selectedRoomId === r.id
+                            ? 'border-skynest-accent bg-amber-50/40 shadow-sm ring-1 ring-skynest-accent'
+                            : 'border-skynest-hairline bg-white hover:border-ink/40'
+                        }`}
+                      >
+                        <div className="font-cinzel text-sm font-bold text-ink">{r.name}</div>
+                        <div className="text-xs font-jakarta text-skynest-accent font-semibold mt-0.5">
+                          {formatPrice(r.usdRate)} / night
+                        </div>
+                      </button>
+                    ))}
                   </div>
                 </div>
 
-                <p className="font-jakarta text-xs text-ink/65 leading-relaxed">
-                  {plan.description}
-                </p>
-
-                <div className="space-y-2 pt-2 border-t border-skynest-hairline">
-                  <span className="text-[9px] font-jakarta font-bold uppercase tracking-wider text-ink/40 block">
-                    Meal Inclusions:
-                  </span>
-                  <ul className="space-y-1.5 text-xs font-jakarta">
-                    {plan.inclusions.map((inc, i) => (
-                      <li key={i} className="flex items-center gap-2">
-                        <Check
-                          className={`w-3.5 h-3.5 ${
-                            inc.active ? 'text-skynest-accent' : 'text-ink/20'
-                          }`}
-                        />
-                        <span className={inc.active ? 'text-ink' : 'text-ink/40'}>
-                          {inc.label}
-                        </span>
-                      </li>
+                <div>
+                  <label className="text-xs font-jakarta font-semibold uppercase tracking-wider text-ink/60 block mb-2">
+                    2. Select Ceylonese Gastronomy Plan
+                  </label>
+                  <div className="grid grid-cols-2 gap-2">
+                    {MEAL_PLANS.map((p) => (
+                      <button
+                        key={p.id}
+                        type="button"
+                        onClick={() => setSelectedPlanId(p.id)}
+                        className={`p-3 text-left border transition-all ${
+                          selectedPlanId === p.id
+                            ? 'border-skynest-accent bg-amber-50/40 shadow-sm ring-1 ring-skynest-accent'
+                            : 'border-skynest-hairline bg-white hover:border-ink/40'
+                        }`}
+                      >
+                        <div className="font-cinzel text-sm font-bold text-ink">{p.name}</div>
+                        <div className="text-xs font-jakarta text-skynest-accent font-semibold mt-0.5">
+                          {p.usdRate === 0 ? 'Included' : `+${formatPrice(p.usdRate)}`}
+                        </div>
+                      </button>
                     ))}
-                  </ul>
+                  </div>
                 </div>
               </div>
 
-              <div className="pt-6">
-                <button
-                  type="button"
-                  onClick={() => onSelectPlan(plan.id)}
-                  className={`w-full py-2.5 text-xs font-jakarta font-semibold uppercase tracking-wider border transition-all ${
-                    isSelected
-                      ? 'bg-ink text-paper border-ink'
-                      : 'bg-paper text-ink border-skynest-hairline hover:border-ink hover:bg-ink hover:text-paper'
-                  }`}
+              {/* Estimate Breakdown Column */}
+              <div className="lg:col-span-5 bg-paper/80 border border-skynest-hairline p-6 space-y-4">
+                <div className="text-xs font-jakarta font-semibold uppercase tracking-wider text-ink/60 pb-2 border-b border-skynest-hairline">
+                  Tariff Summary &bull; Per Night
+                </div>
+
+                <div className="space-y-2 text-xs font-jakarta">
+                  <div className="flex items-center justify-between text-ink/80">
+                    <span>{currentRoom.name} Base Rate</span>
+                    <span className="font-semibold text-ink">{formatPrice(currentRoom.usdRate)}</span>
+                  </div>
+                  <div className="flex items-center justify-between text-ink/80">
+                    <span>{currentPlan.name} ({currentPlan.code})</span>
+                    <span className="font-semibold text-ink">
+                      {currentPlan.usdRate === 0 ? 'Included' : `+${formatPrice(currentPlan.usdRate)}`}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between text-ink/60 pt-2 border-t border-skynest-hairline">
+                    <span>Subtotal Before Taxes</span>
+                    <span className="font-semibold text-ink">{formatPrice(subtotalUsd)}</span>
+                  </div>
+
+                  {/* Statutory Taxes */}
+                  <div className="pt-2 border-t border-skynest-hairline/80 space-y-1 text-[11px] text-ink/60">
+                    <div className="flex items-center justify-between">
+                      <span>Service Charge (10.0%)</span>
+                      <span>{formatPrice(Math.round(serviceChargeUsd))}</span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span>Tourism Dev Levy (TDL 1.0%)</span>
+                      <span>{formatPrice(Math.round(tdlUsd))}</span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span>SSCL (2.5%)</span>
+                      <span>{formatPrice(Math.round(ssclUsd))}</span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span>VAT (18.0%)</span>
+                      <span>{formatPrice(Math.round(vatUsd))}</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Final Net Quote */}
+                <div className="pt-3 border-t border-skynest-hairline flex items-center justify-between">
+                  <div>
+                    <div className="text-[10px] uppercase font-bold tracking-wider text-ink/50">Total Quoted Rate</div>
+                    <div className="text-[10px] text-emerald-700">Taxes &amp; Service Included</div>
+                  </div>
+                  <div className="text-right">
+                    <div className="font-cinzel text-2xl font-bold text-skynest-accent">
+                      {formatPrice(Math.round(totalWithTaxesUsd))}
+                    </div>
+                    <div className="text-[10px] text-ink/50">Per Night &bull; Standard Occupancy</div>
+                  </div>
+                </div>
+
+                <Link
+                  href="/book"
+                  className="w-full mt-2 py-3 bg-ink hover:bg-skynest-accent text-white font-jakarta text-xs font-semibold uppercase tracking-[0.16em] transition-colors flex items-center justify-center gap-2"
                 >
-                  {isSelected ? 'Selected in Estimator' : 'Select Meal Plan'}
-                </button>
-              </div>
-            </div>
-          );
-        })}
-      </div>
-    </section>
-  );
-}
-
-// ── 04 · Interactive Tariff Estimator (With 4-Tier Tax Cascade) ───────────────
-function RatesTariffEstimator({
-  selectedRoomType,
-  selectedPlanId,
-  onSelectRoomType,
-  onSelectPlanId,
-}: {
-  selectedRoomType: string;
-  selectedPlanId: string;
-  onSelectRoomType: (rt: string) => void;
-  onSelectPlanId: (pid: string) => void;
-}) {
-  const ROOM_TYPES = [
-    { id: 'STANDARD', name: 'Standard Haven', rate: 120 },
-    { id: 'DELUXE', name: 'Deluxe Veranda', rate: 180 },
-    { id: 'SUITE', name: 'Executive Suite', rate: 280 },
-    { id: 'PRESIDENTIAL', name: 'Presidential Penthouse', rate: 500 },
-  ];
-
-  const currentRoom = ROOM_TYPES.find((r) => r.id === selectedRoomType) ?? ROOM_TYPES[0];
-  const currentPlan = MEAL_PLANS.find((p) => p.id === selectedPlanId) ?? MEAL_PLANS[0];
-
-  // 4-Tier Statutory Sri Lankan Tax Cascade (Rule B13)
-  const baseSubtotal = currentRoom.rate + currentPlan.usdRate;
-  const scTax = Math.round(baseSubtotal * 0.10 * 100) / 100;
-  const tdlTax = Math.round((baseSubtotal + scTax) * 0.01 * 100) / 100;
-  const sscTax = Math.round((baseSubtotal + scTax + tdlTax) * 0.025 * 100) / 100;
-  const vatTax = Math.round((baseSubtotal + scTax + tdlTax + sscTax) * 0.18 * 100) / 100;
-  const totalTaxes = Math.round((scTax + tdlTax + sscTax + vatTax) * 100) / 100;
-  const grandTotal = Math.round((baseSubtotal + totalTaxes) * 100) / 100;
-
-  return (
-    <section
-      id="estimator-section"
-      aria-label="Interactive Tariff Calculator"
-      className="relative bg-paper py-12 md:py-16 max-w-5xl mx-auto px-6 sm:px-10"
-    >
-      <div className="bg-white border border-skynest-hairline p-6 md:p-10 shadow-sm space-y-8">
-        <div className="pb-4 border-b border-skynest-hairline flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-          <div>
-            <span className="font-jakarta text-[11px] font-bold tracking-[0.25em] uppercase text-skynest-accent block">
-              04 &nbsp;/&nbsp; Tariff Calculator
-            </span>
-            <h3 className="font-cinzel text-xl sm:text-2xl font-bold uppercase text-ink mt-0.5">
-              Nightly Sanctuary Tariff Breakdown
-            </h3>
-          </div>
-          <span className="text-[11px] font-jakarta text-ink/50 uppercase tracking-wider">
-            Rule B13 &bull; Versioned Statutory Sri Lankan Taxes
-          </span>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-12 gap-8 items-start">
-          {/* Controls */}
-          <div className="md:col-span-7 space-y-6">
-            <div>
-              <label className="text-xs font-jakarta font-bold uppercase tracking-wider text-ink/70 block mb-2">
-                1. Select Room Tier
-              </label>
-              <div className="grid grid-cols-2 gap-2.5">
-                {ROOM_TYPES.map((r) => (
-                  <button
-                    key={r.id}
-                    type="button"
-                    onClick={() => onSelectRoomType(r.id)}
-                    className={`p-3 text-left border transition-all ${
-                      selectedRoomType === r.id
-                        ? 'border-ink bg-ink text-paper shadow-xs'
-                        : 'border-skynest-hairline bg-paper text-ink hover:border-ink/50'
-                    }`}
-                  >
-                    <div className="font-cinzel text-xs sm:text-sm font-bold uppercase">
-                      {r.name}
-                    </div>
-                    <div className={`text-[11px] font-jakarta mt-0.5 ${selectedRoomType === r.id ? 'text-paper/80' : 'text-skynest-accent font-semibold'}`}>
-                      ${r.rate} / night
-                    </div>
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <div>
-              <label className="text-xs font-jakarta font-bold uppercase tracking-wider text-ink/70 block mb-2">
-                2. Select Ceylonese Meal Plan
-              </label>
-              <div className="grid grid-cols-2 gap-2.5">
-                {MEAL_PLANS.map((p) => (
-                  <button
-                    key={p.id}
-                    type="button"
-                    onClick={() => onSelectPlanId(p.id)}
-                    className={`p-3 text-left border transition-all ${
-                      selectedPlanId === p.id
-                        ? 'border-ink bg-ink text-paper shadow-xs'
-                        : 'border-skynest-hairline bg-paper text-ink hover:border-ink/50'
-                    }`}
-                  >
-                    <div className="font-cinzel text-xs sm:text-sm font-bold uppercase">
-                      {p.name}
-                    </div>
-                    <div className={`text-[11px] font-jakarta mt-0.5 ${selectedPlanId === p.id ? 'text-paper/80' : 'text-skynest-accent font-semibold'}`}>
-                      {p.usdRate === 0 ? 'Included' : `+$${p.usdRate}`}
-                    </div>
-                  </button>
-                ))}
+                  <span>Book This Experience</span>
+                  <ArrowRight className="w-3.5 h-3.5" />
+                </Link>
               </div>
             </div>
           </div>
 
-          {/* Breakdown Card */}
-          <div className="md:col-span-5 bg-paper border border-skynest-hairline p-6 space-y-4 shadow-xs">
-            <span className="text-xs font-jakarta font-bold uppercase tracking-wider text-ink/60 pb-2 border-b border-skynest-hairline block">
-              Tariff Summary &bull; Per Night
-            </span>
-
-            <div className="space-y-2 text-xs font-jakarta">
-              <div className="flex justify-between items-center text-ink/80">
-                <span>{currentRoom.name} Base Rate</span>
-                <span className="font-bold text-ink">${currentRoom.rate.toFixed(2)}</span>
-              </div>
-              <div className="flex justify-between items-center text-ink/80">
-                <span>{currentPlan.name} ({currentPlan.code})</span>
-                <span className="font-bold text-ink">
-                  {currentPlan.usdRate === 0 ? 'Included' : `+$${currentPlan.usdRate.toFixed(2)}`}
-                </span>
-              </div>
-              <div className="flex justify-between items-center text-ink font-semibold pt-2 border-t border-skynest-hairline">
-                <span>Net Subtotal (Before Taxes)</span>
-                <span>${baseSubtotal.toFixed(2)}</span>
-              </div>
-
-              {/* Statutory Tax Cascade */}
-              <div className="pt-2 border-t border-skynest-hairline/70 space-y-1 text-[11px] text-ink/60">
-                <div className="flex justify-between items-center">
-                  <span>+ Service Charge (SC 10%)</span>
-                  <span>${scTax.toFixed(2)}</span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span>+ Tourism Dev Levy (TDL 1%)</span>
-                  <span>${tdlTax.toFixed(2)}</span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span>+ SSCL (2.5%)</span>
-                  <span>${sscTax.toFixed(2)}</span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span>+ VAT (18%)</span>
-                  <span>${vatTax.toFixed(2)}</span>
-                </div>
-              </div>
+          {/* ── 04 · Transparent Sri Lankan Tax Cascade Editorial ── */}
+          <div className="border border-skynest-hairline bg-white p-6 sm:p-8 space-y-4" data-reveal>
+            <div className="flex items-center gap-3">
+              <ShieldCheck className="w-5 h-5 text-skynest-accent" />
+              <h4 className="font-cinzel text-lg font-bold text-ink">
+                Our Guarantee of Transparent Hospitality
+              </h4>
             </div>
-
-            <div className="pt-4 border-t border-skynest-hairline flex items-center justify-between">
-              <div>
-                <span className="text-[10px] uppercase font-bold tracking-wider text-ink/50 block">
-                  Total Quoted Rate
-                </span>
-                <span className="text-[10px] text-emerald-800 font-semibold">
-                  Taxes &amp; Service Included
-                </span>
-              </div>
-              <div className="text-right">
-                <span className="font-cinzel text-3xl font-normal text-skynest-accent">
-                  ${grandTotal.toFixed(2)}
-                </span>
-                <span className="text-[10px] font-jakarta text-ink/40 block">Per Night</span>
-              </div>
-            </div>
-
-            <Link
-              href="/book"
-              className="w-full mt-3 py-3.5 bg-ink hover:bg-skynest-accent text-paper font-jakarta text-xs font-semibold uppercase tracking-[0.16em] transition-colors flex items-center justify-center gap-2"
-            >
-              <span>Book This Experience</span>
-              <ArrowRight className="w-3.5 h-3.5" />
-            </Link>
+            <p className="font-jakarta text-xs sm:text-sm text-ink/75 leading-relaxed">
+              At Sky Nest, we operate strictly in compliance with Inland Revenue Department regulations of Sri Lanka. All room folios and invoices clearly separate statutory obligations ($SC ightarrow TDL ightarrow SSCL ightarrow VAT$). Guests never encounter surprise fees upon checkout.
+            </p>
           </div>
+
         </div>
       </div>
-    </section>
-  );
-}
 
-// ── Main Page Component ───────────────────────────────────────────────────────
-export default function RatesPage() {
-  const heroRef = useRef<HTMLDivElement>(null);
-  const reducedMotion = usePrefersReducedMotion();
-
-  // State for interactive calculator
-  const [selectedRoomType, setSelectedRoomType] = useState<string>('STANDARD');
-  const [selectedPlanId, setSelectedPlanId] = useState<string>('RO');
-
-  return (
-    <div className="relative bg-paper text-ink selection:bg-skynest-accent selection:text-white font-jakarta min-h-screen">
-      {/* ── Fixed Navigation with Inline Lerp ── */}
-      <RatesNav />
-
-      {/* ── 1. Cinematic Pinned Hero Section (Wordmark RATES & PLANS) ── */}
-      <RatesHeroSection heroRef={heroRef} />
-
-      {/* ── 2. Cloud Transition Scrub (Seamlessly Fading into Paper White) ── */}
-      <RatesCloudTransition />
-
-      {/* ── 3. White Header / Story Section (Integrating Clouds with Editorial Tone) ── */}
-      <RatesIntroHeaderSection reducedMotion={reducedMotion} />
-
-      {/* ── 4. 12-Tile Right Scroll Carousel (Kandy, Galle, Colombo + Side Blur) ── */}
-      <RatesSanctuaryCarousel
-        selectedRoomId={selectedRoomType}
-        onSelectRoom={setSelectedRoomType}
-      />
-
-      {/* ── 5. Full Bleed Wide Gastronomy Parallax Banner ── */}
-      <RatesGastronomyBannerSection reducedMotion={reducedMotion} />
-
-      {/* ── 6. Curated Meal Plans Section ── */}
-      <RatesMealPlansSection
-        selectedPlanId={selectedPlanId}
-        onSelectPlan={setSelectedPlanId}
-      />
-
-      {/* ── 7. Interactive Tariff Estimator (Sri Lanka Statutory Tax Cascade) ── */}
-      <RatesTariffEstimator
-        selectedRoomType={selectedRoomType}
-        selectedPlanId={selectedPlanId}
-        onSelectRoomType={setSelectedRoomType}
-        onSelectPlanId={setSelectedPlanId}
-      />
-
-      {/* ── 8. Standard Sky Nest Footer ── */}
+      {/* ── Standard Sky Nest Footer ── */}
       <SkyNestFooter />
     </div>
   );
