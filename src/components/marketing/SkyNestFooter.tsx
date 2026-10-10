@@ -53,6 +53,8 @@ function CrossGlyph({ className = "" }: { className?: string }) {
 const ABOUT_ITEMS = [
   { label: "Our Story & Legacy", href: "#story" },
   { label: "The SkyNest Standard", href: "#about" },
+  { label: "Contact & Concierge", href: "/contact" },
+  { label: "Privacy Charter", href: "/privacy" },
 ];
 
 const SOCIAL_ITEMS = [
@@ -87,7 +89,7 @@ export function SkyNestFooter() {
 
   return (
     <footer
-      id="footer"
+      id="contact"
       aria-label="SkyNest Hotels footer"
       className="relative bg-paper text-ink overflow-hidden border-t border-ink/[0.08]"
     >
@@ -290,7 +292,9 @@ export function SkyNestFooter() {
             <span className="text-ink/20">·</span>
             <a href="#booking" className="hover:text-ink transition-colors">Booking Terms</a>
             <span className="text-ink/20">·</span>
-            <a href="#privacy" className="hover:text-ink transition-colors">Privacy Policy</a>
+            <a href="/privacy" className="hover:text-ink transition-colors">Privacy Policy</a>
+            <span className="text-ink/20">·</span>
+            <a href="/contact" className="hover:text-ink transition-colors">Contact Us</a>
             <span className="text-ink/20">·</span>
             <a href="#cookies" className="hover:text-ink transition-colors">Cookies Policy</a>
             <span className="text-ink/20">·</span>
