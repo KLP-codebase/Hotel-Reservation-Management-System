@@ -47,6 +47,14 @@ const COLOMBO_STORY_LINES = [
   "AT THE HEART OF THE ISLAND.",
 ];
 
+const ABOUT_INTERLUDE_LINES = [
+  "THREE SANCTUARIES, CRAFTED",
+  "FROM THE LIVING ISLAND —",
+  "WHERE LANDSCAPE BECOMES",
+  "ARCHITECTURE, AND TIME",
+  "BECOMES UNHURRIED.",
+];
+
 // ---------------------------------------------------------------------------
 // Utility — respect prefers-reduced-motion
 // ---------------------------------------------------------------------------
@@ -237,9 +245,9 @@ function SkyNestNav({
 
   const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
 
-  const bgAlpha = lerp(0, 0.72, navProgress);
-  const blurAmt = lerp(0, 12, navProgress);
-  const borderAlpha = lerp(0, 0.07, navProgress);
+  const bgAlpha = lerp(0, 0.88, navProgress);
+  const blurAmt = lerp(0, 16, navProgress);
+  const borderAlpha = lerp(0, 0.08, navProgress);
 
   const textR = lerp(255, 11, navProgress);
   const textG = lerp(255, 37, navProgress);
@@ -1461,6 +1469,16 @@ function ColomboBranchSection({ reducedMotion }: { reducedMotion: boolean }) {
               willChange: "transform",
             }}
           />
+
+          {/* Feathered bottom gradient to softly dissolve into paper canvas */}
+          <div
+            aria-hidden="true"
+            className="absolute inset-x-0 bottom-0 h-32 md:h-48 pointer-events-none z-[2]"
+            style={{
+              background:
+                "linear-gradient(to top, #FDFCFA 0%, rgba(253,252,250,0.92) 30%, rgba(253,252,250,0.45) 65%, rgba(253,252,250,0.08) 88%, transparent 100%)",
+            }}
+          />
         </div>
 
 
@@ -1513,6 +1531,112 @@ function ColomboBranchSection({ reducedMotion }: { reducedMotion: boolean }) {
 
   );
 }
+// ---------------------------------------------------------------------------
+// Heritage & Philosophy Interlude (Between Colombo and About)
+// ---------------------------------------------------------------------------
+function AboutInterludeSection({ reducedMotion }: { reducedMotion: boolean }) {
+  const sectionRef = useRef<HTMLElement>(null);
+  const titleRef = useRef<HTMLHeadingElement>(null);
+  const emblemRef = useRef<HTMLDivElement>(null);
+  const lineRefs = useRef<(HTMLSpanElement | null)[]>([]);
+
+  useEffect(() => {
+    gsap.registerPlugin(ScrollTrigger);
+
+    const section = sectionRef.current;
+    const title = titleRef.current;
+    const emblem = emblemRef.current;
+    const lines = lineRefs.current.filter(Boolean) as HTMLSpanElement[];
+
+    if (reducedMotion) {
+      if (emblem) gsap.set(emblem, { opacity: 1, y: 0 });
+      gsap.set(lines, { opacity: 1, y: 0 });
+      return;
+    }
+
+    if (!section) return;
+
+    if (emblem) gsap.set(emblem, { opacity: 0, y: 15 });
+    gsap.set(lines, { opacity: 0, y: "100%" });
+
+    const ctx = gsap.context(() => {
+      const tl = gsap.timeline({
+        scrollTrigger: {
+          trigger: section,
+          start: "top 90%",
+          toggleActions: "play none none none",
+        },
+      });
+
+      if (emblem) {
+        tl.to(emblem, { opacity: 1, y: 0, duration: 0.4, ease: "power2.out" });
+      }
+      tl.to(
+        lines,
+        {
+          opacity: 1,
+          y: "0%",
+          duration: 0.5,
+          stagger: 0.06,
+          ease: "power3.out",
+        },
+        emblem ? "-=0.25" : 0
+      );
+    }, section);
+
+    return () => ctx.revert();
+  }, [reducedMotion]);
+
+  return (
+    <section
+      ref={sectionRef}
+      id="about"
+      aria-label="SkyNest living heritage and philosophy"
+      className="relative bg-paper overflow-hidden py-16 md:py-24"
+    >
+      <div className="relative z-10 w-full max-w-[1440px] mx-auto px-6 sm:px-10 md:px-12">
+        <div className="grid grid-cols-1 md:grid-cols-6 items-start">
+          {/* Columns 1 & 2 */}
+          <div className="hidden md:block md:col-start-1 md:col-end-3" />
+
+          {/* Columns 3, 4, 5 */}
+          <div className="md:col-start-3 md:col-end-6 md:pl-0 md:pr-8 flex flex-col items-start w-full">
+            <div ref={emblemRef}>
+              <SweepingOrbitalEmblem label="The Living Heritage" reducedMotion={reducedMotion} />
+            </div>
+
+            <h2
+              ref={titleRef}
+              className="font-cinzel font-normal uppercase leading-[1.12] tracking-[0.04em] text-ink w-full pl-0"
+              style={{
+                fontSize: "clamp(22px, 3.2vw, 40px)",
+              }}
+              aria-label={ABOUT_INTERLUDE_LINES.join(" ")}
+            >
+              {ABOUT_INTERLUDE_LINES.map((line, i) => (
+                <div key={i} className="overflow-hidden block py-0.5">
+                  <span
+                    ref={(el) => {
+                      lineRefs.current[i] = el;
+                    }}
+                    aria-hidden="true"
+                    className="block font-cinzel font-normal uppercase tracking-[0.035em] text-ink will-change-transform"
+                  >
+                    {line}
+                  </span>
+                </div>
+              ))}
+            </h2>
+          </div>
+
+          {/* Column 6 */}
+          <div className="hidden md:block md:col-start-6 md:col-end-7" />
+        </div>
+      </div>
+    </section>
+  );
+}
+
 // ---------------------------------------------------------------------------
 // About Section — Cinematic Brand Story, Architecture & Philosophy
 // ---------------------------------------------------------------------------
@@ -1577,7 +1701,7 @@ function AboutSection({ reducedMotion }: { reducedMotion: boolean }) {
   return (
     <section
       ref={sectionRef}
-      id="about"
+      id="about-sanctuary"
       aria-label="About Sky Nest Hotels & Resorts"
       className="relative bg-paper overflow-hidden"
     >
@@ -1587,32 +1711,44 @@ function AboutSection({ reducedMotion }: { reducedMotion: boolean }) {
         className="relative h-[70vh] sm:h-[80vh] overflow-hidden"
         style={{ opacity: reducedMotion ? 1 : 0 }}
       >
+        {/* Feathered top gradient to blend from paper background */}
+        <div
+          aria-hidden="true"
+          className="absolute inset-x-0 top-0 h-32 md:h-48 pointer-events-none z-[3]"
+          style={{
+            background:
+              "linear-gradient(to bottom, #FDFCFA 0%, rgba(253,252,250,0.85) 30%, rgba(253,252,250,0.3) 65%, transparent 100%)",
+          }}
+        />
+
         <img
           src="/about_aerial.jpg?v=3"
           alt="Sky Nest — aerial view of Sri Lankan hill country sanctuary with tea plantations"
           className="w-full h-full object-cover object-center"
         />
         <div
-          className="absolute inset-0"
+          className="absolute inset-0 z-[1]"
           style={{
             background:
-              "linear-gradient(to bottom, rgba(11,37,64,0.10) 0%, rgba(11,37,64,0.25) 50%, rgba(11,37,64,0.90) 100%)",
+              "linear-gradient(to bottom, rgba(11,37,64,0.12) 0%, rgba(11,37,64,0.30) 50%, rgba(11,37,64,0.92) 100%)",
           }}
         />
-        {/* Aerial text overlay */}
-        <div className="absolute inset-0 flex flex-col justify-end px-6 sm:px-12 md:px-20 pb-14 sm:pb-18 md:pb-20">
-          <span className="font-jakarta text-[10px] sm:text-[11px] font-bold tracking-[0.35em] uppercase text-white/45 block mb-3">
-            Sky Nest Hotels & Resorts — Est. Sri Lanka
-          </span>
-          <h2
-            className="font-cinzel text-white uppercase leading-[1.08] tracking-[0.04em] max-w-3xl"
-            style={{ fontSize: "clamp(28px, 5vw, 72px)" }}
-          >
-            Three Sanctuaries.{" "}
-            <span className="italic font-normal text-white/70">
-              One Island. One Standard.
+        {/* Aerial text overlay — regal, well-padded and unhurried */}
+        <div className="absolute inset-0 z-10 flex flex-col justify-end px-6 sm:px-12 md:px-20 pb-12 sm:pb-16 md:pb-20">
+          <div className="max-w-3xl">
+            <span className="font-jakarta text-[10px] sm:text-[11px] font-bold tracking-[0.35em] uppercase text-white/60 block mb-3 drop-shadow-sm">
+              Sky Nest Hotels & Resorts — Est. Sri Lanka
             </span>
-          </h2>
+            <h2
+              className="font-cinzel text-white uppercase leading-[1.12] tracking-[0.04em] drop-shadow-md"
+              style={{ fontSize: "clamp(26px, 4vw, 54px)" }}
+            >
+              Three Sanctuaries.{" "}
+              <span className="italic font-normal text-white/80">
+                One Island. One Standard.
+              </span>
+            </h2>
+          </div>
         </div>
       </div>
 
@@ -1917,6 +2053,9 @@ export default function SkyNestHomePage() {
 
       {/* Branch 03 — Colombo City */}
       <ColomboBranchSection reducedMotion={reducedMotion} />
+
+      {/* Interlude / Story — Living Heritage & Brand Philosophy */}
+      <AboutInterludeSection reducedMotion={reducedMotion} />
 
       {/* About Section — Philosophy, Architecture & Heritage */}
       <AboutSection reducedMotion={reducedMotion} />
