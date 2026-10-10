@@ -10,7 +10,6 @@ import {
   Maximize2,
   Check,
   ChevronRight,
-  ChevronDown,
   Sparkles,
   Utensils,
   Coffee,
@@ -25,6 +24,7 @@ import {
   X,
 } from 'lucide-react';
 import { useAuth } from '@/context/auth-context';
+import { initials } from '@/components/dashboard/ui';
 import SkyNestFooter from '@/components/marketing/SkyNestFooter';
 
 // ── Motion Guard ──────────────────────────────────────────────────────────────
@@ -233,132 +233,183 @@ const MEAL_PLANS: MealPlan[] = [
 
 const USD_TO_LKR = 310;
 
-// ── Navigation Bar ────────────────────────────────────────────────────────────
+// ── Navigation Bar (White with thin hairline & blur when scroll) ──────────────
 
 function RatesNav() {
-  const { user } = useAuth();
+  const { user, logout } = useAuth();
   const [menuOpen, setMenuOpen] = useState(false);
+  const [scrolled, setScrolled] = useState(false);
+
+  useEffect(() => {
+    const handleScroll = () => {
+      setScrolled(window.scrollY > 8);
+    };
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    handleScroll();
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
+
+  const navLinks = [
+    { label: 'Home', href: '/', active: false },
+    { label: 'Rates & Plans', href: '/rates', active: true },
+    { label: 'About', href: '/#about', active: false },
+    { label: 'Contact', href: '/contact', active: false },
+  ];
 
   return (
-    <>
-      <nav
-        id="rates-nav"
-        aria-label="Rates navigation"
-        className="fixed top-0 left-0 right-0 z-50 bg-ink/90 backdrop-blur-md border-b border-white/10 transition-colors duration-300"
-      >
-        <div className="max-w-[1440px] mx-auto flex items-center justify-between h-14 md:h-16 px-4 sm:px-6 md:px-8">
-          {/* Left links */}
-          <div className="hidden md:flex items-center gap-2.5">
-            <Link
-              href="/rates"
-              className="flex items-center px-5 py-2 text-[11px] md:text-[12px] font-jakarta font-medium tracking-[0.12em] uppercase border border-skynest-accent bg-skynest-accent/15 text-white transition-colors duration-200"
-            >
-              Rates
-            </Link>
-            <Link
-              href="/#about"
-              className="flex items-center px-5 py-2 text-[11px] md:text-[12px] font-jakarta font-medium tracking-[0.12em] uppercase border border-white/20 text-white/80 hover:text-white hover:border-white/40 transition-colors duration-200"
-            >
-              About
-            </Link>
-          </div>
-
-          {/* Center Brand */}
-          <Link href="/" className="flex flex-col items-center gap-0.5 group">
-            <MountainGlyph className="w-6 sm:w-7 h-auto text-white/90" />
-            <span className="font-jakarta font-bold text-[10px] sm:text-[11px] tracking-[0.35em] uppercase text-white/90 select-none">
+    <header
+      id="rates-nav"
+      aria-label="Rates navigation"
+      className={`sticky top-0 z-50 transition-all duration-300 ${
+        scrolled
+          ? 'bg-white/80 backdrop-blur-md border-b border-ink/[0.08] shadow-xs'
+          : 'bg-white border-b border-skynest-hairline'
+      }`}
+    >
+      <div className="max-w-[1440px] mx-auto px-6 md:px-12 h-16 flex items-center justify-between gap-8">
+        {/* Left: Mobile hamburger & Brand */}
+        <div className="flex items-center gap-4 shrink-0">
+          <button
+            type="button"
+            onClick={() => setMenuOpen((prev) => !prev)}
+            aria-label={menuOpen ? 'Close navigation menu' : 'Open navigation menu'}
+            className="md:hidden w-8 h-8 flex items-center justify-center text-ink/70 hover:text-ink transition-colors duration-300"
+          >
+            {menuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+          </button>
+          <Link href="/" className="flex items-center gap-4">
+            <span className="font-cinzel text-[17px] tracking-[0.2em] text-ink transition-colors duration-300">
               SKYNEST
             </span>
+            <span className="hidden lg:block w-px h-4 bg-ink/15 transition-colors duration-300" />
+            <span className="hidden lg:block font-jakarta text-[11px] tracking-[0.12em] uppercase text-ink/60 transition-colors duration-300">
+              Rates &amp; Plans
+            </span>
+          </Link>
+        </div>
+
+        {/* Center: Nav links */}
+        <nav className="hidden md:flex items-center gap-8">
+          {navLinks.map(({ href, label, active }) => (
+            <Link
+              key={href}
+              href={href}
+              aria-current={active ? 'page' : undefined}
+              className={`relative py-2 font-jakarta text-[11px] font-medium tracking-[0.12em] uppercase transition-colors duration-300 ${
+                active ? 'text-ink font-semibold' : 'text-ink/70 hover:text-ink'
+              }`}
+            >
+              {label}
+              {active && (
+                <span className="absolute left-0 right-0 -bottom-1 h-px bg-skynest-accent" />
+              )}
+            </Link>
+          ))}
+        </nav>
+
+        {/* Right side controls: Book Now, User Avatar, Sign Out / Sign In */}
+        <div className="flex items-center gap-4 shrink-0">
+          <Link
+            href="/book"
+            id="nav-cta-book-now"
+            className="flex items-center px-4 py-2 font-jakarta text-[11px] font-semibold tracking-[0.12em] uppercase text-white bg-skynest-accent hover:bg-skynest-accent/90 transition-colors duration-200 shadow-xs"
+          >
+            Book Now
           </Link>
 
-          {/* Right links */}
-          <div className="hidden md:flex items-center gap-2.5">
+          {user ? (
+            <>
+              {user.role?.toUpperCase() === 'GUEST' ? (
+                <Link
+                  href="/dashboard/activity"
+                  className="hidden sm:flex items-center px-3 py-1.5 font-jakarta text-[11px] font-medium tracking-[0.12em] uppercase text-ink/70 hover:text-ink transition-colors"
+                >
+                  Activity
+                </Link>
+              ) : (
+                <Link
+                  href="/dashboard"
+                  className="hidden sm:flex items-center px-3 py-1.5 font-jakarta text-[11px] font-medium tracking-[0.12em] uppercase text-ink/70 hover:text-ink transition-colors"
+                >
+                  Dashboard
+                </Link>
+              )}
+              <span
+                title={`${user.firstName || ''} ${user.lastName || ''}`}
+                className="w-8 h-8 rounded-full flex items-center justify-center font-jakarta text-[11px] font-medium tracking-[0.08em] border border-ink/20 text-ink bg-ink/[0.04]"
+              >
+                {initials(user.firstName, user.lastName)}
+              </span>
+              <button
+                type="button"
+                onClick={logout}
+                className="hidden sm:flex items-center px-4 py-2 font-jakarta text-[11px] font-medium tracking-[0.12em] uppercase text-ink/75 border border-ink/20 hover:text-ink hover:border-skynest-accent hover:bg-ink/[0.04] transition-colors duration-300 cursor-pointer"
+              >
+                Sign Out
+              </button>
+            </>
+          ) : (
             <Link
-              href="/contact"
-              className="flex items-center px-5 py-2 text-[11px] md:text-[12px] font-jakarta font-medium tracking-[0.12em] uppercase border border-white/20 text-white/80 hover:text-white hover:border-white/40 transition-colors duration-200"
+              href="/login"
+              className="hidden sm:flex items-center px-4 py-2 font-jakarta text-[11px] font-medium tracking-[0.12em] uppercase text-ink/75 border border-ink/20 hover:text-ink hover:border-skynest-accent hover:bg-ink/[0.04] transition-colors duration-300"
             >
-              Contact
+              Sign In
             </Link>
+          )}
+        </div>
+      </div>
+
+      {/* Mobile Drawer */}
+      {menuOpen && (
+        <div className="md:hidden border-t border-ink/[0.08] bg-white/95 backdrop-blur-xl px-6 py-6 space-y-4 shadow-lg animate-in fade-in slide-in-from-top-2 duration-200">
+          <div className="space-y-1">
+            {navLinks.map((link) => (
+              <Link
+                key={link.href}
+                href={link.href}
+                onClick={() => setMenuOpen(false)}
+                className={`block py-2 font-jakarta text-[12px] tracking-[0.12em] uppercase transition-colors ${
+                  link.active ? 'text-skynest-accent font-semibold' : 'text-ink/80 hover:text-ink'
+                }`}
+              >
+                {link.label}
+              </Link>
+            ))}
+          </div>
+
+          <div className="pt-4 border-t border-ink/[0.08] flex flex-col gap-2.5">
             <Link
               href="/book"
-              className="flex items-center px-5 py-2 text-[11px] md:text-[12px] font-jakarta font-semibold tracking-[0.12em] uppercase border border-skynest-accent bg-skynest-accent text-white hover:bg-skynest-accent/90 transition-colors duration-200"
+              onClick={() => setMenuOpen(false)}
+              className="flex items-center justify-center px-4 py-2.5 font-jakarta text-[11px] font-semibold tracking-[0.12em] uppercase text-white bg-skynest-accent hover:bg-skynest-accent/90 transition-colors"
             >
               Book Now
             </Link>
             {user ? (
-              <Link
-                href={user.role === 'GUEST' ? '/dashboard/activity' : '/dashboard'}
-                className="flex items-center px-4 py-2 text-[11px] font-jakarta font-medium tracking-[0.12em] uppercase text-amber-400 border border-amber-500/30 hover:border-amber-400 bg-amber-500/10 transition-colors"
-              >
-                {user.role === 'GUEST' ? 'Activity' : 'Dashboard'}
-              </Link>
-            ) : (
-              <Link
-                href="/login"
-                className="flex items-center px-4 py-2 text-[11px] font-jakarta font-medium tracking-[0.12em] uppercase text-white/70 hover:text-white transition-colors"
-              >
-                Sign In
-              </Link>
-            )}
-          </div>
-
-          {/* Mobile hamburger */}
-          <button
-            type="button"
-            onClick={() => setMenuOpen(!menuOpen)}
-            aria-label="Toggle navigation menu"
-            className="md:hidden p-2 text-white/80 hover:text-white"
-          >
-            {menuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
-          </button>
-        </div>
-      </nav>
-
-      {/* Mobile Drawer */}
-      {menuOpen && (
-        <div className="fixed inset-0 z-40 bg-ink/95 backdrop-blur-xl flex flex-col justify-center px-8 space-y-4 md:hidden">
-          <Link
-            href="/rates"
-            onClick={() => setMenuOpen(false)}
-            className="font-jakarta text-2xl font-semibold text-skynest-accent tracking-wider uppercase"
-          >
-            Rates &amp; Plans
-          </Link>
-          <Link
-            href="/#about"
-            onClick={() => setMenuOpen(false)}
-            className="font-jakarta text-2xl font-semibold text-white/80 hover:text-white tracking-wider uppercase"
-          >
-            About
-          </Link>
-          <Link
-            href="/contact"
-            onClick={() => setMenuOpen(false)}
-            className="font-jakarta text-2xl font-semibold text-white/80 hover:text-white tracking-wider uppercase"
-          >
-            Contact
-          </Link>
-          <Link
-            href="/book"
-            onClick={() => setMenuOpen(false)}
-            className="font-jakarta text-2xl font-semibold text-white/80 hover:text-white tracking-wider uppercase"
-          >
-            Book Now
-          </Link>
-          <div className="pt-4 border-t border-white/10">
-            {user ? (
-              <Link
-                href={user.role === 'GUEST' ? '/dashboard/activity' : '/dashboard'}
-                onClick={() => setMenuOpen(false)}
-                className="font-jakarta text-lg text-amber-400 font-semibold"
-              >
-                {user.role === 'GUEST' ? 'My Activity' : 'Staff Dashboard'}
-              </Link>
+              <>
+                <Link
+                  href={user.role === 'GUEST' ? '/dashboard/activity' : '/dashboard'}
+                  onClick={() => setMenuOpen(false)}
+                  className="flex items-center justify-center px-4 py-2 font-jakarta text-[11px] font-medium tracking-[0.12em] uppercase text-ink/80 border border-ink/20 hover:text-ink"
+                >
+                  {user.role === 'GUEST' ? 'My Activity' : 'Staff Portal'}
+                </Link>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMenuOpen(false);
+                    logout();
+                  }}
+                  className="flex items-center justify-center px-4 py-2 font-jakarta text-[11px] font-medium tracking-[0.12em] uppercase text-red-600 border border-red-200 hover:bg-red-50 cursor-pointer"
+                >
+                  Sign Out
+                </button>
+              </>
             ) : (
               <Link
                 href="/login"
                 onClick={() => setMenuOpen(false)}
-                className="font-jakarta text-lg text-white/70 hover:text-white"
+                className="flex items-center justify-center px-4 py-2 font-jakarta text-[11px] font-medium tracking-[0.12em] uppercase text-ink/80 border border-ink/20 hover:text-ink"
               >
                 Sign In
               </Link>
@@ -366,273 +417,13 @@ function RatesNav() {
           </div>
         </div>
       )}
-    </>
-  );
-}
-
-// ── Hero Section (Pinned with Parallax & Wordmark) ────────────────────────────
-
-function RatesHeroSection({ heroRef }: { heroRef: React.RefObject<HTMLDivElement | null> }) {
-  const bgImgRef = useRef<HTMLImageElement>(null);
-  const wordmarkRef = useRef<HTMLDivElement>(null);
-  const topRowRef = useRef<HTMLDivElement>(null);
-  const reducedMotion = usePrefersReducedMotion();
-
-  useEffect(() => {
-    if (reducedMotion || !heroRef.current) return;
-    gsap.registerPlugin(ScrollTrigger);
-
-    const ctx = gsap.context(() => {
-      const tl = gsap.timeline({
-        scrollTrigger: {
-          trigger: heroRef.current,
-          start: 'top top',
-          end: '+=100%',
-          scrub: 1.0,
-        },
-        defaults: {
-          ease: 'none',
-          force3D: true,
-        },
-      });
-
-      if (bgImgRef.current) {
-        tl.to(bgImgRef.current, { y: '16%', scale: 1.08 }, 0);
-      }
-      if (wordmarkRef.current) {
-        tl.to(wordmarkRef.current, { y: '28%', opacity: 0.15 }, 0);
-      }
-      if (topRowRef.current) {
-        tl.to(topRowRef.current, { y: '-30px', opacity: 0.1 }, 0);
-      }
-    }, heroRef);
-
-    return () => ctx.revert();
-  }, [heroRef, reducedMotion]);
-
-  return (
-    <section
-      ref={heroRef}
-      id="rates-hero"
-      aria-label="Rates and pricing hero"
-      className="sticky top-0 h-[100dvh] overflow-hidden flex flex-col bg-ink z-0 select-none"
-    >
-      {/* Background Image */}
-      <div aria-hidden="true" className="absolute inset-0 pointer-events-none z-0 overflow-hidden">
-        <img
-          ref={bgImgRef}
-          src="/sunset-at-a-swimming-pool-during-a-vacation-on-a-t-2026-03-17-05-37-28-utc.webp"
-          alt=""
-          className="w-full h-full object-cover object-center"
-          style={{
-            filter: 'brightness(0.68) contrast(1.12)',
-            willChange: 'transform',
-          }}
-        />
-        {/* Deep Navy Radial Contrast Gradient */}
-        <div
-          className="absolute inset-0"
-          style={{
-            background:
-              'radial-gradient(ellipse 120% 70% at 50% 30%, rgba(11,37,64,0.35) 0%, rgba(7,28,48,0.65) 60%, rgba(11,37,64,0.9) 100%)',
-          }}
-        />
-      </div>
-
-      {/* Top Metadata Row */}
-      <div
-        ref={topRowRef}
-        className="relative flex flex-col sm:flex-row sm:items-start sm:justify-between px-6 sm:px-8 md:px-12 pt-20 sm:pt-24 md:pt-28 pb-0 gap-4 sm:gap-6 z-10"
-        style={{ willChange: 'transform, opacity' }}
-      >
-        <div>
-          <p className="font-cinzel font-normal italic text-white/80 text-[12px] sm:text-[13px] md:text-[15px] leading-relaxed">
-            Transparent Sanctuary Pricing &bull; Sri Lanka
-            <br />
-            Three destinated havens. One standard of welcome.
-          </p>
-          <span className="inline-block mt-2 font-jakarta text-[10px] tracking-[0.16em] uppercase text-white/50">
-            Colombo &bull; Galle &bull; Kandy
-          </span>
-        </div>
-
-        <a
-          href="#rates-content"
-          className="self-start sm:self-auto flex items-center gap-2 font-jakarta text-[10px] sm:text-[11px] md:text-[12px] font-medium tracking-[0.15em] uppercase text-white/85 hover:text-white border border-white/20 hover:border-white/40 px-4 sm:px-5 py-2.5 sm:py-3 transition-all duration-300"
-        >
-          <span>Explore Tiers &amp; Plans</span>
-          <ChevronDown className="w-3.5 h-3.5 text-skynest-accent animate-bounce" />
-        </a>
-      </div>
-
-      {/* Giant Wordmark */}
-      <div
-        ref={wordmarkRef}
-        aria-hidden="true"
-        className="relative z-10 flex-1 flex items-end justify-center pointer-events-none select-none w-full px-4 pb-2 sm:pb-4 overflow-visible"
-        style={{ willChange: 'transform, opacity' }}
-      >
-        <span
-          className="font-cinzel font-normal leading-[0.85] text-white text-center whitespace-nowrap block w-full uppercase"
-          style={{
-            fontSize: 'clamp(36px, 13vw, 190px)',
-            letterSpacing: '0.04em',
-          }}
-        >
-          RATES &amp; PLANS
-        </span>
-      </div>
-    </section>
-  );
-}
-
-// ── Mystic Cloud Scrub Transition ─────────────────────────────────────────────
-
-function RatesCloudTransition() {
-  const containerRef = useRef<HTMLDivElement>(null);
-  const wrapWispsRef = useRef<HTMLDivElement>(null);
-  const wrap1Ref = useRef<HTMLDivElement>(null);
-  const wrap2Ref = useRef<HTMLDivElement>(null);
-  const fogRef = useRef<HTMLDivElement>(null);
-  const reducedMotion = usePrefersReducedMotion();
-
-  useEffect(() => {
-    if (reducedMotion || !containerRef.current) return;
-    gsap.registerPlugin(ScrollTrigger);
-
-    gsap.set([wrapWispsRef.current, wrap1Ref.current, wrap2Ref.current], { autoAlpha: 0 });
-    gsap.set(wrapWispsRef.current, { y: '16%', x: '-2.5%' });
-    gsap.set(wrap1Ref.current, { y: '12%', x: '1%' });
-    gsap.set(wrap2Ref.current, { y: '20%', x: '-1%' });
-    if (fogRef.current) gsap.set(fogRef.current, { opacity: 0.15 });
-
-    const ctx = gsap.context(() => {
-      const tl = gsap.timeline({
-        scrollTrigger: {
-          trigger: containerRef.current,
-          start: 'top bottom',
-          end: 'bottom bottom',
-          scrub: 1.0,
-        },
-        defaults: {
-          ease: 'none',
-          force3D: true,
-        },
-      });
-
-      if (wrapWispsRef.current) {
-        tl.to(wrapWispsRef.current, { y: '-6%', x: '3%', autoAlpha: 0.8 }, 0);
-      }
-      if (wrap1Ref.current) {
-        tl.to(wrap1Ref.current, { y: '0%', x: '-1.5%', autoAlpha: 1 }, 0);
-      }
-      if (wrap2Ref.current) {
-        tl.to(wrap2Ref.current, { y: '0%', x: '1.5%', autoAlpha: 1 }, 0.08);
-      }
-      if (fogRef.current) {
-        tl.to(fogRef.current, { opacity: 1 }, 0.04);
-      }
-    }, containerRef);
-
-    return () => ctx.revert();
-  }, [reducedMotion]);
-
-  return (
-    <div
-      ref={containerRef}
-      aria-hidden="true"
-      className="relative z-10 h-[50dvh] sm:h-[60dvh] md:h-[72dvh] pointer-events-none overflow-hidden select-none"
-    >
-      {/* High-Altitude Wisps Layer */}
-      <div
-        ref={wrapWispsRef}
-        className="absolute bottom-10 sm:bottom-16 left-1/2 overflow-hidden pointer-events-none"
-        style={{
-          width: '240%',
-          height: '85%',
-          marginLeft: '-120%',
-          willChange: 'transform, opacity',
-        }}
-      >
-        <img
-          src="/clouds/cloud_wisps.webp"
-          alt=""
-          className="w-full h-full object-cover object-bottom select-none pointer-events-none opacity-80"
-          style={{
-            WebkitMaskImage:
-              'linear-gradient(to bottom, transparent 0%, rgba(0,0,0,0.2) 20%, rgba(0,0,0,0.75) 55%, black 80%)',
-            maskImage:
-              'linear-gradient(to bottom, transparent 0%, rgba(0,0,0,0.2) 20%, rgba(0,0,0,0.75) 55%, black 80%)',
-          }}
-        />
-      </div>
-
-      {/* Layer 1 — Base Clouds */}
-      <div
-        ref={wrap1Ref}
-        className="absolute bottom-0 left-1/2 overflow-hidden pointer-events-none"
-        style={{
-          width: '220%',
-          height: '100%',
-          marginLeft: '-110%',
-          willChange: 'transform, opacity',
-        }}
-      >
-        <img
-          src="/07_Clouds.webp"
-          alt=""
-          className="w-full h-full object-cover object-bottom select-none pointer-events-none"
-          style={{
-            WebkitMaskImage:
-              'linear-gradient(to bottom, transparent 0%, rgba(0,0,0,0.2) 18%, rgba(0,0,0,0.7) 38%, black 58%)',
-            maskImage:
-              'linear-gradient(to bottom, transparent 0%, rgba(0,0,0,0.2) 18%, rgba(0,0,0,0.7) 38%, black 58%)',
-          }}
-        />
-      </div>
-
-      {/* Layer 2 — Denser Clouds */}
-      <div
-        ref={wrap2Ref}
-        className="absolute bottom-0 left-1/2 overflow-hidden pointer-events-none"
-        style={{
-          width: '220%',
-          height: '85%',
-          marginLeft: '-110%',
-          willChange: 'transform, opacity',
-        }}
-      >
-        <img
-          src="/Clouds 3.webp"
-          alt=""
-          className="w-full h-full object-cover object-bottom select-none pointer-events-none"
-          style={{
-            WebkitMaskImage:
-              'linear-gradient(to bottom, transparent 0%, rgba(0,0,0,0.4) 22%, rgba(0,0,0,0.9) 48%, black 65%)',
-            maskImage:
-              'linear-gradient(to bottom, transparent 0%, rgba(0,0,0,0.4) 22%, rgba(0,0,0,0.9) 48%, black 65%)',
-          }}
-        />
-      </div>
-
-      {/* Layer 3 — Dense white fog blending into #FDFCFA */}
-      <div
-        ref={fogRef}
-        className="absolute inset-x-0 bottom-0 h-[60%] pointer-events-none"
-        style={{
-          background:
-            'linear-gradient(to bottom, transparent 0%, rgba(253,252,250,0.3) 20%, rgba(253,252,250,0.7) 45%, rgba(253,252,250,0.95) 75%, #FDFCFA 100%)',
-          willChange: 'opacity',
-        }}
-      />
-    </div>
+    </header>
   );
 }
 
 // ── Main Rates Page Component ─────────────────────────────────────────────────
 
 export default function RatesPage() {
-  const heroRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
   const reducedMotion = usePrefersReducedMotion();
 
@@ -687,10 +478,6 @@ export default function RatesPage() {
           duration: 0.65,
           stagger: 0.08,
           ease: 'power2.out',
-          scrollTrigger: {
-            trigger: contentRef.current,
-            start: 'top 80%',
-          },
         }
       );
     }, contentRef);
@@ -703,17 +490,11 @@ export default function RatesPage() {
       {/* ── Fixed Navigation Bar ── */}
       <RatesNav />
 
-      {/* ── 1. CINEMATIC PINNED HERO SECTION ── */}
-      <RatesHeroSection heroRef={heroRef} />
-
-      {/* ── 2. MYSTIC CLOUD TRANSITION ── */}
-      <RatesCloudTransition />
-
-      {/* ── 3. MAIN RATES & MEAL PLANS CONTENT ── */}
+      {/* ── MAIN RATES & MEAL PLANS CONTENT ── */}
       <div
         id="rates-content"
         ref={contentRef}
-        className="relative z-20 bg-paper min-h-screen pt-4 sm:pt-8 pb-32"
+        className="relative z-20 bg-paper min-h-screen py-8 sm:py-12 pb-32"
       >
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 space-y-20">
 
@@ -726,9 +507,6 @@ export default function RatesPage() {
             <h1 className="font-cinzel text-3xl sm:text-4xl lg:text-5xl font-bold tracking-[0.06em] text-ink uppercase">
               Sanctuary Rooms &amp; Nightly Rates
             </h1>
-            <p className="font-jakarta text-xs sm:text-sm text-ink/70 max-w-2xl mx-auto leading-relaxed">
-              Every room and suite at Sky Nest is sculpted around uncompromised spaciousness, bespoke personalized service, and architectural stillness across our three island destinations.
-            </p>
           </div>
 
           {/* ── Control Bar: Property Filter + Currency Toggle ── */}
@@ -1174,7 +952,7 @@ export default function RatesPage() {
               </h4>
             </div>
             <p className="font-jakarta text-xs sm:text-sm text-ink/75 leading-relaxed">
-              At Sky Nest, we operate strictly in compliance with Inland Revenue Department regulations of Sri Lanka. All room folios and invoices clearly separate statutory obligations ($SC ightarrow TDL ightarrow SSCL ightarrow VAT$). Guests never encounter surprise fees upon checkout.
+              At Sky Nest, we operate strictly in compliance with Inland Revenue Department regulations of Sri Lanka. All room folios and invoices clearly separate statutory obligations ($SC &rarr; TDL &rarr; SSCL &rarr; VAT$). Guests never encounter surprise fees upon checkout.
             </p>
           </div>
 

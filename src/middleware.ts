@@ -57,7 +57,7 @@ export function middleware(req: NextRequest) {
 
   // 3. Authenticated users hitting /login or /register -> redirect to appropriate portal
   if (token && isAuthPage) {
-    const targetUrl = isGuest ? new URL('/dashboard/activity', req.url) : new URL('/dashboard', req.url);
+    const targetUrl = isGuest ? new URL('/', req.url) : new URL('/dashboard', req.url);
     const res = NextResponse.redirect(targetUrl);
     res.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
     return res;

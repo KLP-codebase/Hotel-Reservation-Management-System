@@ -98,7 +98,7 @@ function LoginForm() {
       }
 
       if (res.user?.role?.toUpperCase() === 'GUEST') {
-        window.location.replace('/dashboard/activity');
+        window.location.replace('/');
       } else {
         window.location.replace('/dashboard');
       }

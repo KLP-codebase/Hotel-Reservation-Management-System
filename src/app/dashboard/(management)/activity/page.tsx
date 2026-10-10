@@ -164,288 +164,6 @@ const TIER_COLORS = {
   },
 };
 
-// ── Hero Section (Full viewport fit above the fold) ───────────────────────────
-
-function StaysHeroSection({
-  heroRef,
-  guestName,
-  totalBookings,
-}: {
-  heroRef: React.RefObject<HTMLDivElement | null>;
-  guestName?: string;
-  totalBookings: number;
-}) {
-  const bgImgRef = useRef<HTMLImageElement>(null);
-  const wordmarkRef = useRef<HTMLDivElement>(null);
-  const topRowRef = useRef<HTMLDivElement>(null);
-  const reducedMotion = usePrefersReducedMotion();
-
-  useEffect(() => {
-    if (reducedMotion || !heroRef.current) return;
-    gsap.registerPlugin(ScrollTrigger);
-
-    const ctx = gsap.context(() => {
-      const tl = gsap.timeline({
-        scrollTrigger: {
-          trigger: heroRef.current,
-          start: 'top 4rem',
-          end: '+=80%',
-          scrub: 1.0,
-        },
-        defaults: {
-          ease: 'none',
-          force3D: true,
-        },
-      });
-
-      if (bgImgRef.current) {
-        tl.to(bgImgRef.current, { y: '16%', scale: 1.06 }, 0);
-      }
-
-      if (wordmarkRef.current) {
-        tl.to(wordmarkRef.current, { y: '28%', opacity: 0.15 }, 0);
-      }
-
-      if (topRowRef.current) {
-        tl.to(topRowRef.current, { y: '-30px', opacity: 0.1 }, 0);
-      }
-    }, heroRef);
-
-    return () => ctx.revert();
-  }, [heroRef, reducedMotion]);
-
-  return (
-    <section
-      ref={heroRef}
-      id="stays-hero"
-      aria-label="Your Stays hero"
-      className="sticky top-16 h-[calc(100svh-4rem)] md:h-[calc(100dvh-4rem)] overflow-hidden flex flex-col bg-ink z-0 select-none"
-    >
-      {/* Hero Background Image */}
-      <div
-        aria-hidden="true"
-        className="absolute inset-0 pointer-events-none z-0 overflow-hidden"
-      >
-        <img
-          ref={bgImgRef}
-          src="/sunset-at-a-swimming-pool-during-a-vacation-on-a-t-2026-03-17-05-37-28-utc.webp"
-          alt=""
-          className="w-full h-full object-cover object-center"
-          style={{
-            filter: 'brightness(0.72) contrast(1.08)',
-            willChange: 'transform',
-          }}
-        />
-        {/* Navy Overlay for text contrast */}
-        <div
-          className="absolute inset-0"
-          style={{
-            background:
-              'radial-gradient(ellipse 120% 70% at 50% 30%, rgba(11,37,64,0.35) 0%, rgba(7,28,48,0.6) 60%, rgba(11,37,64,0.85) 100%)',
-          }}
-        />
-      </div>
-
-      {/* Top row: eyebrow left + view stays button right */}
-      <div
-        ref={topRowRef}
-        className="relative flex flex-col sm:flex-row sm:items-start sm:justify-between px-6 sm:px-8 md:px-12 pt-4 sm:pt-6 md:pt-8 pb-0 gap-3 sm:gap-6 z-10"
-        style={{ willChange: 'transform, opacity' }}
-      >
-        {/* Eyebrow */}
-        <div>
-          <p className="font-cinzel font-normal italic text-white/80 text-[12px] sm:text-[13px] md:text-[14px] leading-relaxed">
-            Sanctuary Archive &bull; Sri Lanka
-            <br />
-            {guestName ? `Welcome back, ${guestName}.` : 'Your unhurried island journey.'}
-          </p>
-          <span className="inline-block mt-1 sm:mt-1.5 font-jakarta text-[10px] tracking-[0.16em] uppercase text-white/50">
-            {totalBookings} {totalBookings === 1 ? 'Recorded Stay' : 'Recorded Stays'} in Portfolio
-          </span>
-        </div>
-
-        {/* Scroll CTA Button */}
-        <a
-          href="#stays-content"
-          id="hero-scroll-to-bookings"
-          className="self-start sm:self-auto flex items-center gap-2 font-jakarta text-[10px] sm:text-[11px] md:text-[12px] font-medium tracking-[0.15em] uppercase text-white/85 hover:text-white border border-white/20 hover:border-white/40 px-3.5 sm:px-4 py-2 sm:py-2.5 transition-all duration-300"
-        >
-          <span>View Your Bookings</span>
-          <ChevronDown className="w-3.5 h-3.5 text-skynest-accent animate-bounce" />
-        </a>
-      </div>
-
-      {/* Giant Wordmark: YOUR STAYS - completely visible without scrolling */}
-      <div
-        ref={wordmarkRef}
-        aria-hidden="true"
-        className="relative z-10 flex-1 flex items-end justify-center pointer-events-none select-none w-full px-2 sm:px-4 pb-2 sm:pb-3 md:pb-4 overflow-visible"
-        style={{ willChange: 'transform, opacity' }}
-      >
-        <span
-          className="font-cinzel font-normal leading-[0.85] text-white text-center whitespace-nowrap block w-full uppercase"
-          style={{
-            fontSize: 'clamp(28px, 11vw, 150px)',
-            letterSpacing: '0.04em',
-          }}
-        >
-          YOUR STAYS
-        </span>
-      </div>
-    </section>
-  );
-}
-
-// ── Mystic Cloud Transition (GSAP ScrollTrigger Butter-Smooth Rise & Ambient Fog) ────
-
-function StaysCloudTransition() {
-  const containerRef = useRef<HTMLDivElement>(null);
-  const wrapWispsRef = useRef<HTMLDivElement>(null);
-  const wrap1Ref = useRef<HTMLDivElement>(null);
-  const wrap2Ref = useRef<HTMLDivElement>(null);
-  const fogRef = useRef<HTMLDivElement>(null);
-  const reducedMotion = usePrefersReducedMotion();
-
-  useEffect(() => {
-    if (reducedMotion || !containerRef.current) return;
-    gsap.registerPlugin(ScrollTrigger);
-
-    gsap.set([wrapWispsRef.current, wrap1Ref.current, wrap2Ref.current], { autoAlpha: 0 });
-    gsap.set(wrapWispsRef.current, { y: '16%', x: '-2.5%' });
-    gsap.set(wrap1Ref.current, { y: '12%', x: '1%' });
-    gsap.set(wrap2Ref.current, { y: '20%', x: '-1%' });
-    if (fogRef.current) gsap.set(fogRef.current, { opacity: 0.15 });
-
-    const ctx = gsap.context(() => {
-      const tl = gsap.timeline({
-        scrollTrigger: {
-          trigger: containerRef.current,
-          start: 'top bottom',
-          end: 'bottom bottom',
-          scrub: 1.0, // Responsive, butter-smooth cloud rise matching landing page
-        },
-        defaults: {
-          ease: 'none',
-          force3D: true,
-        },
-      });
-
-      // Layer 0: High-altitude ethereal mountain wisps float across
-      if (wrapWispsRef.current) {
-        tl.to(wrapWispsRef.current, { y: '-6%', x: '3%', autoAlpha: 0.8 }, 0);
-      }
-
-      // Layer 1: Base billowing clouds rise and fade in with soft feathering
-      if (wrap1Ref.current) {
-        tl.to(wrap1Ref.current, { y: '0%', x: '-1.5%', autoAlpha: 1 }, 0);
-      }
-
-      // Layer 2: Denser foreground clouds with parallax offset and slight delay
-      if (wrap2Ref.current) {
-        tl.to(wrap2Ref.current, { y: '0%', x: '1.5%', autoAlpha: 1 }, 0.08);
-      }
-
-      // Layer 3: Dense white mystic fog seamlessly dissolves into paper white (#FDFCFA)
-      if (fogRef.current) {
-        tl.to(fogRef.current, { opacity: 1 }, 0.04);
-      }
-    }, containerRef);
-
-    return () => ctx.revert();
-  }, [reducedMotion]);
-
-  return (
-    <div
-      ref={containerRef}
-      aria-hidden="true"
-      className="relative z-10 h-[50dvh] sm:h-[60dvh] md:h-[72dvh] pointer-events-none overflow-hidden select-none"
-    >
-      {/* Layer 0 — Mystic High-Altitude Drifting Wisps */}
-      <div
-        ref={wrapWispsRef}
-        className="absolute bottom-10 sm:bottom-16 left-1/2 overflow-hidden pointer-events-none"
-        style={{
-          width: '240%',
-          height: '85%',
-          marginLeft: '-120%',
-          willChange: 'transform, opacity',
-        }}
-      >
-        <img
-          src="/clouds/cloud_wisps.webp"
-          alt=""
-          className="w-full h-full object-cover object-bottom select-none pointer-events-none opacity-80"
-          style={{
-            WebkitMaskImage:
-              'linear-gradient(to bottom, transparent 0%, rgba(0,0,0,0.2) 20%, rgba(0,0,0,0.75) 55%, black 80%)',
-            maskImage:
-              'linear-gradient(to bottom, transparent 0%, rgba(0,0,0,0.2) 20%, rgba(0,0,0,0.75) 55%, black 80%)',
-          }}
-        />
-      </div>
-
-      {/* Layer 1 — Base Clouds with authentic landing page gradient mask */}
-      <div
-        ref={wrap1Ref}
-        className="absolute bottom-0 left-1/2 overflow-hidden pointer-events-none"
-        style={{
-          width: '220%',
-          height: '100%',
-          marginLeft: '-110%',
-          willChange: 'transform, opacity',
-        }}
-      >
-        <img
-          src="/07_Clouds.webp"
-          alt=""
-          className="w-full h-full object-cover object-bottom select-none pointer-events-none"
-          style={{
-            WebkitMaskImage:
-              'linear-gradient(to bottom, transparent 0%, rgba(0,0,0,0.2) 18%, rgba(0,0,0,0.7) 38%, black 58%)',
-            maskImage:
-              'linear-gradient(to bottom, transparent 0%, rgba(0,0,0,0.2) 18%, rgba(0,0,0,0.7) 38%, black 58%)',
-          }}
-        />
-      </div>
-
-      {/* Layer 2 — Denser Clouds with deeper parallax & mask */}
-      <div
-        ref={wrap2Ref}
-        className="absolute bottom-0 left-1/2 overflow-hidden pointer-events-none"
-        style={{
-          width: '220%',
-          height: '85%',
-          marginLeft: '-110%',
-          willChange: 'transform, opacity',
-        }}
-      >
-        <img
-          src="/Clouds 3.webp"
-          alt=""
-          className="w-full h-full object-cover object-bottom select-none pointer-events-none"
-          style={{
-            WebkitMaskImage:
-              'linear-gradient(to bottom, transparent 0%, rgba(0,0,0,0.4) 22%, rgba(0,0,0,0.9) 48%, black 65%)',
-            maskImage:
-              'linear-gradient(to bottom, transparent 0%, rgba(0,0,0,0.4) 22%, rgba(0,0,0,0.9) 48%, black 65%)',
-          }}
-        />
-      </div>
-
-      {/* Layer 3 — Dense white mystic fog at the bottom — blends into paper white */}
-      <div
-        ref={fogRef}
-        className="absolute inset-x-0 bottom-0 h-[60%] pointer-events-none"
-        style={{
-          background:
-            'linear-gradient(to bottom, transparent 0%, rgba(253,252,250,0.3) 20%, rgba(253,252,250,0.7) 45%, rgba(253,252,250,0.95) 75%, #FDFCFA 100%)',
-          willChange: 'opacity',
-        }}
-      />
-    </div>
-  );
-}
-
 // ── Modal: Book Service for Guest Stay ────────────────────────────────────────
 
 function BookServiceModal({
@@ -748,7 +466,6 @@ function BookServiceModal({
 
 export default function GuestActivityPage() {
   const { user, logout } = useAuth();
-  const heroRef = useRef<HTMLDivElement>(null);
   const contentContainerRef = useRef<HTMLDivElement>(null);
 
   const [loading, setLoading] = useState(true);
@@ -868,10 +585,6 @@ export default function GuestActivityPage() {
           duration: 0.6,
           stagger: 0.08,
           ease: 'power2.out',
-          scrollTrigger: {
-            trigger: contentContainerRef.current,
-            start: 'top 85%',
-          },
         }
       );
     }, contentContainerRef);
@@ -899,36 +612,23 @@ export default function GuestActivityPage() {
         </div>
       )}
 
-      {/* ── 1. CINEMATIC HERO SECTION (Pinned with giant 'YOUR STAYS' wordmark) ── */}
-      <StaysHeroSection
-        heroRef={heroRef}
-        guestName={guestName}
-        totalBookings={totalBookingsCount}
-      />
-
-      {/* ── 2. CLOUD TRANSITION (Clouds scrub and roll over the pinned hero) ──── */}
-      <StaysCloudTransition />
-
-      {/* ── 3. BOOKINGS & ACTIVITY CONTENT (Rolls in smoothly over the clouds) ── */}
+      {/* ── BOOKINGS & ACTIVITY CONTENT ── */}
       <div
         id="stays-content"
         ref={contentContainerRef}
-        className="relative z-20 bg-paper min-h-screen pt-4 sm:pt-8 pb-32"
+        className="relative bg-paper min-h-screen py-8 sm:py-12 pb-32"
       >
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 space-y-10">
 
           {/* Section Eyebrow & Title */}
-          <div className="text-center space-y-3 pt-4">
+          <div className="text-center space-y-3 pt-2 sm:pt-4">
             <MountainGlyph className="w-6 h-auto text-skynest-accent mx-auto" />
             <span className="font-jakarta text-[11px] font-semibold tracking-[0.2em] text-ink/50 uppercase block">
-              Personal Sanctuary Dossier
+              Personal Sanctuary Dossier {guestName ? `\u2022 Welcome, ${guestName}` : ''}
             </span>
             <h1 className="font-cinzel text-3xl sm:text-4xl lg:text-5xl font-bold tracking-[0.06em] text-ink uppercase">
               Your Bookings &amp; Rewards
             </h1>
-            <p className="font-jakarta text-xs sm:text-sm text-ink/70 max-w-xl mx-auto leading-relaxed">
-              Explore your completed sanctuary residencies, itemized folios, and accumulated privilege benefits across Sky Nest.
-            </p>
           </div>
 
           {/* Loading State */}

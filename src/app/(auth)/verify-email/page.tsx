@@ -31,7 +31,7 @@ function VerifyEmailContent() {
   const [status, setStatus] = useState<'verifying' | 'success' | 'error'>('verifying');
   const [errorMessage, setErrorMessage] = useState<string>('');
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
-  const [redirectTarget, setRedirectTarget] = useState<string>('/dashboard/activity');
+  const [redirectTarget, setRedirectTarget] = useState<string>('/');
 
   // Resend form state
   const [resendEmail, setResendEmail] = useState('');
@@ -70,7 +70,7 @@ function VerifyEmailContent() {
 
         if (isMounted) {
           const authData = res.data;
-          let target = '/dashboard/activity';
+          let target = '/';
 
           if (authData?.token) {
             // Establish session cookie for Next.js middleware & server components
@@ -81,7 +81,7 @@ function VerifyEmailContent() {
             } catch {}
 
             setUserProfile(authData.user);
-            target = authData.user.role?.toUpperCase() === 'GUEST' ? '/dashboard/activity' : '/dashboard';
+            target = authData.user.role?.toUpperCase() === 'GUEST' ? '/' : '/dashboard';
           }
 
           setRedirectTarget(target);

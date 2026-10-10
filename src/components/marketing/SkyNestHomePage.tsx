@@ -214,6 +214,75 @@ function ChevronRight({ className = "" }: { className?: string }) {
   );
 }
 
+/** Travel + Leisure compass award insignia */
+function CompassAwardIcon({ className = "" }: { className?: string }) {
+  return (
+    <svg
+      aria-hidden="true"
+      viewBox="0 0 24 24"
+      fill="none"
+      className={className}
+      stroke="currentColor"
+      strokeWidth="1.35"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <circle cx="12" cy="12" r="9.25" opacity="0.6" />
+      <polygon points="16.24 7.76 13.8 13.8 7.76 16.24 10.2 10.2 16.24 7.76" fill="currentColor" fillOpacity="0.18" />
+      <circle cx="12" cy="12" r="1.5" fill="currentColor" />
+    </svg>
+  );
+}
+
+/** Condé Nast Traveller laurel wreath insignia */
+function LaurelAwardIcon({ className = "" }: { className?: string }) {
+  return (
+    <svg
+      aria-hidden="true"
+      viewBox="0 0 24 24"
+      fill="none"
+      className={className}
+      stroke="currentColor"
+      strokeWidth="1.35"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M7 19.5c-1.8-2.2-2.5-5-2.2-7.8.3-2.8 1.8-5.3 4.2-6.7" />
+      <path d="M17 19.5c1.8-2.2 2.5-5 2.2-7.8-.3-2.8-1.8-5.3-4.2-6.7" />
+      <path d="M5.5 9.5c1.2-1 2.8-1.4 4.3-.8" />
+      <path d="M5.2 14c1.2-.5 2.7-.3 3.8.7" />
+      <path d="M18.5 9.5c-1.2-1-2.8-1.4-4.3-.8" />
+      <path d="M18.8 14c-1.2-.5-2.7-.3-3.8.7" />
+      <polygon points="12 8 13.2 11.2 16.5 11.5 14 13.6 14.8 17 12 15.2 9.2 17 10 13.6 7.5 11.5 10.8 11.2 12 8" fill="currentColor" fillOpacity="0.18" />
+    </svg>
+  );
+}
+
+/** UNESCO Heritage colonnade insignia */
+function HeritageAwardIcon({ className = "" }: { className?: string }) {
+  return (
+    <svg
+      aria-hidden="true"
+      viewBox="0 0 24 24"
+      fill="none"
+      className={className}
+      stroke="currentColor"
+      strokeWidth="1.35"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M3 21h18" />
+      <path d="M4 18h16" />
+      <path d="M6 18v-7.5" />
+      <path d="M10 18v-7.5" />
+      <path d="M14 18v-7.5" />
+      <path d="M18 18v-7.5" />
+      <path d="M3 10.5h18" />
+      <polygon points="12 3.5 2.5 10.5 21.5 10.5 12 3.5" fill="currentColor" fillOpacity="0.18" />
+    </svg>
+  );
+}
+
 // ---------------------------------------------------------------------------
 // Navigation
 // ---------------------------------------------------------------------------
@@ -1900,36 +1969,93 @@ function AboutSection({ reducedMotion }: { reducedMotion: boolean }) {
 
               <div className="h-px w-14 bg-skynest-accent" />
 
-              <p className="font-jakarta text-ink/75 text-[15px] leading-[1.9]">
+              <p className="font-jakarta text-ink/85 text-[17px] sm:text-[19px] leading-[1.75]">
                 Sky Nest was conceived from a single conviction: that Sri Lanka&rsquo;s extraordinary
-                natural landscapes deserve sanctuaries worthy of their grandeur. From the colonial
-                harbour city of Colombo to the mist-laden tea hills of Kandy and the rampart-crowned
-                shores of Galle Fort, each property is shaped around its geography — not imposed upon it.
+                landscapes deserve sanctuaries worthy of their grandeur. Across Colombo, Kandy, and
+                Galle Fort, each haven is sculpted around its geography &mdash; never imposed upon it.
               </p>
 
-              <p className="font-jakarta text-ink/60 text-[14px] leading-[1.9]">
-                Every suite is furnished with locally sourced tropical hardwoods, handwoven textiles, and
-                floor-to-ceiling glass that frame the sky as living art. Our dining philosophy draws from
-                centuries of Ceylonese spice heritage, elevated through contemporary culinary mastery.
-                Our spa rituals are written in ancient Ayurvedic scripture, reinterpreted for the modern
-                conscious traveller.
-              </p>
-
-              {/* Accolades */}
-              <div className="border border-skynest-hairline p-5 mt-2">
-                <p className="font-jakarta text-[10px] font-bold tracking-[0.25em] uppercase text-ink/35 mb-4">
-                  Recognition & Awards
-                </p>
-                {[
-                  "Travel + Leisure — World's Best Hotels, Sri Lanka",
-                  "Condé Nast Traveller — Gold List 2024",
-                  "UNESCO Heritage Tourism Excellence Award",
-                ].map((award, i) => (
-                  <div key={i} className="flex items-start gap-3 mb-2 last:mb-0">
-                    <div className="mt-1.5 w-1 h-1 rounded-full bg-skynest-accent shrink-0" />
-                    <span className="font-jakarta text-[12px] text-ink/65 leading-snug">{award}</span>
+              {/* ── Recognition & Accolades Showcase ── */}
+              <div className="mt-4 pt-6 border-t border-skynest-hairline space-y-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2.5">
+                    <span className="w-1.5 h-1.5 rounded-full bg-skynest-accent" />
+                    <span className="font-jakarta text-[10px] font-bold tracking-[0.28em] uppercase text-ink/40">
+                      Distinguished Acclaim &amp; Honors
+                    </span>
                   </div>
-                ))}
+                  <span className="hidden sm:inline font-cinzel italic text-[11px] text-ink/40">
+                    Ceylon Sanctuary Standards
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-1 gap-2.5">
+                  {/* Award 1: Travel + Leisure */}
+                  <div className="group relative p-3.5 sm:p-4 bg-white/70 hover:bg-white border border-skynest-hairline hover:border-skynest-accent/40 transition-all duration-300 shadow-2xs hover:shadow-xs">
+                    <div className="flex items-center gap-3.5">
+                      <div className="w-9 h-9 rounded-full border border-skynest-hairline bg-paper flex items-center justify-center text-skynest-accent shrink-0 group-hover:border-skynest-accent/50 group-hover:bg-skynest-accent/10 transition-colors duration-300">
+                        <CompassAwardIcon className="w-4 h-4" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center justify-between gap-2 mb-0.5">
+                          <span className="font-jakarta text-[9.5px] font-bold tracking-[0.2em] uppercase text-skynest-accent">
+                            Travel + Leisure
+                          </span>
+                          <span className="font-jakarta text-[9px] font-semibold tracking-[0.1em] uppercase px-2 py-0.5 border border-skynest-hairline bg-paper text-ink/65">
+                            No. 1 in Sri Lanka
+                          </span>
+                        </div>
+                        <h4 className="font-cinzel text-[13.5px] font-semibold text-ink tracking-[0.02em] group-hover:text-skynest-accent transition-colors duration-200">
+                          World&rsquo;s Best Hotels
+                        </h4>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Award 2: Condé Nast Traveller */}
+                  <div className="group relative p-3.5 sm:p-4 bg-white/70 hover:bg-white border border-skynest-hairline hover:border-skynest-accent/40 transition-all duration-300 shadow-2xs hover:shadow-xs">
+                    <div className="flex items-center gap-3.5">
+                      <div className="w-9 h-9 rounded-full border border-skynest-hairline bg-paper flex items-center justify-center text-skynest-accent shrink-0 group-hover:border-skynest-accent/50 group-hover:bg-skynest-accent/10 transition-colors duration-300">
+                        <LaurelAwardIcon className="w-4 h-4" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center justify-between gap-2 mb-0.5">
+                          <span className="font-jakarta text-[9.5px] font-bold tracking-[0.2em] uppercase text-skynest-accent">
+                            Condé Nast Traveller
+                          </span>
+                          <span className="font-jakarta text-[9px] font-semibold tracking-[0.1em] uppercase px-2 py-0.5 border border-skynest-hairline bg-paper text-ink/65">
+                            Gold List 2024
+                          </span>
+                        </div>
+                        <h4 className="font-cinzel text-[13.5px] font-semibold text-ink tracking-[0.02em] group-hover:text-skynest-accent transition-colors duration-200">
+                          The Gold List &mdash; Global Sanctuaries
+                        </h4>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Award 3: UNESCO Heritage Tourism */}
+                  <div className="group relative p-3.5 sm:p-4 bg-white/70 hover:bg-white border border-skynest-hairline hover:border-skynest-accent/40 transition-all duration-300 shadow-2xs hover:shadow-xs">
+                    <div className="flex items-center gap-3.5">
+                      <div className="w-9 h-9 rounded-full border border-skynest-hairline bg-paper flex items-center justify-center text-skynest-accent shrink-0 group-hover:border-skynest-accent/50 group-hover:bg-skynest-accent/10 transition-colors duration-300">
+                        <HeritageAwardIcon className="w-4 h-4" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center justify-between gap-2 mb-0.5">
+                          <span className="font-jakarta text-[9.5px] font-bold tracking-[0.2em] uppercase text-skynest-accent">
+                            UNESCO Heritage Tourism
+                          </span>
+                          <span className="font-jakarta text-[9px] font-semibold tracking-[0.1em] uppercase px-2 py-0.5 border border-skynest-hairline bg-paper text-ink/65">
+                            Excellence Laureate
+                          </span>
+                        </div>
+                        <h4 className="font-cinzel text-[13.5px] font-semibold text-ink tracking-[0.02em] group-hover:text-skynest-accent transition-colors duration-200">
+                          Heritage Tourism Excellence Award
+                        </h4>
+                      </div>
+                    </div>
+                  </div>
+                </div>
               </div>
 
               <a
