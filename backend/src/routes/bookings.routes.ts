@@ -4,9 +4,14 @@ import { db } from '../config/db';
 import { BookingRepository } from '../repositories/booking.repository';
 import { Errors } from '../lib/errors';
 import { isUuid } from '../lib/uuid';
+import { authenticate } from '../middleware/auth.middleware';
+import { authorize } from '../middleware/rbac.middleware';
 
 const router = Router();
 const repo = new BookingRepository(db);
+
+// Front-desk and management roles; everything except POST / requires one of these.
+const staffOnly = [authenticate, authorize('RECEPTIONIST', 'MANAGER', 'ADMINISTRATOR', 'DBA')];
 
 const isoDate = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Must be YYYY-MM-DD');
 
@@ -59,6 +64,7 @@ async function resolveGuest(identifier: string): Promise<string> {
 
 
 // POST /api/v1/bookings — create a new booking (optionally with its rooms, atomically)
+// Public — used by the website booking flow.
 router.post('/', async (req: Request, res: Response) => {
     const parsed = CreateBookingSchema.safeParse(req.body);
     if (!parsed.success) return validationFailed(res, parsed.error);
@@ -72,17 +78,24 @@ router.post('/', async (req: Request, res: Response) => {
     }
 
     const booking = await repo.createBooking({ ...header, booked_by_guest_id: bookerId }, roomLines);
+
+    // Release any temporary room holds upon successful booking creation
+    const roomIdsToRelease = roomLines.map(r => r.room_id).filter(Boolean);
+    if (roomIdsToRelease.length > 0) {
+        await db.query('DELETE FROM room_holds WHERE room_id = ANY($1::varchar[])', [roomIdsToRelease]).catch(() => {});
+    }
+
     res.status(201).json({ success: true, data: booking });
 });
 
 // GET /api/v1/bookings — list all bookings
-router.get('/', async (_req: Request, res: Response) => {
+router.get('/', ...staffOnly, async (_req: Request, res: Response) => {
     const bookings = await repo.findAll();
     res.json({ success: true, data: bookings });
 });
 
 // GET /api/v1/bookings/:id — single booking detail
-router.get('/:id', async (req: Request, res: Response) => {
+router.get('/:id', ...staffOnly, async (req: Request, res: Response) => {
     if (!isUuid(req.params.id)) throw Errors.notFound('Booking');
     const booking = await repo.findById(req.params.id);
     if (!booking) throw Errors.notFound('Booking');
@@ -91,7 +104,7 @@ router.get('/:id', async (req: Request, res: Response) => {
 
 
 // POST /api/v1/bookings/:id/rooms — add a room to an existing booking
-router.post('/:id/rooms', async (req: Request, res: Response) => {
+router.post('/:id/rooms', ...staffOnly, async (req: Request, res: Response) => {
     const bookingId = req.params.id;
 
     // 1. Check if the booking exists
@@ -113,7 +126,7 @@ router.post('/:id/rooms', async (req: Request, res: Response) => {
 });
 
 // PATCH /api/v1/bookings/:id/status — transition booking status
-router.patch('/:id/status', async (req: Request, res: Response) => {
+router.patch('/:id/status', ...staffOnly, async (req: Request, res: Response) => {
     const bookingId = req.params.id;
 
     // 1. Validate request body

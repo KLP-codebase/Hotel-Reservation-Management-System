@@ -317,7 +317,7 @@ export class DashboardRepository {
    * Returns staff working today and scheduled tomorrow for the specified branch.
    */
   async getStaffDutyRoster(branchId?: string): Promise<StaffDutySchedule[]> {
-    const branchFilter = branchId ? 'WHERE s.branch_id = $1 AND s.is_active = true' : 'WHERE s.is_active = true';
+    const branchFilter = branchId ? "WHERE s.branch_id = $1 AND s.is_active = true AND s.role <> 'GUEST'" : "WHERE s.is_active = true AND s.role <> 'GUEST'";
     const params: unknown[] = branchId ? [branchId] : [];
 
     const result = await this.db.query<{

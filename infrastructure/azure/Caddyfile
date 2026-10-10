@@ -20,3 +20,8 @@
 		reverse_proxy frontend:3000
 	}
 }
+
+# Old and alternate hostnames redirect to the primary domain.
+www.{$APP_DOMAIN}, skynest.dpdns.org, skynest-hotels.indiasouthcentral.cloudapp.azure.com {
+	redir https://{$APP_DOMAIN}{uri} permanent
+}

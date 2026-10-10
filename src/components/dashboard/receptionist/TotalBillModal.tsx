@@ -9,107 +9,107 @@ import {
 import { apiFetch, toNum } from "@/lib/api-client";
 
 interface PaymentRecord {
-  payment_id:       string;
-  amount:           number;
-  payment_date:     string;
-  payment_method:   string;
+  payment_id: string;
+  amount: number;
+  payment_date: string;
+  payment_method: string;
   reference_number?: string | null;
-  notes?:           string | null;
+  notes?: string | null;
 }
 
 interface TaxCascadeBreakdown {
-  room_charges:       number;
-  service_charges:    number;
-  base_amount:        number;
+  room_charges: number;
+  service_charges: number;
+  base_amount: number;
   service_charge_tax: number;
-  tdl_amount:         number;
-  ssc_amount:         number;
-  vat_amount:         number;
-  total_amount:       number;
-  total_paid:         number;
-  balance_due:        number;
-  status:             "OPEN" | "PARTIALLY_PAID" | "SETTLED";
+  tdl_amount: number;
+  ssc_amount: number;
+  vat_amount: number;
+  total_amount: number;
+  total_paid: number;
+  balance_due: number;
+  status: "OPEN" | "PARTIALLY_PAID" | "SETTLED";
 }
 
 interface RoomSummaryItem {
-  booking_room_id:      string;
-  room_id:              string;
-  room_number:          string;
-  room_type_name:       string;
-  meal_plan:            string;
+  booking_room_id: string;
+  room_id: string;
+  room_number: string;
+  room_type_name: string;
+  meal_plan: string;
   meal_price_per_night: number;
-  nights:               number;
-  rate_at_booking:      number;
-  room_tariff:          number;
-  meal_charges:         number;
-  room_charges:         number;
-  service_charges:      number;
-  base_amount:          number;
-  total_amount:         number;
+  nights: number;
+  rate_at_booking: number;
+  room_tariff: number;
+  meal_charges: number;
+  room_charges: number;
+  service_charges: number;
+  base_amount: number;
+  total_amount: number;
 }
 
 interface InvoiceData {
-  invoice_id:           string;
-  booking_id:           string;
-  booking_room_id:      string;
-  is_consolidated?:     boolean;
-  view_mode?:           "consolidated" | "single_room";
-  rooms_count?:         number;
-  guest_name:           string;
-  guest_email:          string;
-  guest_phone?:         string | null;
-  room_number:          string;
-  room_type_name:       string;
-  meal_plan?:           string;
+  invoice_id: string;
+  booking_id: string;
+  booking_room_id: string;
+  is_consolidated?: boolean;
+  view_mode?: "consolidated" | "single_room";
+  rooms_count?: number;
+  guest_name: string;
+  guest_email: string;
+  guest_phone?: string | null;
+  room_number: string;
+  room_type_name: string;
+  meal_plan?: string;
   meal_price_per_night?: number;
-  check_in_date:        string;
-  check_out_date:       string;
-  nights:               number;
-  rate_at_booking:      number;
-  breakdown:            TaxCascadeBreakdown;
-  rooms?:               RoomSummaryItem[];
+  check_in_date: string;
+  check_out_date: string;
+  nights: number;
+  rate_at_booking: number;
+  breakdown: TaxCascadeBreakdown;
+  rooms?: RoomSummaryItem[];
   all_rooms?: Array<{
     booking_room_id: string;
-    room_number:     string;
-    room_type_name:  string;
-    meal_plan:       string;
-    total_amount:    number;
+    room_number: string;
+    room_type_name: string;
+    meal_plan: string;
+    total_amount: number;
   }>;
   services: Array<{
-    usage_id:          string;
-    booking_room_id?:  string;
-    room_number?:      string | null;
-    service_name:      string;
-    category:          string;
-    quantity:          number;
-    price_at_usage:    number;
-    total_price:       number;
-    used_at:           string;
-    notes?:            string | null;
-    meal_time?:        string | null;
+    usage_id: string;
+    booking_room_id?: string;
+    room_number?: string | null;
+    service_name: string;
+    category: string;
+    quantity: number;
+    price_at_usage: number;
+    total_price: number;
+    used_at: string;
+    notes?: string | null;
+    meal_time?: string | null;
     appointment_time?: string | null;
   }>;
   payments: PaymentRecord[];
 }
 
 interface TotalBillModalProps {
-  isOpen:         boolean;
-  onClose:        () => void;
-  booking:        any | null;
+  isOpen: boolean;
+  onClose: () => void;
+  booking: any | null;
   onPaymentSaved: () => void;
-  initialMode?:   "invoice" | "pay";
+  initialMode?: "invoice" | "pay";
 }
 
 interface OrderedLineItem {
-  id:          string;
-  itemNumber:  number;
-  date:        string;
-  category:    string;
+  id: string;
+  itemNumber: number;
+  date: string;
+  category: string;
   description: string;
-  details?:    string;
-  unitPrice:   number;
-  quantity:    number;
-  totalPrice:  number;
+  details?: string;
+  unitPrice: number;
+  quantity: number;
+  totalPrice: number;
 }
 
 function formatDateClean(dStr: string | null | undefined): string {
@@ -123,22 +123,22 @@ function formatDateClean(dStr: string | null | undefined): string {
         year: "numeric",
       });
     }
-  } catch {}
+  } catch { }
   return String(dStr).replace("T", " ").replace("Z", "").split(".")[0];
 }
 
 export function TotalBillModal({ isOpen, onClose, booking, onPaymentSaved, initialMode = "invoice" }: TotalBillModalProps) {
-  const [activeTab, setActiveTab]         = useState<"invoice" | "pay">(initialMode);
+  const [activeTab, setActiveTab] = useState<"invoice" | "pay">(initialMode);
   const [selectedScope, setSelectedScope] = useState<"ALL" | string>("ALL");
-  const [invoice, setInvoice]             = useState<InvoiceData | null>(null);
-  const [loading, setLoading]             = useState(false);
+  const [invoice, setInvoice] = useState<InvoiceData | null>(null);
+  const [loading, setLoading] = useState(false);
   const [generatingBill, setGeneratingBill] = useState(false);
-  const [payAmount, setPayAmount]         = useState<string>("");
-  const [payMethod, setPayMethod]         = useState<"CREDIT_CARD" | "CASH" | "BANK_TRANSFER" | "ONLINE">("CREDIT_CARD");
-  const [payRef, setPayRef]               = useState<string>("");
-  const [payNotes, setPayNotes]           = useState<string>("");
+  const [payAmount, setPayAmount] = useState<string>("");
+  const [payMethod, setPayMethod] = useState<"CREDIT_CARD" | "CASH" | "BANK_TRANSFER" | "ONLINE">("CREDIT_CARD");
+  const [payRef, setPayRef] = useState<string>("");
+  const [payNotes, setPayNotes] = useState<string>("");
   const [submittingPay, setSubmittingPay] = useState(false);
-  const [statusMsg, setStatusMsg]         = useState<{ type: "success" | "error"; text: string } | null>(null);
+  const [statusMsg, setStatusMsg] = useState<{ type: "success" | "error"; text: string } | null>(null);
 
   const fetchInvoice = async (scope: "ALL" | string = selectedScope) => {
     if (!booking) return;
@@ -226,11 +226,11 @@ export function TotalBillModal({ isOpen, onClose, booking, onPaymentSaved, initi
       await apiFetch(`/api/v1/invoices/${booking.booking_id}/payments`, {
         method: "POST",
         body: JSON.stringify({
-          amount:           amountNum,
-          payment_method:   payMethod,
+          amount: amountNum,
+          payment_method: payMethod,
           reference_number: payRef.trim() || undefined,
-          notes:            payNotes.trim() || undefined,
-          booking_room_id:  selectedScope !== "ALL" ? selectedScope : undefined,
+          notes: payNotes.trim() || undefined,
+          booking_room_id: selectedScope !== "ALL" ? selectedScope : undefined,
         }),
       });
 
@@ -244,9 +244,164 @@ export function TotalBillModal({ isOpen, onClose, booking, onPaymentSaved, initi
     }
   };
 
+
   const handlePrint = () => {
-    window.print();
+    if (!invoice || !b) return;
+    const printWindow = window.open('', '_blank', 'width=850,height=950');
+    if (!printWindow) return;
+
+    const isSettled = b.status === 'SETTLED' || b.balance_due <= 0;
+    const formattedCheckIn = formatDateClean(invoice.check_in_date);
+    const formattedCheckOut = formatDateClean(invoice.check_out_date);
+    const todayDate = new Date().toLocaleDateString('en-GB');
+
+    const lineRowsHtml = orderedLineItems.map(item => `
+      <tr>
+        <td><strong>${item.description}</strong>${item.details ? `<br/><span style="font-size: 11px; color: #64748b;">${item.details}</span>` : ''}</td>
+        <td class="text-right">${item.category}</td>
+        <td class="text-right">LKR ${Number(item.totalPrice).toLocaleString('en-LK', { minimumFractionDigits: 2 })}</td>
+      </tr>
+    `).join('');
+
+    const html = `
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Sky Nest Tax Invoice - ${invoice.invoice_id}</title>
+  <style>
+    @page { size: A4; margin: 15mm; }
+    body { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #1e293b; margin: 0; padding: 24px; font-size: 13px; line-height: 1.5; }
+    .header { display: flex; justify-content: space-between; border-bottom: 2px solid #D9722C; padding-bottom: 16px; margin-bottom: 24px; }
+    .brand { font-size: 26px; font-weight: 700; color: #0B2540; letter-spacing: 1px; }
+    .brand-sub { font-size: 11px; text-transform: uppercase; color: #D9722C; font-weight: 600; letter-spacing: 2px; }
+    .inv-title { text-align: right; }
+    .inv-title h2 { margin: 0; font-size: 20px; color: #0B2540; text-transform: uppercase; }
+    .inv-meta { font-size: 12px; color: #64748b; margin-top: 4px; }
+    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-bottom: 24px; }
+    .card { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 14px; }
+    .card h3 { margin: 0 0 8px 0; font-size: 11px; text-transform: uppercase; color: #64748b; letter-spacing: 1px; }
+    .table { width: 100%; border-collapse: collapse; margin-bottom: 24px; }
+    .table th { background: #0B2540; color: #ffffff; text-align: left; padding: 10px 12px; font-size: 12px; text-transform: uppercase; }
+    .table td { padding: 10px 12px; border-bottom: 1px solid #e2e8f0; }
+    .table tr:last-child td { border-bottom: 2px solid #0B2540; }
+    .text-right { text-align: right; }
+    .totals { width: 320px; margin-left: auto; margin-bottom: 24px; }
+    .totals-row { display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px solid #f1f5f9; font-size: 13px; }
+    .totals-row.grand { border-top: 2px solid #0B2540; border-bottom: 2px solid #0B2540; font-weight: 700; font-size: 16px; color: #0B2540; padding: 10px 0; }
+    .stamp { display: inline-block; padding: 8px 16px; border: 2px solid ${isSettled ? '#15803d' : '#d97706'}; color: ${isSettled ? '#15803d' : '#d97706'}; font-weight: 800; text-transform: uppercase; letter-spacing: 2px; border-radius: 4px; transform: rotate(-5deg); margin-top: 10px; }
+    .footer { margin-top: 40px; padding-top: 16px; border-top: 1px solid #e2e8f0; font-size: 11px; color: #94a3b8; text-align: center; }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div>
+      <div class="brand">SKY NEST</div>
+      <div class="brand-sub">Luxury Hotels & Resorts</div>
+      <div style="margin-top: 6px; font-size: 12px; color: #64748b;">
+        ${booking?.branch_name || 'Sky Nest Colombo'} • Sri Lanka<br/>
+        VAT Registration No: 104588920-7000 • TIN: 98120455
+      </div>
+    </div>
+    <div class="inv-title">
+      <h2>OFFICIAL TAX INVOICE</h2>
+      <div class="inv-meta">
+        <strong>Invoice #:</strong> ${invoice.invoice_id}<br/>
+        <strong>Booking ID:</strong> ${invoice.booking_id.substring(0, 8)}...<br/>
+        <strong>Issue Date:</strong> ${todayDate}
+      </div>
+      <div>
+        <span class="stamp">${isSettled ? 'PAID IN FULL' : 'PAYMENT OPEN'}</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="grid">
+    <div class="card">
+      <h3>Billed To (Resident Guest)</h3>
+      <strong style="font-size: 14px; color: #0B2540;">${invoice.guest_name}</strong><br/>
+      Email: ${invoice.guest_email || 'guest@skynest.lk'}<br/>
+      Phone: ${invoice.guest_phone || 'N/A'}<br/>
+      Allocated: <strong>Room ${invoice.room_number}</strong> (${invoice.room_type_name})
+    </div>
+    <div class="card">
+      <h3>Stay Particulars</h3>
+      <strong>Check-In:</strong> ${formattedCheckIn}<br/>
+      <strong>Check-Out:</strong> ${formattedCheckOut}<br/>
+      <strong>Total Stay:</strong> ${invoice.nights} Night(s)
+    </div>
+  </div>
+
+  <table class="table">
+    <thead>
+      <tr>
+        <th>Description</th>
+        <th class="text-right">Category</th>
+        <th class="text-right">Amount (LKR)</th>
+      </tr>
+    </thead>
+    <tbody>
+      ${lineRowsHtml}
+      <tr>
+        <td><strong>Statutory Service Charge (SC 10%)</strong><br/><span style="font-size: 11px; color: #64748b;">Hospitality employee service charge</span></td>
+        <td class="text-right">Tax Cascade</td>
+        <td class="text-right">LKR ${Number(b.service_charge_tax).toLocaleString('en-LK', { minimumFractionDigits: 2 })}</td>
+      </tr>
+      <tr>
+        <td><strong>Tourism Development Levy (TDL 1%)</strong><br/><span style="font-size: 11px; color: #64748b;">Sri Lanka Tourism Act turnover levy</span></td>
+        <td class="text-right">Tax Cascade</td>
+        <td class="text-right">LKR ${Number(b.tdl_amount).toLocaleString('en-LK', { minimumFractionDigits: 2 })}</td>
+      </tr>
+      <tr>
+        <td><strong>Social Security Contribution Levy (SSCL 2.5%)</strong><br/><span style="font-size: 11px; color: #64748b;">Act No. 25 of 2022</span></td>
+        <td class="text-right">Tax Cascade</td>
+        <td class="text-right">LKR ${Number(b.ssc_amount).toLocaleString('en-LK', { minimumFractionDigits: 2 })}</td>
+      </tr>
+      <tr>
+        <td><strong>Value Added Tax (VAT 18%)</strong><br/><span style="font-size: 11px; color: #64748b;">Inland Revenue Department</span></td>
+        <td class="text-right">Tax Cascade</td>
+        <td class="text-right">LKR ${Number(b.vat_amount).toLocaleString('en-LK', { minimumFractionDigits: 2 })}</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="totals">
+    <div class="totals-row">
+      <span>Base Subtotal (Room & Services)</span>
+      <span>LKR ${Number(b.base_amount).toLocaleString('en-LK', { minimumFractionDigits: 2 })}</span>
+    </div>
+    <div class="totals-row grand">
+      <span>Total Invoiced</span>
+      <span>LKR ${Number(b.total_amount).toLocaleString('en-LK', { minimumFractionDigits: 2 })}</span>
+    </div>
+    <div class="totals-row">
+      <span>Total Paid</span>
+      <span>LKR ${Number(b.total_paid).toLocaleString('en-LK', { minimumFractionDigits: 2 })}</span>
+    </div>
+    <div class="totals-row" style="color: ${b.balance_due > 0 ? '#b91c1c' : '#15803d'}; font-weight: 600;">
+      <span>Balance Due</span>
+      <span>LKR ${Number(b.balance_due).toLocaleString('en-LK', { minimumFractionDigits: 2 })}</span>
+    </div>
+  </div>
+
+  <div class="footer">
+    Thank you for staying at Sky Nest Hotel. We look forward to welcoming you again.<br/>
+    This is an authentic computer-generated fiscal tax invoice issued under Inland Revenue Department guidelines.
+  </div>
+
+  <script>
+    window.onload = function() {
+      window.print();
+    };
+  </script>
+</body>
+</html>
+    `;
+
+    printWindow.document.open();
+    printWindow.document.write(html);
+    printWindow.document.close();
   };
+
 
   const b = invoice?.breakdown;
   const todayStr = new Date().toISOString().split("T")[0];
@@ -265,56 +420,56 @@ export function TotalBillModal({ isOpen, onClose, booking, onPaymentSaved, initi
       // 1. Consolidated Accommodation & Meal Plan Breakdown per Room
       invoice.rooms.forEach((rm) => {
         orderedLineItems.push({
-          id:          `room-tariff-${rm.booking_room_id}`,
-          itemNumber:  orderedLineItems.length + 1,
-          date:        formatDateClean(invoice.check_in_date),
-          category:    "Accommodation",
+          id: `room-tariff-${rm.booking_room_id}`,
+          itemNumber: orderedLineItems.length + 1,
+          date: formatDateClean(invoice.check_in_date),
+          category: "Accommodation",
           description: `Room Accommodation — Room ${rm.room_number} (${rm.room_type_name})`,
-          details:     `${rm.nights} Night${rm.nights === 1 ? "" : "s"} (${formatDateClean(invoice.check_in_date)} to ${formatDateClean(invoice.check_out_date)}) @ $${rm.rate_at_booking}/nt`,
-          unitPrice:   rm.rate_at_booking,
-          quantity:    rm.nights,
-          totalPrice:  rm.room_tariff,
+          details: `${rm.nights} Night${rm.nights === 1 ? "" : "s"} (${formatDateClean(invoice.check_in_date)} to ${formatDateClean(invoice.check_out_date)}) @ $${rm.rate_at_booking}/nt`,
+          unitPrice: rm.rate_at_booking,
+          quantity: rm.nights,
+          totalPrice: rm.room_tariff,
         });
 
         if (rm.meal_charges > 0) {
           orderedLineItems.push({
-            id:          `room-meal-${rm.booking_room_id}`,
-            itemNumber:  orderedLineItems.length + 1,
-            date:        formatDateClean(invoice.check_in_date),
-            category:    "Dining",
+            id: `room-meal-${rm.booking_room_id}`,
+            itemNumber: orderedLineItems.length + 1,
+            date: formatDateClean(invoice.check_in_date),
+            category: "Dining",
             description: `Meal Plan: ${rm.meal_plan} — Room ${rm.room_number}`,
-            details:     `${rm.nights} Night${rm.nights === 1 ? "" : "s"} @ $${rm.meal_price_per_night}/nt`,
-            unitPrice:   rm.meal_price_per_night,
-            quantity:    rm.nights,
-            totalPrice:  rm.meal_charges,
+            details: `${rm.nights} Night${rm.nights === 1 ? "" : "s"} @ $${rm.meal_price_per_night}/nt`,
+            unitPrice: rm.meal_price_per_night,
+            quantity: rm.nights,
+            totalPrice: rm.meal_charges,
           });
         }
       });
     } else {
       // Single Room Accommodation Line
       orderedLineItems.push({
-        id:          "room-tariff-charge",
-        itemNumber:  1,
-        date:        formatDateClean(invoice.check_in_date),
-        category:    "Accommodation",
+        id: "room-tariff-charge",
+        itemNumber: 1,
+        date: formatDateClean(invoice.check_in_date),
+        category: "Accommodation",
         description: `Room Accommodation — ${invoice.room_type_name} (Room ${invoice.room_number})`,
-        details:     `${invoice.nights} Night${invoice.nights === 1 ? "" : "s"} (${formatDateClean(invoice.check_in_date)} to ${formatDateClean(invoice.check_out_date)}) @ $${invoice.rate_at_booking}/nt`,
-        unitPrice:   invoice.rate_at_booking,
-        quantity:    invoice.nights,
-        totalPrice:  b.room_charges,
+        details: `${invoice.nights} Night${invoice.nights === 1 ? "" : "s"} (${formatDateClean(invoice.check_in_date)} to ${formatDateClean(invoice.check_out_date)}) @ $${invoice.rate_at_booking}/nt`,
+        unitPrice: invoice.rate_at_booking,
+        quantity: invoice.nights,
+        totalPrice: b.room_charges,
       });
 
       if (invoice.meal_plan && invoice.meal_plan !== "Room Only" && (invoice.meal_price_per_night ?? 0) > 0) {
         orderedLineItems.push({
-          id:          "room-meal-charge",
-          itemNumber:  2,
-          date:        formatDateClean(invoice.check_in_date),
-          category:    "Dining",
+          id: "room-meal-charge",
+          itemNumber: 2,
+          date: formatDateClean(invoice.check_in_date),
+          category: "Dining",
           description: `Meal Plan: ${invoice.meal_plan} (Room ${invoice.room_number})`,
-          details:     `${invoice.nights} Night${invoice.nights === 1 ? "" : "s"} @ $${invoice.meal_price_per_night}/nt`,
-          unitPrice:   invoice.meal_price_per_night ?? 0,
-          quantity:    invoice.nights,
-          totalPrice:  (invoice.meal_price_per_night ?? 0) * invoice.nights,
+          details: `${invoice.nights} Night${invoice.nights === 1 ? "" : "s"} @ $${invoice.meal_price_per_night}/nt`,
+          unitPrice: invoice.meal_price_per_night ?? 0,
+          quantity: invoice.nights,
+          totalPrice: (invoice.meal_price_per_night ?? 0) * invoice.nights,
         });
       }
     }
@@ -334,15 +489,15 @@ export function TotalBillModal({ isOpen, onClose, booking, onPaymentSaved, initi
       const serviceDesc = s.room_number ? `${s.service_name} (Room ${s.room_number})` : s.service_name;
 
       orderedLineItems.push({
-        id:          s.usage_id,
-        itemNumber:  orderedLineItems.length + 1,
-        date:        formatDateClean(s.used_at),
-        category:    s.category,
+        id: s.usage_id,
+        itemNumber: orderedLineItems.length + 1,
+        date: formatDateClean(s.used_at),
+        category: s.category,
         description: serviceDesc,
-        details:     details || undefined,
-        unitPrice:   s.price_at_usage,
-        quantity:    s.quantity,
-        totalPrice:  s.total_price,
+        details: details || undefined,
+        unitPrice: s.price_at_usage,
+        quantity: s.quantity,
+        totalPrice: s.total_price,
       });
     });
   }
@@ -352,18 +507,18 @@ export function TotalBillModal({ isOpen, onClose, booking, onPaymentSaved, initi
   const branchAddress = branchName.includes("Galle")
     ? "12 Fort Road, Galle Fort, Southern Province, Sri Lanka"
     : branchName.includes("Kandy")
-    ? "45 Lake Road, Kandy, Central Province, Sri Lanka"
-    : "100 Galle Road, Colombo 03, Western Province, Sri Lanka";
+      ? "45 Lake Road, Kandy, Central Province, Sri Lanka"
+      : "100 Galle Road, Colombo 03, Western Province, Sri Lanka";
   const branchPhone = branchName.includes("Galle")
     ? "+94 91 200 0000"
     : branchName.includes("Kandy")
-    ? "+94 81 200 0000"
-    : "+94 11 200 0000";
+      ? "+94 81 200 0000"
+      : "+94 11 200 0000";
   const branchEmail = branchName.includes("Galle")
     ? "galle@skynest.lk"
     : branchName.includes("Kandy")
-    ? "kandy@skynest.lk"
-    : "colombo@skynest.lk";
+      ? "kandy@skynest.lk"
+      : "colombo@skynest.lk";
 
   // Payment Form Element reusable block
   const paymentFormComponent = b && (
@@ -383,9 +538,8 @@ export function TotalBillModal({ isOpen, onClose, booking, onPaymentSaved, initi
             <span className="text-xs font-jakarta text-ink/60">
               Total Invoiced: <strong className="font-mono text-ink">${toNum(b.total_amount).toFixed(2)}</strong>
             </span>
-            <span className={`text-xs font-jakarta font-semibold px-2 py-0.5 rounded ${
-              b.balance_due > 0 ? "bg-amber-100 text-amber-900 border border-amber-200" : "bg-emerald-100 text-emerald-900 border border-emerald-200"
-            }`}>
+            <span className={`text-xs font-jakarta font-semibold px-2 py-0.5 rounded ${b.balance_due > 0 ? "bg-amber-100 text-amber-900 border border-amber-200" : "bg-emerald-100 text-emerald-900 border border-emerald-200"
+              }`}>
               Balance Due: ${toNum(b.balance_due).toFixed(2)}
             </span>
           </div>
@@ -542,15 +696,14 @@ export function TotalBillModal({ isOpen, onClose, booking, onPaymentSaved, initi
           </p>
           <div className="mt-2">
             <span
-              className={`inline-flex items-center gap-1 px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider rounded border ${
-                isPaidInFullAndSettled
-                  ? "bg-emerald-50 text-emerald-800 border-emerald-300"
-                  : isCurrentChargesClearedInHouse
+              className={`inline-flex items-center gap-1 px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider rounded border ${isPaidInFullAndSettled
+                ? "bg-emerald-50 text-emerald-800 border-emerald-300"
+                : isCurrentChargesClearedInHouse
                   ? "bg-sky-50 text-sky-800 border-sky-300"
                   : b.total_paid > 0
-                  ? "bg-amber-50 text-amber-800 border-amber-300"
-                  : "bg-rose-50 text-rose-800 border-rose-300"
-              }`}
+                    ? "bg-amber-50 text-amber-800 border-amber-300"
+                    : "bg-rose-50 text-rose-800 border-rose-300"
+                }`}
             >
               {isPaidInFullAndSettled ? (
                 <>
@@ -638,13 +791,12 @@ export function TotalBillModal({ isOpen, onClose, booking, onPaymentSaved, initi
                     {item.date}
                   </td>
                   <td className="py-2.5 px-3 whitespace-nowrap">
-                    <span className={`inline-block px-1.5 py-0.2 rounded text-[10px] font-semibold uppercase tracking-wider ${
-                      item.category === "Accommodation"
-                        ? "bg-sky-50 text-sky-800"
-                        : item.category === "Dining"
+                    <span className={`inline-block px-1.5 py-0.2 rounded text-[10px] font-semibold uppercase tracking-wider ${item.category === "Accommodation"
+                      ? "bg-sky-50 text-sky-800"
+                      : item.category === "Dining"
                         ? "bg-amber-50 text-amber-800"
                         : "bg-purple-50 text-purple-800"
-                    }`}>
+                      }`}>
                       {item.category}
                     </span>
                   </td>
@@ -834,11 +986,10 @@ export function TotalBillModal({ isOpen, onClose, booking, onPaymentSaved, initi
               <button
                 type="button"
                 onClick={() => setActiveTab("invoice")}
-                className={`px-3 py-1 rounded-[3px] font-jakarta text-xs font-semibold tracking-wider uppercase transition-all flex items-center gap-1.5 ${
-                  activeTab === "invoice"
-                    ? "bg-ink text-paper shadow-xs"
-                    : "text-ink/60 hover:text-ink"
-                }`}
+                className={`px-3 py-1 rounded-[3px] font-jakarta text-xs font-semibold tracking-wider uppercase transition-all flex items-center gap-1.5 ${activeTab === "invoice"
+                  ? "bg-ink text-paper shadow-xs"
+                  : "text-ink/60 hover:text-ink"
+                  }`}
               >
                 <FileText className="w-3.5 h-3.5" />
                 Invoice
@@ -846,11 +997,10 @@ export function TotalBillModal({ isOpen, onClose, booking, onPaymentSaved, initi
               <button
                 type="button"
                 onClick={() => setActiveTab("pay")}
-                className={`px-3 py-1 rounded-[3px] font-jakarta text-xs font-semibold tracking-wider uppercase transition-all flex items-center gap-1.5 ${
-                  activeTab === "pay"
-                    ? "bg-skynest-accent text-paper shadow-xs"
-                    : "text-ink/60 hover:text-ink"
-                }`}
+                className={`px-3 py-1 rounded-[3px] font-jakarta text-xs font-semibold tracking-wider uppercase transition-all flex items-center gap-1.5 ${activeTab === "pay"
+                  ? "bg-skynest-accent text-paper shadow-xs"
+                  : "text-ink/60 hover:text-ink"
+                  }`}
               >
                 <CreditCard className="w-3.5 h-3.5" />
                 Pay
@@ -885,11 +1035,10 @@ export function TotalBillModal({ isOpen, onClose, booking, onPaymentSaved, initi
               <button
                 type="button"
                 onClick={() => handleScopeChange("ALL")}
-                className={`px-3 py-1 font-jakarta text-xs font-semibold rounded-[3px] border transition-all ${
-                  selectedScope === "ALL"
-                    ? "bg-ink text-white border-ink shadow-xs"
-                    : "bg-paper text-ink/70 border-skynest-hairline hover:border-ink/40 hover:text-ink"
-                }`}
+                className={`px-3 py-1 font-jakarta text-xs font-semibold rounded-[3px] border transition-all ${selectedScope === "ALL"
+                  ? "bg-ink text-white border-ink shadow-xs"
+                  : "bg-paper text-ink/70 border-skynest-hairline hover:border-ink/40 hover:text-ink"
+                  }`}
               >
                 All Rooms (Consolidated Booking)
               </button>
@@ -898,11 +1047,10 @@ export function TotalBillModal({ isOpen, onClose, booking, onPaymentSaved, initi
                   key={rm.booking_room_id}
                   type="button"
                   onClick={() => handleScopeChange(rm.booking_room_id)}
-                  className={`px-3 py-1 font-jakarta text-xs font-semibold rounded-[3px] border transition-all ${
-                    selectedScope === rm.booking_room_id
-                      ? "bg-skynest-accent text-white border-skynest-accent shadow-xs"
-                      : "bg-paper text-ink/70 border-skynest-hairline hover:border-ink/40 hover:text-ink"
-                  }`}
+                  className={`px-3 py-1 font-jakarta text-xs font-semibold rounded-[3px] border transition-all ${selectedScope === rm.booking_room_id
+                    ? "bg-skynest-accent text-white border-skynest-accent shadow-xs"
+                    : "bg-paper text-ink/70 border-skynest-hairline hover:border-ink/40 hover:text-ink"
+                    }`}
                 >
                   Room {rm.room_number} ({rm.room_type_name})
                 </button>
@@ -926,11 +1074,10 @@ export function TotalBillModal({ isOpen, onClose, booking, onPaymentSaved, initi
         <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-6">
           {statusMsg && (
             <div
-              className={`p-3 rounded text-xs font-jakarta flex items-center gap-2 print-hidden-element ${
-                statusMsg.type === "success"
-                  ? "bg-emerald-50 text-emerald-800 border border-emerald-200"
-                  : "bg-rose-50 text-rose-800 border border-rose-200"
-              }`}
+              className={`p-3 rounded text-xs font-jakarta flex items-center gap-2 print-hidden-element ${statusMsg.type === "success"
+                ? "bg-emerald-50 text-emerald-800 border border-emerald-200"
+                : "bg-rose-50 text-rose-800 border border-rose-200"
+                }`}
             >
               {statusMsg.type === "success" ? (
                 <CheckCircle2 className="w-4 h-4 shrink-0" />
@@ -977,21 +1124,16 @@ export function TotalBillModal({ isOpen, onClose, booking, onPaymentSaved, initi
           <span className="font-jakarta text-xs text-ink/40">
             Sky Nest Hotel Billing Engine & Fiscal Accounting Ledger • {selectedScope === "ALL" ? "Consolidated Booking Folio" : `Single Room Folio (Room ${invoice?.room_number})`}
           </span>
+
           <div className="flex items-center gap-3">
             <button
-              onClick={handlePrint}
-              className="px-4 py-2 bg-ink text-paper rounded-[3px] font-jakarta text-xs font-semibold uppercase tracking-wider hover:bg-skynest-accent transition-colors flex items-center gap-1.5"
-            >
-              <Printer className="w-3.5 h-3.5" />
-              Print Invoice
-            </button>
-            <button
               onClick={onClose}
-              className="px-4 py-2 border border-skynest-hairline text-ink/70 hover:text-ink rounded-[3px] font-jakarta text-xs font-medium hover:bg-ink/5 transition-colors"
+              className="px-5 py-2 border border-skynest-hairline text-ink/80 hover:text-ink rounded-[3px] font-jakarta text-xs font-medium hover:bg-ink/5 transition-colors"
             >
               Close
             </button>
           </div>
+
         </div>
       </div>
     </div>

@@ -6,6 +6,7 @@ import Link from 'next/link';
 import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import { ShaderBackground } from '@/components/ui/adisyon-shader';
+import { useBranches } from '@/hooks/useBranches';
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -33,13 +34,7 @@ interface SearchParams {
   children: string;
 }
 
-// ── Static data (matches Railway DB — branch UUIDs + ENUM room types) ────────
-const BRANCHES = [
-  { id: '953fd827-751c-47eb-a201-e0aac4bc444a', name: 'Sky Nest Colombo' },
-  { id: 'af0167cd-c9eb-4ac5-ba22-cfd65cdc87a5', name: 'Sky Nest Kandy' },
-  { id: '30a7b55d-9440-45c2-a990-08821af210ba', name: 'Sky Nest Galle' },
-];
-
+// ── Static data (ENUM room types; branches are loaded from the API) ─────────
 const ROOM_TYPES = [
   { id: 'ALL',          name: 'All Categories (Mixed Room Selection)' },
   { id: 'STANDARD',     name: 'Standard Room ($120/night)' },
@@ -89,6 +84,7 @@ export default function BookPage() {
   const [rooms, setRooms] = useState<Room[]>([]);
   const [selectedRooms, setSelectedRooms] = useState<Room[]>([]);
   const [activeCategoryFilter, setActiveCategoryFilter] = useState<string>('ALL');
+  const { branches: BRANCHES } = useBranches();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [searched, setSearched] = useState(false);
@@ -118,7 +114,7 @@ export default function BookPage() {
   }
 
   // GSAP animation refs
-  const heroRef = useRef<HTMLDivElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
   const navRef = useRef<HTMLElement>(null);
   const resultsRef = useRef<HTMLDivElement>(null);
 
@@ -141,7 +137,7 @@ export default function BookPage() {
         ease: 'power3.out',
         delay: 0.12,
       });
-    }, heroRef);
+    }, containerRef);
 
     return () => ctx.revert();
   }, []);
@@ -396,11 +392,23 @@ export default function BookPage() {
 
     try {
       const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000';
+      let sessionId = '';
+      if (typeof window !== 'undefined') {
+        sessionId = localStorage.getItem('sn_booking_session') || '';
+        if (!sessionId) {
+          sessionId = 'sn_sess_' + Math.random().toString(36).substring(2) + Date.now().toString(36);
+          localStorage.setItem('sn_booking_session', sessionId);
+        }
+      }
+
       const qs = new URLSearchParams({
         branch_id: params.branch_id,
         check_in: params.check_in,
         check_out: params.check_out,
       });
+      if (sessionId) {
+        qs.append('session_id', sessionId);
+      }
 
       // Pass room_type only if a specific category was chosen
       if (params.room_type && params.room_type !== 'ALL') {
@@ -446,7 +454,7 @@ export default function BookPage() {
   }
 
   // ── Proceed to Booking Confirmation ────────────────────────────────────────
-  function handleProceed() {
+  async function handleProceed() {
     if (selectedRooms.length < targetRoomCount) {
       setSelectionWarning(`Please select ${targetRoomCount - selectedRooms.length} more room${targetRoomCount - selectedRooms.length === 1 ? '' : 's'} to fulfill your chosen count of ${targetRoomCount}.`);
       return;
@@ -468,6 +476,41 @@ export default function BookPage() {
     const roomTypes = selectedRooms.map(r => r.type).join(',');
     const roomRates = selectedRooms.map(r => r.price_per_night).join(',');
     const roomCapacities = selectedRooms.map(r => r.max_guests || 2).join(',');
+
+    // ── Competitive Room Hold Verification ──
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000';
+    let sessId = '';
+    if (typeof window !== 'undefined') {
+      sessId = localStorage.getItem('sn_booking_session') || '';
+      if (!sessId) {
+        sessId = 'sn_sess_' + Math.random().toString(36).substring(2) + Date.now().toString(36);
+        localStorage.setItem('sn_booking_session', sessId);
+      }
+    }
+
+    try {
+      const holdRes = await fetch(`${apiUrl}/api/v1/availability/hold-rooms`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          room_ids: selectedRooms.map(r => r.id),
+          check_in: params.check_in,
+          check_out: params.check_out,
+          session_id: sessId,
+        }),
+      });
+
+      const holdData = await holdRes.json();
+      if (!holdRes.ok || !holdData.success) {
+        setSelectionWarning(
+          holdData.message ||
+          'Competitive Booking Notice: One or more of your chosen rooms are currently held by another guest completing their reservation on overlapping dates. Please choose an alternate room.'
+        );
+        return;
+      }
+    } catch {
+      // Proceed on non-fatal network error
+    }
 
     const qs = new URLSearchParams({
       room_ids: roomIds,
@@ -501,7 +544,7 @@ export default function BookPage() {
 
   // ── Render ────────────────────────────────────────────────────────────────
   return (
-    <div className="min-h-screen bg-paper relative selection:bg-skynest-accent selection:text-white" style={{ backgroundColor: '#FDFCFA' }}>
+    <div ref={containerRef} className="min-h-screen bg-paper relative selection:bg-skynest-accent selection:text-white" style={{ backgroundColor: '#FDFCFA' }}>
 
       {/* 6-column architectural hairline grid */}
       <div aria-hidden="true" className="pointer-events-none fixed inset-0 flex z-0">
@@ -531,7 +574,6 @@ export default function BookPage() {
 
       {/* Hero Header */}
       <section
-        ref={heroRef}
         className="relative z-10 flex flex-col items-center justify-center px-6 pt-36 pb-32 md:pt-40 md:pb-36 text-center overflow-hidden border-b border-skynest-hairline bg-ink shadow-[0_10px_30px_rgba(0,0,0,0.15)]"
       >
         <div aria-hidden="true" className="absolute inset-0 pointer-events-none z-0 overflow-hidden">

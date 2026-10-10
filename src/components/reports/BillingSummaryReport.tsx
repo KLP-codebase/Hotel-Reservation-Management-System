@@ -1,10 +1,9 @@
 'use client';
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { Receipt, AlertTriangle, CheckCircle2, Clock, Search, Download, Save, AlertCircle } from 'lucide-react';
+import { Receipt, AlertTriangle, CheckCircle2, Clock, Search, Download, Save, AlertCircle, Building2, RefreshCw } from 'lucide-react';
 import { apiFetch, toNum } from '@/lib/api-client';
 import { exportToCsv } from '@/lib/export-csv';
-import { ReportFilterBar } from './ReportFilterBar';
 
 // ── Person 1 Workspace: Report 2 — Guest Billing Summary & Unpaid Balances ───
 // Endpoint: GET /api/v1/reports/revenue/billing-summary?status=...&agingDays=...&search=...&branchId=...
@@ -86,6 +85,19 @@ export function BillingSummaryReport({ selectedBranch: propBranch }: Props = {})
   const [error, setError] = useState<string | null>(null);
   const [savingSnapshot, setSavingSnapshot] = useState<boolean>(false);
   const [snapshotMsg, setSnapshotMsg] = useState<string | null>(null);
+  const [branches, setBranches] = useState<{ branch_id: string; branch_name: string; city: string }[]>([]);
+
+  useEffect(() => {
+    let isMounted = true;
+    apiFetch<{ data?: { branch_id: string; branch_name: string; city: string }[] }>("/api/v1/branches")
+      .then(res => {
+        if (!isMounted) return;
+        if (Array.isArray(res)) setBranches(res);
+        else if (res && Array.isArray(res.data)) setBranches(res.data);
+      })
+      .catch(() => {});
+    return () => { isMounted = false; };
+  }, []);
 
   useEffect(() => {
     if (propBranch !== undefined) setBranchId(propBranch);
@@ -189,16 +201,22 @@ export function BillingSummaryReport({ selectedBranch: propBranch }: Props = {})
       <div className="space-y-3 bg-stone-950/70 border border-white/10 p-4">
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div className="flex flex-wrap items-center gap-3">
-            <ReportFilterBar
-              selectedBranch={branchId}
-              onBranchChange={setBranchId}
-              startDate=""
-              onStartDateChange={() => {}}
-              endDate=""
-              onEndDateChange={() => {}}
-              onRefresh={loadData}
-              isLoading={loading}
-            />
+            {/* Branch Filter */}
+            <div className="flex items-center gap-2 bg-stone-900/80 border border-white/10 px-3 py-1.5 text-xs text-stone-300">
+              <Building2 size={14} className="text-amber-400 shrink-0" />
+              <select
+                value={branchId}
+                onChange={e => setBranchId(e.target.value)}
+                className="bg-transparent text-stone-200 focus:outline-none cursor-pointer"
+              >
+                <option value="" className="bg-stone-900 text-stone-200">All Branches (Global)</option>
+                {branches.map(b => (
+                  <option key={b.branch_id} value={b.branch_id} className="bg-stone-900 text-stone-200">
+                    {b.branch_name} ({b.city})
+                  </option>
+                ))}
+              </select>
+            </div>
 
             {/* Status dropdown */}
             <div className="flex items-center gap-2 bg-stone-900/80 border border-white/10 px-3 py-1.5 text-xs text-stone-300">
@@ -215,6 +233,17 @@ export function BillingSummaryReport({ selectedBranch: propBranch }: Props = {})
                 ))}
               </select>
             </div>
+
+            {/* Refresh Button */}
+            <button
+              onClick={loadData}
+              disabled={loading}
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-stone-900/80 hover:bg-stone-800 border border-white/10 text-stone-300 hover:text-white text-xs transition duration-150 disabled:opacity-50 cursor-pointer"
+              title="Reload Report Data"
+            >
+              <RefreshCw size={13} className={loading ? "animate-spin text-amber-400" : "text-stone-400"} />
+              <span>Refresh</span>
+            </button>
           </div>
 
           <div className="flex items-center gap-2 ml-auto">

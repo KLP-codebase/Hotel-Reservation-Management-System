@@ -47,87 +47,21 @@ function CrossGlyph({ className = "" }: { className?: string }) {
 }
 
 // ---------------------------------------------------------------------------
+// ---------------------------------------------------------------------------
 // Organized Navigation Structure
 // ---------------------------------------------------------------------------
-const ENQUIRY_SECTIONS = [
-  {
-    title: "Guests Enquiries",
-    items: [
-      { label: "travel@skynesthotels.com", href: "mailto:travel@skynesthotels.com" },
-      { label: "+94 11 234 5600", href: "tel:+94112345600" },
-      { label: "Schedule a call", href: "#booking" },
-    ],
-  },
-  {
-    title: "Trade Enquiries",
-    items: [
-      { label: "reservations@skynesthotels.com", href: "mailto:reservations@skynesthotels.com" },
-      { label: "+94 11 234 5610", href: "tel:+94112345610" },
-    ],
-  },
-  {
-    title: "Other Enquiries",
-    items: [
-      { label: "press@skynesthotels.com", href: "mailto:press@skynesthotels.com" },
-      { label: "careers@skynesthotels.com", href: "mailto:careers@skynesthotels.com" },
-      { label: "info@skynesthotels.com", href: "mailto:info@skynesthotels.com" },
-    ],
-  },
+const ABOUT_ITEMS = [
+  { label: "Our Story & Legacy", href: "#story" },
+  { label: "The SkyNest Standard", href: "#about" },
+  { label: "Contact & Concierge", href: "/contact" },
+  { label: "Privacy Charter", href: "/privacy" },
 ];
 
-const SANCTUARY_SECTIONS = [
-  {
-    title: "Sanctuaries",
-    items: [
-      { label: "Kandy Highlands & Tea Valleys", href: "#branches" },
-      { label: "Galle Colonial Ocean Ramparts", href: "#galle-branch" },
-      { label: "Colombo Marine Promenade", href: "#colombo-branch" },
-      { label: "The Grand Residence Suite", href: "#booking" },
-      { label: "Private Mountain Pavilions", href: "#rates" },
-      { label: "Discovery Journey (3 Coastlines)", href: "#story" },
-      { label: "View All Sanctuaries", href: "#branches" },
-    ],
-  },
-  {
-    title: "Retreats & Lodges",
-    items: [
-      { label: "Hantana Cloud Lodge", href: "#branches" },
-      { label: "Ramparts Ocean Villa", href: "#galle-branch" },
-      { label: "Harbour Haven Colombo", href: "#colombo-branch" },
-      { label: "View All Properties", href: "#rates" },
-    ],
-  },
-];
-
-const DISCOVERY_SECTIONS = [
-  {
-    title: "Experiences",
-    items: [
-      { label: "The High Tea Mountain Range", href: "#stay" },
-      { label: "Southern Coral Reef Expeditions", href: "#stay" },
-      { label: "Private Wine Cellars & Cellar Tasting", href: "#dining" },
-      { label: "Ayurvedic Botanical Sanctuaries", href: "#about" },
-      { label: "Ceylon Tea Heritage Trails", href: "#about" },
-      { label: "Private Aviation & Heli-Charters", href: "#booking" },
-      { label: "View All", href: "#stay" },
-    ],
-  },
-  {
-    title: "About",
-    items: [
-      { label: "Our Story & Legacy", href: "#story" },
-      { label: "The SkyNest Standard", href: "#about" },
-    ],
-  },
-  {
-    title: "Social",
-    items: [
-      { label: "Instagram", href: "https://instagram.com" },
-      { label: "LinkedIn", href: "https://linkedin.com" },
-      { label: "Facebook", href: "https://facebook.com" },
-      { label: "YouTube", href: "https://youtube.com" },
-    ],
-  },
+const SOCIAL_ITEMS = [
+  { label: "Instagram", href: "https://instagram.com" },
+  { label: "LinkedIn", href: "https://linkedin.com" },
+  { label: "Facebook", href: "https://facebook.com" },
+  { label: "YouTube", href: "https://youtube.com" },
 ];
 
 // ---------------------------------------------------------------------------
@@ -155,17 +89,17 @@ export function SkyNestFooter() {
 
   return (
     <footer
-      id="footer"
+      id="contact"
       aria-label="SkyNest Hotels footer"
-      className="relative bg-[#FAF9F5] text-ink overflow-hidden border-t border-ink/[0.08]"
+      className="relative bg-paper text-ink overflow-hidden border-t border-ink/[0.08]"
     >
       <div className="relative z-10 max-w-[1520px] mx-auto px-4 sm:px-8 lg:px-12 pt-12 md:pt-16">
 
         {/* ── TOP ARCHITECTURAL GRID ROW ── */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 border-t border-b border-ink/[0.12]">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 border-t border-b border-ink/[0.12]">
 
-          {/* Column 1: Mountain Brand Mark (lg:col-span-2) */}
-          <div className="lg:col-span-2 py-10 px-6 border-b lg:border-b-0 lg:border-r border-ink/[0.12] flex flex-col justify-start items-start">
+          {/* Column 1: Mountain Brand Mark (lg:col-span-4) */}
+          <div className="md:col-span-2 lg:col-span-4 py-10 px-6 sm:px-8 border-b lg:border-b-0 lg:border-r border-ink/[0.12] flex flex-col justify-start items-start">
             <div className="flex items-center gap-3">
               <MountainGlyph className="w-10 h-auto text-ink/90" />
             </div>
@@ -173,96 +107,64 @@ export function SkyNestFooter() {
               SKYNEST
             </span>
             <div className="w-full h-px bg-ink/[0.12] mt-6 mb-4" />
-            <p className="font-cinzel italic text-[11px] text-ink/50 leading-relaxed max-w-[160px]">
+            <p className="font-cinzel italic text-[11px] text-ink/50 leading-relaxed max-w-[260px]">
               Three coastal sanctuaries. One uncompromising standard.
             </p>
           </div>
 
-          {/* Column 2: Enquiries (lg:col-span-3) */}
-          <div className="lg:col-span-2 py-10 px-6 sm:px-8 border-b lg:border-b-0 lg:border-r border-ink/[0.12] space-y-9">
-            {ENQUIRY_SECTIONS.map((sec) => (
-              <div key={sec.title} className="space-y-3">
-                <h3
-                  className="font-cinzel text-[13px] md:text-[14px] text-ink/80 tracking-[0.02em]"
-                  style={{ fontStyle: "italic" }}
-                >
-                  {sec.title}
-                </h3>
-                <ul className="space-y-1.5">
-                  {sec.items.map((item) => (
-                    <li key={item.label}>
-                      <a
-                        href={item.href}
-                        className="font-jakarta text-[12px] text-ink/55 hover:text-ink transition-colors duration-200 block font-light leading-relaxed truncate"
-                      >
-                        {item.label}
-                      </a>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            ))}
+          {/* Column 2: About (lg:col-span-2) */}
+          <div className="md:col-span-1 lg:col-span-2 py-10 px-6 sm:px-8 border-b md:border-b-0 lg:border-r border-ink/[0.12] space-y-3">
+            <h3
+              className="font-cinzel text-[13px] md:text-[14px] text-ink/80 tracking-[0.02em]"
+              style={{ fontStyle: "italic" }}
+            >
+              About
+            </h3>
+            <ul className="space-y-1.5">
+              {ABOUT_ITEMS.map((item) => (
+                <li key={item.label}>
+                  <a
+                    href={item.href}
+                    className="font-jakarta text-[12px] text-ink/55 hover:text-ink transition-colors duration-200 block font-light leading-relaxed"
+                  >
+                    {item.label}
+                  </a>
+                </li>
+              ))}
+            </ul>
           </div>
 
-          {/* Column 3: Sanctuaries & Retreats (lg:col-span-2) */}
-          <div className="lg:col-span-2 py-10 px-6 sm:px-8 border-b lg:border-b-0 lg:border-r border-ink/[0.12] space-y-9">
-            {SANCTUARY_SECTIONS.map((sec) => (
-              <div key={sec.title} className="space-y-3">
-                <h3
-                  className="font-cinzel text-[13px] md:text-[14px] text-ink/80 tracking-[0.02em]"
-                  style={{ fontStyle: "italic" }}
-                >
-                  {sec.title}
-                </h3>
-                <ul className="space-y-1.5">
-                  {sec.items.map((item) => (
-                    <li key={item.label}>
-                      <a
-                        href={item.href}
-                        className="font-jakarta text-[12px] text-ink/55 hover:text-ink transition-colors duration-200 block font-light leading-relaxed"
-                      >
-                        {item.label}
-                      </a>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            ))}
+          {/* Column 3: Social (lg:col-span-2) */}
+          <div className="md:col-span-1 lg:col-span-2 py-10 px-6 sm:px-8 border-b md:border-b-0 lg:border-r border-ink/[0.12] space-y-3">
+            <h3
+              className="font-cinzel text-[13px] md:text-[14px] text-ink/80 tracking-[0.02em]"
+              style={{ fontStyle: "italic" }}
+            >
+              Social
+            </h3>
+            <ul className="space-y-1.5">
+              {SOCIAL_ITEMS.map((item) => (
+                <li key={item.label}>
+                  <a
+                    href={item.href}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="font-jakarta text-[12px] text-ink/55 hover:text-ink transition-colors duration-200 block font-light leading-relaxed"
+                  >
+                    {item.label}
+                  </a>
+                </li>
+              ))}
+            </ul>
           </div>
 
-          {/* Column 4: Experiences, About & Social (lg:col-span-2) */}
-          <div className="lg:col-span-2 py-10 px-6 sm:px-8 border-b lg:border-b-0 lg:border-r border-ink/[0.12] space-y-8">
-            {DISCOVERY_SECTIONS.map((sec) => (
-              <div key={sec.title} className="space-y-2.5">
-                <h3
-                  className="font-cinzel text-[13px] md:text-[14px] text-ink/80 tracking-[0.02em]"
-                  style={{ fontStyle: "italic" }}
-                >
-                  {sec.title}
-                </h3>
-                <ul className="space-y-1.5">
-                  {sec.items.map((item) => (
-                    <li key={item.label}>
-                      <a
-                        href={item.href}
-                        className="font-jakarta text-[12px] text-ink/55 hover:text-ink transition-colors duration-200 block font-light leading-relaxed"
-                      >
-                        {item.label}
-                      </a>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            ))}
-          </div>
-
-          {/* Column 5: Right Action Column (lg:col-span-4) */}
-          <div className="lg:col-span-4 p-6 sm:p-7 flex flex-col justify-start gap-3.5 bg-[#F5F3EC]/50">
+          {/* Column 4: Right Action Column (lg:col-span-4) */}
+          <div className="md:col-span-2 lg:col-span-4 p-6 sm:p-7 flex flex-col justify-start gap-3.5 bg-ink/[0.03]">
 
             {/* Top Row: Two Clean Pill Cards [ Dates & Rates ] [ Enquire now ] */}
             <div className="grid grid-cols-2 gap-3">
               <a
-                href="#rates"
+                href="/rates"
                 id="footer-dates-rates"
                 className="h-24 sm:h-28 flex items-center justify-center text-center p-3 rounded-sm bg-white/80 hover:bg-white border border-ink/[0.08] hover:border-ink/25 transition-all duration-200 shadow-sm group"
               >
@@ -334,7 +236,7 @@ export function SkyNestFooter() {
           <span
             className="font-jakarta font-black text-ink leading-[0.8] uppercase block w-full text-center select-none"
             style={{
-              fontSize: "clamp(64px, 16.5vw, 240px)",
+              fontSize: "clamp(46px, 16.5vw, 240px)",
               letterSpacing: "-0.025em",
             }}
           >
@@ -343,12 +245,12 @@ export function SkyNestFooter() {
         </div>
 
         {/* ── BOTTOM LUXURY SEAL & LEGAL STRIP ── */}
-        <div className="border-t border-ink/[0.12] py-5 flex flex-col xl:flex-row items-center justify-between gap-5 text-ink/60 font-jakarta">
+        <div className="border-t border-ink/[0.12] py-5 flex flex-col xl:flex-row items-center justify-between gap-5 text-ink/60 font-jakarta text-center xl:text-left">
 
           {/* Left: Badges */}
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center justify-center gap-2 sm:gap-3">
             <CrossGlyph className="w-2.5 h-2.5 text-ink/35" />
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center justify-center gap-1.5 sm:gap-2">
               {[
                 { label: "LK", title: "Sri Lanka Heritage" },
                 { label: "CE", title: "Ceylon Standard" },
@@ -390,7 +292,9 @@ export function SkyNestFooter() {
             <span className="text-ink/20">·</span>
             <a href="#booking" className="hover:text-ink transition-colors">Booking Terms</a>
             <span className="text-ink/20">·</span>
-            <a href="#privacy" className="hover:text-ink transition-colors">Privacy Policy</a>
+            <a href="/privacy" className="hover:text-ink transition-colors">Privacy Policy</a>
+            <span className="text-ink/20">·</span>
+            <a href="/contact" className="hover:text-ink transition-colors">Contact Us</a>
             <span className="text-ink/20">·</span>
             <a href="#cookies" className="hover:text-ink transition-colors">Cookies Policy</a>
             <span className="text-ink/20">·</span>

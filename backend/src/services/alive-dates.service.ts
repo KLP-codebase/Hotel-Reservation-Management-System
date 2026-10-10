@@ -1,5 +1,4 @@
 import { DbAdapter } from '../config/db';
-import { inMemoryStore } from '../config/db-fallback';
 
 let lastSyncDate: string | null = null;
 
@@ -77,20 +76,20 @@ export async function syncAliveBookingDates(db: DbAdapter, force = false): Promi
       -- Sync alive test spa appointments (Oliver at 09:00, Elena at 14:00, Tharindu tomorrow at 10:30)
       UPDATE service_usage
       SET used_at = CURRENT_DATE + TIME '09:00:00', appointment_time = '09:00'
-      WHERE booking_room_id = '55555555-5555-5555-5555-555555555501' AND service_id = '11111111-1111-1111-1111-111111111101';
+      WHERE booking_room_id = '55555555-5555-5555-5555-555555555501' AND service_id = 2;
 
       UPDATE service_usage
       SET used_at = CURRENT_DATE + TIME '14:00:00', appointment_time = '14:00'
-      WHERE booking_room_id = '55555555-5555-5555-5555-555555555502' AND service_id = '11111111-1111-1111-1111-111111111102';
+      WHERE booking_room_id = '55555555-5555-5555-5555-555555555502' AND service_id = 2;
 
       UPDATE service_usage
       SET used_at = CURRENT_DATE + INTERVAL '1 day' + TIME '10:30:00', appointment_time = '10:30'
-      WHERE booking_room_id = '55555555-5555-5555-5555-555555555503' AND service_id = '11111111-1111-1111-1111-111111111103';
+      WHERE booking_room_id = '55555555-5555-5555-5555-555555555503' AND service_id = 2;
 
       -- Sync alive test room dining breakfast
       UPDATE service_usage
       SET used_at = CURRENT_DATE + TIME '08:00:00', meal_time = 'BREAKFAST'
-      WHERE booking_room_id = '55555555-5555-5555-5555-555555555501' AND service_id = '22222222-2222-2222-2222-222222222201';
+      WHERE booking_room_id = '55555555-5555-5555-5555-555555555501' AND service_id = 3;
     `);
 
     lastSyncDate = todayStr;
@@ -98,9 +97,4 @@ export async function syncAliveBookingDates(db: DbAdapter, force = false): Promi
   } catch (err) {
     console.warn('[AliveDates] Database synchronization note:', err);
   }
-
-  // Also keep in-memory fallback aligned
-  try {
-    inMemoryStore.syncAliveDates();
-  } catch {}
 }

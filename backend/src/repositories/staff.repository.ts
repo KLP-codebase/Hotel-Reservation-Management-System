@@ -50,7 +50,7 @@ export class StaffRepository extends BaseRepository<Staff, CreateStaffDto, Updat
             FROM v_staff_details s
             JOIN staff st ON s.staff_id = st.staff_id
             LEFT JOIN user_accounts ua ON ua.staff_id = s.staff_id
-            WHERE s.is_active = true
+            WHERE s.is_active = true AND s.role <> 'GUEST'
             ORDER BY s.last_name, s.first_name`;
   }
 

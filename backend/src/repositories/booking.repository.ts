@@ -97,9 +97,9 @@ export class BookingRepository {
         // 1. Lock the room row. Two requests booking the same room now queue up
         //    here, so the overlap check below cannot race.
         const roomResult = await client.query<{
-            id: string; number: string | null; branch_id: string; price_per_night: string;
+            id: string; number: string | null; branch_id: string; price_per_night: string; room_type_id: number | null;
         }>(`
-            SELECT id, number, branch_id, price_per_night
+            SELECT id, number, branch_id, price_per_night, room_type_id
             FROM rooms
             WHERE id = $1
             FOR UPDATE
@@ -142,7 +142,7 @@ export class BookingRepository {
                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
                 RETURNING booking_room_id, rate_at_booking
             `, [
-                bookingId, line.primary_guest_id, line.room_type_id ?? null,
+                bookingId, line.primary_guest_id, line.room_type_id ?? room.room_type_id ?? null,
                 room.id, line.plan_id ?? 1, line.check_in_date,
                 line.check_out_date, room.price_per_night,
             ]);
@@ -203,7 +203,7 @@ export class BookingRepository {
                 br.booking_room_id,
                 br.status,
                 r.number AS room_number,
-                rt.type_name AS room_type_name,
+                COALESCE(rt.type_name, r.type::text) AS room_type_name,
                 mp.plan_name AS meal_plan_name,
                 br.check_in_date::text AS check_in_date,
                 br.check_out_date::text AS check_out_date,
@@ -227,7 +227,7 @@ export class BookingRepository {
             LEFT JOIN meal_plans mp ON mp.plan_id = br.plan_id
             LEFT JOIN accompanying_guests ag ON ag.booking_room_id = br.booking_room_id
             WHERE br.booking_id = $1
-            GROUP BY br.booking_room_id, br.status, r.number, rt.type_name, mp.plan_name,
+            GROUP BY br.booking_room_id, br.status, r.number, r.type, rt.type_name, mp.plan_name,
                      br.check_in_date, br.check_out_date, br.rate_at_booking
         `, [bookingId]);
 
@@ -282,28 +282,77 @@ ORDER BY b.created_at DESC
         fromStatus: string,
         toStatus: string,
     ): Promise<{ booking_id: string; status: string } | null> {
-        return this.db.transaction(async (client) => {
-            const result = await client.query<{ booking_id: string; status: string }>(`
-                UPDATE bookings
-                SET status = $1, updated_at = CURRENT_TIMESTAMP
-                WHERE booking_id = $2 AND status = $3
-                RETURNING booking_id, status
-            `, [toStatus, bookingId, fromStatus]);
+        return this.db.transaction((client) => this.transitionStatus(client, bookingId, fromStatus, toStatus));
+    }
 
-            if (!result.rows[0]) return null;
+    // Same as updateStatus(), for callers that need more work in the same transaction.
+    // The booking's live room lines follow it, which fires the booking_rooms triggers:
+    //   CHECKED_IN  → rooms.status = OCCUPIED            (fn_sync_room_status)
+    //   CHECKED_OUT → rooms.status = MAINTENANCE, and the
+    //                 room's invoice is (re)generated     (fn_auto_bill_on_checkout)
+    //   CANCELLED   → the dates are freed for new bookings (no_double_booking ignores CANCELLED)
+    async transitionStatus(
+        client: PoolClient,
+        bookingId: string,
+        fromStatus: string,
+        toStatus: string,
+    ): Promise<{ booking_id: string; status: string } | null> {
+        const result = await client.query<{ booking_id: string; status: string }>(`
+            UPDATE bookings
+            SET status = $1, updated_at = CURRENT_TIMESTAMP
+            WHERE booking_id = $2 AND status = $3
+            RETURNING booking_id, status
+        `, [toStatus, bookingId, fromStatus]);
 
-            // If the booking is cancelled, also cancel its rooms so the dates are freed up
-            // (same transaction — both happen or neither does)
-            if (toStatus === 'CANCELLED') {
-                await client.query(`
-                    UPDATE booking_rooms
-                    SET status = 'CANCELLED'
-                    WHERE booking_id = $1
-                `, [bookingId]);
-            }
+        if (!result.rows[0]) return null;
 
-            return result.rows[0];
-        });
+        if (toStatus === 'CHECKED_IN' || toStatus === 'CHECKED_OUT' || toStatus === 'CANCELLED') {
+            await client.query(`
+                UPDATE booking_rooms
+                SET status = $1
+                WHERE booking_id = $2 AND status NOT IN ('CANCELLED', $1)
+            `, [toStatus, bookingId]);
+        }
+
+        return result.rows[0];
+    }
+
+    // Reads the booking header and locks it until the transaction ends, so a
+    // concurrent check-in / check-out of the same booking waits its turn.
+    async lockHeader(client: PoolClient, bookingId: string) {
+        const result = await client.query<{ booking_id: string; branch_id: string; status: string }>(`
+            SELECT booking_id, branch_id, status
+            FROM bookings
+            WHERE booking_id = $1
+            FOR UPDATE
+        `, [bookingId]);
+
+        return result.rows[0] ?? null;
+    }
+
+    // The booking's room lines that still count (not cancelled), oldest first.
+    async findLiveRoomLines(client: PoolClient, bookingId: string) {
+        const result = await client.query<{ booking_room_id: string }>(`
+            SELECT booking_room_id
+            FROM booking_rooms
+            WHERE booking_id = $1 AND status <> 'CANCELLED'
+            ORDER BY created_at, booking_room_id
+        `, [bookingId]);
+
+        return result.rows;
+    }
+
+    async insertAccompanyingGuests(
+        client: PoolClient,
+        bookingRoomId: string,
+        guests: Omit<AddAccompanyingGuestInput, 'booking_room_id'>[],
+    ): Promise<void> {
+        for (const g of guests) {
+            await client.query(`
+                INSERT INTO accompanying_guests (booking_room_id, first_name, last_name, id_passport_no)
+                VALUES ($1, $2, $3, $4)
+            `, [bookingRoomId, g.first_name, g.last_name, g.id_passport_no]);
+        }
     }
 
     async addAccompanyingGuest(input: AddAccompanyingGuestInput) {
