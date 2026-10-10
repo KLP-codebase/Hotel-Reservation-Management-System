@@ -9,32 +9,25 @@ import {
   Users,
   Maximize2,
   Check,
-  ChevronRight,
   ChevronDown,
-  Sparkles,
-  Utensils,
   Coffee,
   Wine,
-  Sun,
-  Moon,
-  Clock,
-  ShieldCheck,
+  Utensils,
   ArrowRight,
-  MapPin,
   Menu,
   X,
+  Sparkles,
 } from 'lucide-react';
 import { useAuth } from '@/context/auth-context';
-import SkyNestFooter from '@/components/marketing/SkyNestFooter';
+import { SkyNestFooter } from '@/components/marketing/SkyNestFooter';
 
-// ── Motion Guard ──────────────────────────────────────────────────────────────
+// ── Utility: Respect prefers-reduced-motion ───────────────────────────────────
 
 function usePrefersReducedMotion(): boolean {
-  const [reduced, setReduced] = useState(
-    () => typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches
-  );
+  const [reduced, setReduced] = useState(false);
   useEffect(() => {
     const mql = window.matchMedia('(prefers-reduced-motion: reduce)');
+    setReduced(mql.matches);
     const handler = (e: MediaQueryListEvent) => setReduced(e.matches);
     mql.addEventListener('change', handler);
     return () => mql.removeEventListener('change', handler);
@@ -42,8 +35,7 @@ function usePrefersReducedMotion(): boolean {
   return reduced;
 }
 
-// ── Mountain Glyph ────────────────────────────────────────────────────────────
-
+/** White Desert-style mountain glyph */
 function MountainGlyph({ className = '', style }: { className?: string; style?: React.CSSProperties }) {
   return (
     <svg
@@ -144,7 +136,7 @@ const ROOM_TIERS: RoomTier[] = [
     image: '/pillar_architecture.jpg',
     highlights: [
       'Panoramic penthouse wrap-around terrace & sunset deck',
-      'Private chef\'s dining room for bespoke degustations',
+      'Private chef\x27s dining room for bespoke degustations',
       '24/7 dedicated personal butler and concierge service',
       'Complimentary private airport chauffeur transfer',
     ],
@@ -244,14 +236,14 @@ function RatesNav() {
       <nav
         id="rates-nav"
         aria-label="Rates navigation"
-        className="fixed top-0 left-0 right-0 z-50 bg-ink/90 backdrop-blur-md border-b border-white/10 transition-colors duration-300"
+        className="fixed top-0 left-0 right-0 z-50 bg-ink/95 backdrop-blur-md border-b border-white/10 transition-colors duration-300"
       >
         <div className="max-w-[1440px] mx-auto flex items-center justify-between h-14 md:h-16 px-4 sm:px-6 md:px-8">
           {/* Left links */}
           <div className="hidden md:flex items-center gap-2.5">
             <Link
               href="/rates"
-              className="flex items-center px-5 py-2 text-[11px] md:text-[12px] font-jakarta font-medium tracking-[0.12em] uppercase border border-skynest-accent bg-skynest-accent/15 text-white transition-colors duration-200"
+              className="flex items-center px-5 py-2 text-[11px] md:text-[12px] font-jakarta font-semibold tracking-[0.12em] uppercase border border-white/40 bg-white/10 text-white transition-colors duration-200"
             >
               Rates
             </Link>
@@ -281,14 +273,14 @@ function RatesNav() {
             </Link>
             <Link
               href="/book"
-              className="flex items-center px-5 py-2 text-[11px] md:text-[12px] font-jakarta font-semibold tracking-[0.12em] uppercase border border-skynest-accent bg-skynest-accent text-white hover:bg-skynest-accent/90 transition-colors duration-200"
+              className="flex items-center px-5 py-2 text-[11px] md:text-[12px] font-jakarta font-semibold tracking-[0.12em] uppercase bg-white text-ink hover:bg-slate-100 transition-colors duration-200 shadow-sm"
             >
               Book Now
             </Link>
             {user ? (
               <Link
                 href={user.role === 'GUEST' ? '/dashboard/activity' : '/dashboard'}
-                className="flex items-center px-4 py-2 text-[11px] font-jakarta font-medium tracking-[0.12em] uppercase text-amber-400 border border-amber-500/30 hover:border-amber-400 bg-amber-500/10 transition-colors"
+                className="flex items-center px-4 py-2 text-[11px] font-jakarta font-medium tracking-[0.12em] uppercase text-white/90 border border-white/25 bg-white/10 hover:bg-white/20 transition-colors"
               >
                 {user.role === 'GUEST' ? 'Activity' : 'Dashboard'}
               </Link>
@@ -320,7 +312,7 @@ function RatesNav() {
           <Link
             href="/rates"
             onClick={() => setMenuOpen(false)}
-            className="font-jakarta text-2xl font-semibold text-skynest-accent tracking-wider uppercase"
+            className="font-jakarta text-2xl font-semibold text-white tracking-wider uppercase"
           >
             Rates &amp; Plans
           </Link>
@@ -350,7 +342,7 @@ function RatesNav() {
               <Link
                 href={user.role === 'GUEST' ? '/dashboard/activity' : '/dashboard'}
                 onClick={() => setMenuOpen(false)}
-                className="font-jakarta text-lg text-amber-400 font-semibold"
+                className="font-jakarta text-lg text-white font-semibold"
               >
                 {user.role === 'GUEST' ? 'My Activity' : 'Staff Dashboard'}
               </Link>
@@ -370,7 +362,7 @@ function RatesNav() {
   );
 }
 
-// ── Hero Section (Pinned with Parallax & Wordmark) ────────────────────────────
+// ── Cinematic Pinned Hero Section ─────────────────────────────────────────────
 
 function RatesHeroSection({ heroRef }: { heroRef: React.RefObject<HTMLDivElement | null> }) {
   const bgImgRef = useRef<HTMLImageElement>(null);
@@ -461,7 +453,7 @@ function RatesHeroSection({ heroRef }: { heroRef: React.RefObject<HTMLDivElement
           className="self-start sm:self-auto flex items-center gap-2 font-jakarta text-[10px] sm:text-[11px] md:text-[12px] font-medium tracking-[0.15em] uppercase text-white/85 hover:text-white border border-white/20 hover:border-white/40 px-4 sm:px-5 py-2.5 sm:py-3 transition-all duration-300"
         >
           <span>Explore Tiers &amp; Plans</span>
-          <ChevronDown className="w-3.5 h-3.5 text-skynest-accent animate-bounce" />
+          <ChevronDown className="w-3.5 h-3.5 text-white/80 animate-bounce" />
         </a>
       </div>
 
@@ -490,47 +482,37 @@ function RatesHeroSection({ heroRef }: { heroRef: React.RefObject<HTMLDivElement
 
 function RatesCloudTransition() {
   const containerRef = useRef<HTMLDivElement>(null);
-  const wrapWispsRef = useRef<HTMLDivElement>(null);
-  const wrap1Ref = useRef<HTMLDivElement>(null);
-  const wrap2Ref = useRef<HTMLDivElement>(null);
-  const fogRef = useRef<HTMLDivElement>(null);
+  const cloud1Ref = useRef<HTMLImageElement>(null);
+  const cloud2Ref = useRef<HTMLImageElement>(null);
+  const cloud3Ref = useRef<HTMLImageElement>(null);
+  const mountainMistRef = useRef<HTMLDivElement>(null);
   const reducedMotion = usePrefersReducedMotion();
 
   useEffect(() => {
     if (reducedMotion || !containerRef.current) return;
     gsap.registerPlugin(ScrollTrigger);
 
-    gsap.set([wrapWispsRef.current, wrap1Ref.current, wrap2Ref.current], { autoAlpha: 0 });
-    gsap.set(wrapWispsRef.current, { y: '16%', x: '-2.5%' });
-    gsap.set(wrap1Ref.current, { y: '12%', x: '1%' });
-    gsap.set(wrap2Ref.current, { y: '20%', x: '-1%' });
-    if (fogRef.current) gsap.set(fogRef.current, { opacity: 0.15 });
-
     const ctx = gsap.context(() => {
       const tl = gsap.timeline({
         scrollTrigger: {
           trigger: containerRef.current,
           start: 'top bottom',
-          end: 'bottom bottom',
-          scrub: 1.0,
-        },
-        defaults: {
-          ease: 'none',
-          force3D: true,
+          end: 'bottom top',
+          scrub: 1.2,
         },
       });
 
-      if (wrapWispsRef.current) {
-        tl.to(wrapWispsRef.current, { y: '-6%', x: '3%', autoAlpha: 0.8 }, 0);
+      if (cloud1Ref.current) {
+        tl.to(cloud1Ref.current, { y: '-45px', scale: 1.08, opacity: 0.95 }, 0);
       }
-      if (wrap1Ref.current) {
-        tl.to(wrap1Ref.current, { y: '0%', x: '-1.5%', autoAlpha: 1 }, 0);
+      if (cloud2Ref.current) {
+        tl.to(cloud2Ref.current, { y: '-90px', scale: 1.15, opacity: 0.8 }, 0);
       }
-      if (wrap2Ref.current) {
-        tl.to(wrap2Ref.current, { y: '0%', x: '1.5%', autoAlpha: 1 }, 0.08);
+      if (cloud3Ref.current) {
+        tl.to(cloud3Ref.current, { y: '-140px', scale: 1.22, opacity: 0.9 }, 0);
       }
-      if (fogRef.current) {
-        tl.to(fogRef.current, { opacity: 1 }, 0.04);
+      if (mountainMistRef.current) {
+        tl.to(mountainMistRef.current, { y: '-50px', opacity: 0.85 }, 0);
       }
     }, containerRef);
 
@@ -541,95 +523,205 @@ function RatesCloudTransition() {
     <div
       ref={containerRef}
       aria-hidden="true"
-      className="relative z-10 h-[50dvh] sm:h-[60dvh] md:h-[72dvh] pointer-events-none overflow-hidden select-none"
+      className="relative z-10 w-full pointer-events-none select-none overflow-hidden"
+      style={{
+        height: 'clamp(220px, 32vw, 480px)',
+        marginTop: 'calc(-1 * clamp(110px, 16vw, 240px))',
+      }}
     >
-      {/* High-Altitude Wisps Layer */}
+      {/* High-Altitude Mountain Wisps */}
       <div
-        ref={wrapWispsRef}
-        className="absolute bottom-10 sm:bottom-16 left-1/2 overflow-hidden pointer-events-none"
+        ref={mountainMistRef}
+        className="absolute inset-0 z-0 bg-repeat-x opacity-40 mix-blend-screen"
         style={{
-          width: '240%',
-          height: '85%',
-          marginLeft: '-120%',
+          backgroundImage: "url('/clouds/cloud_wisps.webp')",
+          backgroundSize: 'contain',
+          backgroundPosition: 'center bottom',
+        }}
+      />
+
+      {/* Cloud Layer 1 */}
+      <img
+        ref={cloud1Ref}
+        src="/07_Clouds.webp"
+        alt=""
+        className="absolute inset-0 w-full h-full object-cover object-bottom z-10 opacity-75"
+        style={{
+          filter: 'brightness(1.08) contrast(1.05)',
+          maskImage: 'linear-gradient(to bottom, transparent 0%, black 35%, black 85%, transparent 100%)',
+          WebkitMaskImage: 'linear-gradient(to bottom, transparent 0%, black 35%, black 85%, transparent 100%)',
           willChange: 'transform, opacity',
         }}
-      >
-        <img
-          src="/clouds/cloud_wisps.webp"
-          alt=""
-          className="w-full h-full object-cover object-bottom select-none pointer-events-none opacity-80"
-          style={{
-            WebkitMaskImage:
-              'linear-gradient(to bottom, transparent 0%, rgba(0,0,0,0.2) 20%, rgba(0,0,0,0.75) 55%, black 80%)',
-            maskImage:
-              'linear-gradient(to bottom, transparent 0%, rgba(0,0,0,0.2) 20%, rgba(0,0,0,0.75) 55%, black 80%)',
-          }}
-        />
-      </div>
+      />
 
-      {/* Layer 1 — Base Clouds */}
-      <div
-        ref={wrap1Ref}
-        className="absolute bottom-0 left-1/2 overflow-hidden pointer-events-none"
+      {/* Cloud Layer 2 */}
+      <img
+        ref={cloud2Ref}
+        src="/Clouds 3.webp"
+        alt=""
+        className="absolute inset-0 w-full h-full object-cover object-bottom z-20 opacity-85"
         style={{
-          width: '220%',
-          height: '100%',
-          marginLeft: '-110%',
+          filter: 'brightness(1.12) contrast(1.02)',
+          maskImage: 'linear-gradient(to top, black 25%, transparent 95%)',
+          WebkitMaskImage: 'linear-gradient(to top, black 25%, transparent 95%)',
           willChange: 'transform, opacity',
         }}
-      >
-        <img
-          src="/07_Clouds.webp"
-          alt=""
-          className="w-full h-full object-cover object-bottom select-none pointer-events-none"
-          style={{
-            WebkitMaskImage:
-              'linear-gradient(to bottom, transparent 0%, rgba(0,0,0,0.2) 18%, rgba(0,0,0,0.7) 38%, black 58%)',
-            maskImage:
-              'linear-gradient(to bottom, transparent 0%, rgba(0,0,0,0.2) 18%, rgba(0,0,0,0.7) 38%, black 58%)',
-          }}
-        />
-      </div>
+      />
 
-      {/* Layer 2 — Denser Clouds */}
-      <div
-        ref={wrap2Ref}
-        className="absolute bottom-0 left-1/2 overflow-hidden pointer-events-none"
+      {/* Foreground Mountain Cloud Wisp */}
+      <img
+        ref={cloud3Ref}
+        src="/07_Clouds.webp"
+        alt=""
+        className="absolute -bottom-10 left-0 right-0 w-full h-4/5 object-cover object-bottom z-30 opacity-90"
         style={{
-          width: '220%',
-          height: '85%',
-          marginLeft: '-110%',
+          maskImage: 'linear-gradient(to top, black 30%, transparent 100%)',
+          WebkitMaskImage: 'linear-gradient(to top, black 30%, transparent 100%)',
           willChange: 'transform, opacity',
         }}
-      >
-        <img
-          src="/Clouds 3.webp"
-          alt=""
-          className="w-full h-full object-cover object-bottom select-none pointer-events-none"
-          style={{
-            WebkitMaskImage:
-              'linear-gradient(to bottom, transparent 0%, rgba(0,0,0,0.4) 22%, rgba(0,0,0,0.9) 48%, black 65%)',
-            maskImage:
-              'linear-gradient(to bottom, transparent 0%, rgba(0,0,0,0.4) 22%, rgba(0,0,0,0.9) 48%, black 65%)',
-          }}
-        />
-      </div>
+      />
 
-      {/* Layer 3 — Dense white fog blending into #FDFCFA */}
+      {/* Seamless Fog Base into Clean Content Section */}
       <div
-        ref={fogRef}
-        className="absolute inset-x-0 bottom-0 h-[60%] pointer-events-none"
+        className="absolute inset-x-0 bottom-0 h-32 z-40"
         style={{
-          background:
-            'linear-gradient(to bottom, transparent 0%, rgba(253,252,250,0.3) 20%, rgba(253,252,250,0.7) 45%, rgba(253,252,250,0.95) 75%, #FDFCFA 100%)',
-          willChange: 'opacity',
+          background: 'linear-gradient(to bottom, transparent 0%, #F8FAFC 90%)',
         }}
       />
     </div>
   );
 }
 
-// ── Main Rates Page Component ─────────────────────────────────────────────────
+// ── Wide Gastronomy Parallax Banner (Mirrors Landing Page Kandy Section) ───────
+
+function GastronomyBannerSection({ reducedMotion }: { reducedMotion: boolean }) {
+  const sectionRef = useRef<HTMLElement>(null);
+  const imgRef = useRef<HTMLImageElement>(null);
+  const labelRef = useRef<HTMLSpanElement>(null);
+  const titleRef = useRef<HTMLHeadingElement>(null);
+  const lineRef = useRef<HTMLParagraphElement>(null);
+
+  useEffect(() => {
+    if (reducedMotion || !sectionRef.current) return;
+    gsap.registerPlugin(ScrollTrigger);
+
+    const img = imgRef.current;
+    const label = labelRef.current;
+    const title = titleRef.current;
+    const line = lineRef.current;
+    const section = sectionRef.current;
+    if (!section || !img || !label || !title || !line) return;
+
+    gsap.set(img, { scale: 1.05, y: -25 });
+    gsap.set([label, title, line], { y: 15, opacity: 0 });
+
+    const ctx = gsap.context(() => {
+      // Parallax scrub on wide image
+      gsap.to(img, {
+        y: 25,
+        scale: 1.0,
+        ease: 'none',
+        scrollTrigger: {
+          trigger: section,
+          start: 'top bottom',
+          end: 'bottom top',
+          scrub: 1.5,
+        },
+      });
+
+      // Text entrance timeline triggered when section is reached
+      const textTl = gsap.timeline({
+        scrollTrigger: {
+          trigger: section,
+          start: 'top 85%',
+          toggleActions: 'play none none none',
+        },
+      });
+
+      textTl
+        .to(label, { opacity: 1, y: 0, duration: 0.4, ease: 'power2.out' })
+        .to(title, { opacity: 1, y: 0, duration: 0.45, ease: 'power2.out' }, '-=0.25')
+        .to(line, { opacity: 1, y: 0, duration: 0.45, ease: 'power2.out' }, '-=0.25');
+    }, section);
+
+    return () => ctx.revert();
+  }, [reducedMotion]);
+
+  return (
+    <section
+      ref={sectionRef}
+      aria-label="Ceylonese Gastronomy banner"
+      className="relative bg-[#F8FAFC] overflow-hidden w-full my-12"
+    >
+      <div className="relative w-full min-h-[460px] sm:min-h-[520px] md:min-h-0 md:aspect-[3/2] overflow-hidden border-y border-slate-200/80 shadow-sm">
+        {/* Parallax background image */}
+        <div className="absolute inset-0 w-full h-full z-0 overflow-hidden">
+          {/* Feathered top gradient */}
+          <div
+            aria-hidden="true"
+            className="absolute inset-x-0 top-0 h-28 md:h-44 pointer-events-none z-[2]"
+            style={{
+              background:
+                'linear-gradient(to bottom, #F8FAFC 0%, rgba(248,250,252,0.85) 25%, rgba(248,250,252,0.3) 65%, transparent 100%)',
+            }}
+          />
+
+          <img
+            ref={imgRef}
+            src="/rates_gastronomy_wide.jpg"
+            alt="Sky Nest Ceylonese Gastronomy — Twilight beachside candlelit dining"
+            className="w-full h-full object-cover object-center"
+            style={{ willChange: 'transform' }}
+          />
+
+          {/* Feathered bottom gradient */}
+          <div
+            aria-hidden="true"
+            className="absolute inset-x-0 bottom-0 h-28 md:h-44 pointer-events-none z-[2]"
+            style={{
+              background:
+                'linear-gradient(to top, #F8FAFC 0%, rgba(248,250,252,0.85) 25%, rgba(248,250,252,0.3) 65%, transparent 100%)',
+            }}
+          />
+        </div>
+
+        {/* Text overlay — Mirrors Kandy section on landing page */}
+        <div aria-hidden="false" className="absolute inset-0 pointer-events-none z-10">
+          <div className="relative h-full mx-auto max-w-[1400px] px-6 sm:px-10 md:px-16 flex flex-col justify-start pt-14 sm:pt-16 md:pt-20 gap-2.5 md:gap-4">
+            <span
+              ref={labelRef}
+              className="font-jakarta text-[11px] md:text-[12px] font-bold tracking-[0.3em] uppercase text-white/90 drop-shadow-md"
+              style={{ willChange: 'transform, opacity' }}
+            >
+              02 &nbsp;/&nbsp; CEYLONESE GASTRONOMY
+            </span>
+
+            <h2
+              ref={titleRef}
+              className="font-cinzel text-white leading-[1.05] drop-shadow-lg uppercase tracking-[0.03em]"
+              style={{
+                fontSize: 'clamp(28px, 4.8vw, 72px)',
+                willChange: 'transform, opacity',
+              }}
+            >
+              Fine Living &amp; Dining
+            </h2>
+
+            <p
+              ref={lineRef}
+              className="font-cinzel italic text-white/90 max-w-lg leading-relaxed text-sm md:text-lg drop-shadow-md"
+              style={{ willChange: 'transform, opacity' }}
+            >
+              Where island spices, organic highland harvests, and the evening tides converge into an unhurried culinary rite.
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+// ── Main Page Component ───────────────────────────────────────────────────────
 
 export default function RatesPage() {
   const heroRef = useRef<HTMLDivElement>(null);
@@ -637,69 +729,101 @@ export default function RatesPage() {
   const reducedMotion = usePrefersReducedMotion();
 
   // State
-  const [currency, setCurrency] = useState<'USD' | 'LKR'>('USD');
   const [selectedBranch, setSelectedBranch] = useState<string>('ALL');
-  const [selectedRoomId, setSelectedRoomId] = useState<string>('DELUXE');
-  const [selectedPlanId, setSelectedPlanId] = useState<string>('HB');
+  const [currency, setCurrency] = useState<'USD' | 'LKR'>('USD');
+  const [selectedRoomId, setSelectedRoomId] = useState<string>('STANDARD');
+  const [selectedPlanId, setSelectedPlanId] = useState<string>('RO');
 
-  // Currency Converter helper
-  const formatPrice = (usd: number) => {
-    if (currency === 'USD') {
-      return `$${usd.toLocaleString()}`;
-    }
-    const lkr = Math.round(usd * USD_TO_LKR);
-    return `LKR ${lkr.toLocaleString()}`;
-  };
-
-  // Filtered Rooms
+  // Filtered rooms
   const filteredRooms = useMemo(() => {
     if (selectedBranch === 'ALL') return ROOM_TIERS;
     return ROOM_TIERS.filter((r) => r.properties.includes(selectedBranch));
   }, [selectedBranch]);
 
-  // Selected Room & Meal Plan for Estimator
-  const currentRoom = ROOM_TIERS.find((r) => r.id === selectedRoomId) || ROOM_TIERS[1];
-  const currentPlan = MEAL_PLANS.find((p) => p.id === selectedPlanId) || MEAL_PLANS[2];
+  // Selected entities for calculator
+  const currentRoom = useMemo(
+    () => ROOM_TIERS.find((r) => r.id === selectedRoomId) ?? ROOM_TIERS[0],
+    [selectedRoomId]
+  );
+  const currentPlan = useMemo(
+    () => MEAL_PLANS.find((p) => p.id === selectedPlanId) ?? MEAL_PLANS[0],
+    [selectedPlanId]
+  );
 
+  // Currency converter
+  const formatPrice = (usd: number) => {
+    if (currency === 'LKR') {
+      const lkr = usd * USD_TO_LKR;
+      return `Rs. ${lkr.toLocaleString('en-US')}`;
+    }
+    return `$${usd.toLocaleString('en-US')}`;
+  };
+
+  // 4-Tier Tax Calculation
   const subtotalUsd = currentRoom.usdRate + currentPlan.usdRate;
-  // Sri Lankan Tax Cascade (Rule B13: 10% SC, 1% TDL, 2.5% SSCL, 18% VAT)
-  const serviceChargeUsd = subtotalUsd * 0.10;
-  const tdlUsd = (subtotalUsd + serviceChargeUsd) * 0.01;
-  const ssclUsd = (subtotalUsd + serviceChargeUsd + tdlUsd) * 0.025;
-  const vatUsd = (subtotalUsd + serviceChargeUsd + tdlUsd + ssclUsd) * 0.18;
-  const totalWithTaxesUsd = subtotalUsd + serviceChargeUsd + tdlUsd + ssclUsd + vatUsd;
+  const serviceChargeUsd = subtotalUsd * 0.1;
+  const tdlBaseUsd = subtotalUsd + serviceChargeUsd;
+  const tdlUsd = tdlBaseUsd * 0.01;
+  const ssclBaseUsd = tdlBaseUsd + tdlUsd;
+  const ssclUsd = ssclBaseUsd * 0.025;
+  const vatBaseUsd = ssclBaseUsd + ssclUsd;
+  const vatUsd = vatBaseUsd * 0.18;
+  const totalWithTaxesUsd = vatBaseUsd + vatUsd;
 
-  // Staggered reveal for cards
+  // ── GSAP Arising Text & Scroll Entrance Animation ───────────────────────────
   useEffect(() => {
     if (reducedMotion || !contentRef.current) return;
     gsap.registerPlugin(ScrollTrigger);
 
     const ctx = gsap.context(() => {
-      const cards = contentRef.current?.querySelectorAll('[data-reveal]');
-      if (!cards || cards.length === 0) return;
-
-      gsap.fromTo(
-        cards,
-        { opacity: 0, y: 24 },
-        {
-          opacity: 1,
-          y: 0,
-          duration: 0.65,
-          stagger: 0.08,
-          ease: 'power2.out',
-          scrollTrigger: {
-            trigger: contentRef.current,
-            start: 'top 80%',
-          },
+      // 1. Arising text elements (overflow-hidden line reveals)
+      const ariseSections = contentRef.current?.querySelectorAll('[data-arise-section]') || [];
+      ariseSections.forEach((sec) => {
+        const lines = sec.querySelectorAll('.arise-line');
+        if (lines.length > 0) {
+          gsap.set(lines, { y: '100%', opacity: 0 });
+          gsap.to(lines, {
+            y: '0%',
+            opacity: 1,
+            duration: 0.6,
+            stagger: 0.08,
+            ease: 'power3.out',
+            scrollTrigger: {
+              trigger: sec,
+              start: 'top 88%',
+              toggleActions: 'play none none none',
+            },
+          });
         }
-      );
+      });
+
+      // 2. Staggered card entrance reveals
+      const cardContainers = contentRef.current?.querySelectorAll('[data-cards-grid]') || [];
+      cardContainers.forEach((grid) => {
+        const cards = grid.querySelectorAll('.arise-card');
+        if (cards.length > 0) {
+          gsap.set(cards, { y: 25, opacity: 0 });
+          gsap.to(cards, {
+            y: 0,
+            opacity: 1,
+            duration: 0.55,
+            stagger: 0.1,
+            ease: 'power2.out',
+            scrollTrigger: {
+              trigger: grid,
+              start: 'top 85%',
+              toggleActions: 'play none none none',
+            },
+          });
+        }
+      });
     }, contentRef);
 
     return () => ctx.revert();
   }, [reducedMotion, selectedBranch]);
 
   return (
-    <div className="relative bg-paper text-ink selection:bg-skynest-accent selection:text-white font-jakarta">
+    <div className="relative bg-[#F8FAFC] text-slate-900 selection:bg-slate-900 selection:text-white font-jakarta min-h-screen">
       {/* ── Fixed Navigation Bar ── */}
       <RatesNav />
 
@@ -709,36 +833,41 @@ export default function RatesPage() {
       {/* ── 2. MYSTIC CLOUD TRANSITION ── */}
       <RatesCloudTransition />
 
-      {/* ── 3. MAIN RATES & MEAL PLANS CONTENT ── */}
+      {/* ── 3. MAIN RATES & MEAL PLANS CONTENT (Admin Dashboard Clean Palette) ── */}
       <div
         id="rates-content"
         ref={contentRef}
-        className="relative z-20 bg-paper min-h-screen pt-4 sm:pt-8 pb-32"
+        className="relative z-20 bg-[#F8FAFC] min-h-screen pt-4 sm:pt-8 pb-24"
       >
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 space-y-20">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 space-y-16">
 
-          {/* Section Introduction */}
-          <div className="text-center space-y-3 pt-6" data-reveal>
-            <MountainGlyph className="w-6 h-auto text-skynest-accent mx-auto" />
-            <span className="font-jakarta text-[11px] font-semibold tracking-[0.2em] text-ink/50 uppercase block">
-              Transparent Sanctuary Tariffs
-            </span>
-            <h1 className="font-cinzel text-3xl sm:text-4xl lg:text-5xl font-bold tracking-[0.06em] text-ink uppercase">
-              Sanctuary Rooms &amp; Nightly Rates
-            </h1>
-            <p className="font-jakarta text-xs sm:text-sm text-ink/70 max-w-2xl mx-auto leading-relaxed">
-              Every room and suite at Sky Nest is sculpted around uncompromised spaciousness, bespoke personalized service, and architectural stillness across our three island destinations.
-            </p>
+          {/* Section 01 Header — Arising Scrolling Text */}
+          <div className="text-center space-y-3 pt-6" data-arise-section>
+            <MountainGlyph className="w-6 h-auto text-slate-400 mx-auto" />
+            <div className="overflow-hidden block py-0.5">
+              <span className="arise-line block font-jakarta text-[11px] font-semibold tracking-[0.2em] text-slate-500 uppercase will-change-transform">
+                01 &mdash; Sanctuary Accommodations
+              </span>
+            </div>
+            <div className="overflow-hidden block py-0.5">
+              <h1 className="arise-line block font-cinzel text-3xl sm:text-4xl lg:text-5xl font-bold tracking-[0.05em] text-slate-900 uppercase will-change-transform">
+                Sanctuary Rooms &amp; Nightly Tariffs
+              </h1>
+            </div>
+            <div className="overflow-hidden block py-0.5">
+              <p className="arise-line block font-jakarta text-xs sm:text-sm text-slate-600 max-w-2xl mx-auto leading-relaxed will-change-transform">
+                Every room and suite at Sky Nest is sculpted around uncompromised stillness, handcrafted teak architecture, and unhurried hospitality across our three island destinations.
+              </p>
+            </div>
           </div>
 
-          {/* ── Control Bar: Property Filter + Currency Toggle ── */}
+          {/* ── Control Bar: Property Filter + Currency Toggle (Admin Style) ── */}
           <div
-            className="flex flex-col sm:flex-row items-center justify-between gap-4 p-4 bg-white border border-skynest-hairline shadow-sm"
-            data-reveal
+            className="flex flex-col sm:flex-row items-center justify-between gap-4 p-4 bg-white border border-slate-200/90 shadow-sm"
           >
             {/* Property Filter */}
             <div className="flex flex-wrap items-center gap-1.5 w-full sm:w-auto">
-              <span className="text-[11px] font-semibold uppercase tracking-wider text-ink/50 mr-2">
+              <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-500 mr-2">
                 Property:
               </span>
               {[
@@ -751,10 +880,10 @@ export default function RatesPage() {
                   key={prop.id}
                   type="button"
                   onClick={() => setSelectedBranch(prop.id)}
-                  className={`px-3 py-1.5 text-xs font-jakarta transition-colors border ${
+                  className={`px-3.5 py-1.5 text-xs font-jakarta tracking-wide uppercase transition-all ${
                     selectedBranch === prop.id
-                      ? 'bg-ink text-white border-ink font-semibold'
-                      : 'bg-white text-ink/70 border-skynest-hairline hover:border-ink'
+                      ? 'bg-ink text-white font-semibold shadow-sm'
+                      : 'bg-white text-slate-600 border border-slate-200 hover:text-slate-900 hover:border-slate-300'
                   }`}
                 >
                   {prop.label}
@@ -763,16 +892,16 @@ export default function RatesPage() {
             </div>
 
             {/* Currency Toggle */}
-            <div className="flex items-center gap-2 self-end sm:self-auto">
-              <span className="text-[11px] font-semibold uppercase tracking-wider text-ink/50">
+            <div className="flex items-center gap-1.5 self-end sm:self-auto">
+              <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-500 mr-1">
                 Currency:
               </span>
-              <div className="flex border border-skynest-hairline bg-stone-100 p-0.5">
+              <div className="inline-flex border border-slate-200 bg-white p-0.5 shadow-sm">
                 <button
                   type="button"
                   onClick={() => setCurrency('USD')}
-                  className={`px-3 py-1 text-xs font-semibold transition-colors ${
-                    currency === 'USD' ? 'bg-white text-ink shadow-sm' : 'text-ink/60 hover:text-ink'
+                  className={`px-2.5 py-1 text-xs font-jakarta font-semibold uppercase transition-all ${
+                    currency === 'USD' ? 'bg-ink text-white' : 'text-slate-600 hover:text-slate-900'
                   }`}
                 >
                   USD ($)
@@ -780,214 +909,160 @@ export default function RatesPage() {
                 <button
                   type="button"
                   onClick={() => setCurrency('LKR')}
-                  className={`px-3 py-1 text-xs font-semibold transition-colors ${
-                    currency === 'LKR' ? 'bg-white text-ink shadow-sm' : 'text-ink/60 hover:text-ink'
+                  className={`px-2.5 py-1 text-xs font-jakarta font-semibold uppercase transition-all ${
+                    currency === 'LKR' ? 'bg-ink text-white' : 'text-slate-600 hover:text-slate-900'
                   }`}
                 >
-                  LKR (Rs)
+                  LKR (Rs.)
                 </button>
               </div>
             </div>
           </div>
 
-          {/* ── 01 · Hotel Rooms Grid ── */}
-          <div className="space-y-6">
-            <div className="flex items-center justify-between border-b border-skynest-hairline pb-3" data-reveal>
-              <div>
-                <span className="font-jakarta text-[11px] font-bold tracking-[0.2em] uppercase text-skynest-accent">
-                  01 &mdash; Accommodations
-                </span>
-                <h2 className="font-cinzel text-2xl font-bold text-ink uppercase">Room &amp; Suite Collections</h2>
-              </div>
-              <span className="text-xs text-ink/50 font-jakarta">Nightly Base Rates</span>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-              {filteredRooms.map((room) => (
-                <div
-                  key={room.id}
-                  data-reveal
-                  className="group bg-white border border-skynest-hairline overflow-hidden flex flex-col justify-between shadow-sm hover:shadow-md transition-shadow"
-                >
-                  {/* Image with Tag */}
-                  <div className="relative h-64 overflow-hidden">
+          {/* ── 01 · Hotel Rooms Grid (Clean Admin Cards) ── */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8" data-cards-grid>
+            {filteredRooms.map((room) => (
+              <div
+                key={room.id}
+                className="arise-card bg-white border border-slate-200/90 flex flex-col justify-between hover:border-slate-400 transition-all shadow-sm group"
+              >
+                <div>
+                  {/* Room Image */}
+                  <div className="relative overflow-hidden aspect-[16/10] bg-slate-100">
                     <img
                       src={room.image}
                       alt={room.name}
                       className="w-full h-full object-cover transition-transform duration-700 ease-out group-hover:scale-105"
                     />
-                    <div className="absolute inset-0 bg-gradient-to-t from-ink/90 via-ink/20 to-transparent" />
-                    <div className="absolute top-4 left-4 right-4 flex items-center justify-between">
-                      <span className="px-3 py-1 bg-ink/75 backdrop-blur-md text-white font-jakarta text-[10px] uppercase tracking-widest font-semibold border border-white/15">
-                        {room.properties.join(' · ')}
-                      </span>
-                      <span className="px-2.5 py-1 bg-skynest-accent text-white font-cinzel text-xs font-bold tracking-wider">
-                        {formatPrice(room.usdRate)} / NIGHT
-                      </span>
-                    </div>
-
-                    <div className="absolute bottom-4 left-4 right-4">
-                      <h3 className="font-cinzel text-2xl font-bold text-white tracking-wide">{room.name}</h3>
-                      <p className="font-jakarta text-xs text-white/80 line-clamp-1 mt-0.5">{room.tagline}</p>
+                    <div className="absolute top-3 right-3 bg-ink/90 text-white text-[11px] font-jakarta font-semibold uppercase px-2.5 py-1 tracking-wider backdrop-blur-sm">
+                      {room.properties.join(' &bull; ')}
                     </div>
                   </div>
 
-                  {/* Specs & Highlights */}
-                  <div className="p-6 space-y-6 flex-1 flex flex-col justify-between">
-                    {/* Dimension / Capacity badges */}
-                    <div className="grid grid-cols-3 gap-2 py-3 border-y border-skynest-hairline text-center text-xs font-jakarta">
+                  {/* Room Details */}
+                  <div className="p-6 space-y-4">
+                    <div className="flex items-start justify-between gap-4 border-b border-slate-200/80 pb-4">
                       <div>
-                        <div className="text-ink/40 text-[10px] uppercase tracking-wider flex items-center justify-center gap-1">
-                          <Users className="w-3 h-3" /> Guests
-                        </div>
-                        <div className="font-semibold text-ink mt-0.5">Up to {room.capacity}</div>
+                        <h3 className="font-cinzel text-xl sm:text-2xl font-bold text-slate-900">{room.name}</h3>
+                        <p className="font-jakarta text-xs text-slate-500 mt-1 italic">{room.tagline}</p>
                       </div>
-                      <div className="border-x border-skynest-hairline">
-                        <div className="text-ink/40 text-[10px] uppercase tracking-wider flex items-center justify-center gap-1">
-                          <Maximize2 className="w-3 h-3" /> Area
+                      <div className="text-right flex-shrink-0">
+                        <div className="font-cinzel text-2xl sm:text-3xl font-bold text-ink">
+                          {formatPrice(room.usdRate)}
                         </div>
-                        <div className="font-semibold text-ink mt-0.5">{room.sizeM2} m² / {room.sizeSqFt} ft²</div>
-                      </div>
-                      <div>
-                        <div className="text-ink/40 text-[10px] uppercase tracking-wider flex items-center justify-center gap-1">
-                          <BedDouble className="w-3 h-3" /> Bed
+                        <div className="text-[10px] uppercase font-jakarta text-slate-500 tracking-wider mt-0.5">
+                          Per Night &bull; Net Base
                         </div>
-                        <div className="font-semibold text-ink mt-0.5">King / Twin</div>
                       </div>
                     </div>
 
-                    {/* Feature list */}
-                    <div className="space-y-2">
-                      <span className="text-[10px] uppercase font-bold tracking-wider text-ink/50 block">
-                        Signature Sanctuary Amenities:
+                    {/* Capacity & Specs */}
+                    <div className="flex items-center gap-6 text-xs text-slate-600 font-jakarta">
+                      <span className="flex items-center gap-1.5">
+                        <Users className="w-3.5 h-3.5 text-slate-500" />
+                        Up to {room.capacity} Guests
                       </span>
-                      <ul className="space-y-1.5 text-xs text-ink/75">
-                        {room.highlights.map((feat, i) => (
+                      <span className="flex items-center gap-1.5">
+                        <Maximize2 className="w-3.5 h-3.5 text-slate-500" />
+                        {room.sizeM2} m&sup2; ({room.sizeSqFt} sq ft)
+                      </span>
+                      <span className="flex items-center gap-1.5">
+                        <BedDouble className="w-3.5 h-3.5 text-slate-500" />
+                        King Haven
+                      </span>
+                    </div>
+
+                    {/* Highlights */}
+                    <div className="space-y-2 pt-2">
+                      <span className="text-[10px] uppercase font-bold tracking-wider text-slate-500 block">
+                        Sanctuary Inclusions:
+                      </span>
+                      <ul className="space-y-1.5 text-xs text-slate-700 font-jakarta">
+                        {room.highlights.map((h, i) => (
                           <li key={i} className="flex items-start gap-2">
-                            <Check className="w-3.5 h-3.5 text-skynest-accent shrink-0 mt-0.5" />
-                            <span>{feat}</span>
+                            <Check className="w-3.5 h-3.5 text-slate-700 flex-shrink-0 mt-0.5" />
+                            <span>{h}</span>
                           </li>
                         ))}
                       </ul>
                     </div>
-
-                    {/* Book Button */}
-                    <div className="pt-4 border-t border-skynest-hairline flex items-center justify-between">
-                      <div>
-                        <div className="text-[10px] font-jakarta uppercase tracking-wider text-ink/40">From</div>
-                        <div className="font-cinzel text-xl font-bold text-ink">
-                          {formatPrice(room.usdRate)}{' '}
-                          <span className="text-xs font-sans font-normal text-ink/50">/ night</span>
-                        </div>
-                      </div>
-
-                      <Link
-                        href={`/book`}
-                        className="inline-flex items-center gap-2 px-5 py-2.5 bg-ink hover:bg-skynest-accent text-white font-jakarta text-xs font-semibold uppercase tracking-[0.15em] transition-colors"
-                      >
-                        <span>Reserve Suite</span>
-                        <ArrowRight className="w-3.5 h-3.5" />
-                      </Link>
-                    </div>
                   </div>
                 </div>
-              ))}
-            </div>
+
+                {/* Card Action */}
+                <div className="p-6 pt-0 border-t border-slate-200/80 mt-4 flex items-center justify-between gap-4">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedRoomId(room.id);
+                      const el = document.getElementById('estimator-section');
+                      el?.scrollIntoView({ behavior: 'smooth' });
+                    }}
+                    className={`w-full py-2.5 text-xs font-jakarta font-semibold uppercase tracking-wider border transition-all ${
+                      selectedRoomId === room.id
+                        ? 'bg-ink text-white border-ink shadow-sm'
+                        : 'bg-white text-slate-700 border-slate-200 hover:border-slate-800 hover:text-slate-900'
+                    }`}
+                  >
+                    {selectedRoomId === room.id ? 'Selected in Estimator' : 'Configure in Estimator'}
+                  </button>
+                </div>
+              </div>
+            ))}
           </div>
 
-          {/* ── 02 · Ceylonese Gastronomy & Meal Plans ── */}
-          <div className="space-y-10 pt-8" data-reveal>
-            <div className="flex items-center justify-between border-b border-skynest-hairline pb-3">
-              <div>
-                <span className="font-jakarta text-[11px] font-bold tracking-[0.2em] uppercase text-skynest-accent">
+          {/* ── 02 · Wide Panoramic Gastronomy Banner (Mirrors Landing Page) ── */}
+          <GastronomyBannerSection reducedMotion={reducedMotion} />
+
+          {/* ── 02 · Ceylonese Gastronomy & Meal Plans Content ── */}
+          <div className="space-y-10 pt-4">
+            {/* Arising Meal Plans Header */}
+            <div className="space-y-3" data-arise-section>
+              <div className="overflow-hidden block py-0.5">
+                <span className="arise-line block font-jakarta text-[11px] font-bold tracking-[0.2em] uppercase text-slate-500 will-change-transform">
                   02 &mdash; Epicurean Journeys
                 </span>
-                <h2 className="font-cinzel text-2xl font-bold text-ink uppercase">Ceylonese Gastronomy &amp; Meal Plans</h2>
               </div>
-              <span className="text-xs text-ink/50 font-jakarta">Culinary Tiers</span>
-            </div>
-
-            {/* Editorial Showcase with PR #84 Gastronomy Photo */}
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center bg-white border border-skynest-hairline p-6 lg:p-8 shadow-sm">
-              <div className="lg:col-span-5 relative overflow-hidden aspect-[4/3] sm:aspect-[16/10] lg:aspect-[4/3] shadow-md group">
-                <img
-                  src="/pillar_gastronomy.jpg"
-                  alt="Refined candlelit open-air dining with Ceylon silver teapot and infused tropical spice cuisine"
-                  className="w-full h-full object-cover transition-transform duration-700 ease-out group-hover:scale-105"
-                />
-                <div
-                  className="absolute inset-0"
-                  style={{
-                    background:
-                      'linear-gradient(to top, rgba(11,37,64,0.85) 0%, rgba(11,37,64,0.2) 60%, transparent 100%)',
-                  }}
-                />
-                <div className="absolute bottom-4 left-4 right-4 text-white">
-                  <span className="text-[10px] font-jakarta tracking-[0.2em] uppercase text-amber-300 font-semibold block">
-                    Living Heritage &bull; Ceylonese Flavours
-                  </span>
-                  <div className="font-cinzel text-lg font-bold">The Art of Island Tablecraft</div>
-                </div>
+              <div className="overflow-hidden block py-0.5">
+                <h2 className="arise-line block font-cinzel text-3xl sm:text-4xl font-bold text-slate-900 uppercase will-change-transform">
+                  Curated Ceylonese Meal Plans
+                </h2>
               </div>
-
-              <div className="lg:col-span-7 space-y-4">
-                <span className="font-cinzel text-sm italic text-skynest-accent block">
-                  &ldquo;Ancient spice routes distilled into modern culinary poetry.&rdquo;
-                </span>
-                <h3 className="font-cinzel text-2xl font-bold text-ink">
-                  A Dining Experience Rooted in Island Abundance
-                </h3>
-                <p className="font-jakarta text-xs sm:text-sm text-ink/75 leading-relaxed">
-                  Every Sky Nest sanctuary celebrates Sri Lanka&apos;s rich agricultural tapestry. From coastal cinnamon-infused lagoon prawns to highland silver-tip tea tastings and fragrant coconut sambols prepared before you, our meal tiers are designed to seamlessly weave gourmet excellence into your itinerary.
+              <div className="overflow-hidden block py-0.5">
+                <p className="arise-line block font-jakarta text-xs sm:text-sm text-slate-600 max-w-2xl leading-relaxed will-change-transform">
+                  Select your daily culinary rhythm. From complete dining freedom to an all-inclusive 4-course degustation celebrating Ceylon single-estate teas, day-boat seafood, and organic highland harvests.
                 </p>
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 pt-2 text-xs font-jakarta">
-                  <div className="border border-skynest-hairline p-2.5 bg-paper">
-                    <Coffee className="w-4 h-4 text-skynest-accent mb-1" />
-                    <div className="font-semibold text-ink">Single-Estate Teas</div>
-                    <div className="text-[11px] text-ink/50">Hand-plucked Ceylon</div>
-                  </div>
-                  <div className="border border-skynest-hairline p-2.5 bg-paper">
-                    <Wine className="w-4 h-4 text-skynest-accent mb-1" />
-                    <div className="font-semibold text-ink">Curated Cellar</div>
-                    <div className="text-[11px] text-ink/50">Global pairings</div>
-                  </div>
-                  <div className="border border-skynest-hairline p-2.5 bg-paper col-span-2 sm:col-span-1">
-                    <Utensils className="w-4 h-4 text-skynest-accent mb-1" />
-                    <div className="font-semibold text-ink">Farm &amp; Ocean-to-Table</div>
-                    <div className="text-[11px] text-ink/50">Day-boat catches</div>
-                  </div>
-                </div>
               </div>
             </div>
 
-            {/* Meal Plan Tiers Grid */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+            {/* Meal Plan Tiers Grid (Admin Clean Cards) */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6" data-cards-grid>
               {MEAL_PLANS.map((plan) => (
                 <div
                   key={plan.id}
-                  className="bg-white border border-skynest-hairline p-6 flex flex-col justify-between hover:border-ink/50 transition-colors shadow-sm"
+                  className="arise-card bg-white border border-slate-200/90 p-6 flex flex-col justify-between hover:border-slate-400 transition-all shadow-sm"
                 >
                   <div className="space-y-4">
                     <div>
-                      <span className="text-[10px] font-mono uppercase tracking-wider text-skynest-accent font-semibold block">
+                      <span className="text-[10px] font-mono uppercase tracking-wider text-slate-500 font-semibold block">
                         {plan.code}
                       </span>
-                      <h4 className="font-cinzel text-xl font-bold text-ink mt-1">{plan.name}</h4>
-                      <p className="font-jakarta text-xs text-ink/65 mt-1 leading-relaxed">{plan.tagline}</p>
+                      <h4 className="font-cinzel text-xl font-bold text-slate-900 mt-1">{plan.name}</h4>
+                      <p className="font-jakarta text-xs text-slate-500 mt-1 leading-relaxed">{plan.tagline}</p>
                     </div>
 
-                    <div className="py-3 border-y border-skynest-hairline">
+                    <div className="py-3 border-y border-slate-200/80">
                       <div className="font-cinzel text-2xl font-bold text-ink">
                         {plan.usdRate === 0 ? 'Included' : `+${formatPrice(plan.usdRate)}`}
                       </div>
-                      <div className="text-[10px] font-jakarta text-ink/50 uppercase tracking-wider mt-0.5">
+                      <div className="text-[10px] font-jakarta text-slate-500 uppercase tracking-wider mt-0.5">
                         {plan.usdRate === 0 ? 'Base stay inclusion' : 'Per guest / night'}
                       </div>
                     </div>
 
                     {/* Meal Inclusions */}
                     <div className="space-y-2">
-                      <span className="text-[10px] uppercase font-bold tracking-wider text-ink/50 block">
+                      <span className="text-[10px] uppercase font-bold tracking-wider text-slate-500 block">
                         Included Courses:
                       </span>
                       <ul className="space-y-1.5 text-xs font-jakarta">
@@ -995,10 +1070,10 @@ export default function RatesPage() {
                           <li
                             key={i}
                             className={`flex items-center gap-2 ${
-                              inc.active ? 'text-ink font-medium' : 'text-ink/35 line-through'
+                              inc.active ? 'text-slate-800 font-medium' : 'text-slate-300 line-through'
                             }`}
                           >
-                            <span className={`w-1.5 h-1.5 rounded-full ${inc.active ? 'bg-skynest-accent' : 'bg-stone-300'}`} />
+                            <span className={`w-1.5 h-1.5 rounded-full ${inc.active ? 'bg-ink' : 'bg-slate-200'}`} />
                             <span>{inc.label}</span>
                           </li>
                         ))}
@@ -1006,17 +1081,21 @@ export default function RatesPage() {
                     </div>
                   </div>
 
-                  <div className="mt-6 pt-4 border-t border-skynest-hairline">
-                    <span className="text-[10px] text-skynest-accent font-semibold tracking-wider uppercase block mb-3">
+                  <div className="mt-6 pt-4 border-t border-slate-200/80">
+                    <div className="bg-slate-100 text-slate-700 text-[10px] font-semibold tracking-wider uppercase px-2.5 py-1.5 mb-3 border border-slate-200/60">
                       &bull; {plan.highlight}
-                    </span>
+                    </div>
                     <button
                       type="button"
-                      onClick={() => setSelectedPlanId(plan.id)}
-                      className={`w-full py-2 text-xs font-jakarta font-semibold uppercase tracking-wider border transition-colors ${
+                      onClick={() => {
+                        setSelectedPlanId(plan.id);
+                        const el = document.getElementById('estimator-section');
+                        el?.scrollIntoView({ behavior: 'smooth' });
+                      }}
+                      className={`w-full py-2 text-xs font-jakarta font-semibold uppercase tracking-wider border transition-all ${
                         selectedPlanId === plan.id
-                          ? 'bg-ink text-white border-ink'
-                          : 'bg-white text-ink/80 border-skynest-hairline hover:border-ink'
+                          ? 'bg-ink text-white border-ink shadow-sm'
+                          : 'bg-white text-slate-700 border-slate-200 hover:border-slate-800 hover:text-slate-900'
                       }`}
                     >
                       {selectedPlanId === plan.id ? 'Selected in Estimator' : 'Select Plan'}
@@ -1027,18 +1106,26 @@ export default function RatesPage() {
             </div>
           </div>
 
-          {/* ── 03 · Interactive Nightly Rate Estimator ── */}
-          <div className="bg-white border border-skynest-hairline p-6 lg:p-8 space-y-6 shadow-sm" data-reveal>
-            <div className="border-b border-skynest-hairline pb-4 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+          {/* ── 03 · Interactive Nightly Rate Estimator (Clean Admin Dashboard Look) ── */}
+          <div
+            id="estimator-section"
+            className="bg-white border border-slate-200/90 p-6 lg:p-8 space-y-6 shadow-sm"
+          >
+            {/* Estimator Header with Arising Text */}
+            <div className="border-b border-slate-200/80 pb-4 flex flex-col sm:flex-row sm:items-center justify-between gap-2" data-arise-section>
               <div>
-                <span className="font-jakarta text-[11px] font-bold tracking-[0.2em] uppercase text-skynest-accent">
-                  Interactive Tariff Calculator
-                </span>
-                <h3 className="font-cinzel text-xl font-bold text-ink uppercase">
-                  Nightly Sanctuary Tariff Breakdown
-                </h3>
+                <div className="overflow-hidden block py-0.5">
+                  <span className="arise-line block font-jakarta text-[11px] font-bold tracking-[0.2em] uppercase text-slate-500 will-change-transform">
+                    03 &mdash; Interactive Tariff Calculator
+                  </span>
+                </div>
+                <div className="overflow-hidden block py-0.5">
+                  <h3 className="arise-line block font-cinzel text-xl sm:text-2xl font-bold text-slate-900 uppercase will-change-transform">
+                    Nightly Sanctuary Tariff Breakdown
+                  </h3>
+                </div>
               </div>
-              <span className="text-xs font-jakarta text-ink/60">
+              <span className="text-xs font-jakarta text-slate-500">
                 Rule B13 &bull; Versioned Statutory Sri Lankan Taxes
               </span>
             </div>
@@ -1047,7 +1134,7 @@ export default function RatesPage() {
               {/* Selectors Column */}
               <div className="lg:col-span-7 space-y-5">
                 <div>
-                  <label className="text-xs font-jakarta font-semibold uppercase tracking-wider text-ink/60 block mb-2">
+                  <label className="text-xs font-jakarta font-semibold uppercase tracking-wider text-slate-600 block mb-2">
                     1. Select Sanctuary Room Category
                   </label>
                   <div className="grid grid-cols-2 gap-2">
@@ -1058,12 +1145,12 @@ export default function RatesPage() {
                         onClick={() => setSelectedRoomId(r.id)}
                         className={`p-3 text-left border transition-all ${
                           selectedRoomId === r.id
-                            ? 'border-skynest-accent bg-amber-50/40 shadow-sm ring-1 ring-skynest-accent'
-                            : 'border-skynest-hairline bg-white hover:border-ink/40'
+                            ? 'border-ink bg-slate-100 shadow-sm ring-1 ring-ink text-ink'
+                            : 'border-slate-200 bg-white hover:border-slate-400 text-slate-700'
                         }`}
                       >
-                        <div className="font-cinzel text-sm font-bold text-ink">{r.name}</div>
-                        <div className="text-xs font-jakarta text-skynest-accent font-semibold mt-0.5">
+                        <div className="font-cinzel text-sm font-bold text-slate-900">{r.name}</div>
+                        <div className="text-xs font-jakarta text-slate-600 font-semibold mt-0.5">
                           {formatPrice(r.usdRate)} / night
                         </div>
                       </button>
@@ -1072,7 +1159,7 @@ export default function RatesPage() {
                 </div>
 
                 <div>
-                  <label className="text-xs font-jakarta font-semibold uppercase tracking-wider text-ink/60 block mb-2">
+                  <label className="text-xs font-jakarta font-semibold uppercase tracking-wider text-slate-600 block mb-2">
                     2. Select Ceylonese Gastronomy Plan
                   </label>
                   <div className="grid grid-cols-2 gap-2">
@@ -1083,12 +1170,12 @@ export default function RatesPage() {
                         onClick={() => setSelectedPlanId(p.id)}
                         className={`p-3 text-left border transition-all ${
                           selectedPlanId === p.id
-                            ? 'border-skynest-accent bg-amber-50/40 shadow-sm ring-1 ring-skynest-accent'
-                            : 'border-skynest-hairline bg-white hover:border-ink/40'
+                            ? 'border-ink bg-slate-100 shadow-sm ring-1 ring-ink text-ink'
+                            : 'border-slate-200 bg-white hover:border-slate-400 text-slate-700'
                         }`}
                       >
-                        <div className="font-cinzel text-sm font-bold text-ink">{p.name}</div>
-                        <div className="text-xs font-jakarta text-skynest-accent font-semibold mt-0.5">
+                        <div className="font-cinzel text-sm font-bold text-slate-900">{p.name}</div>
+                        <div className="text-xs font-jakarta text-slate-600 font-semibold mt-0.5">
                           {p.usdRate === 0 ? 'Included' : `+${formatPrice(p.usdRate)}`}
                         </div>
                       </button>
@@ -1097,30 +1184,30 @@ export default function RatesPage() {
                 </div>
               </div>
 
-              {/* Estimate Breakdown Column */}
-              <div className="lg:col-span-5 bg-paper/80 border border-skynest-hairline p-6 space-y-4">
-                <div className="text-xs font-jakarta font-semibold uppercase tracking-wider text-ink/60 pb-2 border-b border-skynest-hairline">
+              {/* Estimate Breakdown Column (Admin Slate Styling) */}
+              <div className="lg:col-span-5 bg-slate-50 border border-slate-200 p-6 space-y-4">
+                <div className="text-xs font-jakarta font-semibold uppercase tracking-wider text-slate-700 pb-2 border-b border-slate-200">
                   Tariff Summary &bull; Per Night
                 </div>
 
                 <div className="space-y-2 text-xs font-jakarta">
-                  <div className="flex items-center justify-between text-ink/80">
+                  <div className="flex items-center justify-between text-slate-700">
                     <span>{currentRoom.name} Base Rate</span>
-                    <span className="font-semibold text-ink">{formatPrice(currentRoom.usdRate)}</span>
+                    <span className="font-semibold text-slate-900">{formatPrice(currentRoom.usdRate)}</span>
                   </div>
-                  <div className="flex items-center justify-between text-ink/80">
+                  <div className="flex items-center justify-between text-slate-700">
                     <span>{currentPlan.name} ({currentPlan.code})</span>
-                    <span className="font-semibold text-ink">
+                    <span className="font-semibold text-slate-900">
                       {currentPlan.usdRate === 0 ? 'Included' : `+${formatPrice(currentPlan.usdRate)}`}
                     </span>
                   </div>
-                  <div className="flex items-center justify-between text-ink/60 pt-2 border-t border-skynest-hairline">
+                  <div className="flex items-center justify-between text-slate-700 pt-2 border-t border-slate-200">
                     <span>Subtotal Before Taxes</span>
-                    <span className="font-semibold text-ink">{formatPrice(subtotalUsd)}</span>
+                    <span className="font-semibold text-slate-900">{formatPrice(subtotalUsd)}</span>
                   </div>
 
                   {/* Statutory Taxes */}
-                  <div className="pt-2 border-t border-skynest-hairline/80 space-y-1 text-[11px] text-ink/60">
+                  <div className="pt-2 border-t border-slate-200/80 space-y-1 text-[11px] text-slate-500">
                     <div className="flex items-center justify-between">
                       <span>Service Charge (10.0%)</span>
                       <span>{formatPrice(Math.round(serviceChargeUsd))}</span>
@@ -1141,41 +1228,28 @@ export default function RatesPage() {
                 </div>
 
                 {/* Final Net Quote */}
-                <div className="pt-3 border-t border-skynest-hairline flex items-center justify-between">
+                <div className="pt-3 border-t border-slate-200 flex items-center justify-between">
                   <div>
-                    <div className="text-[10px] uppercase font-bold tracking-wider text-ink/50">Total Quoted Rate</div>
-                    <div className="text-[10px] text-emerald-700">Taxes &amp; Service Included</div>
+                    <div className="text-[10px] uppercase font-bold tracking-wider text-slate-500">Total Quoted Rate</div>
+                    <div className="text-[10px] text-emerald-700 font-medium">Taxes &amp; Service Included</div>
                   </div>
                   <div className="text-right">
-                    <div className="font-cinzel text-2xl font-bold text-skynest-accent">
+                    <div className="font-cinzel text-3xl font-bold text-ink">
                       {formatPrice(Math.round(totalWithTaxesUsd))}
                     </div>
-                    <div className="text-[10px] text-ink/50">Per Night &bull; Standard Occupancy</div>
+                    <div className="text-[10px] text-slate-500">Per Night &bull; Standard Occupancy</div>
                   </div>
                 </div>
 
                 <Link
                   href="/book"
-                  className="w-full mt-2 py-3 bg-ink hover:bg-skynest-accent text-white font-jakarta text-xs font-semibold uppercase tracking-[0.16em] transition-colors flex items-center justify-center gap-2"
+                  className="w-full mt-2 py-3 bg-ink hover:bg-slate-800 text-white font-jakarta text-xs font-semibold uppercase tracking-[0.16em] transition-colors flex items-center justify-center gap-2 shadow-sm"
                 >
                   <span>Book This Experience</span>
                   <ArrowRight className="w-3.5 h-3.5" />
                 </Link>
               </div>
             </div>
-          </div>
-
-          {/* ── 04 · Transparent Sri Lankan Tax Cascade Editorial ── */}
-          <div className="border border-skynest-hairline bg-white p-6 sm:p-8 space-y-4" data-reveal>
-            <div className="flex items-center gap-3">
-              <ShieldCheck className="w-5 h-5 text-skynest-accent" />
-              <h4 className="font-cinzel text-lg font-bold text-ink">
-                Our Guarantee of Transparent Hospitality
-              </h4>
-            </div>
-            <p className="font-jakarta text-xs sm:text-sm text-ink/75 leading-relaxed">
-              At Sky Nest, we operate strictly in compliance with Inland Revenue Department regulations of Sri Lanka. All room folios and invoices clearly separate statutory obligations ($SC ightarrow TDL ightarrow SSCL ightarrow VAT$). Guests never encounter surprise fees upon checkout.
-            </p>
           </div>
 
         </div>
