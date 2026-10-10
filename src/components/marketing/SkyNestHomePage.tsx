@@ -1588,7 +1588,7 @@ function AboutSection({ reducedMotion }: { reducedMotion: boolean }) {
         style={{ opacity: reducedMotion ? 1 : 0 }}
       >
         <img
-          src="/about_aerial.jpg"
+          src="/about_aerial.jpg?v=3"
           alt="Sky Nest — aerial view of Sri Lankan hill country sanctuary with tea plantations"
           className="w-full h-full object-cover object-center"
         />
