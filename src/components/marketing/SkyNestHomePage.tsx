@@ -1471,15 +1471,7 @@ function ColomboBranchSection({ reducedMotion }: { reducedMotion: boolean }) {
             }}
           />
 
-          {/* Feathered bottom gradient to softly dissolve into paper canvas */}
-          <div
-            aria-hidden="true"
-            className="absolute inset-x-0 bottom-0 h-32 md:h-48 pointer-events-none z-[2]"
-            style={{
-              background:
-                "linear-gradient(to top, #FDFCFA 0%, rgba(253,252,250,0.92) 30%, rgba(253,252,250,0.45) 65%, rgba(253,252,250,0.08) 88%, transparent 100%)",
-            }}
-          />
+
         </div>
 
 
@@ -1593,7 +1585,7 @@ function AboutInterludeSection({ reducedMotion }: { reducedMotion: boolean }) {
       ref={sectionRef}
       id="about"
       aria-label="SkyNest living heritage and philosophy"
-      className="relative bg-paper overflow-hidden py-16 md:py-24"
+      className="relative bg-paper overflow-hidden pt-16 md:pt-24 pb-8 md:pb-12"
     >
       <div className="relative z-10 w-full max-w-[1440px] mx-auto px-6 sm:px-10 md:px-12">
         <div className="grid grid-cols-1 md:grid-cols-6 items-start">
@@ -1643,6 +1635,7 @@ function AboutInterludeSection({ reducedMotion }: { reducedMotion: boolean }) {
 // ---------------------------------------------------------------------------
 function AboutSection({ reducedMotion }: { reducedMotion: boolean }) {
   const sectionRef = useRef<HTMLElement>(null);
+  const headerRef = useRef<HTMLDivElement>(null);
   const aerialRef = useRef<HTMLDivElement>(null);
   const quoteRef = useRef<HTMLDivElement>(null);
   const leftColRef = useRef<HTMLDivElement>(null);
@@ -1658,6 +1651,13 @@ function AboutSection({ reducedMotion }: { reducedMotion: boolean }) {
     if (!section) return;
 
     const ctx = gsap.context(() => {
+      // Header entrance in white space
+      if (headerRef.current) {
+        gsap.fromTo(headerRef.current, { opacity: 0, y: 30 }, {
+          opacity: 1, y: 0, duration: 0.9, ease: "power3.out",
+          scrollTrigger: { trigger: headerRef.current, start: "top 88%" },
+        });
+      }
       // Aerial hero fade + scale
       if (aerialRef.current) {
         gsap.fromTo(aerialRef.current, { opacity: 0, scale: 1.04 }, {
@@ -1704,21 +1704,43 @@ function AboutSection({ reducedMotion }: { reducedMotion: boolean }) {
       ref={sectionRef}
       id="about-sanctuary"
       aria-label="About Sky Nest Hotels & Resorts"
-      className="relative bg-paper overflow-hidden"
+      className="relative bg-paper overflow-hidden pt-8 sm:pt-12 md:pt-16"
     >
+      {/* ── WHITE SPACE EDITORIAL HEADER (TOP-RIGHT) ────────────── */}
+      <div
+        ref={headerRef}
+        style={{ opacity: reducedMotion ? 1 : 0 }}
+        className="max-w-[1400px] mx-auto px-6 sm:px-10 md:px-16 -mb-4 sm:-mb-6 md:-mb-8 relative z-20 flex flex-col items-start sm:items-end text-left sm:text-right pointer-events-none"
+      >
+        <div className="max-w-2xl sm:text-right">
+          <span className="font-jakarta text-[11px] md:text-[12px] font-bold tracking-[0.3em] uppercase text-ink/75 block mb-2 sm:mb-3">
+            Sky Nest Hotels & Resorts — Est. Sri Lanka
+          </span>
+          <h2
+            className="font-cinzel text-ink leading-[1.08] uppercase tracking-[0.03em]"
+            style={{ fontSize: "clamp(26px, 3.8vw, 52px)" }}
+          >
+            Three Sanctuaries.{" "}
+            <span className="italic font-normal text-ink/75 block sm:inline">
+              One Island. One Standard.
+            </span>
+          </h2>
+        </div>
+      </div>
+
       {/* ── 1. FULL-BLEED AERIAL HERO ───────────────────────────── */}
       <div
         ref={aerialRef}
         className="relative h-[70vh] sm:h-[80vh] overflow-hidden"
         style={{ opacity: reducedMotion ? 1 : 0 }}
       >
-        {/* Feathered top gradient to blend from paper background */}
+        {/* Feathered top gradient to blend softly from paper background */}
         <div
           aria-hidden="true"
-          className="absolute inset-x-0 top-0 h-32 md:h-48 pointer-events-none z-[3]"
+          className="absolute inset-x-0 top-0 h-28 md:h-44 pointer-events-none z-[3]"
           style={{
             background:
-              "linear-gradient(to bottom, #FDFCFA 0%, rgba(253,252,250,0.85) 30%, rgba(253,252,250,0.3) 65%, transparent 100%)",
+              "linear-gradient(to bottom, #FDFCFA 0%, rgba(253,252,250,0.85) 30%, transparent 100%)",
           }}
         />
 
@@ -1727,30 +1749,6 @@ function AboutSection({ reducedMotion }: { reducedMotion: boolean }) {
           alt="Sky Nest — aerial view of Sri Lankan hill country sanctuary with tea plantations"
           className="w-full h-full object-cover object-center"
         />
-        <div
-          className="absolute inset-0 z-[1]"
-          style={{
-            background:
-              "linear-gradient(to bottom, rgba(11,37,64,0.12) 0%, rgba(11,37,64,0.30) 50%, rgba(11,37,64,0.92) 100%)",
-          }}
-        />
-        {/* Aerial text overlay — regal, well-padded and unhurried */}
-        <div className="absolute inset-0 z-10 flex flex-col justify-end px-6 sm:px-12 md:px-20 pb-12 sm:pb-16 md:pb-20">
-          <div className="max-w-3xl">
-            <span className="font-jakarta text-[10px] sm:text-[11px] font-bold tracking-[0.35em] uppercase text-white/60 block mb-3 drop-shadow-sm">
-              Sky Nest Hotels & Resorts — Est. Sri Lanka
-            </span>
-            <h2
-              className="font-cinzel text-white uppercase leading-[1.12] tracking-[0.04em] drop-shadow-md"
-              style={{ fontSize: "clamp(26px, 4vw, 54px)" }}
-            >
-              Three Sanctuaries.{" "}
-              <span className="italic font-normal text-white/80">
-                One Island. One Standard.
-              </span>
-            </h2>
-          </div>
-        </div>
       </div>
 
       {/* ── 2. FOUNDER'S EDITORIAL QUOTE ────────────────────────── */}
@@ -1909,7 +1907,7 @@ function AboutSection({ reducedMotion }: { reducedMotion: boolean }) {
           ].map((stat, i) => (
             <div key={i} className="stat-item text-center" style={{ opacity: reducedMotion ? 1 : 0 }}>
               <span
-                className={`block font-cinzel font-bold leading-none mb-1 ${stat.accent ? "text-skynest-accent" : "text-ink"}`}
+                className={`block font-jakarta font-extrabold tracking-tight leading-none mb-1 ${stat.accent ? "text-skynest-accent" : "text-ink"}`}
                 style={{ fontSize: "clamp(28px, 4vw, 52px)" }}
               >
                 {stat.value}
