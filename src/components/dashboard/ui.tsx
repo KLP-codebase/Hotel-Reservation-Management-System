@@ -73,7 +73,8 @@ export function fmtMoney(n: number | string | null | undefined, decimals = 0): s
   return `$${Number(n ?? 0).toLocaleString("en-US", { minimumFractionDigits: decimals, maximumFractionDigits: decimals })}`;
 }
 
-export function titleCase(s: string): string {
+export function titleCase(s?: string | null): string {
+  if (!s) return "";
   return s.toLowerCase().replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 }
 

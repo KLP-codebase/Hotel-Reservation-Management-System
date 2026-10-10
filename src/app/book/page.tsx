@@ -6,6 +6,7 @@ import Link from 'next/link';
 import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import { ShaderBackground } from '@/components/ui/adisyon-shader';
+import { useBranches } from '@/hooks/useBranches';
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -33,13 +34,7 @@ interface SearchParams {
   children: string;
 }
 
-// ── Static data (matches Railway DB — branch UUIDs + ENUM room types) ────────
-const BRANCHES = [
-  { id: '953fd827-751c-47eb-a201-e0aac4bc444a', name: 'Sky Nest Colombo' },
-  { id: 'af0167cd-c9eb-4ac5-ba22-cfd65cdc87a5', name: 'Sky Nest Kandy' },
-  { id: '30a7b55d-9440-45c2-a990-08821af210ba', name: 'Sky Nest Galle' },
-];
-
+// ── Static data (ENUM room types; branches are loaded from the API) ─────────
 const ROOM_TYPES = [
   { id: 'ALL',          name: 'All Categories (Mixed Room Selection)' },
   { id: 'STANDARD',     name: 'Standard Room ($120/night)' },
@@ -89,6 +84,7 @@ export default function BookPage() {
   const [rooms, setRooms] = useState<Room[]>([]);
   const [selectedRooms, setSelectedRooms] = useState<Room[]>([]);
   const [activeCategoryFilter, setActiveCategoryFilter] = useState<string>('ALL');
+  const { branches: BRANCHES } = useBranches();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [searched, setSearched] = useState(false);

@@ -1,5 +1,4 @@
 import { DbAdapter } from '../config/db';
-import { inMemoryStore } from '../config/db-fallback';
 
 let lastSyncDate: string | null = null;
 
@@ -98,9 +97,4 @@ export async function syncAliveBookingDates(db: DbAdapter, force = false): Promi
   } catch (err) {
     console.warn('[AliveDates] Database synchronization note:', err);
   }
-
-  // Also keep in-memory fallback aligned
-  try {
-    inMemoryStore.syncAliveDates();
-  } catch {}
 }

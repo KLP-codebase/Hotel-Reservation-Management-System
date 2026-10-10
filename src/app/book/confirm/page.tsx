@@ -5,15 +5,10 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import gsap from 'gsap';
 import { ShaderBackground } from '@/components/ui/adisyon-shader';
+import { useBranches } from '@/hooks/useBranches';
 import { apiFetch, ApiError } from '@/lib/api-client';
 
 // ── Static Reference Data ───────────────────────────────────────────────────
-const BRANCHES = [
-  { id: '953fd827-751c-47eb-a201-e0aac4bc444a', name: 'Sky Nest Colombo' },
-  { id: 'af0167cd-c9eb-4ac5-ba22-cfd65cdc87a5', name: 'Sky Nest Kandy' },
-  { id: '30a7b55d-9440-45c2-a990-08821af210ba', name: 'Sky Nest Galle' },
-];
-
 const ROOM_TYPES = [
   { id: 'STANDARD', name: 'Standard Room', rate: 120, capacity: 2 },
   { id: 'DELUXE', name: 'Deluxe Room', rate: 180, capacity: 3 },
@@ -225,6 +220,7 @@ function BookingConfirmContent() {
   const childAgesParam = searchParams.get('child_ages') ?? '';
 
   // Resolve human-readable details
+  const { branches: BRANCHES } = useBranches();
   const branch = BRANCHES.find(b => b.id === branchIdStr);
   const roomType = ROOM_TYPES.find(r => r.id === roomTypeIdStr);
 
@@ -481,32 +477,18 @@ function BookingConfirmContent() {
     setError(null);
 
     try {
-      // 1. Find or create the guest record
-      type GuestRow = { id?: string; guest_id?: string; email?: string | null };
-      const pickGuestId = (g: GuestRow) => g.id || g.guest_id || '';
-
-      let guestId = '';
-      try {
-        const created = await apiFetch<{ data: GuestRow }>('/api/v1/guests', {
-          method: 'POST',
-          body: JSON.stringify({
-            first_name: firstName.trim(),
-            last_name: lastName.trim(),
-            email: email.trim(),
-            phone: phone.trim() || undefined,
-          }),
-        });
-        guestId = pickGuestId(created.data);
-      } catch (err) {
-        if (!(err instanceof ApiError) || err.status !== 409) throw err;
-        const found = await apiFetch<{ data: GuestRow[] }>(
-          `/api/v1/guests?search=${encodeURIComponent(email.trim())}`,
-        );
-        const match = found.data.find(
-          g => g.email?.toLowerCase() === email.trim().toLowerCase(),
-        );
-        if (match) guestId = pickGuestId(match);
-      }
+      // 1. Find or create the guest record (the API matches returning guests by email)
+      type GuestRow = { id?: string; guest_id?: string };
+      const guest = await apiFetch<{ data: GuestRow }>('/api/v1/guests', {
+        method: 'POST',
+        body: JSON.stringify({
+          first_name: firstName.trim(),
+          last_name: lastName.trim(),
+          email: email.trim(),
+          phone: phone.trim() || undefined,
+        }),
+      });
+      const guestId = guest.data.id || guest.data.guest_id || '';
 
       if (!guestId) {
         throw new Error('We could not save your guest details. Please try again.');

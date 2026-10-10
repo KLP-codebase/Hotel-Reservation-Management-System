@@ -1,11 +1,13 @@
 import { Router, Request, Response } from 'express';
+import { PoolClient } from 'pg';
 import { z } from 'zod';
 import { authenticate } from '../middleware/auth.middleware';
 import { authorize } from '../middleware/rbac.middleware';
-import { inMemoryStore } from '../config/db-fallback';
 import { db } from '../config/db';
 import { syncAliveBookingDates } from '../services/alive-dates.service';
 import { ServiceRepository } from '../repositories/service.repository';
+import { AppError, Errors } from '../lib/errors';
+import { isUuid } from '../lib/uuid';
 
 const router = Router();
 const serviceRepo = new ServiceRepository(db);
@@ -133,14 +135,16 @@ router.delete('/catalogue/:id', authorize('MANAGER', 'ADMINISTRATOR', 'DBA'), as
 });
 
 const AddFolioServiceSchema = z.object({
+  // Room line to charge; defaults to the booking's first room line.
+  booking_room_id:  z.string().uuid().optional(),
   service_name:     z.string().min(1, 'Service name is required'),
   category:         z.string().min(1, 'Category is required'),
-  meal_time:        z.string().optional(),
+  meal_time:        z.string().max(20).optional(),
   quantity:         z.number().int().positive().default(1),
   price_at_usage:   z.number().nonnegative('Price must be non-negative'),
   notes:            z.string().optional(),
-  appointment_time: z.string().optional(),
-  date:             z.string().optional(),
+  appointment_time: z.string().regex(/^\d{2}:\d{2}$/, 'Must be HH:MM').optional(),
+  date:             z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Must be YYYY-MM-DD').optional(),
 });
 
 /**
@@ -259,31 +263,19 @@ router.get('/menus', async (_req: Request, res: Response) => {
  * Returns list of available spa and wellness treatments.
  */
 router.get('/spa-catalogue', async (_req: Request, res: Response) => {
-  try {
-    const spaRes = await db.query(
-      `SELECT service_id, service_name, base_price FROM service_catalogue WHERE category = 'Wellness' AND is_active = true ORDER BY base_price ASC`
-    );
-    if (spaRes.rows.length > 0) {
-      const treatments = spaRes.rows.map((r: any) => ({
-        id:              r.service_id,
-        name:            r.service_name,
-        category:        'Wellness' as const,
-        price:           Number(r.base_price),
-        duration:        '45–75 Minutes',
-        description:     'Authentic Ayurvedic herbal therapy by certified wellness practitioners',
-        collision_aware: true,
-      }));
-      res.json({ success: true, data: treatments });
-      return;
-    }
-  } catch (err) {
-    console.warn('DB spa catalogue fetch failed, using fallback:', err);
-  }
-
-  res.json({
-    success: true,
-    data: inMemoryStore.spaCatalogue,
-  });
+  const spaRes = await db.query(
+    `SELECT service_id, service_name, base_price FROM service_catalogue WHERE category = 'Wellness' AND is_active = true ORDER BY base_price ASC`
+  );
+  const treatments = spaRes.rows.map((r: any) => ({
+    id:              r.service_id,
+    name:            r.service_name,
+    category:        'Wellness' as const,
+    price:           Number(r.base_price),
+    duration:        '45–75 Minutes',
+    description:     'Authentic Ayurvedic herbal therapy by certified wellness practitioners',
+    collision_aware: true,
+  }));
+  res.json({ success: true, data: treatments });
 });
 
 /**
@@ -292,70 +284,53 @@ router.get('/spa-catalogue', async (_req: Request, res: Response) => {
  * Query params: ?branchId=...&date=YYYY-MM-DD
  */
 router.get('/spa-slots', async (req: Request, res: Response) => {
-  const dateStr  = typeof req.query.date === 'string' && req.query.date.trim() ? req.query.date.trim() : new Date().toISOString().split('T')[0];
+  const rawDate   = typeof req.query.date === 'string' ? req.query.date.trim() : '';
+  const dateStr   = /^\d{4}-\d{2}-\d{2}$/.test(rawDate) ? rawDate : new Date().toISOString().split('T')[0];
+  const rawBranch = typeof req.query.branchId === 'string' ? req.query.branchId : req.user?.branchId;
+  const branchId  = rawBranch && isUuid(rawBranch) ? rawBranch : null;
   const standardTimes = ['09:00', '10:30', '12:00', '14:00', '15:30', '17:00', '18:30', '20:00'];
 
   // Ensure test dataset dates are alive today
   await syncAliveBookingDates(db).catch(() => {});
 
-  try {
-    // Check booked slots from DB service_usage
-    const bookedRes = await db.query(
-      `SELECT su.usage_id, su.appointment_time, su.used_at, sc.service_name,
-              COALESCE(v.booking_id::text, su.booking_room_id::text) AS booking_id,
-              COALESCE(v.guest_first_name, 'Resident') AS first_name,
-              COALESCE(v.guest_last_name, 'Guest') AS last_name,
-              COALESCE(v.room_number, '101') AS room_number
-       FROM service_usage su
-       JOIN service_catalogue sc ON su.service_id = sc.service_id
-       LEFT JOIN v_booking_details v ON (su.booking_room_id::text = v.booking_id::text OR su.booking_room_id::text = v.booking_room_id::text)
-       WHERE sc.category = 'Wellness'
-         AND (
-           su.used_at::date = $1::date
-           OR (su.appointment_time IS NOT NULL AND su.used_at::date = $1::date)
-         )`,
-      [dateStr]
-    );
+  // A spa appointment is a Wellness charge with an appointment_time; its date is used_at::date.
+  const bookedRes = await db.query(
+    `SELECT su.appointment_time, sc.service_name, br.booking_id,
+            COALESCE(g.first_name, 'Resident') AS first_name,
+            COALESCE(g.last_name, 'Guest')     AS last_name,
+            r.number AS room_number
+     FROM service_usage su
+     JOIN service_catalogue sc ON sc.service_id = su.service_id
+     JOIN booking_rooms br     ON br.booking_room_id = su.booking_room_id
+     JOIN bookings b           ON b.booking_id = br.booking_id
+     LEFT JOIN guests g        ON g.id = b.booked_by_guest_id
+     LEFT JOIN rooms r         ON r.id = br.room_id
+     WHERE sc.category = 'Wellness'
+       AND su.appointment_time IS NOT NULL
+       AND su.used_at::date = $1::date
+       AND ($2::uuid IS NULL OR b.branch_id = $2::uuid)`,
+    [dateStr, branchId]
+  );
 
-    const bookedMap = new Map<string, any>();
-    for (const row of bookedRes.rows) {
-      let timeKey = row.appointment_time;
-      if (!timeKey && row.used_at) {
-        timeKey = new Date(row.used_at).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false });
-      }
-
-      if (timeKey) {
-        bookedMap.set(timeKey, {
-          booking_id:     row.booking_id,
-          guest_name:     `${row.first_name} ${row.last_name}`.trim(),
-          room_number:    row.room_number,
-          treatment_name: row.service_name,
-        });
-      }
-    }
-
-    const slots = standardTimes.map(time => {
-      const booked = bookedMap.get(time);
-      return {
-        time,
-        is_available: !booked,
-        booked_by: booked || undefined,
-      };
+  const bookedMap = new Map<string, any>();
+  for (const row of bookedRes.rows) {
+    bookedMap.set(row.appointment_time, {
+      booking_id:     row.booking_id,
+      guest_name:     `${row.first_name} ${row.last_name}`.trim(),
+      room_number:    row.room_number,
+      treatment_name: row.service_name,
     });
-
-    res.json({
-      success: true,
-      data: slots,
-      count: slots.length,
-      date: dateStr,
-    });
-    return;
-  } catch (err) {
-    console.warn('DB spa slots check failed, using fallback:', err);
   }
 
-  const branchId = typeof req.query.branchId === 'string' ? req.query.branchId : (req.user?.branchId ?? undefined);
-  const slots = inMemoryStore.getSpaSlots(branchId, dateStr);
+  const slots = standardTimes.map(time => {
+    const booked = bookedMap.get(time);
+    return {
+      time,
+      is_available: !booked,
+      booked_by: booked || undefined,
+    };
+  });
+
   res.json({
     success: true,
     data: slots,
@@ -366,57 +341,41 @@ router.get('/spa-slots', async (req: Request, res: Response) => {
 
 /**
  * GET /api/v1/services/folio/:bookingId
- * Returns active itemized folio service charges for a guest stay from PostgreSQL.
+ * Returns the itemized service charges for a stay. Accepts a booking_id
+ * (all its rooms) or a booking_room_id (that room only).
  */
 router.get('/folio/:bookingId', async (req: Request, res: Response) => {
   const { bookingId } = req.params;
+  if (!isUuid(bookingId)) throw Errors.notFound('Booking');
 
-  try {
-    const bRes = await db.query(
-      `SELECT id, booking_id FROM bookings WHERE booking_id::text = $1 OR id = $1 LIMIT 1`,
-      [bookingId]
-    );
+  const servicesRes = await db.query(
+    `SELECT su.usage_id, su.booking_room_id, br.booking_id, sc.service_name, sc.category,
+            su.quantity, su.price_at_usage, (su.quantity * su.price_at_usage) AS total_price,
+            su.used_at, su.notes, su.appointment_time, su.meal_time
+     FROM service_usage su
+     JOIN booking_rooms br ON br.booking_room_id = su.booking_room_id
+     LEFT JOIN service_catalogue sc ON su.service_id = sc.service_id
+     WHERE br.booking_id = $1 OR br.booking_room_id = $1
+     ORDER BY su.used_at DESC`,
+    [bookingId]
+  );
 
-    if (bRes.rows.length > 0) {
-      const b = bRes.rows[0];
-      const servicesRes = await db.query(
-        `SELECT su.usage_id, su.booking_room_id, sc.service_name, sc.category, su.quantity, su.price_at_usage,
-                (su.quantity * su.price_at_usage) AS total_price, su.used_at, su.notes, su.appointment_time, su.meal_time
-         FROM service_usage su
-         LEFT JOIN service_catalogue sc ON su.service_id = sc.service_id
-         WHERE su.booking_room_id::text = $1 OR su.booking_room_id::text = $2
-         ORDER BY su.used_at DESC`,
-        [b.id, b.booking_id]
-      );
+  const services = servicesRes.rows.map((s: any) => ({
+    usage_id:         s.usage_id,
+    booking_id:       s.booking_id,
+    booking_room_id:  s.booking_room_id,
+    service_name:     s.service_name || 'Hotel Service',
+    category:         s.category || 'General',
+    quantity:         Number(s.quantity) || 1,
+    price_at_usage:   Number(s.price_at_usage) || 0,
+    total_price:      Number(s.total_price) || 0,
+    used_at:          new Date(s.used_at).toISOString(),
+    notes:            s.notes || null,
+    appointment_time: s.appointment_time || null,
+    meal_time:        s.meal_time || null,
+    is_active:        true,
+  }));
 
-      const services = servicesRes.rows.map((s: any) => ({
-        usage_id:         s.usage_id,
-        booking_id:       b.booking_id,
-        booking_room_id:  s.booking_room_id,
-        service_name:     s.service_name || 'Hotel Service',
-        category:         s.category || 'General',
-        quantity:         Number(s.quantity) || 1,
-        price_at_usage:   Number(s.price_at_usage) || 0,
-        total_price:      Number(s.total_price) || 0,
-        used_at:          s.used_at ? new Date(s.used_at).toISOString() : new Date().toISOString(),
-        notes:            s.notes || null,
-        appointment_time: s.appointment_time || null,
-        meal_time:        s.meal_time || null,
-        is_active:        true,
-      }));
-
-      res.json({
-        success: true,
-        data: services,
-        count: services.length,
-      });
-      return;
-    }
-  } catch (err) {
-    console.warn('DB getFolio failed, falling back to memory store:', err);
-  }
-
-  const services = inMemoryStore.getFolio(bookingId);
   res.json({
     success: true,
     data: services,
@@ -424,9 +383,19 @@ router.get('/folio/:bookingId', async (req: Request, res: Response) => {
   });
 });
 
+// Keeps a room's stored invoice in step with its folio. Only refreshes an invoice
+// that already exists; sp_generate_final_bill creates one at check-out anyway.
+async function refreshRoomInvoice(client: PoolClient, bookingRoomId: string): Promise<void> {
+  await client.query(
+    `SELECT sp_generate_final_bill(booking_room_id) FROM invoices WHERE booking_room_id = $1`,
+    [bookingRoomId]
+  );
+}
+
 /**
  * POST /api/v1/services/folio/:bookingId
  * Adds in-room dining or wellness treatment to the room folio with frozen rate (Rule B10) in PostgreSQL.
+ * :bookingId may be a booking_id or a booking_room_id; body.booking_room_id picks the room explicitly.
  */
 router.post('/folio/:bookingId', async (req: Request, res: Response) => {
   const { bookingId } = req.params;
@@ -435,145 +404,119 @@ router.post('/folio/:bookingId', async (req: Request, res: Response) => {
     res.status(422).json({ success: false, errors: parsed.error.flatten().fieldErrors });
     return;
   }
+  if (!isUuid(bookingId)) throw Errors.notFound('Booking');
+  const input = parsed.data;
 
-  try {
-    // 1. Find the booking in PostgreSQL
-    const bRes = await db.query(
-      `SELECT b.id, b.booking_id, b.branch_id
-       FROM bookings b
-       WHERE b.booking_id::text = $1 OR b.id = $1
+  const record = await db.transaction(async (client) => {
+    // 1. Resolve the room line being charged
+    const lineRes = await client.query<{ booking_room_id: string; booking_id: string; branch_id: string }>(
+      `SELECT br.booking_room_id, br.booking_id, b.branch_id
+       FROM booking_rooms br
+       JOIN bookings b ON b.booking_id = br.booking_id
+       WHERE (br.booking_id = $1 OR br.booking_room_id = $1)
+         AND br.status <> 'CANCELLED'
+         AND ($2::uuid IS NULL OR br.booking_room_id = $2::uuid)
+       ORDER BY br.created_at, br.booking_room_id
        LIMIT 1`,
-      [bookingId]
+      [bookingId, input.booking_room_id ?? null]
+    );
+    const line = lineRes.rows[0];
+    if (!line) throw Errors.notFound('Room on this booking');
+
+    // 2. Resolve service from service_catalogue (the booking's own branch first)
+    const svcRes = await client.query<{ service_id: number }>(
+      `SELECT service_id
+       FROM service_catalogue
+       WHERE service_name ILIKE $1 OR (category = $2 AND base_price = $3)
+       ORDER BY (branch_id = $4) DESC NULLS LAST
+       LIMIT 1`,
+      [input.service_name, input.category, input.price_at_usage, line.branch_id]
+    );
+    let serviceId = svcRes.rows[0]?.service_id;
+
+    if (!serviceId) {
+      // Fallback: pick by category or create dynamic service item
+      const catRes = await client.query<{ service_id: number }>(
+        `SELECT service_id FROM service_catalogue WHERE category = $1
+         ORDER BY (branch_id = $2) DESC NULLS LAST LIMIT 1`,
+        [input.category, line.branch_id]
+      );
+      serviceId = catRes.rows[0]?.service_id;
+      if (!serviceId) {
+        const newSvc = await client.query<{ service_id: number }>(
+          `INSERT INTO service_catalogue (branch_id, service_name, category, base_price, is_active)
+           VALUES ($1, $2, $3, $4, true)
+           RETURNING service_id`,
+          [line.branch_id, input.service_name, input.category, input.price_at_usage]
+        );
+        serviceId = newSvc.rows[0].service_id;
+      }
+    }
+
+    // 3. Spa appointments: one guest per slot per branch. The advisory lock makes
+    //    two receptionists booking the same slot queue up instead of both succeeding.
+    const isAppointment = Boolean(input.appointment_time);
+    const apptDate = input.date ?? new Date().toISOString().split('T')[0];
+    if (isAppointment) {
+      await client.query(`SELECT pg_advisory_xact_lock(hashtext($1))`,
+        [`spa:${line.branch_id}:${apptDate}:${input.appointment_time}`]);
+      const taken = await client.query(
+        `SELECT 1
+         FROM service_usage su
+         JOIN booking_rooms br ON br.booking_room_id = su.booking_room_id
+         JOIN bookings b       ON b.booking_id = br.booking_id
+         WHERE b.branch_id = $1 AND su.appointment_time = $2 AND su.used_at::date = $3::date
+         LIMIT 1`,
+        [line.branch_id, input.appointment_time, apptDate]
+      );
+      if (taken.rows.length > 0) {
+        throw new AppError(409, 'SERVICE_CONFLICT', `The ${input.appointment_time} slot on ${apptDate} is already booked.`);
+      }
+    }
+
+    // 4. Insert into service_usage. For an appointment, used_at is the slot's date and time.
+    const usageRes = await client.query<{ usage_id: string; used_at: Date }>(
+      `INSERT INTO service_usage (
+         booking_room_id, service_id, quantity, price_at_usage, notes, appointment_time, meal_time, used_at
+       )
+       VALUES ($1, $2, $3, $4, $5, $6, $7, COALESCE($8::timestamp, CURRENT_TIMESTAMP))
+       RETURNING usage_id, used_at`,
+      [
+        line.booking_room_id,
+        serviceId,
+        input.quantity,
+        input.price_at_usage,
+        input.notes || null,
+        input.appointment_time || null,
+        input.meal_time || null,
+        isAppointment ? `${apptDate} ${input.appointment_time}:00` : null,
+      ]
     );
 
-    if (bRes.rows.length > 0) {
-      const b = bRes.rows[0];
+    // 5. Keep the room's invoice total in step (same transaction)
+    await refreshRoomInvoice(client, line.booking_room_id);
 
-      // 2. Resolve service from service_catalogue
-      let svcRes = await db.query(
-        `SELECT service_id, base_price, category
-         FROM service_catalogue
-         WHERE service_name ILIKE $1 OR (category = $2 AND base_price = $3)
-         LIMIT 1`,
-        [parsed.data.service_name, parsed.data.category, parsed.data.price_at_usage]
-      );
+    return { usage: usageRes.rows[0], line };
+  });
 
-      let serviceId = svcRes.rows[0]?.service_id;
-
-      if (!serviceId) {
-        // Fallback: pick by category or create dynamic service item
-        const catRes = await db.query(
-          `SELECT service_id, base_price FROM service_catalogue WHERE category = $1 LIMIT 1`,
-          [parsed.data.category]
-        );
-        if (catRes.rows.length > 0) {
-          serviceId = catRes.rows[0].service_id;
-        } else {
-          const newSvc = await db.query(
-            `INSERT INTO service_catalogue (service_name, category, base_price, is_active)
-             VALUES ($1, $2, $3, true)
-             RETURNING service_id`,
-            [parsed.data.service_name, parsed.data.category, parsed.data.price_at_usage]
-          );
-          serviceId = newSvc.rows[0]?.service_id;
-        }
-      }
-
-      // Compute used_at timestamp (respecting appointment date & time if provided)
-      let usedAtStr = 'NOW()';
-      const queryParams: any[] = [
-        b.id,
-        serviceId,
-        parsed.data.quantity,
-        parsed.data.price_at_usage,
-        parsed.data.notes || null,
-        parsed.data.appointment_time || null,
-        parsed.data.meal_time || null,
-      ];
-
-      if (parsed.data.date && parsed.data.appointment_time) {
-        queryParams.push(`${parsed.data.date} ${parsed.data.appointment_time}:00`);
-        usedAtStr = `$${queryParams.length}::timestamp`;
-      }
-
-      // 3. Insert into service_usage
-      const usageRes = await db.query(
-        `INSERT INTO service_usage (
-           booking_room_id, service_id, quantity, price_at_usage, notes, appointment_time, meal_time, used_at
-         )
-         VALUES ($1, $2, $3, $4, $5, $6, $7, ${usedAtStr})
-         RETURNING usage_id, booking_room_id, service_id, quantity, price_at_usage, used_at, notes, appointment_time, meal_time`,
-        queryParams
-      );
-
-      const u = usageRes.rows[0];
-
-      // 4. Update invoice total in PostgreSQL
-      try {
-        const invRes = await db.query(
-          `SELECT invoice_id, subtotal FROM invoices WHERE booking_room_id::text = $1 OR booking_room_id::text = $2`,
-          [b.id, b.booking_id]
-        );
-        if (invRes.rows.length > 0) {
-          const addAmount = Math.round(parsed.data.quantity * parsed.data.price_at_usage * 100) / 100;
-          const oldSub = Number(invRes.rows[0].subtotal) || 0;
-          const newBase = Math.round((oldSub + addAmount) * 100) / 100;
-          const sc = Math.round(newBase * 0.10 * 100) / 100;
-          const tdl = Math.round((newBase + sc) * 0.01 * 100) / 100;
-          const sscl = Math.round((newBase + sc + tdl) * 0.025 * 100) / 100;
-          const vat = Math.round((newBase + sc + tdl + sscl) * 0.18 * 100) / 100;
-          const tot = Math.round((newBase + sc + tdl + sscl + vat) * 100) / 100;
-
-          await db.query(
-            `UPDATE invoices
-             SET subtotal = $1, sc_amount = $2, tdl_amount = $3, sscl_amount = $4, vat_amount = $5, total_amount = $6, updated_at = NOW()
-             WHERE invoice_id = $7`,
-            [newBase, sc, tdl, sscl, vat, tot, invRes.rows[0].invoice_id]
-          );
-        }
-      } catch (invErr) {
-        console.warn('Could not auto-update invoice folio total:', invErr);
-      }
-
-      res.status(201).json({
-        success: true,
-        message: 'Service added to folio successfully in database',
-        data: {
-          usage_id:         u.usage_id,
-          booking_id:       b.booking_id,
-          booking_room_id:  b.id,
-          service_name:     parsed.data.service_name,
-          category:         parsed.data.category,
-          quantity:         parsed.data.quantity,
-          price_at_usage:   parsed.data.price_at_usage,
-          total_price:      parsed.data.quantity * parsed.data.price_at_usage,
-          used_at:          u.used_at,
-          notes:            parsed.data.notes || null,
-          meal_time:        parsed.data.meal_time || null,
-          appointment_time: parsed.data.appointment_time || null,
-        },
-      });
-      return;
-    }
-  } catch (err) {
-    console.error('Database service usage insert failed, trying inMemoryStore:', err);
-  }
-
-  // Fallback to inMemoryStore
-  try {
-    const record = inMemoryStore.addFolioService(bookingId, parsed.data);
-    res.status(201).json({
-      success: true,
-      message: 'Service added to folio successfully',
-      data: record,
-    });
-  } catch (err: any) {
-    res.status(409).json({
-      success: false,
-      message: err.message || 'Unable to add service to folio',
-      code: 'SERVICE_CONFLICT',
-    });
-  }
+  res.status(201).json({
+    success: true,
+    message: 'Service added to folio successfully',
+    data: {
+      usage_id:         record.usage.usage_id,
+      booking_id:       record.line.booking_id,
+      booking_room_id:  record.line.booking_room_id,
+      service_name:     input.service_name,
+      category:         input.category,
+      quantity:         input.quantity,
+      price_at_usage:   input.price_at_usage,
+      total_price:      input.quantity * input.price_at_usage,
+      used_at:          record.usage.used_at,
+      notes:            input.notes || null,
+      meal_time:        input.meal_time || null,
+      appointment_time: input.appointment_time || null,
+    },
+  });
 });
 
 /**
@@ -583,62 +526,21 @@ router.post('/folio/:bookingId', async (req: Request, res: Response) => {
 router.delete('/folio/:usageId', async (req: Request, res: Response) => {
   const { usageId } = req.params;
   const reason = (req.body?.reason || req.query.reason || 'Guest cancellation') as string;
+  if (!isUuid(usageId)) throw Errors.notFound('Service usage record');
 
-  try {
-    const delRes = await db.query(
-      `DELETE FROM service_usage WHERE usage_id::text = $1 RETURNING usage_id, booking_room_id, price_at_usage, quantity`,
+  const removed = await db.transaction(async (client) => {
+    const delRes = await client.query<{ booking_room_id: string }>(
+      `DELETE FROM service_usage WHERE usage_id = $1 RETURNING booking_room_id`,
       [usageId]
     );
+    const row = delRes.rows[0];
+    if (!row) return false;
 
-    if ((delRes.rowCount ?? 0) > 0) {
-      const row = delRes.rows[0];
-      // Recalculate invoice
-      try {
-        const invRes = await db.query(
-          `SELECT invoice_id, subtotal FROM invoices WHERE booking_room_id::text = $1`,
-          [row.booking_room_id]
-        );
-        if (invRes.rows.length > 0) {
-          const minusAmount = Math.round(Number(row.quantity) * Number(row.price_at_usage) * 100) / 100;
-          const oldSub = Number(invRes.rows[0].subtotal) || 0;
-          const newBase = Math.max(0, Math.round((oldSub - minusAmount) * 100) / 100);
-          const sc = Math.round(newBase * 0.10 * 100) / 100;
-          const tdl = Math.round((newBase + sc) * 0.01 * 100) / 100;
-          const sscl = Math.round((newBase + sc + tdl) * 0.025 * 100) / 100;
-          const vat = Math.round((newBase + sc + tdl + sscl) * 0.18 * 100) / 100;
-          const tot = Math.round((newBase + sc + tdl + sscl + vat) * 100) / 100;
+    await refreshRoomInvoice(client, row.booking_room_id);
+    return true;
+  });
 
-          await db.query(
-            `UPDATE invoices
-             SET subtotal = $1, sc_amount = $2, tdl_amount = $3, sscl_amount = $4, vat_amount = $5, total_amount = $6, updated_at = NOW()
-             WHERE invoice_id = $7`,
-            [newBase, sc, tdl, sscl, vat, tot, invRes.rows[0].invoice_id]
-          );
-        }
-      } catch (e) {
-        console.warn('Could not auto-update invoice folio on service deletion:', e);
-      }
-
-      res.json({
-        success: true,
-        message: 'Service charge voided and removed from room folio',
-        data: { usageId, reason },
-      });
-      return;
-    }
-  } catch (err) {
-    console.warn('DB delete service_usage failed, trying fallback:', err);
-  }
-
-  const success = inMemoryStore.removeFolioService(usageId, reason);
-  if (!success) {
-    res.status(404).json({
-      success: false,
-      message: 'Service usage record not found on folio',
-      code: 'NOT_FOUND',
-    });
-    return;
-  }
+  if (!removed) throw Errors.notFound('Service usage record');
 
   res.json({
     success: true,

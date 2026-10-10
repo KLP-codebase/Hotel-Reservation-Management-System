@@ -31,8 +31,9 @@ services:
       JWT_EXPIRES_IN: 8h
       ALLOWED_ORIGINS: https://${APP_DOMAIN}
       APP_URL: https://${APP_DOMAIN}
-      EMAIL_PROVIDER: console
-      EMAIL_FROM: noreply@skynest.lk
+      EMAIL_PROVIDER: resend
+      EMAIL_FROM: "Sky Nest <noreply@mail.skynest.me>"
+      RESEND_API_KEY: ${RESEND_API_KEY:?RESEND_API_KEY must be set in /opt/skynest/.env}
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:4000/health || exit 1"]
       interval: 15s

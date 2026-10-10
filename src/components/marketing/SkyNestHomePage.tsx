@@ -19,9 +19,9 @@ interface NavLink {
 // Constants
 // ---------------------------------------------------------------------------
 const NAV_LINKS: NavLink[] = [
-  { label: "Stay", href: "#stay" },
-  { label: "Dining", href: "#dining" },
+  { label: "Rates", href: "#rates" },
   { label: "About", href: "#about" },
+  { label: "Contact", href: "/contact" },
 ];
 
 const STORY_LINES = [
@@ -48,6 +48,14 @@ const COLOMBO_STORY_LINES = [
   "AT THE HEART OF THE ISLAND.",
 ];
 
+const ABOUT_INTERLUDE_LINES = [
+  "THREE SANCTUARIES, CRAFTED",
+  "FROM THE LIVING ISLAND —",
+  "WHERE LANDSCAPE BECOMES",
+  "ARCHITECTURE, AND TIME",
+  "BECOMES UNHURRIED.",
+];
+
 // ---------------------------------------------------------------------------
 // Utility — respect prefers-reduced-motion
 // ---------------------------------------------------------------------------
@@ -67,81 +75,7 @@ function usePrefersReducedMotion(): boolean {
 // Sub-components
 // ---------------------------------------------------------------------------
 
-/**
- * GlobalGridOverlay — one fixed full-page SVG with 6 vertical lines.
- * Each line is painted with a linearGradient that transitions the stroke colour
- * from white (on dark hero/image sections) to a dark tint (on light paper sections).
- */
-function GlobalGridOverlay() {
-  const COLS = 6;
-  const xs = Array.from({ length: COLS + 1 }, (_, i) =>
-    ((i / COLS) * 100).toFixed(4) + "%"
-  );
 
-  return (
-    <div
-      aria-hidden="true"
-      className="pointer-events-none fixed inset-0 z-[9999]"
-      style={{ isolation: "isolate" }}
-    >
-      <svg
-        xmlns="http://www.w3.org/2000/svg"
-        className="w-full h-full"
-        preserveAspectRatio="none"
-        style={{ display: "block" }}
-      >
-        <defs>
-          <linearGradient id="grid-line-grad" x1="0" y1="0" x2="0" y2="1" gradientUnits="objectBoundingBox">
-            <stop offset="0%" stopColor="rgba(255,255,255,0.18)" />
-            <stop offset="36%" stopColor="rgba(255,255,255,0.18)" />
-            <stop offset="46%" stopColor="rgba(11,37,64,0.10)" />
-            <stop offset="62%" stopColor="rgba(11,37,64,0.10)" />
-            <stop offset="70%" stopColor="rgba(255,255,255,0.15)" />
-            <stop offset="80%" stopColor="rgba(255,255,255,0.15)" />
-            <stop offset="88%" stopColor="rgba(11,37,64,0.10)" />
-            <stop offset="100%" stopColor="rgba(11,37,64,0.10)" />
-          </linearGradient>
-        </defs>
-
-        {xs.map((x, i) => (
-          <line
-            key={i}
-            x1={x}
-            y1="0"
-            x2={x}
-            y2="100%"
-            stroke="url(#grid-line-grad)"
-            strokeWidth="0.6"
-          />
-        ))}
-      </svg>
-    </div>
-  );
-}
-
-/** Vertical hairline grid columns */
-function HairlineGrid({
-  count = 5,
-  color = "border-white/[0.07]",
-}: {
-  count?: number;
-  color?: string;
-}) {
-  return (
-    <div
-      aria-hidden="true"
-      className="pointer-events-none absolute inset-0 flex"
-      style={{ zIndex: 1 }}
-    >
-      {Array.from({ length: count + 1 }).map((_, i) => (
-        <div
-          key={i}
-          className={`flex-1 border-l ${color} last:border-r`}
-        />
-      ))}
-    </div>
-  );
-}
 
 /** White Desert-style mountain glyph */
 function MountainGlyph({ className = "", style }: { className?: string; style?: React.CSSProperties }) {
@@ -221,7 +155,7 @@ function SweepingOrbitalEmblem({
   return (
     <div
       ref={containerRef}
-      className="relative inline-flex items-center justify-start w-72 md:w-96 h-20 md:h-24 select-none mb-6 md:mb-8"
+      className="relative inline-flex items-center justify-start w-full max-w-[280px] sm:max-w-xs md:max-w-sm h-16 sm:h-20 md:h-24 select-none mb-6 md:mb-8"
     >
       <svg
         aria-hidden="true"
@@ -251,7 +185,7 @@ function SweepingOrbitalEmblem({
       </svg>
       <span
         ref={labelRef}
-        className="absolute left-[50%] top-[50%] -translate-x-1/2 -translate-y-1/2 font-cinzel italic text-[12px] md:text-[14px] tracking-[0.08em] text-ink/80 whitespace-nowrap"
+        className="absolute left-[50%] top-[50%] -translate-x-1/2 -translate-y-1/2 font-cinzel italic text-[11px] sm:text-[12px] md:text-[14px] tracking-[0.08em] text-ink/80 whitespace-nowrap"
         style={{ fontStyle: "italic" }}
       >
         {label}
@@ -312,9 +246,9 @@ function SkyNestNav({
 
   const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
 
-  const bgAlpha = lerp(0, 0.72, navProgress);
-  const blurAmt = lerp(0, 12, navProgress);
-  const borderAlpha = lerp(0, 0.07, navProgress);
+  const bgAlpha = lerp(0, 0.88, navProgress);
+  const blurAmt = lerp(0, 16, navProgress);
+  const borderAlpha = lerp(0, 0.08, navProgress);
 
   const textR = lerp(255, 11, navProgress);
   const textG = lerp(255, 37, navProgress);
@@ -363,7 +297,7 @@ function SkyNestNav({
         className="fixed top-0 left-0 right-0 z-50 transition-colors duration-150"
         style={bgStyle}
       >
-        <div className="flex items-center justify-between h-14 md:h-16 px-6 md:px-8">
+        <div className="flex items-center justify-between h-14 md:h-16 px-4 sm:px-6 md:px-8">
           {/* Left — nav links as White Desert bordered buttons */}
           <div className="hidden md:flex items-center gap-2.5">
             {NAV_LINKS.map((link) => (
@@ -380,7 +314,7 @@ function SkyNestNav({
           </div>
 
           {/* Center — wordmark */}
-          <div className="absolute left-1/2 -translate-x-1/2 flex items-center">
+          <div className="flex items-center md:absolute md:left-1/2 md:-translate-x-1/2">
             <a
               href="/"
               id="nav-wordmark"
@@ -388,11 +322,11 @@ function SkyNestNav({
               className="flex flex-col items-center gap-0.5 group focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-white/50 rounded-sm"
             >
               <MountainGlyph
-                className="w-7 h-auto"
+                className="w-6 sm:w-7 h-auto"
                 style={{ color: wordmarkColor } as React.CSSProperties}
               />
               <span
-                className="font-jakarta font-700 text-[11px] tracking-[0.35em] uppercase select-none"
+                className="font-jakarta font-bold text-[10px] sm:text-[11px] tracking-[0.35em] uppercase select-none"
                 style={{ color: wordmarkColor }}
               >
                 SKYNEST
@@ -403,13 +337,14 @@ function SkyNestNav({
           {/* Right — CTA buttons */}
           <div className="hidden md:flex items-center gap-2.5">
             <a
-              href="#rates"
-              id="nav-cta-rates"
+              href="#contact"
+              id="nav-cta-contact"
               className="flex items-center px-6 py-2.5 text-[11px] md:text-[12px] font-jakarta font-medium tracking-[0.12em] uppercase border transition-[border-color,background-color] duration-200"
               style={linkStyle}
             >
-              Rates
+              Contact
             </a>
+
             <a
               href="/book"
               id="nav-cta-book-now"
@@ -449,37 +384,52 @@ function SkyNestNav({
             )}
           </div>
 
-
-          {/* Mobile hamburger */}
-          <button
-            id="nav-hamburger"
-            onClick={toggleMenu}
-            aria-expanded={menuOpen}
-            aria-controls="nav-mobile-menu"
-            aria-label={menuOpen ? "Close menu" : "Open menu"}
-            className="md:hidden flex items-center justify-center w-14 border-l border-white/[0.12] text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-white/50"
-          >
-            <span className="relative w-5 h-4 flex flex-col justify-between">
-              <span
-                className={[
-                  "block h-px bg-white origin-center transition-all duration-300 ease-out",
-                  menuOpen ? "rotate-45 translate-y-[7.5px]" : "",
-                ].join(" ")}
-              />
-              <span
-                className={[
-                  "block h-px bg-white transition-all duration-300 ease-out",
-                  menuOpen ? "opacity-0 scale-x-50" : "",
-                ].join(" ")}
-              />
-              <span
-                className={[
-                  "block h-px bg-white origin-center transition-all duration-300 ease-out",
-                  menuOpen ? "-rotate-45 -translate-y-[7.5px]" : "",
-                ].join(" ")}
-              />
-            </span>
-          </button>
+          {/* Mobile Right Controls: Book CTA + Hamburger */}
+          <div className="flex md:hidden items-center gap-2">
+            <a
+              href="/book"
+              id="mobile-quick-book"
+              className="px-3 py-1.5 text-[10px] font-jakarta font-semibold tracking-[0.12em] uppercase border transition-colors duration-200"
+              style={bookStyle}
+            >
+              Book
+            </a>
+            <button
+              id="nav-hamburger"
+              onClick={toggleMenu}
+              aria-expanded={menuOpen}
+              aria-controls="nav-mobile-menu"
+              aria-label={menuOpen ? "Close menu" : "Open menu"}
+              className="flex items-center justify-center w-9 h-9 border transition-colors duration-200 rounded-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-white/50"
+              style={{
+                borderColor: menuOpen ? "rgba(255,255,255,0.2)" : borderColor,
+              }}
+            >
+              <span className="relative w-4 h-3 flex flex-col justify-between">
+                <span
+                  className={[
+                    "block h-px origin-center transition-all duration-300 ease-out",
+                    menuOpen ? "rotate-45 translate-y-[5.5px] !bg-white" : "",
+                  ].join(" ")}
+                  style={{ backgroundColor: menuOpen ? "white" : textColor }}
+                />
+                <span
+                  className={[
+                    "block h-px transition-all duration-300 ease-out",
+                    menuOpen ? "opacity-0 scale-x-50 !bg-white" : "",
+                  ].join(" ")}
+                  style={{ backgroundColor: menuOpen ? "white" : textColor }}
+                />
+                <span
+                  className={[
+                    "block h-px origin-center transition-all duration-300 ease-out",
+                    menuOpen ? "-rotate-45 -translate-y-[5.5px] !bg-white" : "",
+                  ].join(" ")}
+                  style={{ backgroundColor: menuOpen ? "white" : textColor }}
+                />
+              </span>
+            </button>
+          </div>
         </div>
       </nav>
 
@@ -491,38 +441,72 @@ function SkyNestNav({
         aria-label="Navigation menu"
         className={[
           "fixed inset-0 z-40 md:hidden",
-          "bg-ink/[0.97] backdrop-blur-2xl",
+          "bg-ink/[0.98] backdrop-blur-2xl",
           "flex flex-col justify-center px-8",
           "transition-opacity duration-500 ease-out",
           menuOpen ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none",
         ].join(" ")}
       >
-        <div className="space-y-1 pt-16">
-          {[...NAV_LINKS, { label: "Rates", href: "#rates" }, { label: "Book Now", href: "/book" }, { label: "Sign In", href: "/login" }].map(
+        <div className="space-y-1 pt-12">
+          {[
+            ...NAV_LINKS,
+            { label: "Contact", href: "#contact" },
+            { label: "Book Now", href: "/book" },
+          ].map((link, i) => (
+            <a
+              key={link.label}
+              href={link.href}
+              id={`mobile-nav-${link.label.toLowerCase().replace(/\s+/g, "-")}`}
+              onClick={() => setMenuOpen(false)}
+              className={[
+                "block py-3.5 font-jakarta font-semibold text-2xl sm:text-3xl text-white/80 hover:text-white",
+                "border-b border-white/[0.08]",
+                "transition-all duration-500 ease-out",
+                "focus-visible:outline-none focus-visible:text-white",
+                menuOpen ? "translate-y-0 opacity-100" : "translate-y-6 opacity-0",
+              ].join(" ")}
+              style={{
+                transitionDelay: menuOpen ? `${i * 60 + 100}ms` : "0ms",
+              }}
+            >
+              {link.label}
+            </a>
+          ))}
 
-            (link, i) => (
+          {/* Auth link in mobile menu */}
+          <div className="pt-4">
+            {user ? (
+              <div className="flex flex-col gap-2">
+                {user.role?.toUpperCase() !== 'GUEST' && (
+                  <a
+                    href="/dashboard"
+                    onClick={() => setMenuOpen(false)}
+                    className="block py-3 font-jakarta font-semibold text-xl text-amber-400 hover:text-amber-300"
+                  >
+                    Staff Dashboard
+                  </a>
+                )}
+                <button
+                  onClick={() => {
+                    setMenuOpen(false);
+                    logout();
+                  }}
+                  className="text-left py-2 font-jakarta font-semibold text-lg text-red-400 hover:text-red-300"
+                >
+                  Log Out ({user.firstName})
+                </button>
+              </div>
+            ) : (
               <a
-                key={link.label}
-                href={link.href}
-                id={`mobile-nav-${link.label.toLowerCase().replace(" ", "-")}`}
+                href="/login"
+                id="mobile-nav-sign-in"
                 onClick={() => setMenuOpen(false)}
-                className={[
-                  "block py-4 font-jakarta font-semibold text-3xl text-white/80 hover:text-white",
-                  "border-b border-white/[0.08]",
-                  "transition-all duration-500 ease-out",
-                  "focus-visible:outline-none focus-visible:text-white",
-                  menuOpen
-                    ? "translate-y-0 opacity-100"
-                    : "translate-y-6 opacity-0",
-                ].join(" ")}
-                style={{
-                  transitionDelay: menuOpen ? `${i * 60 + 100}ms` : "0ms",
-                }}
+                className="block py-3 font-jakarta font-semibold text-xl text-amber-400 hover:text-amber-300"
               >
-                {link.label}
+                Sign In
               </a>
-            )
-          )}
+            )}
+          </div>
         </div>
       </div>
     </>
@@ -609,18 +593,17 @@ function HeroSection({
         />
       </div>
 
-      {/* Hairline grid */}
-      <HairlineGrid count={5} />
+
 
       {/* Top row: eyebrow left + explore right */}
       <div
         ref={topRowRef}
-        className="relative flex items-start justify-between px-6 md:px-12 pt-24 md:pt-28 pb-0 z-10"
+        className="relative flex flex-col sm:flex-row sm:items-start sm:justify-between px-6 sm:px-8 md:px-12 pt-20 sm:pt-24 md:pt-28 pb-0 gap-4 sm:gap-6 z-10"
         style={{ willChange: "transform, opacity" }}
       >
         {/* Eyebrow */}
         <p
-          className="font-cinzel font-normal italic text-white/75 text-[13px] md:text-[15px] leading-relaxed max-w-[200px] md:max-w-none"
+          className="font-cinzel font-normal italic text-white/75 text-[12px] sm:text-[13px] md:text-[15px] leading-relaxed max-w-[280px] sm:max-w-none"
           style={{ fontStyle: "italic" }}
         >
           Three branches.
@@ -632,7 +615,7 @@ function HeroSection({
         <a
           href="#branches"
           id="hero-explore-cta"
-          className="flex items-center gap-2 font-jakarta text-[11px] md:text-[12px] font-medium tracking-[0.15em] uppercase text-white/80 hover:text-white border border-white/20 hover:border-white/40 px-4 py-2.5 transition-all duration-300 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white/60"
+          className="self-start sm:self-auto flex items-center gap-2 font-jakarta text-[10px] sm:text-[11px] md:text-[12px] font-medium tracking-[0.15em] uppercase text-white/80 hover:text-white border border-white/20 hover:border-white/40 px-3.5 sm:px-4 py-2 sm:py-2.5 transition-all duration-300 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white/60"
         >
           <span>Explore Branches</span>
           <ChevronRight className="w-3 h-3" />
@@ -643,13 +626,13 @@ function HeroSection({
       <div
         ref={wordmarkRef}
         aria-hidden="true"
-        className="relative z-10 flex-1 flex items-end justify-center overflow-hidden pointer-events-none select-none w-full"
+        className="relative z-10 flex-1 flex items-end justify-center overflow-hidden pointer-events-none select-none w-full px-4"
         style={{ willChange: "transform, opacity" }}
       >
         <span
           className="font-cinzel font-normal leading-[0.85] text-white text-center whitespace-nowrap block w-full uppercase"
           style={{
-            fontSize: "clamp(100px, 21vw, 260px)",
+            fontSize: "clamp(46px, 17.5vw, 260px)",
             letterSpacing: "0.03em",
             paddingBottom: "clamp(4px, 1.5vw, 8px)",
           }}
@@ -704,7 +687,7 @@ function CloudTransition() {
     <div
       ref={containerRef}
       aria-hidden="true"
-      className="relative z-10 h-[70dvh] pointer-events-none overflow-hidden"
+      className="relative z-10 h-[50dvh] sm:h-[60dvh] md:h-[70dvh] pointer-events-none overflow-hidden"
     >
       {/* Positioner 1 */}
       <div
@@ -836,27 +819,15 @@ function IntroSection({ reducedMotion }: { reducedMotion: boolean }) {
       aria-label="SkyNest Hotels story"
       className="relative bg-paper overflow-hidden py-14 md:py-20"
     >
-      {/* 6-column hairline grid */}
-      <div
-        aria-hidden="true"
-        className="pointer-events-none absolute inset-0 flex"
-        style={{ zIndex: 1 }}
-      >
-        {Array.from({ length: 6 }).map((_, i) => (
-          <div
-            key={i}
-            className="flex-1 border-l border-ink/[0.06] last:border-r"
-          />
-        ))}
-      </div>
 
-      <div className="relative z-10 w-full">
+
+      <div className="relative z-10 w-full max-w-[1440px] mx-auto px-6 sm:px-10 md:px-12">
         <div className="grid grid-cols-1 md:grid-cols-6 items-start">
           {/* Columns 1 & 2 */}
           <div className="hidden md:block md:col-start-1 md:col-end-3" />
 
           {/* Columns 3, 4, 5 */}
-          <div className="md:col-start-3 md:col-end-6 pl-0 pr-4 md:pr-8 flex flex-col items-start">
+          <div className="md:col-start-3 md:col-end-6 md:pl-0 md:pr-8 flex flex-col items-start w-full">
             <div ref={emblemRef}>
               <SweepingOrbitalEmblem label="The SkyNest Standard" reducedMotion={reducedMotion} />
             </div>
@@ -865,7 +836,7 @@ function IntroSection({ reducedMotion }: { reducedMotion: boolean }) {
               ref={titleRef}
               className="font-cinzel font-normal uppercase leading-[1.12] tracking-[0.04em] text-ink w-full pl-0"
               style={{
-                fontSize: "clamp(24px, 3.2vw, 45px)",
+                fontSize: "clamp(22px, 3.2vw, 40px)",
               }}
               aria-label={STORY_LINES.join(" ")}
             >
@@ -981,7 +952,7 @@ function KandyBranchSection({ reducedMotion }: { reducedMotion: boolean }) {
       aria-label="SkyNest Kandy branch"
       className="relative bg-paper overflow-hidden w-full"
     >
-      <div className="relative w-full aspect-[3/2] overflow-hidden">
+      <div className="relative w-full min-h-[460px] sm:min-h-[520px] md:min-h-0 md:aspect-[3/2] overflow-hidden">
         {/* Parallax background image */}
         <div className="absolute inset-0 w-full h-full z-0 overflow-hidden">
           {/* Feathered top gradient */}
@@ -1005,17 +976,14 @@ function KandyBranchSection({ reducedMotion }: { reducedMotion: boolean }) {
           />
         </div>
 
-        {/* 6-column grid lines */}
-        <div className="absolute inset-0 pointer-events-none z-[5]">
-          <HairlineGrid count={5} color="border-white/[0.15] md:border-white/[0.12]" />
-        </div>
+
 
         {/* Text overlay */}
         <div
           aria-hidden="false"
           className="absolute inset-0 pointer-events-none z-10"
         >
-          <div className="relative h-full mx-auto max-w-[1400px] px-6 md:px-16 flex flex-col justify-start pt-12 md:pt-20 gap-2.5 md:gap-4">
+          <div className="relative h-full mx-auto max-w-[1400px] px-6 sm:px-10 md:px-16 flex flex-col justify-start pt-14 sm:pt-16 md:pt-20 gap-2.5 md:gap-4">
             <span
               ref={labelRef}
               className="font-jakarta text-[11px] md:text-[12px] font-bold tracking-[0.3em] uppercase text-ink/80 drop-shadow-sm"
@@ -1030,7 +998,7 @@ function KandyBranchSection({ reducedMotion }: { reducedMotion: boolean }) {
               ref={titleRef}
               className="font-cinzel text-ink leading-[1.05] drop-shadow-sm uppercase tracking-[0.03em]"
               style={{
-                fontSize: "clamp(32px, 4.8vw, 72px)",
+                fontSize: "clamp(28px, 4.8vw, 72px)",
                 willChange: "transform, opacity",
               }}
             >
@@ -1118,27 +1086,15 @@ function CoastalInterludeSection({ reducedMotion }: { reducedMotion: boolean }) 
       aria-label="SkyNest Southern Coast story"
       className="relative bg-paper overflow-hidden py-14 md:py-20"
     >
-      {/* 6-column hairline grid */}
-      <div
-        aria-hidden="true"
-        className="pointer-events-none absolute inset-0 flex"
-        style={{ zIndex: 1 }}
-      >
-        {Array.from({ length: 6 }).map((_, i) => (
-          <div
-            key={i}
-            className="flex-1 border-l border-ink/[0.06] last:border-r"
-          />
-        ))}
-      </div>
 
-      <div className="relative z-10 w-full">
+
+      <div className="relative z-10 w-full max-w-[1440px] mx-auto px-6 sm:px-10 md:px-12">
         <div className="grid grid-cols-1 md:grid-cols-6 items-start">
           {/* Columns 1 & 2 */}
           <div className="hidden md:block md:col-start-1 md:col-end-3" />
 
           {/* Columns 3, 4, 5 */}
-          <div className="md:col-start-3 md:col-end-6 pl-0 pr-4 md:pr-8 flex flex-col items-start">
+          <div className="md:col-start-3 md:col-end-6 md:pl-0 md:pr-8 flex flex-col items-start w-full">
             <div ref={emblemRef}>
               <SweepingOrbitalEmblem label="The Coastal Sanctuary" reducedMotion={reducedMotion} />
             </div>
@@ -1147,7 +1103,7 @@ function CoastalInterludeSection({ reducedMotion }: { reducedMotion: boolean }) 
               ref={titleRef}
               className="font-cinzel font-normal uppercase leading-[1.12] tracking-[0.04em] text-ink w-full pl-0"
               style={{
-                fontSize: "clamp(24px, 3.2vw, 45px)",
+                fontSize: "clamp(22px, 3.2vw, 40px)",
               }}
               aria-label={COASTAL_STORY_LINES.join(" ")}
             >
@@ -1244,7 +1200,7 @@ function GalleBranchSection({ reducedMotion }: { reducedMotion: boolean }) {
       aria-label="SkyNest Galle branch"
       className="relative bg-paper overflow-hidden w-full"
     >
-      <div className="relative w-full aspect-[3/2] overflow-hidden">
+      <div className="relative w-full min-h-[460px] sm:min-h-[520px] md:min-h-0 md:aspect-[3/2] overflow-hidden">
         {/* Parallax background image */}
         <div className="absolute inset-0 w-full h-full z-0 overflow-hidden">
           {/* Feathered top gradient */}
@@ -1268,20 +1224,17 @@ function GalleBranchSection({ reducedMotion }: { reducedMotion: boolean }) {
           />
         </div>
 
-        {/* 6-column grid lines */}
-        <div className="absolute inset-0 pointer-events-none z-[5]">
-          <HairlineGrid count={5} color="border-white/[0.15] md:border-white/[0.12]" />
-        </div>
+
 
         {/* Text overlay */}
         <div
           aria-hidden="false"
           className="absolute inset-0 pointer-events-none z-10"
         >
-          <div className="relative h-full mx-auto max-w-[1400px] px-6 md:px-16 flex flex-col items-end justify-start pt-12 md:pt-20 gap-2.5 md:gap-4 text-right">
+          <div className="relative h-full mx-auto max-w-[1400px] px-6 sm:px-10 md:px-16 flex flex-col items-start sm:items-end justify-start pt-14 sm:pt-16 md:pt-20 gap-2.5 md:gap-4 text-left sm:text-right">
             <span
               ref={labelRef}
-              className="font-jakarta text-[11px] md:text-[12px] font-bold tracking-[0.3em] uppercase text-ink/80 drop-shadow-sm text-right"
+              className="font-jakarta text-[11px] md:text-[12px] font-bold tracking-[0.3em] uppercase text-ink/80 drop-shadow-sm text-left sm:text-right"
               style={{
                 willChange: "transform, opacity",
               }}
@@ -1291,9 +1244,9 @@ function GalleBranchSection({ reducedMotion }: { reducedMotion: boolean }) {
 
             <h2
               ref={titleRef}
-              className="font-cinzel text-ink leading-[1.05] drop-shadow-sm uppercase tracking-[0.03em] text-right"
+              className="font-cinzel text-ink leading-[1.05] drop-shadow-sm uppercase tracking-[0.03em] text-left sm:text-right"
               style={{
-                fontSize: "clamp(32px, 4.8vw, 72px)",
+                fontSize: "clamp(28px, 4.8vw, 72px)",
                 willChange: "transform, opacity",
               }}
             >
@@ -1302,7 +1255,7 @@ function GalleBranchSection({ reducedMotion }: { reducedMotion: boolean }) {
 
             <p
               ref={lineRef}
-              className="font-cinzel italic text-ink/75 max-w-lg leading-relaxed text-sm md:text-lg drop-shadow-sm text-right"
+              className="font-cinzel italic text-ink/75 max-w-lg leading-relaxed text-sm md:text-lg drop-shadow-sm text-left sm:text-right"
               style={{
                 willChange: "transform, opacity",
               }}
@@ -1381,27 +1334,15 @@ function ColomboCityInterludeSection({ reducedMotion }: { reducedMotion: boolean
       aria-label="SkyNest Colombo city story"
       className="relative bg-paper overflow-hidden py-14 md:py-20"
     >
-      {/* 6-column hairline grid */}
-      <div
-        aria-hidden="true"
-        className="pointer-events-none absolute inset-0 flex"
-        style={{ zIndex: 1 }}
-      >
-        {Array.from({ length: 6 }).map((_, i) => (
-          <div
-            key={i}
-            className="flex-1 border-l border-ink/[0.06] last:border-r"
-          />
-        ))}
-      </div>
 
-      <div className="relative z-10 w-full">
+
+      <div className="relative z-10 w-full max-w-[1440px] mx-auto px-6 sm:px-10 md:px-12">
         <div className="grid grid-cols-1 md:grid-cols-6 items-start">
           {/* Columns 1 & 2 */}
           <div className="hidden md:block md:col-start-1 md:col-end-3" />
 
           {/* Columns 3, 4, 5 */}
-          <div className="md:col-start-3 md:col-end-6 pl-0 pr-4 md:pr-8 flex flex-col items-start">
+          <div className="md:col-start-3 md:col-end-6 md:pl-0 md:pr-8 flex flex-col items-start w-full">
             <div ref={emblemRef}>
               <SweepingOrbitalEmblem label="The Urban Sanctuary" reducedMotion={reducedMotion} />
             </div>
@@ -1410,7 +1351,7 @@ function ColomboCityInterludeSection({ reducedMotion }: { reducedMotion: boolean
               ref={titleRef}
               className="font-cinzel font-normal uppercase leading-[1.12] tracking-[0.04em] text-ink w-full pl-0"
               style={{
-                fontSize: "clamp(24px, 3.2vw, 45px)",
+                fontSize: "clamp(22px, 3.2vw, 40px)",
               }}
               aria-label={COLOMBO_STORY_LINES.join(" ")}
             >
@@ -1507,7 +1448,7 @@ function ColomboBranchSection({ reducedMotion }: { reducedMotion: boolean }) {
       aria-label="SkyNest Colombo branch"
       className="relative bg-paper overflow-hidden w-full"
     >
-      <div className="relative w-full aspect-[3/2] overflow-hidden">
+      <div className="relative w-full min-h-[460px] sm:min-h-[520px] md:min-h-0 md:aspect-[3/2] overflow-hidden">
         {/* Parallax background image */}
         <div className="absolute inset-0 w-full h-full z-0 overflow-hidden">
           {/* Feathered top gradient */}
@@ -1529,19 +1470,26 @@ function ColomboBranchSection({ reducedMotion }: { reducedMotion: boolean }) {
               willChange: "transform",
             }}
           />
+
+          {/* Feathered bottom gradient to softly dissolve into paper canvas */}
+          <div
+            aria-hidden="true"
+            className="absolute inset-x-0 bottom-0 h-32 md:h-48 pointer-events-none z-[2]"
+            style={{
+              background:
+                "linear-gradient(to top, #FDFCFA 0%, rgba(253,252,250,0.92) 30%, rgba(253,252,250,0.45) 65%, rgba(253,252,250,0.08) 88%, transparent 100%)",
+            }}
+          />
         </div>
 
-        {/* 6-column grid lines */}
-        <div className="absolute inset-0 pointer-events-none z-[5]">
-          <HairlineGrid count={5} color="border-white/[0.15] md:border-white/[0.12]" />
-        </div>
+
 
         {/* Text overlay — left-aligned (mirrors Kandy) */}
         <div
           aria-hidden="false"
           className="absolute inset-0 pointer-events-none z-10"
         >
-          <div className="relative h-full mx-auto max-w-[1400px] px-6 md:px-16 flex flex-col justify-start pt-12 md:pt-20 gap-2.5 md:gap-4">
+          <div className="relative h-full mx-auto max-w-[1400px] px-6 sm:px-10 md:px-16 flex flex-col justify-start pt-14 sm:pt-16 md:pt-20 gap-2.5 md:gap-4">
             <span
               ref={labelRef}
               className="font-jakarta text-[11px] md:text-[12px] font-bold tracking-[0.3em] uppercase text-ink/80 drop-shadow-sm"
@@ -1557,7 +1505,7 @@ function ColomboBranchSection({ reducedMotion }: { reducedMotion: boolean }) {
               ref={titleRef}
               className="font-cinzel text-ink leading-[1.05] drop-shadow-sm uppercase tracking-[0.03em]"
               style={{
-                fontSize: "clamp(32px, 4.8vw, 72px)",
+                fontSize: "clamp(28px, 4.8vw, 72px)",
                 willChange: "transform, opacity",
                 opacity: reducedMotion ? 1 : 0,
               }}
@@ -1581,8 +1529,466 @@ function ColomboBranchSection({ reducedMotion }: { reducedMotion: boolean }) {
 
       <div className="border-b border-skynest-hairline" />
     </section>
+
   );
 }
+// ---------------------------------------------------------------------------
+// Heritage & Philosophy Interlude (Between Colombo and About)
+// ---------------------------------------------------------------------------
+function AboutInterludeSection({ reducedMotion }: { reducedMotion: boolean }) {
+  const sectionRef = useRef<HTMLElement>(null);
+  const titleRef = useRef<HTMLHeadingElement>(null);
+  const emblemRef = useRef<HTMLDivElement>(null);
+  const lineRefs = useRef<(HTMLSpanElement | null)[]>([]);
+
+  useEffect(() => {
+    gsap.registerPlugin(ScrollTrigger);
+
+    const section = sectionRef.current;
+    const title = titleRef.current;
+    const emblem = emblemRef.current;
+    const lines = lineRefs.current.filter(Boolean) as HTMLSpanElement[];
+
+    if (reducedMotion) {
+      if (emblem) gsap.set(emblem, { opacity: 1, y: 0 });
+      gsap.set(lines, { opacity: 1, y: 0 });
+      return;
+    }
+
+    if (!section) return;
+
+    if (emblem) gsap.set(emblem, { opacity: 0, y: 15 });
+    gsap.set(lines, { opacity: 0, y: "100%" });
+
+    const ctx = gsap.context(() => {
+      const tl = gsap.timeline({
+        scrollTrigger: {
+          trigger: section,
+          start: "top 90%",
+          toggleActions: "play none none none",
+        },
+      });
+
+      if (emblem) {
+        tl.to(emblem, { opacity: 1, y: 0, duration: 0.4, ease: "power2.out" });
+      }
+      tl.to(
+        lines,
+        {
+          opacity: 1,
+          y: "0%",
+          duration: 0.5,
+          stagger: 0.06,
+          ease: "power3.out",
+        },
+        emblem ? "-=0.25" : 0
+      );
+    }, section);
+
+    return () => ctx.revert();
+  }, [reducedMotion]);
+
+  return (
+    <section
+      ref={sectionRef}
+      id="about"
+      aria-label="SkyNest living heritage and philosophy"
+      className="relative bg-paper overflow-hidden py-16 md:py-24"
+    >
+      <div className="relative z-10 w-full max-w-[1440px] mx-auto px-6 sm:px-10 md:px-12">
+        <div className="grid grid-cols-1 md:grid-cols-6 items-start">
+          {/* Columns 1 & 2 */}
+          <div className="hidden md:block md:col-start-1 md:col-end-3" />
+
+          {/* Columns 3, 4, 5 */}
+          <div className="md:col-start-3 md:col-end-6 md:pl-0 md:pr-8 flex flex-col items-start w-full">
+            <div ref={emblemRef}>
+              <SweepingOrbitalEmblem label="The Living Heritage" reducedMotion={reducedMotion} />
+            </div>
+
+            <h2
+              ref={titleRef}
+              className="font-cinzel font-normal uppercase leading-[1.12] tracking-[0.04em] text-ink w-full pl-0"
+              style={{
+                fontSize: "clamp(22px, 3.2vw, 40px)",
+              }}
+              aria-label={ABOUT_INTERLUDE_LINES.join(" ")}
+            >
+              {ABOUT_INTERLUDE_LINES.map((line, i) => (
+                <div key={i} className="overflow-hidden block py-0.5">
+                  <span
+                    ref={(el) => {
+                      lineRefs.current[i] = el;
+                    }}
+                    aria-hidden="true"
+                    className="block font-cinzel font-normal uppercase tracking-[0.035em] text-ink will-change-transform"
+                  >
+                    {line}
+                  </span>
+                </div>
+              ))}
+            </h2>
+          </div>
+
+          {/* Column 6 */}
+          <div className="hidden md:block md:col-start-6 md:col-end-7" />
+        </div>
+      </div>
+    </section>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// About Section — Cinematic Brand Story, Architecture & Philosophy
+// ---------------------------------------------------------------------------
+function AboutSection({ reducedMotion }: { reducedMotion: boolean }) {
+  const sectionRef = useRef<HTMLElement>(null);
+  const aerialRef = useRef<HTMLDivElement>(null);
+  const quoteRef = useRef<HTMLDivElement>(null);
+  const leftColRef = useRef<HTMLDivElement>(null);
+  const rightColRef = useRef<HTMLDivElement>(null);
+  const statsRef = useRef<HTMLDivElement>(null);
+  const pillarsRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (reducedMotion) return;
+    gsap.registerPlugin(ScrollTrigger);
+
+    const section = sectionRef.current;
+    if (!section) return;
+
+    const ctx = gsap.context(() => {
+      // Aerial hero fade + scale
+      if (aerialRef.current) {
+        gsap.fromTo(aerialRef.current, { opacity: 0, scale: 1.04 }, {
+          opacity: 1, scale: 1, duration: 1.2, ease: "power2.out",
+          scrollTrigger: { trigger: aerialRef.current, start: "top 88%" },
+        });
+      }
+      // Founder's quote slide up
+      if (quoteRef.current) {
+        gsap.fromTo(quoteRef.current, { opacity: 0, y: 50 }, {
+          opacity: 1, y: 0, duration: 1.0, ease: "power3.out",
+          scrollTrigger: { trigger: quoteRef.current, start: "top 85%" },
+        });
+      }
+      // Editorial columns stagger
+      [leftColRef.current, rightColRef.current].forEach((el, i) => {
+        if (!el) return;
+        gsap.fromTo(el, { opacity: 0, y: 40 }, {
+          opacity: 1, y: 0, duration: 0.9, delay: i * 0.15, ease: "power3.out",
+          scrollTrigger: { trigger: el, start: "top 85%" },
+        });
+      });
+      // Stats stagger
+      if (statsRef.current) {
+        gsap.fromTo(statsRef.current.querySelectorAll(".stat-item"), { opacity: 0, y: 24 }, {
+          opacity: 1, y: 0, duration: 0.7, stagger: 0.1, ease: "power2.out",
+          scrollTrigger: { trigger: statsRef.current, start: "top 88%" },
+        });
+      }
+      // Pillar cards stagger
+      if (pillarsRef.current) {
+        gsap.fromTo(pillarsRef.current.querySelectorAll(".pillar-card"), { opacity: 0, y: 50 }, {
+          opacity: 1, y: 0, duration: 0.8, stagger: 0.12, ease: "power3.out",
+          scrollTrigger: { trigger: pillarsRef.current, start: "top 88%" },
+        });
+      }
+    }, section);
+
+    return () => ctx.revert();
+  }, [reducedMotion]);
+
+  return (
+    <section
+      ref={sectionRef}
+      id="about-sanctuary"
+      aria-label="About Sky Nest Hotels & Resorts"
+      className="relative bg-paper overflow-hidden"
+    >
+      {/* ── 1. FULL-BLEED AERIAL HERO ───────────────────────────── */}
+      <div
+        ref={aerialRef}
+        className="relative h-[70vh] sm:h-[80vh] overflow-hidden"
+        style={{ opacity: reducedMotion ? 1 : 0 }}
+      >
+        {/* Feathered top gradient to blend from paper background */}
+        <div
+          aria-hidden="true"
+          className="absolute inset-x-0 top-0 h-32 md:h-48 pointer-events-none z-[3]"
+          style={{
+            background:
+              "linear-gradient(to bottom, #FDFCFA 0%, rgba(253,252,250,0.85) 30%, rgba(253,252,250,0.3) 65%, transparent 100%)",
+          }}
+        />
+
+        <img
+          src="/about_aerial.jpg?v=3"
+          alt="Sky Nest — aerial view of Sri Lankan hill country sanctuary with tea plantations"
+          className="w-full h-full object-cover object-center"
+        />
+        <div
+          className="absolute inset-0 z-[1]"
+          style={{
+            background:
+              "linear-gradient(to bottom, rgba(11,37,64,0.12) 0%, rgba(11,37,64,0.30) 50%, rgba(11,37,64,0.92) 100%)",
+          }}
+        />
+        {/* Aerial text overlay — regal, well-padded and unhurried */}
+        <div className="absolute inset-0 z-10 flex flex-col justify-end px-6 sm:px-12 md:px-20 pb-12 sm:pb-16 md:pb-20">
+          <div className="max-w-3xl">
+            <span className="font-jakarta text-[10px] sm:text-[11px] font-bold tracking-[0.35em] uppercase text-white/60 block mb-3 drop-shadow-sm">
+              Sky Nest Hotels & Resorts — Est. Sri Lanka
+            </span>
+            <h2
+              className="font-cinzel text-white uppercase leading-[1.12] tracking-[0.04em] drop-shadow-md"
+              style={{ fontSize: "clamp(26px, 4vw, 54px)" }}
+            >
+              Three Sanctuaries.{" "}
+              <span className="italic font-normal text-white/80">
+                One Island. One Standard.
+              </span>
+            </h2>
+          </div>
+        </div>
+      </div>
+
+      {/* ── 2. FOUNDER'S EDITORIAL QUOTE ────────────────────────── */}
+      <div
+        ref={quoteRef}
+        className="relative bg-ink py-20 sm:py-24 px-6 sm:px-12 md:px-20"
+        style={{ opacity: reducedMotion ? 1 : 0 }}
+      >
+        {/* Giant decorative quotation mark */}
+        <span
+          aria-hidden="true"
+          className="absolute top-2 left-6 sm:left-12 font-cinzel text-white/[0.035] select-none pointer-events-none leading-none"
+          style={{ fontSize: "clamp(100px, 16vw, 220px)" }}
+        >
+          &ldquo;
+        </span>
+        <div className="relative max-w-[860px] mx-auto text-center">
+          <p
+            className="font-cinzel italic text-white leading-[1.6]"
+            style={{ fontSize: "clamp(17px, 2.2vw, 28px)" }}
+          >
+            &ldquo;We did not build hotels. We shaped a conversation between landscape
+            and craftsmanship — where every sunrise belongs to the guest, and every
+            stone remembers the island it came from.&rdquo;
+          </p>
+          <div className="mt-8 flex items-center justify-center gap-3">
+            <div className="h-px w-12 bg-skynest-accent" />
+            <span className="font-jakarta text-[11px] tracking-[0.22em] uppercase text-white/45">
+              The Founders — Sky Nest Hotels & Resorts
+            </span>
+            <div className="h-px w-12 bg-skynest-accent" />
+          </div>
+        </div>
+      </div>
+
+      {/* ── 3. TWO-COLUMN EDITORIAL STORY ───────────────────────── */}
+      <div className="bg-paper py-20 sm:py-28 px-6 sm:px-10 md:px-16">
+        <div className="max-w-[1400px] mx-auto">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 lg:gap-24 items-start">
+
+            {/* Left: Lobby image stacked with inset suite image */}
+            <div
+              ref={leftColRef}
+              className="relative pb-12"
+              style={{ opacity: reducedMotion ? 1 : 0 }}
+            >
+              {/* Primary lobby image */}
+              <div className="relative overflow-hidden shadow-2xl">
+                <img
+                  src="/about_lobby.jpg"
+                  alt="Sky Nest grand colonial lobby with tropical botanicals and marble floors"
+                  className="w-full aspect-[3/4] object-cover"
+                />
+                <div
+                  className="absolute inset-0"
+                  style={{
+                    background: "linear-gradient(to top, rgba(11,37,64,0.55) 0%, transparent 50%)",
+                  }}
+                />
+                <div className="absolute bottom-5 left-6 right-6">
+                  <p className="font-cinzel text-white/90 text-[12px] uppercase tracking-widest">
+                    The Grand Lobby
+                  </p>
+                  <p className="font-jakarta text-white/55 text-[10px] mt-0.5 tracking-wide">
+                    Sky Nest Colombo — Galle Road, Colombo 03
+                  </p>
+                </div>
+              </div>
+
+              {/* Inset floating suite image */}
+              <div className="absolute -bottom-4 -right-2 sm:right-2 w-44 sm:w-52 md:w-60 shadow-2xl border-[3px] border-paper overflow-hidden">
+                <img
+                  src="/about_suite.jpg"
+                  alt="Sky Nest private ocean suite at dusk"
+                  className="w-full aspect-[4/3] object-cover"
+                />
+              </div>
+            </div>
+
+            {/* Right: Deep editorial copy */}
+            <div
+              ref={rightColRef}
+              className="lg:pt-6 space-y-6"
+              style={{ opacity: reducedMotion ? 1 : 0 }}
+            >
+              <span className="font-jakarta text-[11px] font-bold tracking-[0.3em] uppercase text-skynest-accent block">
+                Our Heritage & Philosophy
+              </span>
+
+              <h3
+                className="font-cinzel text-ink uppercase leading-[1.12] tracking-[0.03em]"
+                style={{ fontSize: "clamp(22px, 2.8vw, 38px)" }}
+              >
+                Landscape as Architecture.{" "}
+                <span className="italic font-normal">Heritage as Hospitality.</span>
+              </h3>
+
+              <div className="h-px w-14 bg-skynest-accent" />
+
+              <p className="font-jakarta text-ink/75 text-[15px] leading-[1.9]">
+                Sky Nest was conceived from a single conviction: that Sri Lanka&rsquo;s extraordinary
+                natural landscapes deserve sanctuaries worthy of their grandeur. From the colonial
+                harbour city of Colombo to the mist-laden tea hills of Kandy and the rampart-crowned
+                shores of Galle Fort, each property is shaped around its geography — not imposed upon it.
+              </p>
+
+              <p className="font-jakarta text-ink/60 text-[14px] leading-[1.9]">
+                Every suite is furnished with locally sourced tropical hardwoods, handwoven textiles, and
+                floor-to-ceiling glass that frame the sky as living art. Our dining philosophy draws from
+                centuries of Ceylonese spice heritage, elevated through contemporary culinary mastery.
+                Our spa rituals are written in ancient Ayurvedic scripture, reinterpreted for the modern
+                conscious traveller.
+              </p>
+
+              {/* Accolades */}
+              <div className="border border-skynest-hairline p-5 mt-2">
+                <p className="font-jakarta text-[10px] font-bold tracking-[0.25em] uppercase text-ink/35 mb-4">
+                  Recognition & Awards
+                </p>
+                {[
+                  "Travel + Leisure — World's Best Hotels, Sri Lanka",
+                  "Condé Nast Traveller — Gold List 2024",
+                  "UNESCO Heritage Tourism Excellence Award",
+                ].map((award, i) => (
+                  <div key={i} className="flex items-start gap-3 mb-2 last:mb-0">
+                    <div className="mt-1.5 w-1 h-1 rounded-full bg-skynest-accent shrink-0" />
+                    <span className="font-jakarta text-[12px] text-ink/65 leading-snug">{award}</span>
+                  </div>
+                ))}
+              </div>
+
+              <a
+                href="/book"
+                id="about-book-cta"
+                className="inline-flex items-center gap-3 mt-2 font-jakarta text-[11px] font-semibold tracking-[0.2em] uppercase text-ink border-b border-ink/25 pb-0.5 hover:border-skynest-accent hover:text-skynest-accent transition-colors duration-300"
+              >
+                Reserve Your Sanctuary
+                <ChevronRight className="w-3 h-3" />
+              </a>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* ── 4. ANIMATED STATS BAND ──────────────────────────────── */}
+      <div
+        ref={statsRef}
+        className="border-t border-b border-skynest-hairline py-14 sm:py-16 px-6 sm:px-10 bg-ink/[0.025]"
+      >
+        <div className="max-w-[1400px] mx-auto grid grid-cols-2 md:grid-cols-4 gap-8">
+          {[
+            { value: "03", label: "Iconic Sanctuaries", sub: "Colombo · Kandy · Galle" },
+            { value: "100+", label: "Bespoke Suites", sub: "Individually curated" },
+            { value: "5★", label: "Certified Luxury", sub: "Global hospitality standard", accent: true },
+            { value: "24/7", label: "Personal Concierge", sub: "Available always" },
+          ].map((stat, i) => (
+            <div key={i} className="stat-item text-center" style={{ opacity: reducedMotion ? 1 : 0 }}>
+              <span
+                className={`block font-cinzel font-bold leading-none mb-1 ${stat.accent ? "text-skynest-accent" : "text-ink"}`}
+                style={{ fontSize: "clamp(28px, 4vw, 52px)" }}
+              >
+                {stat.value}
+              </span>
+              <span className="block font-jakarta text-[11px] sm:text-[12px] font-semibold uppercase tracking-wider text-ink/75 mt-2">
+                {stat.label}
+              </span>
+              <span className="block font-jakarta text-[10px] text-ink/40 mt-1">{stat.sub}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* ── 5. THREE PHILOSOPHY PILLARS ─────────────────────────── */}
+      <div ref={pillarsRef} className="bg-paper py-20 sm:py-28 px-6 sm:px-10 md:px-16 border-b border-skynest-hairline">
+        <div className="max-w-[1400px] mx-auto">
+          <div className="text-center mb-14 sm:mb-16">
+            <span className="font-jakarta text-[11px] font-bold tracking-[0.3em] uppercase text-skynest-accent block mb-3">
+              The Sky Nest Philosophy
+            </span>
+            <h3
+              className="font-cinzel text-ink uppercase tracking-[0.04em]"
+              style={{ fontSize: "clamp(20px, 2.8vw, 36px)" }}
+            >
+              Three Pillars. One Vision.
+            </h3>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 border border-skynest-hairline">
+            {[
+              {
+                num: "I",
+                label: "Design",
+                title: "Architectural Reverence",
+                body: "Every Sky Nest property is sculpted around its natural setting — not placed upon it. Colonial arches, open-air colonnades, infinity lines drawn between water and sky. Architecture that breathes.",
+                glyph: "◈",
+              },
+              {
+                num: "II",
+                label: "Flavour",
+                title: "Ceylonese Gastronomy",
+                body: "Ancient spice routes distilled into modern culinary poetry. Fresh island harvests, ocean-drawn catches, and rare Ceylon tea ceremonies performed at your table. Taste as memory.",
+                glyph: "◉",
+              },
+              {
+                num: "III",
+                label: "Service",
+                title: "Uncompromising Warmth",
+                body: "Our concierge does not manage your stay — they author it. Private excursions to forgotten temples, dawn tea-plucking, moonlit dinners on the ramparts of Galle. Every detail, remembered.",
+                glyph: "◌",
+              },
+            ].map((pillar, i) => (
+              <div
+                key={i}
+                className={`pillar-card group relative p-8 sm:p-10 flex flex-col gap-5 transition-all duration-500 hover:bg-ink/[0.02] ${i < 2 ? "md:border-r border-skynest-hairline" : ""} ${i > 0 ? "border-t md:border-t-0 border-skynest-hairline" : ""}`}
+                style={{ opacity: reducedMotion ? 1 : 0 }}
+              >
+                <span className="absolute top-6 right-7 font-cinzel text-[11px] tracking-widest text-ink/15 group-hover:text-skynest-accent/35 transition-colors duration-300">
+                  {pillar.num}
+                </span>
+                <span className="font-cinzel text-3xl text-skynest-accent/50 leading-none">{pillar.glyph}</span>
+                <div>
+                  <span className="font-jakarta text-[10px] font-bold tracking-[0.28em] uppercase text-skynest-accent block mb-2">
+                    {pillar.label}
+                  </span>
+                  <h4 className="font-cinzel text-xl text-ink uppercase tracking-[0.04em]">{pillar.title}</h4>
+                </div>
+                <div className="h-px w-10 bg-skynest-accent/35 group-hover:w-16 transition-all duration-500" />
+                <p className="font-jakarta text-[13px] text-ink/60 leading-[1.9]">{pillar.body}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+
 
 // ---------------------------------------------------------------------------
 // Main Page Component
@@ -1613,8 +2019,7 @@ export default function SkyNestHomePage() {
 
   return (
     <div className="relative bg-paper">
-      {/* Single global adaptive grid */}
-      <GlobalGridOverlay />
+
 
       <a
         href="#story"
@@ -1649,6 +2054,12 @@ export default function SkyNestHomePage() {
 
       {/* Branch 03 — Colombo City */}
       <ColomboBranchSection reducedMotion={reducedMotion} />
+
+      {/* Interlude / Story — Living Heritage & Brand Philosophy */}
+      <AboutInterludeSection reducedMotion={reducedMotion} />
+
+      {/* About Section — Philosophy, Architecture & Heritage */}
+      <AboutSection reducedMotion={reducedMotion} />
 
       {/* Premium Architectural Footer */}
       <SkyNestFooter />
