@@ -21,7 +21,6 @@ interface NavLink {
 const NAV_LINKS: NavLink[] = [
   { label: "Rates", href: "#rates" },
   { label: "About", href: "#about" },
-  { label: "Contact", href: "/contact" },
 ];
 
 const STORY_LINES = [
@@ -337,7 +336,7 @@ function SkyNestNav({
           {/* Right — CTA buttons */}
           <div className="hidden md:flex items-center gap-2.5">
             <a
-              href="#contact"
+              href="/contact"
               id="nav-cta-contact"
               className="flex items-center px-6 py-2.5 text-[11px] md:text-[12px] font-jakarta font-medium tracking-[0.12em] uppercase border transition-[border-color,background-color] duration-200"
               style={linkStyle}
@@ -450,7 +449,7 @@ function SkyNestNav({
         <div className="space-y-1 pt-12">
           {[
             ...NAV_LINKS,
-            { label: "Contact", href: "#contact" },
+            { label: "Contact", href: "/contact" },
             { label: "Book Now", href: "/book" },
           ].map((link, i) => (
             <a
@@ -952,6 +951,7 @@ function KandyBranchSection({ reducedMotion }: { reducedMotion: boolean }) {
       aria-label="SkyNest Kandy branch"
       className="relative bg-paper overflow-hidden w-full"
     >
+      <div id="rates" aria-hidden="true" className="absolute -top-20" />
       <div className="relative w-full min-h-[460px] sm:min-h-[520px] md:min-h-0 md:aspect-[3/2] overflow-hidden">
         {/* Parallax background image */}
         <div className="absolute inset-0 w-full h-full z-0 overflow-hidden">
