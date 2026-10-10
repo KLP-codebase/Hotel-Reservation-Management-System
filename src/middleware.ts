@@ -2,15 +2,16 @@ import { NextRequest, NextResponse } from 'next/server';
 
 // ── GoF: Proxy ────────────────────────────────────────────────────────────────
 // This middleware is the protection Proxy for all /dashboard/* routes.
-// It intercepts requests BEFORE the real page (Subject) renders.
+// Intercepts requests BEFORE the real page (Subject) renders.
 // Unauthenticated users are redirected to /login.
-// Authenticated users hitting /login are redirected to /dashboard.
+// Guests are granted access to /dashboard/activity and redirected there from staff dashboard routes.
 
 export function middleware(req: NextRequest) {
   const token       = req.cookies.get('sn_token')?.value;
   const path        = req.nextUrl.pathname;
   const isProtected = path === '/dashboard' || path.startsWith('/dashboard/') || path === '/staff' || path === '/branches';
   const isAuthPage  = path === '/login' || path === '/register';
+  const isGuestActivity = path === '/dashboard/activity' || path.startsWith('/dashboard/activity');
 
   let role = '';
   if (token) {
@@ -28,6 +29,7 @@ export function middleware(req: NextRequest) {
 
   const isGuest = role.toUpperCase() === 'GUEST';
 
+  // 1. Unauthenticated users trying to access protected routes -> /login
   if (!token && isProtected) {
     const loginUrl = new URL('/login', req.url);
     const res = NextResponse.redirect(loginUrl);
@@ -37,15 +39,25 @@ export function middleware(req: NextRequest) {
     return res;
   }
 
-  if (token && isGuest && isProtected) {
-    const mainPageUrl = new URL('/', req.url);
-    const res = NextResponse.redirect(mainPageUrl);
+  // 2. Guests accessing staff-only dashboard routes -> redirect to their Activity page
+  if (token && isGuest && isProtected && !isGuestActivity) {
+    const activityUrl = new URL('/dashboard/activity', req.url);
+    const res = NextResponse.redirect(activityUrl);
     res.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
     return res;
   }
 
+  // 2b. Staff (Admin, Manager, Receptionist, DBA) accessing guest activity -> redirect to /dashboard
+  if (token && !isGuest && isGuestActivity) {
+    const dashUrl = new URL('/dashboard', req.url);
+    const res = NextResponse.redirect(dashUrl);
+    res.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+    return res;
+  }
+
+  // 3. Authenticated users hitting /login or /register -> redirect to appropriate portal
   if (token && isAuthPage) {
-    const targetUrl = isGuest ? new URL('/', req.url) : new URL('/dashboard', req.url);
+    const targetUrl = isGuest ? new URL('/dashboard/activity', req.url) : new URL('/dashboard', req.url);
     const res = NextResponse.redirect(targetUrl);
     res.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
     return res;
@@ -63,4 +75,3 @@ export function middleware(req: NextRequest) {
 export const config = {
   matcher: ['/dashboard', '/dashboard/:path*', '/staff', '/branches', '/login', '/register'],
 };
-

@@ -7,12 +7,14 @@ import { authStrategy } from '../lib/auth/auth.strategy';
 import { AuthService } from '../services/auth.service';
 import { UserAccountRepository } from '../repositories/user-account.repository';
 import { StaffRepository } from '../repositories/staff.repository';
+import { LoginChallengeRepository } from '../repositories/login-challenge.repository';
 import { Errors } from '../lib/errors';
 
 const router = Router();
 const repo = new UserAccountRepository(db);
 const staffRepo = new StaffRepository(db);
-const service = new AuthService(repo, authStrategy);
+const challengeRepo = new LoginChallengeRepository(db);
+const service = new AuthService(repo, authStrategy, challengeRepo);
 
 // ── Zod schemas ───────────────────────────────────────────────────────────────
 const LoginSchema = z.object({
@@ -47,6 +49,24 @@ const AcceptInviteSchema = z.object({
 
 // ── Routes ────────────────────────────────────────────────────────────────────
 
+
+router.get('/login-challenge/:id', async (req: Request, res: Response) => {
+  const result = await service.checkChallengeStatus(req.params.id);
+  res.status(200).json(result);
+});
+
+router.post('/login-challenge/verify', async (req: Request, res: Response) => {
+  const ipAddress = (req.headers['x-forwarded-for'] as string)?.split(',')[0]?.trim() || req.socket.remoteAddress;
+  const result = await service.verifyLoginChallenge(req.body, ipAddress);
+  res.status(200).json(result);
+});
+
+router.post('/login-challenge/resend', async (req: Request, res: Response) => {
+  const ipAddress = (req.headers['x-forwarded-for'] as string)?.split(',')[0]?.trim() || req.socket.remoteAddress;
+  const result = await service.resendLoginChallenge(req.body.challengeId, ipAddress);
+  res.status(200).json(result);
+});
+
 router.post('/login', validate(LoginSchema), async (req: Request, res: Response) => {
   const ip = req.ip ?? req.socket.remoteAddress;
   const result = await service.login(req.body, ip);
@@ -70,7 +90,8 @@ router.post('/register', validate(RegisterSchema), async (req: Request, res: Res
 });
 
 router.post('/verify-email', validate(VerifyEmailSchema), async (req: Request, res: Response) => {
-  const result = await service.verifyEmail(req.body.token);
+  const ipAddress = (req.headers['x-forwarded-for'] as string)?.split(',')[0]?.trim() || req.socket.remoteAddress;
+  const result = await service.verifyEmail(req.body.token, ipAddress);
   res.status(200).json(result);
 });
 

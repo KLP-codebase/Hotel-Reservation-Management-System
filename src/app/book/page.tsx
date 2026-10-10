@@ -114,7 +114,7 @@ export default function BookPage() {
   }
 
   // GSAP animation refs
-  const heroRef = useRef<HTMLDivElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
   const navRef = useRef<HTMLElement>(null);
   const resultsRef = useRef<HTMLDivElement>(null);
 
@@ -137,7 +137,7 @@ export default function BookPage() {
         ease: 'power3.out',
         delay: 0.12,
       });
-    }, heroRef);
+    }, containerRef);
 
     return () => ctx.revert();
   }, []);
@@ -497,7 +497,7 @@ export default function BookPage() {
 
   // ── Render ────────────────────────────────────────────────────────────────
   return (
-    <div className="min-h-screen bg-paper relative selection:bg-skynest-accent selection:text-white" style={{ backgroundColor: '#FDFCFA' }}>
+    <div ref={containerRef} className="min-h-screen bg-paper relative selection:bg-skynest-accent selection:text-white" style={{ backgroundColor: '#FDFCFA' }}>
 
       {/* 6-column architectural hairline grid */}
       <div aria-hidden="true" className="pointer-events-none fixed inset-0 flex z-0">
@@ -527,7 +527,6 @@ export default function BookPage() {
 
       {/* Hero Header */}
       <section
-        ref={heroRef}
         className="relative z-10 flex flex-col items-center justify-center px-6 pt-36 pb-32 md:pt-40 md:pb-36 text-center overflow-hidden border-b border-skynest-hairline bg-ink shadow-[0_10px_30px_rgba(0,0,0,0.15)]"
       >
         <div aria-hidden="true" className="absolute inset-0 pointer-events-none z-0 overflow-hidden">

@@ -12,9 +12,9 @@ import { isUuid } from '../lib/uuid';
 const router = Router();
 const serviceRepo = new ServiceRepository(db);
 
-// RBAC: Operations staff can manage guest services
+// RBAC: Authenticated users (staff and guests) can access services
 router.use(authenticate);
-router.use(authorize('RECEPTIONIST', 'MANAGER', 'ADMINISTRATOR', 'DBA'));
+router.use(authorize('RECEPTIONIST', 'MANAGER', 'ADMINISTRATOR', 'DBA', 'GUEST'));
 
 const CreateCatalogueSchema = z.object({
   branchId:     z.coerce.number().int().positive().optional(),
@@ -523,7 +523,7 @@ router.post('/folio/:bookingId', async (req: Request, res: Response) => {
  * DELETE /api/v1/services/folio/:usageId
  * Voids/removes a service charge from the room folio (e.g. guest cancelled or no-show).
  */
-router.delete('/folio/:usageId', async (req: Request, res: Response) => {
+router.delete('/folio/:usageId', authorize('RECEPTIONIST', 'MANAGER', 'ADMINISTRATOR', 'DBA'), async (req: Request, res: Response) => {
   const { usageId } = req.params;
   const reason = (req.body?.reason || req.query.reason || 'Guest cancellation') as string;
   if (!isUuid(usageId)) throw Errors.notFound('Service usage record');

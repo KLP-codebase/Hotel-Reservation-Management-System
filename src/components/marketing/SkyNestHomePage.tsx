@@ -19,9 +19,8 @@ interface NavLink {
 // Constants
 // ---------------------------------------------------------------------------
 const NAV_LINKS: NavLink[] = [
-  { label: "Rates", href: "#rates" },
+  { label: "Rates", href: "/rates" },
   { label: "About", href: "#about" },
-  { label: "Contact", href: "/contact" },
 ];
 
 const STORY_LINES = [
@@ -337,7 +336,7 @@ function SkyNestNav({
           {/* Right — CTA buttons */}
           <div className="hidden md:flex items-center gap-2.5">
             <a
-              href="#contact"
+              href="/contact"
               id="nav-cta-contact"
               className="flex items-center px-6 py-2.5 text-[11px] md:text-[12px] font-jakarta font-medium tracking-[0.12em] uppercase border transition-[border-color,background-color] duration-200"
               style={linkStyle}
@@ -356,13 +355,21 @@ function SkyNestNav({
 
             {user ? (
               <>
-                {user.role?.toUpperCase() !== 'GUEST' && (
+                {user.role?.toUpperCase() !== 'GUEST' ? (
                   <a
                     href="/dashboard"
                     id="nav-cta-dashboard"
                     className="flex items-center px-6 py-2.5 text-[11px] md:text-[12px] font-jakarta font-semibold tracking-[0.12em] uppercase border transition-[border-color,background-color] duration-200 text-amber-400 border-amber-500/30 hover:border-amber-400 bg-amber-500/10 hover:bg-amber-500/20"
                   >
                     Dashboard
+                  </a>
+                ) : (
+                  <a
+                    href="/dashboard/activity"
+                    id="nav-cta-activity"
+                    className="flex items-center px-6 py-2.5 text-[11px] md:text-[12px] font-jakarta font-semibold tracking-[0.12em] uppercase border transition-[border-color,background-color] duration-200 text-amber-400 border-amber-500/30 hover:border-amber-400 bg-amber-500/10 hover:bg-amber-500/20"
+                  >
+                    Activity
                   </a>
                 )}
                 <button
@@ -450,11 +457,11 @@ function SkyNestNav({
         <div className="space-y-1 pt-12">
           {[
             ...NAV_LINKS,
-            { label: "Contact", href: "#contact" },
+            { label: "Contact", href: "/contact" },
             { label: "Book Now", href: "/book" },
           ].map((link, i) => (
             <a
-              key={link.label}
+              key={`${link.label}-${link.href}`}
               href={link.href}
               id={`mobile-nav-${link.label.toLowerCase().replace(/\s+/g, "-")}`}
               onClick={() => setMenuOpen(false)}
@@ -477,13 +484,21 @@ function SkyNestNav({
           <div className="pt-4">
             {user ? (
               <div className="flex flex-col gap-2">
-                {user.role?.toUpperCase() !== 'GUEST' && (
+                {user.role?.toUpperCase() !== 'GUEST' ? (
                   <a
                     href="/dashboard"
                     onClick={() => setMenuOpen(false)}
                     className="block py-3 font-jakarta font-semibold text-xl text-amber-400 hover:text-amber-300"
                   >
                     Staff Dashboard
+                  </a>
+                ) : (
+                  <a
+                    href="/dashboard/activity"
+                    onClick={() => setMenuOpen(false)}
+                    className="block py-3 font-jakarta font-semibold text-xl text-amber-400 hover:text-amber-300"
+                  >
+                    My Activity
                   </a>
                 )}
                 <button
@@ -952,6 +967,7 @@ function KandyBranchSection({ reducedMotion }: { reducedMotion: boolean }) {
       aria-label="SkyNest Kandy branch"
       className="relative bg-paper overflow-hidden w-full"
     >
+      <div id="rates" aria-hidden="true" className="absolute -top-20" />
       <div className="relative w-full min-h-[460px] sm:min-h-[520px] md:min-h-0 md:aspect-[3/2] overflow-hidden">
         {/* Parallax background image */}
         <div className="absolute inset-0 w-full h-full z-0 overflow-hidden">
@@ -1471,15 +1487,7 @@ function ColomboBranchSection({ reducedMotion }: { reducedMotion: boolean }) {
             }}
           />
 
-          {/* Feathered bottom gradient to softly dissolve into paper canvas */}
-          <div
-            aria-hidden="true"
-            className="absolute inset-x-0 bottom-0 h-32 md:h-48 pointer-events-none z-[2]"
-            style={{
-              background:
-                "linear-gradient(to top, #FDFCFA 0%, rgba(253,252,250,0.92) 30%, rgba(253,252,250,0.45) 65%, rgba(253,252,250,0.08) 88%, transparent 100%)",
-            }}
-          />
+
         </div>
 
 
@@ -1593,7 +1601,7 @@ function AboutInterludeSection({ reducedMotion }: { reducedMotion: boolean }) {
       ref={sectionRef}
       id="about"
       aria-label="SkyNest living heritage and philosophy"
-      className="relative bg-paper overflow-hidden py-16 md:py-24"
+      className="relative bg-paper overflow-hidden pt-16 md:pt-24 pb-8 md:pb-12"
     >
       <div className="relative z-10 w-full max-w-[1440px] mx-auto px-6 sm:px-10 md:px-12">
         <div className="grid grid-cols-1 md:grid-cols-6 items-start">
@@ -1643,6 +1651,7 @@ function AboutInterludeSection({ reducedMotion }: { reducedMotion: boolean }) {
 // ---------------------------------------------------------------------------
 function AboutSection({ reducedMotion }: { reducedMotion: boolean }) {
   const sectionRef = useRef<HTMLElement>(null);
+  const headerRef = useRef<HTMLDivElement>(null);
   const aerialRef = useRef<HTMLDivElement>(null);
   const quoteRef = useRef<HTMLDivElement>(null);
   const leftColRef = useRef<HTMLDivElement>(null);
@@ -1658,6 +1667,13 @@ function AboutSection({ reducedMotion }: { reducedMotion: boolean }) {
     if (!section) return;
 
     const ctx = gsap.context(() => {
+      // Header entrance in white space
+      if (headerRef.current) {
+        gsap.fromTo(headerRef.current, { opacity: 0, y: 30 }, {
+          opacity: 1, y: 0, duration: 0.9, ease: "power3.out",
+          scrollTrigger: { trigger: headerRef.current, start: "top 88%" },
+        });
+      }
       // Aerial hero fade + scale
       if (aerialRef.current) {
         gsap.fromTo(aerialRef.current, { opacity: 0, scale: 1.04 }, {
@@ -1704,21 +1720,43 @@ function AboutSection({ reducedMotion }: { reducedMotion: boolean }) {
       ref={sectionRef}
       id="about-sanctuary"
       aria-label="About Sky Nest Hotels & Resorts"
-      className="relative bg-paper overflow-hidden"
+      className="relative bg-paper overflow-hidden pt-8 sm:pt-12 md:pt-16"
     >
+      {/* ── WHITE SPACE EDITORIAL HEADER (TOP-RIGHT) ────────────── */}
+      <div
+        ref={headerRef}
+        style={{ opacity: reducedMotion ? 1 : 0 }}
+        className="max-w-[1400px] mx-auto px-6 sm:px-10 md:px-16 -mb-4 sm:-mb-6 md:-mb-8 relative z-20 flex flex-col items-start sm:items-end text-left sm:text-right pointer-events-none"
+      >
+        <div className="max-w-2xl sm:text-right">
+          <span className="font-jakarta text-[11px] md:text-[12px] font-bold tracking-[0.3em] uppercase text-ink/75 block mb-2 sm:mb-3">
+            Sky Nest Hotels & Resorts — Est. Sri Lanka
+          </span>
+          <h2
+            className="font-cinzel text-ink leading-[1.08] uppercase tracking-[0.03em]"
+            style={{ fontSize: "clamp(26px, 3.8vw, 52px)" }}
+          >
+            Three Sanctuaries.{" "}
+            <span className="italic font-normal text-ink/75 block sm:inline">
+              One Island. One Standard.
+            </span>
+          </h2>
+        </div>
+      </div>
+
       {/* ── 1. FULL-BLEED AERIAL HERO ───────────────────────────── */}
       <div
         ref={aerialRef}
         className="relative h-[70vh] sm:h-[80vh] overflow-hidden"
         style={{ opacity: reducedMotion ? 1 : 0 }}
       >
-        {/* Feathered top gradient to blend from paper background */}
+        {/* Feathered top gradient to blend softly from paper background */}
         <div
           aria-hidden="true"
-          className="absolute inset-x-0 top-0 h-32 md:h-48 pointer-events-none z-[3]"
+          className="absolute inset-x-0 top-0 h-28 md:h-44 pointer-events-none z-[3]"
           style={{
             background:
-              "linear-gradient(to bottom, #FDFCFA 0%, rgba(253,252,250,0.85) 30%, rgba(253,252,250,0.3) 65%, transparent 100%)",
+              "linear-gradient(to bottom, #FDFCFA 0%, rgba(253,252,250,0.85) 30%, transparent 100%)",
           }}
         />
 
@@ -1727,47 +1765,59 @@ function AboutSection({ reducedMotion }: { reducedMotion: boolean }) {
           alt="Sky Nest — aerial view of Sri Lankan hill country sanctuary with tea plantations"
           className="w-full h-full object-cover object-center"
         />
-        <div
-          className="absolute inset-0 z-[1]"
-          style={{
-            background:
-              "linear-gradient(to bottom, rgba(11,37,64,0.12) 0%, rgba(11,37,64,0.30) 50%, rgba(11,37,64,0.92) 100%)",
-          }}
-        />
-        {/* Aerial text overlay — regal, well-padded and unhurried */}
-        <div className="absolute inset-0 z-10 flex flex-col justify-end px-6 sm:px-12 md:px-20 pb-12 sm:pb-16 md:pb-20">
-          <div className="max-w-3xl">
-            <span className="font-jakarta text-[10px] sm:text-[11px] font-bold tracking-[0.35em] uppercase text-white/60 block mb-3 drop-shadow-sm">
-              Sky Nest Hotels & Resorts — Est. Sri Lanka
-            </span>
-            <h2
-              className="font-cinzel text-white uppercase leading-[1.12] tracking-[0.04em] drop-shadow-md"
-              style={{ fontSize: "clamp(26px, 4vw, 54px)" }}
-            >
-              Three Sanctuaries.{" "}
-              <span className="italic font-normal text-white/80">
-                One Island. One Standard.
-              </span>
-            </h2>
-          </div>
-        </div>
       </div>
 
       {/* ── 2. FOUNDER'S EDITORIAL QUOTE ────────────────────────── */}
       <div
         ref={quoteRef}
-        className="relative bg-ink py-20 sm:py-24 px-6 sm:px-12 md:px-20"
+        className="relative bg-ink py-20 sm:py-24 px-6 sm:px-12 md:px-20 overflow-hidden"
         style={{ opacity: reducedMotion ? 1 : 0 }}
       >
+        {/* Decorative Concentric Arch Motif — Bottom Left */}
+        <svg
+          aria-hidden="true"
+          className="absolute -bottom-4 left-3 sm:left-6 md:left-10 lg:left-16 w-36 h-44 sm:w-44 sm:h-52 lg:w-52 lg:h-60 pointer-events-none select-none text-paper/[0.15] z-0 hidden sm:block"
+          viewBox="0 0 160 200"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.5"
+        >
+          {[14, 24, 34, 44, 54, 64, 74].map((r, i) => (
+            <path
+              key={i}
+              d={`M ${80 - r} 200 L ${80 - r} 80 A ${r} ${r} 0 0 1 ${80 + r} 80 L ${80 + r} 200`}
+            />
+          ))}
+        </svg>
+
+        {/* Decorative Concentric Arch Motif — Top Right (Inverted / Upside Down) */}
+        <svg
+          aria-hidden="true"
+          className="absolute -top-4 right-3 sm:right-6 md:right-10 lg:right-16 w-36 h-44 sm:w-44 sm:h-52 lg:w-52 lg:h-60 pointer-events-none select-none text-paper/[0.15] z-0 hidden sm:block rotate-180"
+          viewBox="0 0 160 200"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.5"
+        >
+          {[14, 24, 34, 44, 54, 64, 74].map((r, i) => (
+            <path
+              key={i}
+              d={`M ${80 - r} 200 L ${80 - r} 80 A ${r} ${r} 0 0 1 ${80 + r} 80 L ${80 + r} 200`}
+            />
+          ))}
+        </svg>
+
+
+
         {/* Giant decorative quotation mark */}
         <span
           aria-hidden="true"
-          className="absolute top-2 left-6 sm:left-12 font-cinzel text-white/[0.035] select-none pointer-events-none leading-none"
+          className="absolute top-2 left-6 sm:left-12 font-cinzel text-white/[0.035] select-none pointer-events-none leading-none z-0"
           style={{ fontSize: "clamp(100px, 16vw, 220px)" }}
         >
           &ldquo;
         </span>
-        <div className="relative max-w-[860px] mx-auto text-center">
+        <div className="relative z-10 max-w-[860px] mx-auto text-center">
           <p
             className="font-cinzel italic text-white leading-[1.6]"
             style={{ fontSize: "clamp(17px, 2.2vw, 28px)" }}
@@ -1895,90 +1945,188 @@ function AboutSection({ reducedMotion }: { reducedMotion: boolean }) {
         </div>
       </div>
 
-      {/* ── 4. ANIMATED STATS BAND ──────────────────────────────── */}
+      {/* ── 4. ARCHITECTURAL HALLMARKS ──────────────────────────── */}
       <div
         ref={statsRef}
-        className="border-t border-b border-skynest-hairline py-14 sm:py-16 px-6 sm:px-10 bg-ink/[0.025]"
+        className="border-t border-b border-skynest-hairline bg-paper py-16 sm:py-20 px-6 sm:px-10 md:px-16"
       >
-        <div className="max-w-[1400px] mx-auto grid grid-cols-2 md:grid-cols-4 gap-8">
-          {[
-            { value: "03", label: "Iconic Sanctuaries", sub: "Colombo · Kandy · Galle" },
-            { value: "100+", label: "Bespoke Suites", sub: "Individually curated" },
-            { value: "5★", label: "Certified Luxury", sub: "Global hospitality standard", accent: true },
-            { value: "24/7", label: "Personal Concierge", sub: "Available always" },
-          ].map((stat, i) => (
-            <div key={i} className="stat-item text-center" style={{ opacity: reducedMotion ? 1 : 0 }}>
-              <span
-                className={`block font-cinzel font-bold leading-none mb-1 ${stat.accent ? "text-skynest-accent" : "text-ink"}`}
-                style={{ fontSize: "clamp(28px, 4vw, 52px)" }}
+        <div className="max-w-[1400px] mx-auto">
+          <div className="grid grid-cols-2 lg:grid-cols-4 border border-skynest-hairline bg-white shadow-sm">
+            {[
+              {
+                value: "03",
+                suffix: "",
+                tag: "DESTINATIONS",
+                label: "Iconic Sanctuaries",
+                sub: "Colombo · Kandy · Galle",
+              },
+              {
+                value: "100",
+                suffix: "+",
+                tag: "ARCHITECTURAL SUITES",
+                label: "Bespoke Residences",
+                sub: "Individually curated ocean & hill suites",
+              },
+              {
+                value: "100",
+                suffix: "%",
+                tag: "ORIGIN & HERITAGE",
+                label: "Island Craftsmanship",
+                sub: "Locally sourced Ceylon teak & artisanal textiles",
+              },
+              {
+                value: "24",
+                suffix: "H",
+                tag: "DEDICATED HOSTING",
+                label: "Private Concierge",
+                sub: "Unrushed bespoke journeys & cultural curation",
+              },
+            ].map((stat, i) => (
+              <div
+                key={i}
+                className={`stat-item group p-8 sm:p-10 flex flex-col justify-between transition-colors duration-300 hover:bg-ink/[0.02] ${i < 3 ? "lg:border-r border-skynest-hairline" : ""
+                  } ${i % 2 === 0 ? "border-r lg:border-r-0 border-skynest-hairline" : ""} ${i >= 2 ? "border-t lg:border-t-0 border-skynest-hairline" : ""
+                  }`}
+                style={{ opacity: reducedMotion ? 1 : 0 }}
               >
-                {stat.value}
-              </span>
-              <span className="block font-jakarta text-[11px] sm:text-[12px] font-semibold uppercase tracking-wider text-ink/75 mt-2">
-                {stat.label}
-              </span>
-              <span className="block font-jakarta text-[10px] text-ink/40 mt-1">{stat.sub}</span>
-            </div>
-          ))}
+                <div>
+                  <span className="font-jakarta text-[9px] sm:text-[10px] font-bold tracking-[0.28em] uppercase text-skynest-accent block mb-3">
+                    {stat.tag}
+                  </span>
+                  <div className="flex items-baseline gap-1 mb-2">
+                    <span
+                      className="font-cinzel font-light text-ink leading-none tracking-tight group-hover:text-skynest-accent transition-colors duration-300"
+                      style={{ fontSize: "clamp(34px, 4.2vw, 54px)" }}
+                    >
+                      {stat.value}
+                    </span>
+                    {stat.suffix && (
+                      <span className="font-cinzel text-lg sm:text-xl font-light text-skynest-accent">
+                        {stat.suffix}
+                      </span>
+                    )}
+                  </div>
+                  <h4 className="font-cinzel text-[13px] sm:text-[14px] uppercase tracking-[0.08em] text-ink font-medium mt-1">
+                    {stat.label}
+                  </h4>
+                </div>
+                <div className="mt-5 pt-4 border-t border-skynest-hairline/60">
+                  <p className="font-jakarta text-[11px] text-ink/50 leading-relaxed tracking-wide">
+                    {stat.sub}
+                  </p>
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
       </div>
 
       {/* ── 5. THREE PHILOSOPHY PILLARS ─────────────────────────── */}
-      <div ref={pillarsRef} className="bg-paper py-20 sm:py-28 px-6 sm:px-10 md:px-16 border-b border-skynest-hairline">
+      <div
+        ref={pillarsRef}
+        className="bg-paper py-20 sm:py-28 md:py-32 px-6 sm:px-10 md:px-16 border-b border-skynest-hairline"
+      >
         <div className="max-w-[1400px] mx-auto">
-          <div className="text-center mb-14 sm:mb-16">
+          {/* Section Header with Signature Editorial Styling */}
+          <div className="max-w-2xl mb-14 sm:mb-20">
             <span className="font-jakarta text-[11px] font-bold tracking-[0.3em] uppercase text-skynest-accent block mb-3">
-              The Sky Nest Philosophy
+              The Sky Nest Ethos
             </span>
             <h3
-              className="font-cinzel text-ink uppercase tracking-[0.04em]"
-              style={{ fontSize: "clamp(20px, 2.8vw, 36px)" }}
+              className="font-cinzel text-ink uppercase tracking-[0.03em] leading-[1.12]"
+              style={{ fontSize: "clamp(24px, 3.2vw, 44px)" }}
             >
-              Three Pillars. One Vision.
+              Three Pillars.{" "}
+              <span className="italic font-normal text-ink/70">
+                One Island Vision.
+              </span>
             </h3>
+            <div className="h-px w-14 bg-skynest-accent mt-5 mb-4" />
+            <p className="font-jakarta text-ink/65 text-[14px] sm:text-[15px] leading-[1.85]">
+              Every Sky Nest sanctuary is sculpted from a deep dialogue between ancient island craftsmanship,
+              contemporary architectural stillness, and intuitive personal care.
+            </p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 border border-skynest-hairline">
+          {/* Three Image-Led Cinematic Cards */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 lg:gap-10">
             {[
               {
                 num: "I",
                 label: "Design",
                 title: "Architectural Reverence",
-                body: "Every Sky Nest property is sculpted around its natural setting — not placed upon it. Colonial arches, open-air colonnades, infinity lines drawn between water and sky. Architecture that breathes.",
-                glyph: "◈",
+                image: "/pillar_architecture.jpg",
+                alt: "Tropical modernism colonnade with stone pillars, reflecting water and ocean sunset",
+                body: "Sculpted around the landscape — not imposed upon it. Open-air colonnades, native granite, and horizon pools framing the sky as living art.",
               },
               {
                 num: "II",
                 label: "Flavour",
                 title: "Ceylonese Gastronomy",
-                body: "Ancient spice routes distilled into modern culinary poetry. Fresh island harvests, ocean-drawn catches, and rare Ceylon tea ceremonies performed at your table. Taste as memory.",
-                glyph: "◉",
+                image: "/pillar_gastronomy.jpg",
+                alt: "Refined candlelit open-air dining with Ceylon silver teapot and infused tropical spice cuisine",
+                body: "Centuries of spice trade heritage reimagined as modern culinary poetry. Hand-harvested Ceylon teas, coastal catches, and unhurried degustations.",
               },
               {
                 num: "III",
                 label: "Service",
                 title: "Uncompromising Warmth",
-                body: "Our concierge does not manage your stay — they author it. Private excursions to forgotten temples, dawn tea-plucking, moonlit dinners on the ramparts of Galle. Every detail, remembered.",
-                glyph: "◌",
+                image: "/pillar_service.jpg",
+                alt: "Private terrace butler hospitality with brass oil lamp overlooking misty twilight mountains",
+                body: "Our concierge authors unhurried journeys. From secluded ancient monasteries to starlit terrace dinners, every moment is crafted with quiet grace.",
               },
             ].map((pillar, i) => (
               <div
                 key={i}
-                className={`pillar-card group relative p-8 sm:p-10 flex flex-col gap-5 transition-all duration-500 hover:bg-ink/[0.02] ${i < 2 ? "md:border-r border-skynest-hairline" : ""} ${i > 0 ? "border-t md:border-t-0 border-skynest-hairline" : ""}`}
+                className="pillar-card group relative overflow-hidden aspect-[3/4] sm:aspect-[4/5] lg:aspect-[3/4] shadow-xl border border-skynest-hairline/80"
                 style={{ opacity: reducedMotion ? 1 : 0 }}
               >
-                <span className="absolute top-6 right-7 font-cinzel text-[11px] tracking-widest text-ink/15 group-hover:text-skynest-accent/35 transition-colors duration-300">
-                  {pillar.num}
-                </span>
-                <span className="font-cinzel text-3xl text-skynest-accent/50 leading-none">{pillar.glyph}</span>
-                <div>
-                  <span className="font-jakarta text-[10px] font-bold tracking-[0.28em] uppercase text-skynest-accent block mb-2">
-                    {pillar.label}
+                {/* Background Image with Hover Scale */}
+                <img
+                  src={pillar.image}
+                  alt={pillar.alt}
+                  className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 ease-out group-hover:scale-105"
+                />
+
+                {/* Multi-tier Gradient for Text Readability & Cinematic Mood */}
+                <div
+                  className="absolute inset-0 transition-opacity duration-500"
+                  style={{
+                    background:
+                      "linear-gradient(to top, rgba(11,37,64,0.95) 0%, rgba(11,37,64,0.65) 45%, rgba(11,37,64,0.15) 75%, rgba(11,37,64,0.40) 100%)",
+                  }}
+                />
+
+                {/* Top Badge: Pillar Label + Roman Numeral */}
+                <div className="absolute top-6 left-6 right-6 flex items-center justify-between z-10">
+                  <span className="font-jakarta text-[9px] sm:text-[10px] font-bold tracking-[0.25em] uppercase text-white/90 px-3 py-1 bg-ink/60 backdrop-blur-md border border-white/15">
+                    Pillar {pillar.num} &nbsp;·&nbsp; {pillar.label}
                   </span>
-                  <h4 className="font-cinzel text-xl text-ink uppercase tracking-[0.04em]">{pillar.title}</h4>
+                  <span className="font-cinzel text-white/50 text-sm tracking-widest font-light">
+                    0{i + 1}
+                  </span>
                 </div>
-                <div className="h-px w-10 bg-skynest-accent/35 group-hover:w-16 transition-all duration-500" />
-                <p className="font-jakarta text-[13px] text-ink/60 leading-[1.9]">{pillar.body}</p>
+
+                {/* Bottom Content Area */}
+                <div className="absolute inset-x-0 bottom-0 p-6 sm:p-8 z-10 flex flex-col justify-end">
+                  <h4
+                    className="font-cinzel text-white uppercase tracking-[0.03em] leading-snug drop-shadow-sm mb-2"
+                    style={{ fontSize: "clamp(19px, 2vw, 24px)" }}
+                  >
+                    {pillar.title}
+                  </h4>
+
+                  <div className="h-px w-10 bg-skynest-accent my-3 transition-all duration-500 group-hover:w-16" />
+
+                  <p className="font-jakarta text-white/80 text-[12px] sm:text-[13px] leading-[1.8] line-clamp-3 group-hover:text-white transition-colors duration-300">
+                    {pillar.body}
+                  </p>
+
+                  <div className="mt-4 pt-3 border-t border-white/15 flex items-center gap-2 text-skynest-accent font-jakarta text-[10px] sm:text-[11px] font-semibold tracking-[0.2em] uppercase opacity-85 group-hover:opacity-100 transition-opacity duration-300">
+                    <span>Explore Experience</span>
+                    <ChevronRight className="w-3 h-3 group-hover:translate-x-1 transition-transform duration-300" />
+                  </div>
+                </div>
               </div>
             ))}
           </div>

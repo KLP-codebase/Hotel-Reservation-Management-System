@@ -5,12 +5,14 @@ import { authenticate } from '../middleware/auth.middleware';
 import { authorize } from '../middleware/rbac.middleware';
 import { db } from '../config/db';
 import { GuestRepository } from '../repositories/guest.repository';
+import { ActivityRepository } from '../repositories/activity.repository';
 import { Errors } from '../lib/errors';
 import { isUuid } from '../lib/uuid';
 
 // Create one instance of the repository (it holds the db connection)
 const router = Router();
 const repo = new GuestRepository(db);
+const activityRepo = new ActivityRepository(db);
 
 // Front-desk and management roles; everything except POST / requires one of these.
 const staffOnly = [authenticate, authorize('RECEPTIONIST', 'MANAGER', 'ADMINISTRATOR', 'DBA')];
@@ -23,6 +25,16 @@ router.get('/', ...staffOnly, async (req: Request, res: Response) => {
 
     res.json({ success: true, data: guests })
 })
+
+// GET /api/v1/guests/activity — guest's own activity, bookings, and loyalty points
+router.get('/activity', authenticate, async (req: Request, res: Response) => {
+    const userAccountId = (req as any).user?.sub;
+    if (!userAccountId) {
+        throw Errors.unauthorized();
+    }
+    const data = await activityRepo.getGuestActivity(userAccountId);
+    res.json({ success: true, data });
+});
 
 router.get('/:id', ...staffOnly, async (req: Request, res: Response) => {
     if (!isUuid(req.params.id)) throw Errors.notFound('Guest');

@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { apiFetch } from '@/lib/api-client';
+import { apiFetch, toNum } from '@/lib/api-client';
 import { exportToCsv } from '@/lib/export-csv';
 import { ReportFilterBar } from './ReportFilterBar';
 import { BedDouble, CheckCircle2, TrendingUp, AlertCircle, Save, Calendar } from 'lucide-react';
@@ -82,7 +82,7 @@ export function OccupancyReport() {
       q.set('startDate', startDate);
       q.set('endDate', endDate);
 
-      const res = await apiFetch<OccupancyApiResponse>(`/reports/occupancy?${q.toString()}`);
+      const res = await apiFetch<OccupancyApiResponse>(`/api/v1/reports/occupancy?${q.toString()}`);
       if (res && res.data) {
         setData(res.data);
       }
@@ -117,7 +117,7 @@ export function OccupancyReport() {
     setSavingSnapshot(true);
     setSnapshotMsg(null);
     try {
-      await apiFetch('/reports/snapshots', {
+      await apiFetch('/api/v1/reports/snapshots', {
         method: 'POST',
         body: JSON.stringify({
           reportType: 'OCCUPANCY',
@@ -177,7 +177,7 @@ export function OccupancyReport() {
             <TrendingUp size={16} className="text-amber-400" />
           </div>
           <p className="font-cinzel text-3xl font-bold text-stone-100 mt-2">
-            {summary ? `${summary.avg_occupancy_rate}%` : '—'}
+            {summary && summary.avg_occupancy_rate != null ? `${toNum(summary.avg_occupancy_rate).toFixed(1)}%` : "—"}
           </p>
           <p className="text-[11px] text-stone-500 mt-1">Calculated over {summary?.total_days || 0} days</p>
         </div>
@@ -188,9 +188,9 @@ export function OccupancyReport() {
             <CheckCircle2 size={16} className="text-emerald-400" />
           </div>
           <p className="font-cinzel text-3xl font-bold text-stone-100 mt-2">
-            {summary ? `${summary.peak_occupancy_rate}%` : '—'}
+            {summary && summary.peak_occupancy_rate != null ? `${toNum(summary.peak_occupancy_rate).toFixed(1)}%` : "—"}
           </p>
-          <p className="text-[11px] text-stone-500 mt-1">Peak Day: {summary?.peak_occupancy_day || 'N/A'}</p>
+          <p className="text-[11px] text-stone-500 mt-1">Peak Day: {summary?.peak_occupancy_day || "N/A"}</p>
         </div>
 
         <div className="bg-stone-950/70 border border-white/10 p-5 rounded-none">
@@ -199,9 +199,9 @@ export function OccupancyReport() {
             <BedDouble size={16} className="text-amber-400" />
           </div>
           <p className="font-cinzel text-3xl font-bold text-stone-100 mt-2">
-            {summary ? summary.total_occupied_room_nights.toLocaleString() : '—'}
+            {summary && summary.total_occupied_room_nights != null ? toNum(summary.total_occupied_room_nights).toLocaleString() : "—"}
           </p>
-          <p className="text-[11px] text-stone-500 mt-1">Total capacity: {summary?.total_capacity_room_nights.toLocaleString() || 0} nights</p>
+          <p className="text-[11px] text-stone-500 mt-1">Total capacity: {summary && summary.total_capacity_room_nights != null ? toNum(summary.total_capacity_room_nights).toLocaleString() : 0} nights</p>
         </div>
 
         <div className="bg-stone-950/70 border border-white/10 p-5 rounded-none flex flex-col justify-between">
@@ -264,25 +264,25 @@ export function OccupancyReport() {
                 daily.map((row) => (
                   <tr key={row.day} className="hover:bg-white/[0.02] transition">
                     <td className="py-3 px-4 font-mono text-stone-300">{row.day}</td>
-                    <td className="py-3 px-4 text-center text-stone-400">{row.total_rooms}</td>
-                    <td className="py-3 px-4 text-center text-amber-300 font-semibold">{row.occupied_rooms}</td>
-                    <td className="py-3 px-4 text-center text-stone-400">{row.vacant_rooms}</td>
+                    <td className="py-3 px-4 text-center text-stone-400">{toNum(row.total_rooms)}</td>
+                    <td className="py-3 px-4 text-center text-amber-300 font-semibold">{toNum(row.occupied_rooms)}</td>
+                    <td className="py-3 px-4 text-center text-stone-400">{toNum(row.vacant_rooms)}</td>
                     <td className="py-3 px-4 w-1/3">
                       <div className="w-full bg-stone-900 h-2 rounded-none overflow-hidden border border-white/5">
                         <div
                           className={`h-full transition-all duration-300 ${
-                            row.occupancy_rate >= 80
-                              ? 'bg-rose-500'
-                              : row.occupancy_rate >= 50
-                              ? 'bg-amber-500'
-                              : 'bg-emerald-500'
+                            toNum(row.occupancy_rate) >= 80
+                              ? "bg-rose-500"
+                              : toNum(row.occupancy_rate) >= 50
+                              ? "bg-amber-500"
+                              : "bg-emerald-500"
                           }`}
-                          style={{ width: `${Math.min(100, row.occupancy_rate)}%` }}
+                          style={{ width: `${Math.min(100, Math.max(0, toNum(row.occupancy_rate)))}%` }}
                         />
                       </div>
                     </td>
                     <td className="py-3 px-4 text-right font-mono font-semibold text-stone-200">
-                      {row.occupancy_rate.toFixed(1)}%
+                      {toNum(row.occupancy_rate).toFixed(1)}%
                     </td>
                   </tr>
                 ))

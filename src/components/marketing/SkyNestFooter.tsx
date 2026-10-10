@@ -164,7 +164,7 @@ export function SkyNestFooter() {
             {/* Top Row: Two Clean Pill Cards [ Dates & Rates ] [ Enquire now ] */}
             <div className="grid grid-cols-2 gap-3">
               <a
-                href="#rates"
+                href="/rates"
                 id="footer-dates-rates"
                 className="h-24 sm:h-28 flex items-center justify-center text-center p-3 rounded-sm bg-white/80 hover:bg-white border border-ink/[0.08] hover:border-ink/25 transition-all duration-200 shadow-sm group"
               >

@@ -64,3 +64,5 @@ MY_MODULE.md
 
 # ── Local progress notes (not for the repo) ───────────────────────────────────
 AZURE_DEPLOY_PROGRESS.md
+
+.next_dev/
