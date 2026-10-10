@@ -895,6 +895,138 @@ export default function RatesPage() {
             </div>
           </div>
 
+          {/* ── 02 · Ceylonese Gastronomy & Meal Plans ── */}
+          <div className="space-y-10 pt-8" data-reveal>
+            <div className="flex items-center justify-between border-b border-skynest-hairline pb-3">
+              <div>
+                <span className="font-jakarta text-[11px] font-bold tracking-[0.2em] uppercase text-skynest-accent">
+                  02 &mdash; Epicurean Journeys
+                </span>
+                <h2 className="font-cinzel text-2xl font-bold text-ink uppercase">Ceylonese Gastronomy &amp; Meal Plans</h2>
+              </div>
+              <span className="text-xs text-ink/50 font-jakarta">Culinary Tiers</span>
+            </div>
+
+            {/* Editorial Showcase with PR #84 Gastronomy Photo */}
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center bg-white border border-skynest-hairline p-6 lg:p-8 shadow-sm">
+              <div className="lg:col-span-5 relative overflow-hidden aspect-[4/3] sm:aspect-[16/10] lg:aspect-[4/3] shadow-md group">
+                <img
+                  src="/pillar_gastronomy.jpg"
+                  alt="Refined candlelit open-air dining with Ceylon silver teapot and infused tropical spice cuisine"
+                  className="w-full h-full object-cover transition-transform duration-700 ease-out group-hover:scale-105"
+                />
+                <div
+                  className="absolute inset-0"
+                  style={{
+                    background:
+                      'linear-gradient(to top, rgba(11,37,64,0.85) 0%, rgba(11,37,64,0.2) 60%, transparent 100%)',
+                  }}
+                />
+                <div className="absolute bottom-4 left-4 right-4 text-white">
+                  <span className="text-[10px] font-jakarta tracking-[0.2em] uppercase text-amber-300 font-semibold block">
+                    Living Heritage &bull; Ceylonese Flavours
+                  </span>
+                  <div className="font-cinzel text-lg font-bold">The Art of Island Tablecraft</div>
+                </div>
+              </div>
+
+              <div className="lg:col-span-7 space-y-4">
+                <span className="font-cinzel text-sm italic text-skynest-accent block">
+                  &ldquo;Ancient spice routes distilled into modern culinary poetry.&rdquo;
+                </span>
+                <h3 className="font-cinzel text-2xl font-bold text-ink">
+                  A Dining Experience Rooted in Island Abundance
+                </h3>
+                <p className="font-jakarta text-xs sm:text-sm text-ink/75 leading-relaxed">
+                  Every Sky Nest sanctuary celebrates Sri Lanka&apos;s rich agricultural tapestry. From coastal cinnamon-infused lagoon prawns to highland silver-tip tea tastings and fragrant coconut sambols prepared before you, our meal tiers are designed to seamlessly weave gourmet excellence into your itinerary.
+                </p>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 pt-2 text-xs font-jakarta">
+                  <div className="border border-skynest-hairline p-2.5 bg-paper">
+                    <Coffee className="w-4 h-4 text-skynest-accent mb-1" />
+                    <div className="font-semibold text-ink">Single-Estate Teas</div>
+                    <div className="text-[11px] text-ink/50">Hand-plucked Ceylon</div>
+                  </div>
+                  <div className="border border-skynest-hairline p-2.5 bg-paper">
+                    <Wine className="w-4 h-4 text-skynest-accent mb-1" />
+                    <div className="font-semibold text-ink">Curated Cellar</div>
+                    <div className="text-[11px] text-ink/50">Global pairings</div>
+                  </div>
+                  <div className="border border-skynest-hairline p-2.5 bg-paper col-span-2 sm:col-span-1">
+                    <Utensils className="w-4 h-4 text-skynest-accent mb-1" />
+                    <div className="font-semibold text-ink">Farm &amp; Ocean-to-Table</div>
+                    <div className="text-[11px] text-ink/50">Day-boat catches</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Meal Plan Tiers Grid */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+              {MEAL_PLANS.map((plan) => (
+                <div
+                  key={plan.id}
+                  className="bg-white border border-skynest-hairline p-6 flex flex-col justify-between hover:border-ink/50 transition-colors shadow-sm"
+                >
+                  <div className="space-y-4">
+                    <div>
+                      <span className="text-[10px] font-mono uppercase tracking-wider text-skynest-accent font-semibold block">
+                        {plan.code}
+                      </span>
+                      <h4 className="font-cinzel text-xl font-bold text-ink mt-1">{plan.name}</h4>
+                      <p className="font-jakarta text-xs text-ink/65 mt-1 leading-relaxed">{plan.tagline}</p>
+                    </div>
+
+                    <div className="py-3 border-y border-skynest-hairline">
+                      <div className="font-cinzel text-2xl font-bold text-ink">
+                        {plan.usdRate === 0 ? 'Included' : `+${formatPrice(plan.usdRate)}`}
+                      </div>
+                      <div className="text-[10px] font-jakarta text-ink/50 uppercase tracking-wider mt-0.5">
+                        {plan.usdRate === 0 ? 'Base stay inclusion' : 'Per guest / night'}
+                      </div>
+                    </div>
+
+                    {/* Meal Inclusions */}
+                    <div className="space-y-2">
+                      <span className="text-[10px] uppercase font-bold tracking-wider text-ink/50 block">
+                        Included Courses:
+                      </span>
+                      <ul className="space-y-1.5 text-xs font-jakarta">
+                        {plan.inclusions.map((inc, i) => (
+                          <li
+                            key={i}
+                            className={`flex items-center gap-2 ${
+                              inc.active ? 'text-ink font-medium' : 'text-ink/35 line-through'
+                            }`}
+                          >
+                            <span className={`w-1.5 h-1.5 rounded-full ${inc.active ? 'bg-skynest-accent' : 'bg-stone-300'}`} />
+                            <span>{inc.label}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  </div>
+
+                  <div className="mt-6 pt-4 border-t border-skynest-hairline">
+                    <span className="text-[10px] text-skynest-accent font-semibold tracking-wider uppercase block mb-3">
+                      &bull; {plan.highlight}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setSelectedPlanId(plan.id)}
+                      className={`w-full py-2 text-xs font-jakarta font-semibold uppercase tracking-wider border transition-colors ${
+                        selectedPlanId === plan.id
+                          ? 'bg-ink text-white border-ink'
+                          : 'bg-white text-ink/80 border-skynest-hairline hover:border-ink'
+                      }`}
+                    >
+                      {selectedPlanId === plan.id ? 'Selected in Estimator' : 'Select Plan'}
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
 
         </div>
       </div>
