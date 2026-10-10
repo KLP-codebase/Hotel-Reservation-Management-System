@@ -150,7 +150,15 @@ export default function BookingsManagementPage() {
                   { value: 'CHECKED_OUT', label: 'Checked out', count: countOf('CHECKED_OUT') },
                 ]}
               />
-              <SearchField value={search} onChange={setSearch} placeholder="Search guest, email, room or booking ID" />
+              <div className="flex items-center gap-3 w-full justify-between md:justify-end">
+                <SearchField value={search} onChange={setSearch} placeholder="Search guest, email, room or booking ID" />
+                <Link
+                  href="/book"
+                  className="shrink-0 inline-flex items-center gap-1.5 px-4 py-2 font-jakarta text-[11px] font-medium tracking-[0.12em] uppercase bg-ink text-white hover:bg-skynest-accent transition-colors"
+                >
+                  + New Booking
+                </Link>
+              </div>
             </div>
           </SectionHeader>
 

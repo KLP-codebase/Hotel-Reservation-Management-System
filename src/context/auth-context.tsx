@@ -1,7 +1,7 @@
 'use client';
 
 import React, { createContext, useContext, useState, useEffect, useCallback, PropsWithChildren } from 'react';
-import { authClient, UserProfile, LoginDto } from '../lib/auth-client';
+import { authClient, UserProfile, LoginDto, LoginResponse, setTokenCookie } from '../lib/auth-client';
 
 // ── GoF: Observer ─────────────────────────────────────────────────────────────
 // AuthProvider is the Subject — holds auth state and notifies all consumers.
@@ -9,10 +9,11 @@ import { authClient, UserProfile, LoginDto } from '../lib/auth-client';
 // whenever user state changes (login, logout, session restore).
 
 interface AuthContextValue {
-  user:    UserProfile | null;
-  loading: boolean;
-  login:   (dto: LoginDto) => Promise<UserProfile>;
-  logout:  () => Promise<void>;
+  user:       UserProfile | null;
+  loading:    boolean;
+  login:      (dto: LoginDto) => Promise<LoginResponse>;
+  setSession: (profile: UserProfile, token: string) => void;
+  logout:     () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -53,20 +54,32 @@ export function AuthProvider({ children }: PropsWithChildren) {
       .finally(() => setLoading(false));
   }, []);
 
-  const login = useCallback(async (dto: LoginDto): Promise<UserProfile> => {
-    const profile = await authClient.login(dto);
-    setUser(profile); // Notifies all useAuth() Observers
+  const login = useCallback(async (dto: LoginDto): Promise<LoginResponse> => {
+    const res = await authClient.login(dto);
+    if (res.user) {
+      setUser(res.user);
+      if (typeof window !== 'undefined') {
+        try {
+          localStorage.setItem('skynest_user', JSON.stringify(res.user));
+        } catch {}
+      }
+    }
+    return res;
+  }, []);
+
+  const setSession = useCallback((profile: UserProfile, token: string) => {
+    setTokenCookie(token);
+    setUser(profile);
     if (typeof window !== 'undefined') {
       try {
         localStorage.setItem('skynest_user', JSON.stringify(profile));
       } catch {}
     }
-    return profile;
   }, []);
 
   const logout = useCallback(async () => {
     await authClient.logout();
-    setUser(null); // Notifies all useAuth() Observers
+    setUser(null);
     if (typeof window !== 'undefined') {
       try {
         localStorage.removeItem('skynest_user');
@@ -75,9 +88,8 @@ export function AuthProvider({ children }: PropsWithChildren) {
     window.location.replace('/login');
   }, []);
 
-
   return (
-    <AuthContext.Provider value={{ user, loading, login, logout }}>
+    <AuthContext.Provider value={{ user, loading, login, setSession, logout }}>
       {children}
     </AuthContext.Provider>
   );

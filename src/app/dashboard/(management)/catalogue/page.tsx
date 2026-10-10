@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useCallback, useEffect, useState } from 'react';
-import { Plus, Pencil, Trash2, ChevronDown } from 'lucide-react';
+import { Plus, Pencil, Trash2, ChevronDown, CalendarCheck, Check } from 'lucide-react';
 import { apiFetch, ApiError, toNum } from '@/lib/api-client';
 import { useAuth } from '@/context/auth-context';
 import {
@@ -82,6 +82,17 @@ export default function CataloguePage() {
   const [svcForm,    setSvcForm]    = useState({ serviceName: '', category: 'Dining', basePrice: '', branchId: '', isActive: true });
   const [svcErrors,  setSvcErrors]  = useState<Record<string, string>>({});
   const [svcSaving,  setSvcSaving]  = useState(false);
+
+  // ── Book service for guest state ───────────────────────────────────────────
+  const [bookModalOpen,   setBookModalOpen]   = useState(false);
+  const [bookTarget,      setBookTarget]      = useState<CatalogueService | null>(null);
+  const [activeBookings,  setActiveBookings]  = useState<Array<{ booking_id: string; guest_first_name: string; guest_last_name: string; room_number: string | null; branch_name: string }>>([]);
+  const [bookBookingId,   setBookBookingId]   = useState('');
+  const [bookQuantity,    setBookQuantity]    = useState(1);
+  const [bookDate,        setBookDate]        = useState(new Date().toISOString().split('T')[0]);
+  const [bookTime,        setBookTime]        = useState('10:00');
+  const [bookNotes,       setBookNotes]       = useState('');
+  const [bookSaving,      setBookSaving]      = useState(false);
 
   // ── Tax modal state ──────────────────────────────────────────────────────────
   const [taxModal,   setTaxModal]   = useState<'create' | 'edit' | null>(null);
@@ -209,6 +220,62 @@ export default function CataloguePage() {
       await fetchAll();
     } catch (e) {
       flash('error', e instanceof ApiError ? e.message : 'Failed to deactivate service');
+    }
+  }
+
+  async function openBookModal(s?: CatalogueService) {
+    const target = s || services[0] || null;
+    setBookTarget(target);
+    setBookQuantity(1);
+    setBookDate(new Date().toISOString().split('T')[0]);
+    setBookTime('10:00');
+    setBookNotes('');
+    setBookModalOpen(true);
+    try {
+      const res = await apiFetch<{ data: Array<{ booking_id: string; guest_first_name: string; guest_last_name: string; room_number: string | null; branch_name: string }> }>('/api/v1/dashboard/bookings?limit=50');
+      const list = res.data || [];
+      setActiveBookings(list);
+      if (list.length > 0) {
+        setBookBookingId(list[0].booking_id);
+      }
+    } catch {
+      setActiveBookings([]);
+    }
+  }
+
+  async function submitBookService() {
+    if (!bookTarget) {
+      flash('error', 'Please select a service.');
+      return;
+    }
+    if (!bookBookingId) {
+      flash('error', 'Please select an active guest booking.');
+      return;
+    }
+    setBookSaving(true);
+    try {
+      const body = {
+        service_name: bookTarget.service_name,
+        category: bookTarget.category,
+        price_at_usage: Number(bookTarget.base_price),
+        quantity: Number(bookQuantity),
+        notes: bookNotes.trim() ? bookNotes.trim() : undefined,
+        date: bookDate,
+        appointment_time: bookTarget.category === 'Wellness' ? bookTime : undefined,
+        meal_time: bookTarget.category === 'Dining' ? bookTime : undefined,
+      };
+
+      await apiFetch(`/api/v1/services/folio/${bookBookingId}`, {
+        method: 'POST',
+        body: JSON.stringify(body),
+      });
+
+      flash('success', `Service "${bookTarget.service_name}" charged to room folio successfully.`);
+      setBookModalOpen(false);
+    } catch (e) {
+      flash('error', e instanceof ApiError ? e.message : 'Failed to charge service to booking folio.');
+    } finally {
+      setBookSaving(false);
     }
   }
 
@@ -353,7 +420,18 @@ export default function CataloguePage() {
             /* ── Services ───────────────────────────────────────────────────── */
             <div className="space-y-6">
               <Toolbar
-                action={canMutate && <Btn variant="primary" onClick={openCreateSvc}><Plus className="w-4 h-4" /> Add service</Btn>}
+                action={
+                  <div className="flex items-center gap-3">
+                    <Btn variant="outline" onClick={() => openBookModal()}>
+                      <CalendarCheck className="w-4 h-4 text-skynest-accent" /> Book for guest
+                    </Btn>
+                    {canMutate && (
+                      <Btn variant="primary" onClick={openCreateSvc}>
+                        <Plus className="w-4 h-4" /> Add service
+                      </Btn>
+                    )}
+                  </div>
+                }
               >
                 <FilterSelect label="Property" value={filterBranch} onChange={setFilterBranch}>
                   <option value="ALL">All properties</option>
@@ -386,7 +464,7 @@ export default function CataloguePage() {
                         <th className={tbl.th}>Property</th>
                         <th className={tbl.th}>Price</th>
                         <th className={tbl.th}>Status</th>
-                        {canMutate && <th className={`${tbl.th} text-right`}><span className="sr-only">Actions</span></th>}
+                        <th className={`${tbl.th} text-right`}><span className="sr-only">Actions</span></th>
                       </tr>
                     </thead>
                     <tbody className={tbl.body}>
@@ -410,14 +488,19 @@ export default function CataloguePage() {
                               <StatusDot status={s.is_active ? 'ACTIVE' : 'INACTIVE'} label={s.is_active ? 'Active' : 'Inactive'} />
                             )}
                           </td>
-                          {canMutate && (
-                            <td className={`${tbl.td} pr-0`}>
-                              <div className="flex items-center justify-end gap-2">
-                                <IconBtn label={`Edit ${s.service_name}`} onClick={() => openEditSvc(s)}><Pencil className="w-4 h-4" /></IconBtn>
-                                <IconBtn label={`Deactivate ${s.service_name}`} variant="danger" onClick={() => deleteService(s)}><Trash2 className="w-4 h-4" /></IconBtn>
-                              </div>
-                            </td>
-                          )}
+                          <td className={`${tbl.td} pr-0`}>
+                            <div className="flex items-center justify-end gap-2">
+                              <IconBtn label={`Book ${s.service_name} for guest`} onClick={() => openBookModal(s)}>
+                                <CalendarCheck className="w-4 h-4 text-skynest-accent" />
+                              </IconBtn>
+                              {canMutate && (
+                                <>
+                                  <IconBtn label={`Edit ${s.service_name}`} onClick={() => openEditSvc(s)}><Pencil className="w-4 h-4" /></IconBtn>
+                                  <IconBtn label={`Deactivate ${s.service_name}`} variant="danger" onClick={() => deleteService(s)}><Trash2 className="w-4 h-4" /></IconBtn>
+                                </>
+                              )}
+                            </div>
+                          </td>
                         </tr>
                       ))}
                     </tbody>
@@ -596,6 +679,98 @@ export default function CataloguePage() {
               onChange={e => setTaxForm(p => ({ ...p, effectiveTo: e.target.value }))}
             />
           </div>
+        </Modal>
+      )}
+      {/* ── Modal — book service for guest ──────────────────────────────────── */}
+      {bookModalOpen && (
+        <Modal
+          eyebrow="Sanctuary Services"
+          title={bookTarget ? `Book ${bookTarget.service_name}` : 'Book service for guest'}
+          onClose={() => setBookModalOpen(false)}
+          footer={
+            <>
+              <Btn variant="ghost" onClick={() => setBookModalOpen(false)}>Cancel</Btn>
+              <Btn variant="primary" onClick={submitBookService} loading={bookSaving}>
+                Confirm Service Charge
+              </Btn>
+            </>
+          }
+        >
+          <SelectField
+            label="Select Service"
+            value={bookTarget ? String(bookTarget.service_id) : ''}
+            onChange={v => {
+              const found = services.find(s => String(s.service_id) === v);
+              if (found) setBookTarget(found);
+            }}
+          >
+            {services.map(s => (
+              <option key={s.service_id} value={String(s.service_id)}>
+                {s.service_name} ({s.category}) — LKR {toNum(s.base_price).toLocaleString()}
+              </option>
+            ))}
+          </SelectField>
+
+          <SelectField
+            label="In-House Guest / Active Booking"
+            value={bookBookingId}
+            onChange={v => setBookBookingId(v)}
+          >
+            {activeBookings.length === 0 ? (
+              <option value="">No active bookings retrieved</option>
+            ) : (
+              activeBookings.map(b => (
+                <option key={b.booking_id} value={b.booking_id}>
+                  {b.guest_first_name} {b.guest_last_name} &bull; Room {b.room_number ?? 'Assigned'} ({b.branch_name}) &bull; Ref: {b.booking_id.substring(0, 8)}
+                </option>
+              ))
+            )}
+          </SelectField>
+
+          <div className="grid grid-cols-2 gap-6">
+            <Field
+              label="Quantity"
+              type="number"
+              min="1"
+              max="20"
+              value={String(bookQuantity)}
+              onChange={e => setBookQuantity(Math.max(1, parseInt(e.target.value) || 1))}
+            />
+            <Field
+              label="Date"
+              type="date"
+              value={bookDate}
+              onChange={e => setBookDate(e.target.value)}
+            />
+          </div>
+
+          {(bookTarget?.category === 'Wellness' || bookTarget?.category === 'Dining') && (
+            <Field
+              label={bookTarget.category === 'Wellness' ? 'Appointment Time (Spa)' : 'Meal Time (Dining)'}
+              type="time"
+              value={bookTime}
+              onChange={e => setBookTime(e.target.value)}
+            />
+          )}
+
+          <Field
+            label="Special Requests / Dietary / Folio Notes"
+            placeholder="e.g. In-room setup, allergic to nuts, VIP guest notes..."
+            value={bookNotes}
+            onChange={e => setBookNotes(e.target.value)}
+          />
+
+          {bookTarget && (
+            <div className="bg-stone-50 border border-skynest-hairline p-4 flex items-center justify-between">
+              <div>
+                <span className="font-jakarta text-[11px] uppercase tracking-wider text-ink/60 font-semibold block">Total Estimated Charge</span>
+                <span className="font-jakarta text-xs text-ink/80">{bookQuantity} &times; LKR {toNum(bookTarget.base_price).toLocaleString()}</span>
+              </div>
+              <span className="font-cinzel text-xl font-bold text-skynest-accent">
+                LKR {(toNum(bookTarget.base_price) * bookQuantity).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+              </span>
+            </div>
+          )}
         </Modal>
       )}
     </>

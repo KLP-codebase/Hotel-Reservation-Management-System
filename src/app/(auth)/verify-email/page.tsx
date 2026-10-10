@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, Suspense } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { apiFetch, ApiError } from '../../../lib/api-client';
@@ -13,13 +13,26 @@ function MountainGlyph({ className = '' }: { className?: string }) {
   );
 }
 
+interface UserProfile {
+  id: string;
+  username: string;
+  role: string;
+  firstName: string;
+  lastName: string;
+  email: string;
+  branchId: string | null;
+  branchName: string | null;
+}
+
 function VerifyEmailContent() {
   const searchParams = useSearchParams();
   const token = searchParams.get('token');
 
   const [status, setStatus] = useState<'verifying' | 'success' | 'error'>('verifying');
   const [errorMessage, setErrorMessage] = useState<string>('');
-  
+  const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
+  const [redirectTarget, setRedirectTarget] = useState<string>('/dashboard/activity');
+
   // Resend form state
   const [resendEmail, setResendEmail] = useState('');
   const [isResending, setIsResending] = useState(false);
@@ -45,12 +58,41 @@ function VerifyEmailContent() {
 
     async function verify() {
       try {
-        await apiFetch('/api/v1/auth/verify-email', {
+        const res = await apiFetch<{
+          data: {
+            token: string;
+            user: UserProfile;
+          };
+        }>('/api/v1/auth/verify-email', {
           method: 'POST',
           body: JSON.stringify({ token }),
         });
+
         if (isMounted) {
+          const authData = res.data;
+          let target = '/dashboard/activity';
+
+          if (authData?.token) {
+            // Establish session cookie for Next.js middleware & server components
+            document.cookie = `sn_token=${encodeURIComponent(authData.token)}; path=/; SameSite=Lax; max-age=${8 * 3600}`;
+            try {
+              localStorage.setItem('skynest_token', authData.token);
+              localStorage.setItem('skynest_user', JSON.stringify(authData.user));
+            } catch {}
+
+            setUserProfile(authData.user);
+            target = authData.user.role?.toUpperCase() === 'GUEST' ? '/dashboard/activity' : '/dashboard';
+          }
+
+          setRedirectTarget(target);
           setStatus('success');
+
+          // Seamless auto-login redirect
+          setTimeout(() => {
+            if (isMounted) {
+              window.location.replace(target);
+            }
+          }, 1800);
         }
       } catch (err) {
         if (isMounted) {
@@ -88,7 +130,7 @@ function VerifyEmailContent() {
     <div className="w-full max-w-7xl mx-auto px-4 sm:px-8 lg:px-16 flex justify-center lg:justify-end items-center min-h-[calc(100vh-120px)] relative">
       <div className="relative z-10 w-full max-w-[440px]">
         <div className="rounded-none border border-skynest-hairline bg-paper/95 backdrop-blur-xl p-8 sm:p-10 shadow-[0_20px_50px_rgba(11,37,64,0.08)]">
-          
+
           <div className="text-center mb-6">
             <MountainGlyph className="w-6 h-auto text-skynest-accent mx-auto mb-3" />
             <h1 className="font-cinzel text-2xl font-bold tracking-[0.1em] text-ink uppercase">
@@ -103,7 +145,7 @@ function VerifyEmailContent() {
             <div className="py-8 text-center space-y-4">
               <div className="w-8 h-8 border-2 border-skynest-accent border-t-transparent rounded-full animate-spin mx-auto" />
               <p className="font-jakarta text-xs text-ink/70 tracking-wider uppercase">
-                Verifying your credentials...
+                Verifying your credentials &amp; signing in...
               </p>
             </div>
           )}
@@ -118,19 +160,27 @@ function VerifyEmailContent() {
 
               <div className="space-y-2">
                 <h2 className="font-cinzel text-lg font-semibold text-ink">
-                  Email Successfully Verified
+                  Email Verified &amp; Signed In
                 </h2>
                 <p className="font-jakarta text-xs text-ink/70 leading-relaxed">
-                  Your email address has been verified. Your Sky Nest account is now active and ready for reservations.
+                  Welcome to Sky Nest{userProfile?.firstName ? `, ${userProfile.firstName}` : ''}. Your account is activated and you are signed in.
                 </p>
               </div>
 
-              <Link
-                href="/login"
-                className="w-full inline-block rounded-none border border-ink bg-ink hover:bg-skynest-accent hover:border-skynest-accent text-paper hover:text-white font-jakarta font-semibold text-xs tracking-[0.2em] uppercase py-3.5 transition-all duration-200 text-center"
-              >
-                Sign In to Your Account
-              </Link>
+              <div className="pt-2 flex flex-col items-center gap-3">
+                <div className="flex items-center gap-2 text-xs font-jakarta text-skynest-accent font-medium">
+                  <span className="w-3.5 h-3.5 border-2 border-skynest-accent border-t-transparent rounded-full animate-spin" />
+                  <span>Entering your sanctuary portal...</span>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => window.location.replace(redirectTarget)}
+                  className="w-full mt-2 rounded-none border border-ink bg-ink hover:bg-skynest-accent hover:border-skynest-accent text-paper hover:text-white font-jakarta font-semibold text-xs tracking-[0.2em] uppercase py-3.5 transition-all duration-200 text-center"
+                >
+                  Continue to Sanctuary Now &rarr;
+                </button>
+              </div>
             </div>
           )}
 

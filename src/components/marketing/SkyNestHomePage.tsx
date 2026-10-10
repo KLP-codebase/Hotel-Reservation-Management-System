@@ -19,7 +19,7 @@ interface NavLink {
 // Constants
 // ---------------------------------------------------------------------------
 const NAV_LINKS: NavLink[] = [
-  { label: "Rates", href: "#rates" },
+  { label: "Rates", href: "/rates" },
   { label: "About", href: "#about" },
 ];
 
@@ -336,7 +336,7 @@ function SkyNestNav({
           {/* Right — CTA buttons */}
           <div className="hidden md:flex items-center gap-2.5">
             <a
-              href="#contact"
+              href="/contact"
               id="nav-cta-contact"
               className="flex items-center px-6 py-2.5 text-[11px] md:text-[12px] font-jakarta font-medium tracking-[0.12em] uppercase border transition-[border-color,background-color] duration-200"
               style={linkStyle}
@@ -355,13 +355,21 @@ function SkyNestNav({
 
             {user ? (
               <>
-                {user.role?.toUpperCase() !== 'GUEST' && (
+                {user.role?.toUpperCase() !== 'GUEST' ? (
                   <a
                     href="/dashboard"
                     id="nav-cta-dashboard"
                     className="flex items-center px-6 py-2.5 text-[11px] md:text-[12px] font-jakarta font-semibold tracking-[0.12em] uppercase border transition-[border-color,background-color] duration-200 text-amber-400 border-amber-500/30 hover:border-amber-400 bg-amber-500/10 hover:bg-amber-500/20"
                   >
                     Dashboard
+                  </a>
+                ) : (
+                  <a
+                    href="/dashboard/activity"
+                    id="nav-cta-activity"
+                    className="flex items-center px-6 py-2.5 text-[11px] md:text-[12px] font-jakarta font-semibold tracking-[0.12em] uppercase border transition-[border-color,background-color] duration-200 text-amber-400 border-amber-500/30 hover:border-amber-400 bg-amber-500/10 hover:bg-amber-500/20"
+                  >
+                    Activity
                   </a>
                 )}
                 <button
@@ -449,7 +457,7 @@ function SkyNestNav({
         <div className="space-y-1 pt-12">
           {[
             ...NAV_LINKS,
-            { label: "Contact", href: "#contact" },
+            { label: "Contact", href: "/contact" },
             { label: "Book Now", href: "/book" },
           ].map((link, i) => (
             <a
@@ -476,13 +484,21 @@ function SkyNestNav({
           <div className="pt-4">
             {user ? (
               <div className="flex flex-col gap-2">
-                {user.role?.toUpperCase() !== 'GUEST' && (
+                {user.role?.toUpperCase() !== 'GUEST' ? (
                   <a
                     href="/dashboard"
                     onClick={() => setMenuOpen(false)}
                     className="block py-3 font-jakarta font-semibold text-xl text-amber-400 hover:text-amber-300"
                   >
                     Staff Dashboard
+                  </a>
+                ) : (
+                  <a
+                    href="/dashboard/activity"
+                    onClick={() => setMenuOpen(false)}
+                    className="block py-3 font-jakarta font-semibold text-xl text-amber-400 hover:text-amber-300"
+                  >
+                    My Activity
                   </a>
                 )}
                 <button
@@ -951,6 +967,7 @@ function KandyBranchSection({ reducedMotion }: { reducedMotion: boolean }) {
       aria-label="SkyNest Kandy branch"
       className="relative bg-paper overflow-hidden w-full"
     >
+      <div id="rates" aria-hidden="true" className="absolute -top-20" />
       <div className="relative w-full min-h-[460px] sm:min-h-[520px] md:min-h-0 md:aspect-[3/2] overflow-hidden">
         {/* Parallax background image */}
         <div className="absolute inset-0 w-full h-full z-0 overflow-hidden">

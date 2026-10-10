@@ -1,3 +1,5 @@
+import { LoginChallengeRepository } from '../repositories/login-challenge.repository';
+import { env } from '../config/env';
 import crypto from 'crypto';
 import bcrypt from 'bcryptjs';
 import { UserAccountRepository } from '../repositories/user-account.repository';
@@ -39,7 +41,15 @@ export class AuthService {
   constructor(
     private readonly repo: UserAccountRepository,
     private readonly strategy: AuthStrategy,
+    private readonly challengeRepo?: LoginChallengeRepository,
   ) {}
+
+  private maskEmail(email: string): string {
+    const [name, domain] = email.split('@');
+    if (!domain) return email;
+    const maskedName = name.length <= 2 ? name[0] + '***' : name[0] + '***' + name[name.length - 1];
+    return `${maskedName}@${domain}`;
+  }
 
   async login(dto: LoginDto, ipAddress?: string) {
     // Step 1: find account (Repository / Template Method)
@@ -50,32 +60,55 @@ export class AuthService {
     const match = await bcrypt.compare(dto.password, account.password_hash);
     if (!match) throw Errors.invalidCreds();
 
-    // Verification guard (Issue 1 fix: dedicated emailNotVerified factory method)
-    if (!account.is_email_verified) {
+    // Verification guard: Only enforce email verification on GUEST accounts since staff people are not yet implemented.
+    if (!account.is_email_verified && account.account_type === 'GUEST') {
       throw Errors.emailNotVerified('Please verify your email before logging in. Check your inbox for the verification link.');
     }
 
-    // Step 3: update last_login_at
-    await this.repo.updateLastLogin(account.user_account_id);
+    // Step 3: Check if email authorization challenge is required
+    // Bypass challenge for staff roles (ADMINISTRATOR, MANAGER, RECEPTIONIST, SERVICE_STAFF, DBA).
+    // Real staff are yet to be implemented; only GUEST accounts require 2FA sign-in authorization email.
+    const isGuest = account.account_type === 'GUEST';
+    if (this.challengeRepo && account.email && isGuest) {
+      const authToken = crypto.randomBytes(32).toString('hex');
+      const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
+      const challengeId = await this.challengeRepo.create(
+        account.user_account_id,
+        authToken,
+        otpCode,
+        ipAddress,
+      );
 
-    // Auto-assign branch for manager if unassigned
-    if (account.account_type === 'MANAGER' && !account.branch_id) {
-      account.branch_id = 'b2222222-2222-2222-2222-222222222222';
-      account.branch_name = 'Sky Nest Galle';
-      await this.repo.assignBranchToStaff(account.staff_id, account.branch_id).catch(() => null);
+      const actionUrl = `${env.APP_URL}/authenticate?challengeId=${challengeId}&token=${authToken}`;
+      
+      // Send sign-in authorization email with 1-click link & 6-digit code
+      await emailService.sendLoginAuthorizationEmail({
+        to: account.email,
+        firstName: account.first_name || account.username,
+        otpCode,
+        actionUrl,
+        ipAddress: ipAddress || '127.0.0.1',
+        loginTime: new Date(),
+      });
+
+      return ResponseFactory.ok({
+        challengeRequired: true,
+        challengeId,
+        emailMasked: this.maskEmail(account.email),
+        role: account.account_type,
+        ...(env.NODE_ENV !== 'production' ? { devOtp: otpCode } : {}),
+      }, 'Sign-in authorization email sent. Please verify to complete sign-in.');
     }
 
-    // Step 4: build JWT payload (Builder)
+    // Direct fallback if no email attached
+    await this.repo.updateLastLogin(account.user_account_id);
     const payload = new JwtPayloadBuilder()
       .setSubject(account.user_account_id)
       .setRole(account.account_type)
       .setBranch(account.branch_id ?? null)
       .build();
-
-    // Step 5: sign token (Strategy)
     const token = this.strategy.sign(payload);
 
-    // Step 6: emit audit event (Observer)
     auditEmitter.emit('auth.login', {
       actorId:    account.user_account_id,
       entityType: 'user_accounts',
@@ -84,7 +117,6 @@ export class AuthService {
       ipAddress,
     });
 
-    // Step 7: return response (Factory Method)
     return ResponseFactory.ok({
       token,
       user: {
@@ -156,7 +188,7 @@ export class AuthService {
     }, 'Account created successfully. Please check your inbox to verify your email address.');
   }
 
-  async verifyEmail(token: string) {
+  async verifyEmail(token: string, ipAddress?: string) {
     if (!token) throw Errors.badRequest('Verification token is required');
 
     const account = await this.repo.findByVerificationToken(token);
@@ -168,8 +200,30 @@ export class AuthService {
       throw Errors.badRequest('Verification link has expired. Please request a new one.');
     }
 
+    // 1. Mark email as verified and clear token
     await this.repo.verifyEmail(account.user_account_id);
 
+    // 2. Update last login timestamp
+    await this.repo.updateLastLogin(account.user_account_id);
+
+    // 3. Auto-assign branch for manager if unassigned
+    if (account.account_type === 'MANAGER' && !account.branch_id) {
+      account.branch_id = 'b2222222-2222-2222-2222-222222222222';
+      account.branch_name = 'Sky Nest Galle';
+      await this.repo.assignBranchToStaff(account.staff_id, account.branch_id).catch(() => null);
+    }
+
+    // 4. Build JWT payload (Builder)
+    const payload = new JwtPayloadBuilder()
+      .setSubject(account.user_account_id)
+      .setRole(account.account_type)
+      .setBranch(account.branch_id ?? null)
+      .build();
+
+    // 5. Sign authentication token (Strategy)
+    const authToken = this.strategy.sign(payload);
+
+    // 6. Emit audit events (Observer)
     auditEmitter.emit('auth.email_verified', {
       actorId:    account.user_account_id,
       entityType: 'user_accounts',
@@ -178,7 +232,39 @@ export class AuthService {
       newValue:   { is_email_verified: true },
     });
 
-    return ResponseFactory.ok({ email: account.email }, 'Email verified successfully. You may now sign in.');
+    auditEmitter.emit('auth.login', {
+      actorId:    account.user_account_id,
+      entityType: 'user_accounts',
+      entityId:   account.user_account_id,
+      action:     'LOGIN',
+      ipAddress,
+    });
+
+    // 7. Dispatch login security alert (Async / non-blocking fire-and-forget)
+    if (account.account_type === 'GUEST' && account.email) {
+      emailService.sendGuestLoginNotificationEmail({
+        to: account.email,
+        firstName: account.first_name || 'Valued Guest',
+        ipAddress: ipAddress || 'Unknown IP',
+        loginTime: new Date(),
+      }).catch((err) => {
+        console.warn('[AuthService] Login alert dispatch error on verification:', err.message);
+      });
+    }
+
+    return ResponseFactory.ok({
+      token: authToken,
+      user: {
+        id:          account.user_account_id,
+        username:    account.username,
+        role:        account.account_type,
+        firstName:   account.first_name,
+        lastName:    account.last_name,
+        email:       account.email,
+        branchId:    account.branch_id   ?? null,
+        branchName:  account.branch_name ?? null,
+      },
+    }, 'Email verified and logged in successfully.');
   }
 
   async resendVerification(email: string) {
@@ -311,5 +397,122 @@ export class AuthService {
       branchId:   account.branch_id   ?? null,
       branchName: account.branch_name ?? null,
     });
+  }
+
+  async checkChallengeStatus(challengeId: string) {
+    if (!this.challengeRepo) throw Errors.internal();
+    const challenge = await this.challengeRepo.findById(challengeId);
+    if (!challenge) throw Errors.notFound('Challenge not found');
+
+    if (new Date() > new Date(challenge.expires_at)) {
+      return ResponseFactory.ok({ status: 'EXPIRED' });
+    }
+
+    if (challenge.status === 'APPROVED') {
+      const payload = new JwtPayloadBuilder()
+        .setSubject(challenge.user_account_id)
+        .setRole(challenge.account_type as any)
+        .setBranch(challenge.branch_id ?? null)
+        .build();
+      const token = this.strategy.sign(payload);
+
+      return ResponseFactory.ok({
+        status: 'APPROVED',
+        token,
+        user: {
+          id: challenge.user_account_id,
+          username: challenge.username,
+          role: challenge.account_type,
+          firstName: challenge.first_name,
+          lastName: challenge.last_name,
+          email: challenge.email,
+          branchId: challenge.branch_id ?? null,
+          branchName: challenge.branch_name ?? null,
+        },
+      });
+    }
+
+    return ResponseFactory.ok({ status: 'PENDING' });
+  }
+
+  async verifyLoginChallenge(params: { challengeId?: string; token?: string; otpCode?: string }, ipAddress?: string) {
+    if (!this.challengeRepo) throw Errors.internal();
+
+    let challenge = null;
+    if (params.token) {
+      challenge = await this.challengeRepo.findByToken(params.token);
+    } else if (params.challengeId && params.otpCode) {
+      challenge = await this.challengeRepo.findById(params.challengeId);
+      if (challenge && challenge.otp_code.trim() !== params.otpCode.trim()) {
+        throw Errors.badRequest('Invalid 6-digit authorization code. Please check your email and try again.');
+      }
+    } else {
+      throw Errors.badRequest('Either a verification token or challenge ID with OTP code is required');
+    }
+
+    if (!challenge) {
+      throw Errors.notFound('Invalid or expired authorization request');
+    }
+
+    if (new Date() > new Date(challenge.expires_at)) {
+      throw Errors.badRequest('This authorization request has expired. Please sign in again.');
+    }
+
+    // Approve challenge in DB
+    await this.challengeRepo.approve(challenge.challenge_id);
+    await this.repo.updateLastLogin(challenge.user_account_id);
+
+    // Build JWT & sign session token
+    const payload = new JwtPayloadBuilder()
+      .setSubject(challenge.user_account_id)
+      .setRole(challenge.account_type as any)
+      .setBranch(challenge.branch_id ?? null)
+      .build();
+    const token = this.strategy.sign(payload);
+
+    auditEmitter.emit('auth.login', {
+      actorId:    challenge.user_account_id,
+      entityType: 'user_accounts',
+      entityId:   challenge.user_account_id,
+      action:     'LOGIN',
+      ipAddress,
+    });
+
+    return ResponseFactory.ok({
+      status: 'APPROVED',
+      token,
+      user: {
+        id:          challenge.user_account_id,
+        username:    challenge.username,
+        role:        challenge.account_type,
+        firstName:   challenge.first_name,
+        lastName:    challenge.last_name,
+        email:       challenge.email,
+        branchId:    challenge.branch_id   ?? null,
+        branchName:  challenge.branch_name ?? null,
+      },
+    }, 'Sign-in authorized successfully.');
+  }
+
+  async resendLoginChallenge(challengeId: string, ipAddress?: string) {
+    if (!this.challengeRepo) throw Errors.internal();
+    const challenge = await this.challengeRepo.findById(challengeId);
+    if (!challenge) throw Errors.notFound('Challenge not found');
+
+    if (challenge.status === 'APPROVED') {
+      throw Errors.badRequest('This sign-in request is already authorized.');
+    }
+
+    const actionUrl = `${env.APP_URL}/authenticate?challengeId=${challenge.challenge_id}&token=${challenge.auth_token}`;
+    await emailService.sendLoginAuthorizationEmail({
+      to: challenge.email!,
+      firstName: challenge.first_name || challenge.username!,
+      otpCode: challenge.otp_code,
+      actionUrl,
+      ipAddress: ipAddress || '127.0.0.1',
+      loginTime: new Date(),
+    });
+
+    return ResponseFactory.ok({}, 'A fresh authorization code has been dispatched to your email.');
   }
 }
