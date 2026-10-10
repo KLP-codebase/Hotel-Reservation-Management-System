@@ -47,6 +47,14 @@ export function middleware(req: NextRequest) {
     return res;
   }
 
+  // 2b. Staff (Admin, Manager, Receptionist, DBA) accessing guest activity -> redirect to /dashboard
+  if (token && !isGuest && isGuestActivity) {
+    const dashUrl = new URL('/dashboard', req.url);
+    const res = NextResponse.redirect(dashUrl);
+    res.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+    return res;
+  }
+
   // 3. Authenticated users hitting /login or /register -> redirect to appropriate portal
   if (token && isAuthPage) {
     const targetUrl = isGuest ? new URL('/dashboard/activity', req.url) : new URL('/dashboard', req.url);
