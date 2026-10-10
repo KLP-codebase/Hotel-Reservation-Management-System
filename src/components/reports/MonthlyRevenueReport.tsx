@@ -48,10 +48,27 @@ function pct(part: number, total: number): string {
   return ((part / total) * 100).toFixed(1) + '%';
 }
 
+const MONTH_OPTIONS = [
+  { value: "", label: "All Months (Full Year)" },
+  { value: "1", label: "January" },
+  { value: "2", label: "February" },
+  { value: "3", label: "March" },
+  { value: "4", label: "April" },
+  { value: "5", label: "May" },
+  { value: "6", label: "June" },
+  { value: "7", label: "July" },
+  { value: "8", label: "August" },
+  { value: "9", label: "September" },
+  { value: "10", label: "October" },
+  { value: "11", label: "November" },
+  { value: "12", label: "December" },
+];
+
 export function MonthlyRevenueReport({ selectedBranch: propBranch, year: propYear }: Props = {}) {
   const currentYear = useMemo(() => new Date().getFullYear(), []);
   const [selectedBranch, setSelectedBranch] = useState<string>(propBranch || '');
   const [year, setYear] = useState<number>(propYear || currentYear);
+  const [month, setMonth] = useState<string>('');
   const [rows, setRows] = useState<MonthlyRevenueRow[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
@@ -86,6 +103,7 @@ export function MonthlyRevenueReport({ selectedBranch: propBranch, year: propYea
     setError(null);
     try {
       const params = new URLSearchParams({ year: String(year) });
+      if (month) params.set('month', month);
       if (selectedBranch) params.set('branchId', selectedBranch);
 
       const res = await apiFetch<{ success: boolean; data: MonthlyRevenueRow[] }>(
@@ -103,7 +121,7 @@ export function MonthlyRevenueReport({ selectedBranch: propBranch, year: propYea
     } finally {
       setLoading(false);
     }
-  }, [year, selectedBranch]);
+  }, [year, month, selectedBranch]);
 
   useEffect(() => {
     loadData();
@@ -127,7 +145,7 @@ export function MonthlyRevenueReport({ selectedBranch: propBranch, year: propYea
   const handleExportCsv = () => {
     if (!rows.length) return;
     exportToCsv(
-      `SkyNest_Monthly_Revenue_${year}`,
+      `SkyNest_Monthly_Revenue_${year}${month ? '_' + (MONTH_OPTIONS.find(m => m.value === month)?.label || month) : ''}`,
       rows,
       [
         { header: 'Month', accessor: r => r.month_label },
@@ -150,8 +168,8 @@ export function MonthlyRevenueReport({ selectedBranch: propBranch, year: propYea
         method: 'POST',
         body: JSON.stringify({
           reportType: 'MONTHLY_REVENUE',
-          reportPeriodStart: `${year}-01-01`,
-          reportPeriodEnd: `${year}-12-31`,
+          reportPeriodStart: month ? `${year}-${String(month).padStart(2, '0')}-01` : `${year}-01-01`,
+          reportPeriodEnd: month ? `${year}-${String(month).padStart(2, '0')}-${new Date(year, Number(month), 0).getDate()}` : `${year}-12-31`,
           branchId: selectedBranch || null,
           reportData: {
             year,
@@ -221,6 +239,23 @@ export function MonthlyRevenueReport({ selectedBranch: propBranch, year: propYea
             </select>
           </div>
 
+          {/* Month Selector */}
+          <div className="flex items-center gap-2 bg-stone-900/80 border border-white/10 px-3 py-1.5 text-xs text-stone-300">
+            <Calendar size={14} className="text-amber-400 shrink-0" />
+            <span className="text-stone-500 font-mono text-[11px]">Month:</span>
+            <select
+              value={month}
+              onChange={e => setMonth(e.target.value)}
+              className="bg-transparent text-amber-400 font-bold focus:outline-none cursor-pointer"
+            >
+              {MONTH_OPTIONS.map(m => (
+                <option key={m.value} value={m.value} className="bg-stone-900 text-stone-200">
+                  {m.label}
+                </option>
+              ))}
+            </select>
+          </div>
+
           {/* Refresh Button */}
           <button
             onClick={loadData}
@@ -275,7 +310,7 @@ export function MonthlyRevenueReport({ selectedBranch: propBranch, year: propYea
       {/* KPI Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {[
-          { label: 'Annual Gross Revenue', value: fmt(totalGross), icon: <DollarSign size={16} />, accent: true },
+          { label: month ? `${MONTH_OPTIONS.find(m => m.value === month)?.label} Gross Revenue` : 'Annual Gross Revenue', value: fmt(totalGross), icon: <DollarSign size={16} />, accent: true },
           { label: 'Room Tariff Revenue', value: fmt(totalRoom), sub: `${pct(totalRoom, totalGross - totalTax || 1)} of base`, icon: <Building2 size={16} /> },
           { label: 'Ancillary Service Revenue', value: fmt(totalService), sub: `${pct(totalService, totalGross - totalTax || 1)} of base`, icon: <TrendingUp size={16} /> },
           { label: 'Statutory Taxes (4-Tier)', value: fmt(totalTax), sub: 'SC → TDL → SSCL → VAT', icon: <TrendingUp size={16} /> },
@@ -320,7 +355,7 @@ export function MonthlyRevenueReport({ selectedBranch: propBranch, year: propYea
       {!loading && rows.length === 0 && !error && (
         <div className="py-16 text-center border border-white/10 bg-stone-950/50">
           <DollarSign size={32} className="mx-auto mb-3 text-stone-600" />
-          <p className="font-cinzel italic text-stone-200 text-base">No revenue data for {year}</p>
+          <p className="font-cinzel italic text-stone-200 text-base">No revenue data for {month ? `${MONTH_OPTIONS.find(m => m.value === month)?.label} ${year}` : year}</p>
           <p className="text-stone-400 text-xs mt-1">No settled invoices recorded for the selected period.</p>
         </div>
       )}
@@ -343,7 +378,7 @@ export function MonthlyRevenueReport({ selectedBranch: propBranch, year: propYea
                 <span className="font-cinzel text-sm font-semibold text-stone-100">{branchName}</span>
               </div>
               <div className="flex items-center gap-4">
-                <span className="text-xs font-mono text-stone-300">Annual Gross: {fmt(branchGross)}</span>
+                <span className="text-xs font-mono text-stone-300">{month ? 'Month Gross: ' : 'Annual Gross: '}{fmt(branchGross)}</span>
                 {isOpen ? <ChevronUp size={16} className="text-stone-400" /> : <ChevronDown size={16} className="text-stone-400" />}
               </div>
             </button>
@@ -376,7 +411,7 @@ export function MonthlyRevenueReport({ selectedBranch: propBranch, year: propYea
                   </tbody>
                   <tfoot>
                     <tr className="border-t border-white/10 bg-stone-900/80 font-mono font-bold text-xs text-stone-200">
-                      <td className="p-3">Annual Total</td>
+                      <td className="p-3">{month ? 'Month Total' : 'Annual Total'}</td>
                       <td className="p-3">
                         {fmt(branchRows.reduce((s, r) => s + toNum(r.total_room_revenue), 0))}
                       </td>
