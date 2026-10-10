@@ -392,11 +392,23 @@ export default function BookPage() {
 
     try {
       const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000';
+      let sessionId = '';
+      if (typeof window !== 'undefined') {
+        sessionId = localStorage.getItem('sn_booking_session') || '';
+        if (!sessionId) {
+          sessionId = 'sn_sess_' + Math.random().toString(36).substring(2) + Date.now().toString(36);
+          localStorage.setItem('sn_booking_session', sessionId);
+        }
+      }
+
       const qs = new URLSearchParams({
         branch_id: params.branch_id,
         check_in: params.check_in,
         check_out: params.check_out,
       });
+      if (sessionId) {
+        qs.append('session_id', sessionId);
+      }
 
       // Pass room_type only if a specific category was chosen
       if (params.room_type && params.room_type !== 'ALL') {
@@ -442,7 +454,7 @@ export default function BookPage() {
   }
 
   // ── Proceed to Booking Confirmation ────────────────────────────────────────
-  function handleProceed() {
+  async function handleProceed() {
     if (selectedRooms.length < targetRoomCount) {
       setSelectionWarning(`Please select ${targetRoomCount - selectedRooms.length} more room${targetRoomCount - selectedRooms.length === 1 ? '' : 's'} to fulfill your chosen count of ${targetRoomCount}.`);
       return;
@@ -464,6 +476,41 @@ export default function BookPage() {
     const roomTypes = selectedRooms.map(r => r.type).join(',');
     const roomRates = selectedRooms.map(r => r.price_per_night).join(',');
     const roomCapacities = selectedRooms.map(r => r.max_guests || 2).join(',');
+
+    // ── Competitive Room Hold Verification ──
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000';
+    let sessId = '';
+    if (typeof window !== 'undefined') {
+      sessId = localStorage.getItem('sn_booking_session') || '';
+      if (!sessId) {
+        sessId = 'sn_sess_' + Math.random().toString(36).substring(2) + Date.now().toString(36);
+        localStorage.setItem('sn_booking_session', sessId);
+      }
+    }
+
+    try {
+      const holdRes = await fetch(`${apiUrl}/api/v1/availability/hold-rooms`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          room_ids: selectedRooms.map(r => r.id),
+          check_in: params.check_in,
+          check_out: params.check_out,
+          session_id: sessId,
+        }),
+      });
+
+      const holdData = await holdRes.json();
+      if (!holdRes.ok || !holdData.success) {
+        setSelectionWarning(
+          holdData.message ||
+          'Competitive Booking Notice: One or more of your chosen rooms are currently held by another guest completing their reservation on overlapping dates. Please choose an alternate room.'
+        );
+        return;
+      }
+    } catch {
+      // Proceed on non-fatal network error
+    }
 
     const qs = new URLSearchParams({
       room_ids: roomIds,

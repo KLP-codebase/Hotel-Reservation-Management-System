@@ -253,6 +253,7 @@ function BookingConfirmContent() {
   const [error, setError] = useState<string | null>(null);
   const [confirmed, setConfirmed] = useState<ConfirmedBookingDetails | null>(null);
   const [scrolled, setScrolled] = useState(false);
+  const [holdConflict, setHoldConflict] = useState<string | null>(null);
 
   // Animation Ref
   const containerRef = useRef<HTMLDivElement>(null);
@@ -275,6 +276,57 @@ function BookingConfirmContent() {
       )
     );
   }, [roomIdsParam, roomNumbersParam, roomTypesParam, roomRatesParam, roomCapacitiesParam, roomIdStr, roomTypeIdStr, roomsCountParam, initialAdults, initialChildren, childAgesParam]);
+
+  // Competitive Booking Protection: Verify or acquire exclusive hold on mount
+  useEffect(() => {
+    if (!branchIdStr || !checkIn || !checkOut || rooms.length === 0) return;
+
+    let active = true;
+    async function acquireHold() {
+      try {
+        let sessId = '';
+        if (typeof window !== 'undefined') {
+          sessId = localStorage.getItem('sn_booking_session') || '';
+          if (!sessId) {
+            sessId = 'sn_sess_' + Math.random().toString(36).substring(2) + Date.now().toString(36);
+            localStorage.setItem('sn_booking_session', sessId);
+          }
+        }
+
+        const targetRoomIds = rooms.map(r => r.roomId).filter(Boolean);
+        if (targetRoomIds.length === 0) return;
+
+        const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000';
+        const res = await fetch(`${apiUrl}/api/v1/availability/hold-rooms`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            room_ids: targetRoomIds,
+            check_in: checkIn,
+            check_out: checkOut,
+            session_id: sessId,
+          }),
+        });
+
+        const data = await res.json();
+        if (!res.ok || !data.success) {
+          if (active) {
+            setHoldConflict(
+              data.message ||
+              'Competitive Booking Notice: One or more of these rooms are currently held by another guest completing their reservation on overlapping dates.'
+            );
+          }
+        }
+      } catch {
+        // Fallback for non-fatal network error
+      }
+    }
+
+    acquireHold();
+    return () => {
+      active = false;
+    };
+  }, [branchIdStr, checkIn, checkOut, rooms]);
 
   // Bulk apply one meal plan to all rooms
   const applyMealPlanToAll = (planId: number) => {
@@ -401,11 +453,12 @@ function BookingConfirmContent() {
   // Total accommodation = sum of (rate_i * nights) for each room
   const totalRoomCost = rooms.reduce((sum, r) => sum + (r.baseRate * nights), 0);
 
-  // Per-room detailed calculations
+  // Per-room detailed calculations (Multiplying meal plan rate by number of guests)
   const roomCalculations = rooms.map(r => {
     const plan = MEAL_PLANS.find(p => p.id === r.mealPlanId) ?? MEAL_PLANS[0];
     const roomCost = r.baseRate * nights;
-    const mealCost = plan.price * nights;
+    const guestCount = Math.max(1, (r.adults || 1) + (r.children || 0));
+    const mealCost = plan.price * nights * guestCount;
     const roomSubtotal = roomCost + mealCost;
     return {
       ...r,
@@ -446,6 +499,37 @@ function BookingConfirmContent() {
         >
           Select a Room
         </Link>
+      </div>
+    );
+  }
+
+  // Guard for competitive booking collision
+  if (holdConflict) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center px-6 bg-paper relative selection:bg-skynest-accent selection:text-white" style={{ backgroundColor: '#FDFCFA' }}>
+        <MountainGlyph className="w-10 h-auto text-skynest-accent mb-5" />
+        <div className="max-w-md w-full bg-white border border-skynest-hairline p-8 shadow-[0_16px_40px_rgba(11,37,64,0.06)] text-center space-y-4">
+          <span className="inline-block px-3 py-1 bg-amber-50 text-amber-800 text-[10px] font-jakarta font-bold uppercase tracking-wider border border-amber-200">
+            Competitive Booking Notice
+          </span>
+          <h2 className="font-cinzel text-xl font-normal uppercase tracking-wider text-ink">
+            Room Temporarily Unavailable
+          </h2>
+          <p className="font-jakarta text-xs text-ink/70 leading-relaxed">
+            {holdConflict}
+          </p>
+          <p className="font-jakarta text-[11px] text-ink/40 leading-relaxed">
+            To prevent double bookings, rooms are held when a guest proceeds to confirmation. Please return to room selection to choose an alternate room or dates.
+          </p>
+          <div className="pt-3">
+            <Link
+              href="/book"
+              className="inline-block w-full py-3 rounded-none font-jakarta font-semibold text-xs tracking-wider uppercase border border-ink bg-ink text-paper hover:bg-skynest-accent hover:border-skynest-accent transition-all duration-200"
+            >
+              Return to Room Selection
+            </Link>
+          </div>
+        </div>
       </div>
     );
   }
@@ -883,7 +967,8 @@ function BookingConfirmContent() {
                 {rooms.map((room) => {
                   const currentPlan = MEAL_PLANS.find(p => p.id === room.mealPlanId) ?? MEAL_PLANS[0];
                   const roomNightsCost = room.baseRate * nights;
-                  const roomMealCost = currentPlan.price * nights;
+                  const roomGuestCount = Math.max(1, (room.adults || 1) + (room.children || 0));
+                  const roomMealCost = currentPlan.price * nights * roomGuestCount;
                   const roomSubtotal = roomNightsCost + roomMealCost;
 
                   return (
@@ -921,121 +1006,27 @@ function BookingConfirmContent() {
                         </div>
                       </div>
 
-                      {/* Guest Allocation Steppers (Strictly Enforcing Max Capacity) */}
-                      <div className="grid grid-cols-2 gap-4">
-                        {/* Adults Stepper */}
-                        <div className="p-3 bg-white border border-skynest-hairline">
-                          <div className="flex items-center justify-between mb-2">
-                            <label className="block text-[10px] font-jakarta font-bold uppercase tracking-wider text-ink/60">
-                              Adults (Min 1) *
-                            </label>
-                            <span className="text-[9px] font-jakarta text-ink/40 uppercase">
-                              Max {Math.max(1, room.maxGuests - room.children)}
-                            </span>
-                          </div>
-                          <div className="flex items-center justify-between">
-                            <button
-                              type="button"
-                              onClick={() => updateRoomAdults(room.index, -1)}
-                              disabled={room.adults <= 1}
-                              className="w-7 h-7 flex items-center justify-center border border-skynest-hairline text-ink hover:bg-ink hover:text-white transition-colors disabled:opacity-30 disabled:cursor-not-allowed font-bold"
-                              title="Minimum 1 adult required per room"
-                            >
-                              −
-                            </button>
-                            <input
-                              type="number"
-                              min={1}
-                              max={Math.max(1, room.maxGuests - room.children)}
-                              value={room.adults}
-                              onChange={(e) => setRoomAdultsDirect(room.index, parseInt(e.target.value, 10))}
-                              className="w-12 text-center font-jakarta font-bold text-sm bg-transparent outline-none text-ink"
-                            />
-                            <button
-                              type="button"
-                              onClick={() => updateRoomAdults(room.index, 1)}
-                              disabled={room.adults + room.children >= room.maxGuests}
-                              className="w-7 h-7 flex items-center justify-center border border-skynest-hairline text-ink hover:bg-ink hover:text-white transition-colors disabled:opacity-30 disabled:cursor-not-allowed font-bold"
-                              title={room.adults + room.children >= room.maxGuests ? `Room capacity reached (Max ${room.maxGuests})` : "Add adult"}
-                            >
-                              +
-                            </button>
-                          </div>
+                      {/* Designated Guest Occupancy (Fixed for this designated booking) */}
+                      <div className="p-4 bg-white border border-skynest-hairline flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-xs">
+                        <div>
+                          <span className="block text-[10px] font-jakarta font-bold uppercase tracking-wider text-ink/50">
+                            Designated Guest Allocation (Fixed)
+                          </span>
+                          <span className="text-sm font-jakarta font-bold text-ink">
+                            {room.adults} Adult{room.adults > 1 ? 's' : ''}
+                            {room.children > 0 ? `, ${room.children} Child${room.children > 1 ? 'ren' : ''}` : ''}
+                            {room.childAges && room.childAges.length > 0 ? ` (Ages: ${room.childAges.join(', ')})` : ''}
+                          </span>
                         </div>
-
-                        {/* Children Stepper */}
-                        <div className="p-3 bg-white border border-skynest-hairline">
-                          <div className="flex items-center justify-between mb-2">
-                            <label className="block text-[10px] font-jakarta font-bold uppercase tracking-wider text-ink/60">
-                              Children (0–11 yrs)
-                            </label>
-                            <span className="text-[9px] font-jakarta text-ink/40 uppercase">
-                              Max {Math.max(0, room.maxGuests - room.adults)}
-                            </span>
-                          </div>
-                          <div className="flex items-center justify-between">
-                            <button
-                              type="button"
-                              onClick={() => updateRoomChildren(room.index, -1)}
-                              disabled={room.children <= 0}
-                              className="w-7 h-7 flex items-center justify-center border border-skynest-hairline text-ink hover:bg-ink hover:text-white transition-colors disabled:opacity-30 disabled:cursor-not-allowed font-bold"
-                            >
-                              −
-                            </button>
-                            <input
-                              type="number"
-                              min={0}
-                              max={Math.max(0, room.maxGuests - room.adults)}
-                              value={room.children}
-                              onChange={(e) => setRoomChildrenDirect(room.index, parseInt(e.target.value, 10))}
-                              className="w-12 text-center font-jakarta font-bold text-sm bg-transparent outline-none text-ink"
-                            />
-                            <button
-                              type="button"
-                              onClick={() => updateRoomChildren(room.index, 1)}
-                              disabled={room.adults + room.children >= room.maxGuests}
-                              className="w-7 h-7 flex items-center justify-center border border-skynest-hairline text-ink hover:bg-ink hover:text-white transition-colors disabled:opacity-30 disabled:cursor-not-allowed font-bold"
-                              title={room.adults + room.children >= room.maxGuests ? `Room capacity reached (Max ${room.maxGuests})` : "Add child"}
-                            >
-                              +
-                            </button>
-                          </div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-[10px] font-jakarta font-semibold uppercase tracking-wider px-2.5 py-1 bg-ink/5 text-ink/80 border border-skynest-hairline">
+                            {room.adults + room.children} of Max {room.maxGuests} Guests
+                          </span>
+                          <span className="text-[10px] font-jakarta text-ink/40 uppercase font-medium">
+                            Locked for Stay
+                          </span>
                         </div>
                       </div>
-
-                      {/* If room has children: Individual child ages for this room */}
-                      {room.children > 0 && (
-                        <div className="p-3 bg-[#FDFCFA] border border-skynest-hairline space-y-2">
-                          <div className="flex items-center justify-between">
-                            <span className="text-[10px] font-jakarta font-bold uppercase tracking-wider text-ink/70">
-                              Child Age{room.children > 1 ? 's' : ''} (Ages 0–11)
-                            </span>
-                            <span className="text-[9px] font-jakarta text-ink/50 uppercase">
-                              {room.children} Child{room.children > 1 ? 'ren' : ''} in Room {room.roomNumber}
-                            </span>
-                          </div>
-                          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                            {Array.from({ length: room.children }).map((_, cIdx) => (
-                              <div key={cIdx} className="flex flex-col gap-1 p-1.5 bg-white border border-skynest-hairline">
-                                <span className="text-[9px] font-jakarta font-semibold uppercase tracking-wider text-ink/60">
-                                  Child {cIdx + 1}
-                                </span>
-                                <select
-                                  value={room.childAges[cIdx] ?? 0}
-                                  onChange={(e) => updateRoomChildAge(room.index, cIdx, parseInt(e.target.value, 10))}
-                                  className="w-full px-2 py-1 text-xs font-jakarta bg-[#FDFCFA] border border-skynest-hairline text-ink outline-none focus:border-skynest-accent cursor-pointer"
-                                >
-                                  {Array.from({ length: 12 }).map((_, a) => (
-                                    <option key={a} value={a}>
-                                      {a === 0 ? 'Under 1 yr (Infant)' : `${a} yr${a > 1 ? 's' : ''} old`}
-                                    </option>
-                                  ))}
-                                </select>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      )}
 
                       {/* Multiple Meal Plan Selection directly on EACH room card */}
                       <div className="pt-2 border-t border-skynest-hairline space-y-2.5">
@@ -1044,7 +1035,7 @@ function BookingConfirmContent() {
                             Meal Plan for Room {room.roomNumber}
                           </label>
                           <span className="text-[10px] font-jakarta text-skynest-accent font-semibold">
-                            {currentPlan.name} ({currentPlan.price === 0 ? 'Included' : `+$${currentPlan.price}/nt`})
+                            {currentPlan.name} ({currentPlan.price === 0 ? 'Included' : `+$${currentPlan.price}/nt per guest ($${roomMealCost.toFixed(2)} total)`})
                           </span>
                         </div>
 
@@ -1240,7 +1231,7 @@ function BookingConfirmContent() {
                     {roomCalculations.map((rm) => (
                       <div key={rm.index} className="flex justify-between items-center text-ink/60 text-[11px] pl-3">
                         <span>Room {rm.roomNumber}: {rm.planName} {rm.planPrice > 0 ? `(${nights} nt × $${rm.planPrice})` : '(Included)'}</span>
-                        <span>${rm.mealCost.toFixed(2)}</span>
+                        <span className="font-semibold text-ink">${rm.mealCost.toFixed(2)}</span>
                       </div>
                     ))}
                   </div>
