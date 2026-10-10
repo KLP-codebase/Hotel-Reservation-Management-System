@@ -355,13 +355,21 @@ function SkyNestNav({
 
             {user ? (
               <>
-                {user.role?.toUpperCase() !== 'GUEST' && (
+                {user.role?.toUpperCase() !== 'GUEST' ? (
                   <a
                     href="/dashboard"
                     id="nav-cta-dashboard"
                     className="flex items-center px-6 py-2.5 text-[11px] md:text-[12px] font-jakarta font-semibold tracking-[0.12em] uppercase border transition-[border-color,background-color] duration-200 text-amber-400 border-amber-500/30 hover:border-amber-400 bg-amber-500/10 hover:bg-amber-500/20"
                   >
                     Dashboard
+                  </a>
+                ) : (
+                  <a
+                    href="/dashboard/activity"
+                    id="nav-cta-activity"
+                    className="flex items-center px-6 py-2.5 text-[11px] md:text-[12px] font-jakarta font-semibold tracking-[0.12em] uppercase border transition-[border-color,background-color] duration-200 text-amber-400 border-amber-500/30 hover:border-amber-400 bg-amber-500/10 hover:bg-amber-500/20"
+                  >
+                    Activity
                   </a>
                 )}
                 <button
@@ -476,13 +484,21 @@ function SkyNestNav({
           <div className="pt-4">
             {user ? (
               <div className="flex flex-col gap-2">
-                {user.role?.toUpperCase() !== 'GUEST' && (
+                {user.role?.toUpperCase() !== 'GUEST' ? (
                   <a
                     href="/dashboard"
                     onClick={() => setMenuOpen(false)}
                     className="block py-3 font-jakarta font-semibold text-xl text-amber-400 hover:text-amber-300"
                   >
                     Staff Dashboard
+                  </a>
+                ) : (
+                  <a
+                    href="/dashboard/activity"
+                    onClick={() => setMenuOpen(false)}
+                    className="block py-3 font-jakarta font-semibold text-xl text-amber-400 hover:text-amber-300"
+                  >
+                    My Activity
                   </a>
                 )}
                 <button

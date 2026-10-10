@@ -91,9 +91,14 @@ function LoginForm() {
     setResendMessage(null);
 
     try {
-      const user = await login(data);
-      if (user?.role?.toUpperCase() === 'GUEST') {
-        window.location.replace('/');
+      const res = await login(data);
+      if (res.challengeRequired && res.challengeId) {
+        window.location.replace(`/authenticate?challengeId=${res.challengeId}&email=${encodeURIComponent(res.emailMasked || '')}`);
+        return;
+      }
+
+      if (res.user?.role?.toUpperCase() === 'GUEST') {
+        window.location.replace('/dashboard/activity');
       } else {
         window.location.replace('/dashboard');
       }

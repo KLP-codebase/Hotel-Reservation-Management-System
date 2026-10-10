@@ -9,6 +9,7 @@ import { initials, titleCase } from "./ui";
 
 const NAV_ITEMS = [
   { href: "/dashboard", label: "Overview", roles: ["RECEPTIONIST", "SERVICE_STAFF", "MANAGER", "ADMINISTRATOR", "DBA"] },
+  { href: "/dashboard/activity", label: "My Activity", roles: ["GUEST", "ADMINISTRATOR"] },
   { href: "/dashboard/staff", label: "Staff", roles: ["MANAGER", "ADMINISTRATOR", "DBA"] },
   { href: "/dashboard/branches", label: "Branches", roles: ["MANAGER", "ADMINISTRATOR", "DBA"] },
   { href: "/dashboard/rooms", label: "Rooms", roles: ["RECEPTIONIST", "MANAGER", "ADMINISTRATOR", "DBA"] },
@@ -51,13 +52,15 @@ export function DashboardHeader({
       ? "General Manager"
       : user.role === "RECEPTIONIST"
         ? "Front Desk"
-        : titleCase(user.role)
+        : user.role === "GUEST"
+          ? "Guest Sanctuary"
+          : titleCase(user.role)
     : "Portal";
 
   const normalizedPath = pathname?.replace(/\/$/, "") || "";
 
   return (
-    <header className="sticky top-0 z-50 bg-ink/90 backdrop-blur-[12px] border-b border-white/10">
+    <header className="sticky top-0 z-50 transition-colors duration-300 bg-ink border-b border-white/10">
       <div className="max-w-[1440px] mx-auto px-6 md:px-12 h-16 flex items-center justify-between gap-8">
         <div className="flex items-center gap-4 shrink-0">
           <button
