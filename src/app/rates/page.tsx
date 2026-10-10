@@ -488,10 +488,149 @@ function RatesHeroSection({ heroRef }: { heroRef: React.RefObject<HTMLDivElement
 
 // ── Mystic Cloud Scrub Transition ─────────────────────────────────────────────
 
-
 function RatesCloudTransition() {
-  return <div className="h-24 bg-gradient-to-b from-ink to-paper" />;
+  const containerRef = useRef<HTMLDivElement>(null);
+  const wrapWispsRef = useRef<HTMLDivElement>(null);
+  const wrap1Ref = useRef<HTMLDivElement>(null);
+  const wrap2Ref = useRef<HTMLDivElement>(null);
+  const fogRef = useRef<HTMLDivElement>(null);
+  const reducedMotion = usePrefersReducedMotion();
+
+  useEffect(() => {
+    if (reducedMotion || !containerRef.current) return;
+    gsap.registerPlugin(ScrollTrigger);
+
+    gsap.set([wrapWispsRef.current, wrap1Ref.current, wrap2Ref.current], { autoAlpha: 0 });
+    gsap.set(wrapWispsRef.current, { y: '16%', x: '-2.5%' });
+    gsap.set(wrap1Ref.current, { y: '12%', x: '1%' });
+    gsap.set(wrap2Ref.current, { y: '20%', x: '-1%' });
+    if (fogRef.current) gsap.set(fogRef.current, { opacity: 0.15 });
+
+    const ctx = gsap.context(() => {
+      const tl = gsap.timeline({
+        scrollTrigger: {
+          trigger: containerRef.current,
+          start: 'top bottom',
+          end: 'bottom bottom',
+          scrub: 1.0,
+        },
+        defaults: {
+          ease: 'none',
+          force3D: true,
+        },
+      });
+
+      if (wrapWispsRef.current) {
+        tl.to(wrapWispsRef.current, { y: '-6%', x: '3%', autoAlpha: 0.8 }, 0);
+      }
+      if (wrap1Ref.current) {
+        tl.to(wrap1Ref.current, { y: '0%', x: '-1.5%', autoAlpha: 1 }, 0);
+      }
+      if (wrap2Ref.current) {
+        tl.to(wrap2Ref.current, { y: '0%', x: '1.5%', autoAlpha: 1 }, 0.08);
+      }
+      if (fogRef.current) {
+        tl.to(fogRef.current, { opacity: 1 }, 0.04);
+      }
+    }, containerRef);
+
+    return () => ctx.revert();
+  }, [reducedMotion]);
+
+  return (
+    <div
+      ref={containerRef}
+      aria-hidden="true"
+      className="relative z-10 h-[50dvh] sm:h-[60dvh] md:h-[72dvh] pointer-events-none overflow-hidden select-none"
+    >
+      {/* High-Altitude Wisps Layer */}
+      <div
+        ref={wrapWispsRef}
+        className="absolute bottom-10 sm:bottom-16 left-1/2 overflow-hidden pointer-events-none"
+        style={{
+          width: '240%',
+          height: '85%',
+          marginLeft: '-120%',
+          willChange: 'transform, opacity',
+        }}
+      >
+        <img
+          src="/clouds/cloud_wisps.webp"
+          alt=""
+          className="w-full h-full object-cover object-bottom select-none pointer-events-none opacity-80"
+          style={{
+            WebkitMaskImage:
+              'linear-gradient(to bottom, transparent 0%, rgba(0,0,0,0.2) 20%, rgba(0,0,0,0.75) 55%, black 80%)',
+            maskImage:
+              'linear-gradient(to bottom, transparent 0%, rgba(0,0,0,0.2) 20%, rgba(0,0,0,0.75) 55%, black 80%)',
+          }}
+        />
+      </div>
+
+      {/* Layer 1 — Base Clouds */}
+      <div
+        ref={wrap1Ref}
+        className="absolute bottom-0 left-1/2 overflow-hidden pointer-events-none"
+        style={{
+          width: '220%',
+          height: '100%',
+          marginLeft: '-110%',
+          willChange: 'transform, opacity',
+        }}
+      >
+        <img
+          src="/07_Clouds.webp"
+          alt=""
+          className="w-full h-full object-cover object-bottom select-none pointer-events-none"
+          style={{
+            WebkitMaskImage:
+              'linear-gradient(to bottom, transparent 0%, rgba(0,0,0,0.2) 18%, rgba(0,0,0,0.7) 38%, black 58%)',
+            maskImage:
+              'linear-gradient(to bottom, transparent 0%, rgba(0,0,0,0.2) 18%, rgba(0,0,0,0.7) 38%, black 58%)',
+          }}
+        />
+      </div>
+
+      {/* Layer 2 — Denser Clouds */}
+      <div
+        ref={wrap2Ref}
+        className="absolute bottom-0 left-1/2 overflow-hidden pointer-events-none"
+        style={{
+          width: '220%',
+          height: '85%',
+          marginLeft: '-110%',
+          willChange: 'transform, opacity',
+        }}
+      >
+        <img
+          src="/Clouds 3.webp"
+          alt=""
+          className="w-full h-full object-cover object-bottom select-none pointer-events-none"
+          style={{
+            WebkitMaskImage:
+              'linear-gradient(to bottom, transparent 0%, rgba(0,0,0,0.4) 22%, rgba(0,0,0,0.9) 48%, black 65%)',
+            maskImage:
+              'linear-gradient(to bottom, transparent 0%, rgba(0,0,0,0.4) 22%, rgba(0,0,0,0.9) 48%, black 65%)',
+          }}
+        />
+      </div>
+
+      {/* Layer 3 — Dense white fog blending into #FDFCFA */}
+      <div
+        ref={fogRef}
+        className="absolute inset-x-0 bottom-0 h-[60%] pointer-events-none"
+        style={{
+          background:
+            'linear-gradient(to bottom, transparent 0%, rgba(253,252,250,0.3) 20%, rgba(253,252,250,0.7) 45%, rgba(253,252,250,0.95) 75%, #FDFCFA 100%)',
+          willChange: 'opacity',
+        }}
+      />
+    </div>
+  );
 }
+
+// ── Main Rates Page Component ─────────────────────────────────────────────────
+
 
 export default function RatesPage() {
   const heroRef = React.useRef<HTMLDivElement>(null);
@@ -500,7 +639,7 @@ export default function RatesPage() {
       <RatesNav />
       <RatesHeroSection heroRef={heroRef} />
       <RatesCloudTransition />
-      <div className="max-w-6xl mx-auto px-6 py-12 text-center">
+      <div className="relative z-20 bg-paper max-w-6xl mx-auto px-6 py-12 text-center">
         <p className="text-ink/60">Sky Nest curated room tiers and meal plans.</p>
       </div>
     </div>
