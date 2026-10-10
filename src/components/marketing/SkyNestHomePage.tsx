@@ -21,7 +21,6 @@ interface NavLink {
 const NAV_LINKS: NavLink[] = [
   { label: "Rates", href: "#rates" },
   { label: "About", href: "#about" },
-  { label: "Contact", href: "/contact" },
 ];
 
 const STORY_LINES = [
@@ -454,7 +453,7 @@ function SkyNestNav({
             { label: "Book Now", href: "/book" },
           ].map((link, i) => (
             <a
-              key={link.label}
+              key={`${link.label}-${link.href}`}
               href={link.href}
               id={`mobile-nav-${link.label.toLowerCase().replace(/\s+/g, "-")}`}
               onClick={() => setMenuOpen(false)}
@@ -1754,18 +1753,54 @@ function AboutSection({ reducedMotion }: { reducedMotion: boolean }) {
       {/* ── 2. FOUNDER'S EDITORIAL QUOTE ────────────────────────── */}
       <div
         ref={quoteRef}
-        className="relative bg-ink py-20 sm:py-24 px-6 sm:px-12 md:px-20"
+        className="relative bg-ink py-20 sm:py-24 px-6 sm:px-12 md:px-20 overflow-hidden"
         style={{ opacity: reducedMotion ? 1 : 0 }}
       >
+        {/* Decorative Concentric Arch Motif — Bottom Left */}
+        <svg
+          aria-hidden="true"
+          className="absolute -bottom-4 left-3 sm:left-6 md:left-10 lg:left-16 w-36 h-44 sm:w-44 sm:h-52 lg:w-52 lg:h-60 pointer-events-none select-none text-paper/[0.15] z-0 hidden sm:block"
+          viewBox="0 0 160 200"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.5"
+        >
+          {[14, 24, 34, 44, 54, 64, 74].map((r, i) => (
+            <path
+              key={i}
+              d={`M ${80 - r} 200 L ${80 - r} 80 A ${r} ${r} 0 0 1 ${80 + r} 80 L ${80 + r} 200`}
+            />
+          ))}
+        </svg>
+
+        {/* Decorative Concentric Arch Motif — Top Right (Inverted / Upside Down) */}
+        <svg
+          aria-hidden="true"
+          className="absolute -top-4 right-3 sm:right-6 md:right-10 lg:right-16 w-36 h-44 sm:w-44 sm:h-52 lg:w-52 lg:h-60 pointer-events-none select-none text-paper/[0.15] z-0 hidden sm:block rotate-180"
+          viewBox="0 0 160 200"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.5"
+        >
+          {[14, 24, 34, 44, 54, 64, 74].map((r, i) => (
+            <path
+              key={i}
+              d={`M ${80 - r} 200 L ${80 - r} 80 A ${r} ${r} 0 0 1 ${80 + r} 80 L ${80 + r} 200`}
+            />
+          ))}
+        </svg>
+
+
+
         {/* Giant decorative quotation mark */}
         <span
           aria-hidden="true"
-          className="absolute top-2 left-6 sm:left-12 font-cinzel text-white/[0.035] select-none pointer-events-none leading-none"
+          className="absolute top-2 left-6 sm:left-12 font-cinzel text-white/[0.035] select-none pointer-events-none leading-none z-0"
           style={{ fontSize: "clamp(100px, 16vw, 220px)" }}
         >
           &ldquo;
         </span>
-        <div className="relative max-w-[860px] mx-auto text-center">
+        <div className="relative z-10 max-w-[860px] mx-auto text-center">
           <p
             className="font-cinzel italic text-white leading-[1.6]"
             style={{ fontSize: "clamp(17px, 2.2vw, 28px)" }}
