@@ -24,6 +24,7 @@ import {
   X,
 } from 'lucide-react';
 import { useAuth } from '@/context/auth-context';
+import { initials } from '@/components/dashboard/ui';
 import SkyNestFooter from '@/components/marketing/SkyNestFooter';
 
 // ── Motion Guard ──────────────────────────────────────────────────────────────
@@ -232,132 +233,183 @@ const MEAL_PLANS: MealPlan[] = [
 
 const USD_TO_LKR = 310;
 
-// ── Navigation Bar ────────────────────────────────────────────────────────────
+// ── Navigation Bar (White with thin hairline & blur when scroll) ──────────────
 
 function RatesNav() {
-  const { user } = useAuth();
+  const { user, logout } = useAuth();
   const [menuOpen, setMenuOpen] = useState(false);
+  const [scrolled, setScrolled] = useState(false);
+
+  useEffect(() => {
+    const handleScroll = () => {
+      setScrolled(window.scrollY > 8);
+    };
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    handleScroll();
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
+
+  const navLinks = [
+    { label: 'Home', href: '/', active: false },
+    { label: 'Rates & Plans', href: '/rates', active: true },
+    { label: 'About', href: '/#about', active: false },
+    { label: 'Contact', href: '/contact', active: false },
+  ];
 
   return (
-    <>
-      <nav
-        id="rates-nav"
-        aria-label="Rates navigation"
-        className="fixed top-0 left-0 right-0 z-50 bg-ink/90 backdrop-blur-md border-b border-white/10 transition-colors duration-300"
-      >
-        <div className="max-w-[1440px] mx-auto flex items-center justify-between h-14 md:h-16 px-4 sm:px-6 md:px-8">
-          {/* Left links */}
-          <div className="hidden md:flex items-center gap-2.5">
-            <Link
-              href="/rates"
-              className="flex items-center px-5 py-2 text-[11px] md:text-[12px] font-jakarta font-medium tracking-[0.12em] uppercase border border-skynest-accent bg-skynest-accent/15 text-white transition-colors duration-200"
-            >
-              Rates
-            </Link>
-            <Link
-              href="/#about"
-              className="flex items-center px-5 py-2 text-[11px] md:text-[12px] font-jakarta font-medium tracking-[0.12em] uppercase border border-white/20 text-white/80 hover:text-white hover:border-white/40 transition-colors duration-200"
-            >
-              About
-            </Link>
-          </div>
-
-          {/* Center Brand */}
-          <Link href="/" className="flex flex-col items-center gap-0.5 group">
-            <MountainGlyph className="w-6 sm:w-7 h-auto text-white/90" />
-            <span className="font-jakarta font-bold text-[10px] sm:text-[11px] tracking-[0.35em] uppercase text-white/90 select-none">
+    <header
+      id="rates-nav"
+      aria-label="Rates navigation"
+      className={`sticky top-0 z-50 transition-all duration-300 ${
+        scrolled
+          ? 'bg-white/80 backdrop-blur-md border-b border-ink/[0.08] shadow-xs'
+          : 'bg-white border-b border-skynest-hairline'
+      }`}
+    >
+      <div className="max-w-[1440px] mx-auto px-6 md:px-12 h-16 flex items-center justify-between gap-8">
+        {/* Left: Mobile hamburger & Brand */}
+        <div className="flex items-center gap-4 shrink-0">
+          <button
+            type="button"
+            onClick={() => setMenuOpen((prev) => !prev)}
+            aria-label={menuOpen ? 'Close navigation menu' : 'Open navigation menu'}
+            className="md:hidden w-8 h-8 flex items-center justify-center text-ink/70 hover:text-ink transition-colors duration-300"
+          >
+            {menuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+          </button>
+          <Link href="/" className="flex items-center gap-4">
+            <span className="font-cinzel text-[17px] tracking-[0.2em] text-ink transition-colors duration-300">
               SKYNEST
             </span>
+            <span className="hidden lg:block w-px h-4 bg-ink/15 transition-colors duration-300" />
+            <span className="hidden lg:block font-jakarta text-[11px] tracking-[0.12em] uppercase text-ink/60 transition-colors duration-300">
+              Rates &amp; Plans
+            </span>
+          </Link>
+        </div>
+
+        {/* Center: Nav links */}
+        <nav className="hidden md:flex items-center gap-8">
+          {navLinks.map(({ href, label, active }) => (
+            <Link
+              key={href}
+              href={href}
+              aria-current={active ? 'page' : undefined}
+              className={`relative py-2 font-jakarta text-[11px] font-medium tracking-[0.12em] uppercase transition-colors duration-300 ${
+                active ? 'text-ink font-semibold' : 'text-ink/70 hover:text-ink'
+              }`}
+            >
+              {label}
+              {active && (
+                <span className="absolute left-0 right-0 -bottom-1 h-px bg-skynest-accent" />
+              )}
+            </Link>
+          ))}
+        </nav>
+
+        {/* Right side controls: Book Now, User Avatar, Sign Out / Sign In */}
+        <div className="flex items-center gap-4 shrink-0">
+          <Link
+            href="/book"
+            id="nav-cta-book-now"
+            className="flex items-center px-4 py-2 font-jakarta text-[11px] font-semibold tracking-[0.12em] uppercase text-white bg-skynest-accent hover:bg-skynest-accent/90 transition-colors duration-200 shadow-xs"
+          >
+            Book Now
           </Link>
 
-          {/* Right links */}
-          <div className="hidden md:flex items-center gap-2.5">
+          {user ? (
+            <>
+              {user.role?.toUpperCase() === 'GUEST' ? (
+                <Link
+                  href="/dashboard/activity"
+                  className="hidden sm:flex items-center px-3 py-1.5 font-jakarta text-[11px] font-medium tracking-[0.12em] uppercase text-ink/70 hover:text-ink transition-colors"
+                >
+                  Activity
+                </Link>
+              ) : (
+                <Link
+                  href="/dashboard"
+                  className="hidden sm:flex items-center px-3 py-1.5 font-jakarta text-[11px] font-medium tracking-[0.12em] uppercase text-ink/70 hover:text-ink transition-colors"
+                >
+                  Dashboard
+                </Link>
+              )}
+              <span
+                title={`${user.firstName || ''} ${user.lastName || ''}`}
+                className="w-8 h-8 rounded-full flex items-center justify-center font-jakarta text-[11px] font-medium tracking-[0.08em] border border-ink/20 text-ink bg-ink/[0.04]"
+              >
+                {initials(user.firstName, user.lastName)}
+              </span>
+              <button
+                type="button"
+                onClick={logout}
+                className="hidden sm:flex items-center px-4 py-2 font-jakarta text-[11px] font-medium tracking-[0.12em] uppercase text-ink/75 border border-ink/20 hover:text-ink hover:border-skynest-accent hover:bg-ink/[0.04] transition-colors duration-300 cursor-pointer"
+              >
+                Sign Out
+              </button>
+            </>
+          ) : (
             <Link
-              href="/contact"
-              className="flex items-center px-5 py-2 text-[11px] md:text-[12px] font-jakarta font-medium tracking-[0.12em] uppercase border border-white/20 text-white/80 hover:text-white hover:border-white/40 transition-colors duration-200"
+              href="/login"
+              className="hidden sm:flex items-center px-4 py-2 font-jakarta text-[11px] font-medium tracking-[0.12em] uppercase text-ink/75 border border-ink/20 hover:text-ink hover:border-skynest-accent hover:bg-ink/[0.04] transition-colors duration-300"
             >
-              Contact
+              Sign In
             </Link>
+          )}
+        </div>
+      </div>
+
+      {/* Mobile Drawer */}
+      {menuOpen && (
+        <div className="md:hidden border-t border-ink/[0.08] bg-white/95 backdrop-blur-xl px-6 py-6 space-y-4 shadow-lg animate-in fade-in slide-in-from-top-2 duration-200">
+          <div className="space-y-1">
+            {navLinks.map((link) => (
+              <Link
+                key={link.href}
+                href={link.href}
+                onClick={() => setMenuOpen(false)}
+                className={`block py-2 font-jakarta text-[12px] tracking-[0.12em] uppercase transition-colors ${
+                  link.active ? 'text-skynest-accent font-semibold' : 'text-ink/80 hover:text-ink'
+                }`}
+              >
+                {link.label}
+              </Link>
+            ))}
+          </div>
+
+          <div className="pt-4 border-t border-ink/[0.08] flex flex-col gap-2.5">
             <Link
               href="/book"
-              className="flex items-center px-5 py-2 text-[11px] md:text-[12px] font-jakarta font-semibold tracking-[0.12em] uppercase border border-skynest-accent bg-skynest-accent text-white hover:bg-skynest-accent/90 transition-colors duration-200"
+              onClick={() => setMenuOpen(false)}
+              className="flex items-center justify-center px-4 py-2.5 font-jakarta text-[11px] font-semibold tracking-[0.12em] uppercase text-white bg-skynest-accent hover:bg-skynest-accent/90 transition-colors"
             >
               Book Now
             </Link>
             {user ? (
-              <Link
-                href={user.role === 'GUEST' ? '/dashboard/activity' : '/dashboard'}
-                className="flex items-center px-4 py-2 text-[11px] font-jakarta font-medium tracking-[0.12em] uppercase text-amber-400 border border-amber-500/30 hover:border-amber-400 bg-amber-500/10 transition-colors"
-              >
-                {user.role === 'GUEST' ? 'Activity' : 'Dashboard'}
-              </Link>
-            ) : (
-              <Link
-                href="/login"
-                className="flex items-center px-4 py-2 text-[11px] font-jakarta font-medium tracking-[0.12em] uppercase text-white/70 hover:text-white transition-colors"
-              >
-                Sign In
-              </Link>
-            )}
-          </div>
-
-          {/* Mobile hamburger */}
-          <button
-            type="button"
-            onClick={() => setMenuOpen(!menuOpen)}
-            aria-label="Toggle navigation menu"
-            className="md:hidden p-2 text-white/80 hover:text-white"
-          >
-            {menuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
-          </button>
-        </div>
-      </nav>
-
-      {/* Mobile Drawer */}
-      {menuOpen && (
-        <div className="fixed inset-0 z-40 bg-ink/95 backdrop-blur-xl flex flex-col justify-center px-8 space-y-4 md:hidden">
-          <Link
-            href="/rates"
-            onClick={() => setMenuOpen(false)}
-            className="font-jakarta text-2xl font-semibold text-skynest-accent tracking-wider uppercase"
-          >
-            Rates &amp; Plans
-          </Link>
-          <Link
-            href="/#about"
-            onClick={() => setMenuOpen(false)}
-            className="font-jakarta text-2xl font-semibold text-white/80 hover:text-white tracking-wider uppercase"
-          >
-            About
-          </Link>
-          <Link
-            href="/contact"
-            onClick={() => setMenuOpen(false)}
-            className="font-jakarta text-2xl font-semibold text-white/80 hover:text-white tracking-wider uppercase"
-          >
-            Contact
-          </Link>
-          <Link
-            href="/book"
-            onClick={() => setMenuOpen(false)}
-            className="font-jakarta text-2xl font-semibold text-white/80 hover:text-white tracking-wider uppercase"
-          >
-            Book Now
-          </Link>
-          <div className="pt-4 border-t border-white/10">
-            {user ? (
-              <Link
-                href={user.role === 'GUEST' ? '/dashboard/activity' : '/dashboard'}
-                onClick={() => setMenuOpen(false)}
-                className="font-jakarta text-lg text-amber-400 font-semibold"
-              >
-                {user.role === 'GUEST' ? 'My Activity' : 'Staff Dashboard'}
-              </Link>
+              <>
+                <Link
+                  href={user.role === 'GUEST' ? '/dashboard/activity' : '/dashboard'}
+                  onClick={() => setMenuOpen(false)}
+                  className="flex items-center justify-center px-4 py-2 font-jakarta text-[11px] font-medium tracking-[0.12em] uppercase text-ink/80 border border-ink/20 hover:text-ink"
+                >
+                  {user.role === 'GUEST' ? 'My Activity' : 'Staff Portal'}
+                </Link>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMenuOpen(false);
+                    logout();
+                  }}
+                  className="flex items-center justify-center px-4 py-2 font-jakarta text-[11px] font-medium tracking-[0.12em] uppercase text-red-600 border border-red-200 hover:bg-red-50 cursor-pointer"
+                >
+                  Sign Out
+                </button>
+              </>
             ) : (
               <Link
                 href="/login"
                 onClick={() => setMenuOpen(false)}
-                className="font-jakarta text-lg text-white/70 hover:text-white"
+                className="flex items-center justify-center px-4 py-2 font-jakarta text-[11px] font-medium tracking-[0.12em] uppercase text-ink/80 border border-ink/20 hover:text-ink"
               >
                 Sign In
               </Link>
@@ -365,7 +417,7 @@ function RatesNav() {
           </div>
         </div>
       )}
-    </>
+    </header>
   );
 }
 
@@ -442,7 +494,7 @@ export default function RatesPage() {
       <div
         id="rates-content"
         ref={contentRef}
-        className="relative z-20 bg-paper min-h-screen pt-20 sm:pt-28 pb-32"
+        className="relative z-20 bg-paper min-h-screen py-8 sm:py-12 pb-32"
       >
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 space-y-20">
 
@@ -900,7 +952,7 @@ export default function RatesPage() {
               </h4>
             </div>
             <p className="font-jakarta text-xs sm:text-sm text-ink/75 leading-relaxed">
-              At Sky Nest, we operate strictly in compliance with Inland Revenue Department regulations of Sri Lanka. All room folios and invoices clearly separate statutory obligations ($SC ightarrow TDL ightarrow SSCL ightarrow VAT$). Guests never encounter surprise fees upon checkout.
+              At Sky Nest, we operate strictly in compliance with Inland Revenue Department regulations of Sri Lanka. All room folios and invoices clearly separate statutory obligations ($SC &rarr; TDL &rarr; SSCL &rarr; VAT$). Guests never encounter surprise fees upon checkout.
             </p>
           </div>
 
