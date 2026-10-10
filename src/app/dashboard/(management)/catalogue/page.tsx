@@ -422,7 +422,7 @@ export default function CataloguePage() {
               <Toolbar
                 action={
                   <div className="flex items-center gap-3">
-                    <Btn variant="secondary" onClick={() => openBookModal()}>
+                    <Btn variant="outline" onClick={() => openBookModal()}>
                       <CalendarCheck className="w-4 h-4 text-skynest-accent" /> Book for guest
                     </Btn>
                     {canMutate && (
