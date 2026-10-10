@@ -19,7 +19,7 @@ interface NavLink {
 // Constants
 // ---------------------------------------------------------------------------
 const NAV_LINKS: NavLink[] = [
-  { label: "Rates", href: "#rates" },
+  { label: "Rates", href: "/rates" },
   { label: "About", href: "#about" },
 ];
 
