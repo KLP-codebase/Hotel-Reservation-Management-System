@@ -24,7 +24,7 @@ function AuthenticateContent() {
   const [status, setStatus] = useState<'waiting' | 'verifying' | 'success' | 'error' | 'expired'>('waiting');
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
-  const [redirectTarget, setRedirectTarget] = useState<string>('/dashboard/activity');
+  const [redirectTarget, setRedirectTarget] = useState<string>('/');
 
   // Resend state
   const [isResending, setIsResending] = useState(false);
@@ -53,7 +53,7 @@ function AuthenticateContent() {
       try {
         const res = await authClient.verifyChallenge({ token });
         if (isMounted && res.status === 'APPROVED') {
-          const target = res.user.role?.toUpperCase() === 'GUEST' ? '/dashboard/activity' : '/dashboard';
+          const target = res.user.role?.toUpperCase() === 'GUEST' ? '/' : '/dashboard';
           setUserProfile(res.user);
           setRedirectTarget(target);
           setStatus('success');
@@ -87,7 +87,7 @@ function AuthenticateContent() {
 
         if (res.status === 'APPROVED' && res.user) {
           if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
-          const target = res.user.role?.toUpperCase() === 'GUEST' ? '/dashboard/activity' : '/dashboard';
+          const target = res.user.role?.toUpperCase() === 'GUEST' ? '/' : '/dashboard';
           setUserProfile(res.user);
           setRedirectTarget(target);
           setStatus('success');
@@ -127,7 +127,7 @@ function AuthenticateContent() {
       const res = await authClient.verifyChallenge({ challengeId, otpCode: otpCode.trim() });
       if (res.status === 'APPROVED') {
         if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
-        const target = res.user.role?.toUpperCase() === 'GUEST' ? '/dashboard/activity' : '/dashboard';
+        const target = res.user.role?.toUpperCase() === 'GUEST' ? '/' : '/dashboard';
         setUserProfile(res.user);
         setRedirectTarget(target);
         setStatus('success');
