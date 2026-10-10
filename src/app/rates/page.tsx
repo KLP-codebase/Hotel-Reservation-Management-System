@@ -372,24 +372,133 @@ function RatesNav() {
 
 // ── Hero Section (Pinned with Parallax & Wordmark) ────────────────────────────
 
-
 function RatesHeroSection({ heroRef }: { heroRef: React.RefObject<HTMLDivElement | null> }) {
+  const bgImgRef = useRef<HTMLImageElement>(null);
+  const wordmarkRef = useRef<HTMLDivElement>(null);
+  const topRowRef = useRef<HTMLDivElement>(null);
+  const reducedMotion = usePrefersReducedMotion();
+
+  useEffect(() => {
+    if (reducedMotion || !heroRef.current) return;
+    gsap.registerPlugin(ScrollTrigger);
+
+    const ctx = gsap.context(() => {
+      const tl = gsap.timeline({
+        scrollTrigger: {
+          trigger: heroRef.current,
+          start: 'top top',
+          end: '+=100%',
+          scrub: 1.0,
+        },
+        defaults: {
+          ease: 'none',
+          force3D: true,
+        },
+      });
+
+      if (bgImgRef.current) {
+        tl.to(bgImgRef.current, { y: '16%', scale: 1.08 }, 0);
+      }
+      if (wordmarkRef.current) {
+        tl.to(wordmarkRef.current, { y: '28%', opacity: 0.15 }, 0);
+      }
+      if (topRowRef.current) {
+        tl.to(topRowRef.current, { y: '-30px', opacity: 0.1 }, 0);
+      }
+    }, heroRef);
+
+    return () => ctx.revert();
+  }, [heroRef, reducedMotion]);
+
   return (
-    <div ref={heroRef} className="pt-32 pb-16 text-center bg-ink text-white">
-      <h1 className="font-cinzel text-4xl tracking-widest">RATES & TARIFFS</h1>
-    </div>
+    <section
+      ref={heroRef}
+      id="rates-hero"
+      aria-label="Rates and pricing hero"
+      className="sticky top-0 h-[100dvh] overflow-hidden flex flex-col bg-ink z-0 select-none"
+    >
+      {/* Background Image */}
+      <div aria-hidden="true" className="absolute inset-0 pointer-events-none z-0 overflow-hidden">
+        <img
+          ref={bgImgRef}
+          src="/sunset-at-a-swimming-pool-during-a-vacation-on-a-t-2026-03-17-05-37-28-utc.webp"
+          alt=""
+          className="w-full h-full object-cover object-center"
+          style={{
+            filter: 'brightness(0.68) contrast(1.12)',
+            willChange: 'transform',
+          }}
+        />
+        {/* Deep Navy Radial Contrast Gradient */}
+        <div
+          className="absolute inset-0"
+          style={{
+            background:
+              'radial-gradient(ellipse 120% 70% at 50% 30%, rgba(11,37,64,0.35) 0%, rgba(7,28,48,0.65) 60%, rgba(11,37,64,0.9) 100%)',
+          }}
+        />
+      </div>
+
+      {/* Top Metadata Row */}
+      <div
+        ref={topRowRef}
+        className="relative flex flex-col sm:flex-row sm:items-start sm:justify-between px-6 sm:px-8 md:px-12 pt-20 sm:pt-24 md:pt-28 pb-0 gap-4 sm:gap-6 z-10"
+        style={{ willChange: 'transform, opacity' }}
+      >
+        <div>
+          <p className="font-cinzel font-normal italic text-white/80 text-[12px] sm:text-[13px] md:text-[15px] leading-relaxed">
+            Transparent Sanctuary Pricing &bull; Sri Lanka
+            <br />
+            Three destinated havens. One standard of welcome.
+          </p>
+          <span className="inline-block mt-2 font-jakarta text-[10px] tracking-[0.16em] uppercase text-white/50">
+            Colombo &bull; Galle &bull; Kandy
+          </span>
+        </div>
+
+        <a
+          href="#rates-content"
+          className="self-start sm:self-auto flex items-center gap-2 font-jakarta text-[10px] sm:text-[11px] md:text-[12px] font-medium tracking-[0.15em] uppercase text-white/85 hover:text-white border border-white/20 hover:border-white/40 px-4 sm:px-5 py-2.5 sm:py-3 transition-all duration-300"
+        >
+          <span>Explore Tiers &amp; Plans</span>
+          <ChevronDown className="w-3.5 h-3.5 text-skynest-accent animate-bounce" />
+        </a>
+      </div>
+
+      {/* Giant Wordmark */}
+      <div
+        ref={wordmarkRef}
+        aria-hidden="true"
+        className="relative z-10 flex-1 flex items-end justify-center pointer-events-none select-none w-full px-4 pb-2 sm:pb-4 overflow-visible"
+        style={{ willChange: 'transform, opacity' }}
+      >
+        <span
+          className="font-cinzel font-normal leading-[0.85] text-white text-center whitespace-nowrap block w-full uppercase"
+          style={{
+            fontSize: 'clamp(36px, 13vw, 190px)',
+            letterSpacing: '0.04em',
+          }}
+        >
+          RATES &amp; PLANS
+        </span>
+      </div>
+    </section>
   );
 }
 
+// ── Mystic Cloud Scrub Transition ─────────────────────────────────────────────
+
+
 function RatesCloudTransition() {
-  return <div className="h-16 bg-gradient-to-b from-ink to-paper" />;
+  return <div className="h-24 bg-gradient-to-b from-ink to-paper" />;
 }
 
 export default function RatesPage() {
+  const heroRef = React.useRef<HTMLDivElement>(null);
   return (
     <div className="relative bg-paper text-ink selection:bg-skynest-accent selection:text-white font-jakarta min-h-screen">
       <RatesNav />
-      <RatesHeroSection heroRef={{ current: null }} />
+      <RatesHeroSection heroRef={heroRef} />
       <RatesCloudTransition />
       <div className="max-w-6xl mx-auto px-6 py-12 text-center">
         <p className="text-ink/60">Sky Nest curated room tiers and meal plans.</p>
