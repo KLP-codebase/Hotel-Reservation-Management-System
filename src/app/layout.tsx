@@ -53,6 +53,14 @@ export const metadata: Metadata = {
   keywords: ["luxury hotel", "Sri Lanka", "Colombo", "Kandy", "Galle", "hotel booking", "SkyNest"],
   authors: [{ name: "SkyNest Hotels" }],
   robots: "index, follow",
+  icons: {
+    icon: [
+      { url: "/favicon.svg", type: "image/svg+xml" },
+      { url: "/favicon-32x32.png", sizes: "32x32", type: "image/png" },
+    ],
+    shortcut: "/favicon.svg",
+    apple: "/apple-touch-icon.png",
+  },
 };
 
 export default function RootLayout({
