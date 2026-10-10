@@ -78,6 +78,13 @@ router.post('/', async (req: Request, res: Response) => {
     }
 
     const booking = await repo.createBooking({ ...header, booked_by_guest_id: bookerId }, roomLines);
+
+    // Release any temporary room holds upon successful booking creation
+    const roomIdsToRelease = roomLines.map(r => r.room_id).filter(Boolean);
+    if (roomIdsToRelease.length > 0) {
+        await db.query('DELETE FROM room_holds WHERE room_id = ANY($1::varchar[])', [roomIdsToRelease]).catch(() => {});
+    }
+
     res.status(201).json({ success: true, data: booking });
 });
 
