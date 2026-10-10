@@ -22,6 +22,7 @@ const NAV_LINKS: NavLink[] = [
   { label: "Stay", href: "#stay" },
   { label: "Dining", href: "#dining" },
   { label: "About", href: "#about" },
+  { label: "Contact", href: "/contact" },
 ];
 
 const STORY_LINES = [
