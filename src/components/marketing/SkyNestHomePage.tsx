@@ -1510,8 +1510,173 @@ function ColomboBranchSection({ reducedMotion }: { reducedMotion: boolean }) {
 
       <div className="border-b border-skynest-hairline" />
     </section>
+
   );
 }
+// ---------------------------------------------------------------------------
+// About Section — Brand Story, Architecture & Philosophy
+// ---------------------------------------------------------------------------
+function AboutSection({ reducedMotion }: { reducedMotion: boolean }) {
+  const sectionRef = useRef<HTMLElement>(null);
+  const titleRef = useRef<HTMLHeadingElement>(null);
+  const cardRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (reducedMotion) return;
+    gsap.registerPlugin(ScrollTrigger);
+
+    const section = sectionRef.current;
+    if (!section) return;
+
+    const ctx = gsap.context(() => {
+      gsap.fromTo(
+        titleRef.current,
+        { opacity: 0, y: 30 },
+        {
+          opacity: 1,
+          y: 0,
+          duration: 0.8,
+          ease: "power2.out",
+          scrollTrigger: {
+            trigger: titleRef.current,
+            start: "top 85%",
+          },
+        }
+      );
+
+      if (cardRef.current) {
+        gsap.fromTo(
+          cardRef.current,
+          { opacity: 0, y: 40 },
+          {
+            opacity: 1,
+            y: 0,
+            duration: 0.9,
+            ease: "power3.out",
+            scrollTrigger: {
+              trigger: cardRef.current,
+              start: "top 85%",
+            },
+          }
+        );
+      }
+    }, section);
+
+    return () => ctx.revert();
+  }, [reducedMotion]);
+
+  return (
+    <section
+      ref={sectionRef}
+      id="about"
+      aria-label="About Sky Nest Hotels & Resorts"
+      className="relative bg-paper py-24 sm:py-32 border-b border-skynest-hairline overflow-hidden"
+    >
+      <div className="max-w-[1400px] mx-auto px-6 sm:px-10 md:px-16">
+        {/* Top Eyebrow & Title */}
+        <div className="max-w-3xl mb-16 sm:mb-20">
+          <span className="font-jakarta text-[11px] md:text-[12px] font-bold tracking-[0.3em] uppercase text-skynest-accent block mb-3">
+            About Sky Nest • Our Heritage
+          </span>
+          <h2
+            ref={titleRef}
+            className="font-cinzel text-ink text-3xl sm:text-4xl md:text-5xl lg:text-6xl uppercase tracking-[0.03em] leading-[1.1]"
+          >
+            Architecture Rooted in Landscape, <br />
+            <span className="italic font-normal">Hospitality Born of Heritage</span>
+          </h2>
+        </div>
+
+        {/* 2-Column Editorial Story + Feature Image */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-16 items-center mb-24">
+          <div className="lg:col-span-6 space-y-6">
+            <p className="font-cinzel italic text-ink/90 text-lg sm:text-xl md:text-2xl leading-relaxed">
+              &ldquo;Founded to harmonize architectural grace with Sri Lanka’s untamed landscapes,
+              Sky Nest is an unhurried invitation to experience the island at its most sublime.&rdquo;
+            </p>
+
+            <p className="font-jakarta text-ink/70 text-sm sm:text-base leading-relaxed">
+              From the mist-shrouded tea hills of Kandy to the historic ramparts of Galle Fort and the
+              panoramic coastline of Colombo, each Sky Nest sanctuary is designed around its natural terrain.
+              We believe true luxury is not excess, but unhurried space, thoughtful craftsmanship, and sincere Sri Lankan warmth.
+            </p>
+
+            <p className="font-jakarta text-ink/70 text-sm sm:text-base leading-relaxed">
+              Every suite features locally sourced tropical hardwoods, floor-to-ceiling glass framing timeless vistas,
+              and bespoke dining curated with fresh island harvests.
+            </p>
+
+            {/* Quick Stats Strip */}
+            <div className="grid grid-cols-3 gap-6 pt-6 border-t border-skynest-hairline">
+              <div>
+                <span className="block font-cinzel text-3xl sm:text-4xl font-bold text-ink">03</span>
+                <span className="font-jakarta text-xs text-ink/60 uppercase tracking-wider">Sanctuaries</span>
+              </div>
+              <div>
+                <span className="block font-cinzel text-3xl sm:text-4xl font-bold text-ink">100+</span>
+                <span className="font-jakarta text-xs text-ink/60 uppercase tracking-wider">Luxury Suites</span>
+              </div>
+              <div>
+                <span className="block font-cinzel text-3xl sm:text-4xl font-bold text-skynest-accent">5★</span>
+                <span className="font-jakarta text-xs text-ink/60 uppercase tracking-wider">Hospitality</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Feature Image with Sky Nest Badge */}
+          <div ref={cardRef} className="lg:col-span-6 relative">
+            <div className="relative aspect-[4/3] rounded-sm overflow-hidden border border-skynest-hairline shadow-lg">
+              <img
+                src="/colorful-buildings-reflect-in-pool-on-a-sunny-day-2026-03-24-04-06-42-utc.webp"
+                alt="Sky Nest architectural reflection and resort serenity"
+                className="w-full h-full object-cover"
+              />
+              <div className="absolute inset-0 bg-ink/10" />
+            </div>
+
+            {/* Subtle floating accolade card */}
+            <div className="absolute -bottom-6 -left-4 sm:left-6 bg-paper/95 backdrop-blur-md border border-skynest-hairline p-4 sm:p-5 shadow-xl max-w-xs">
+              <p className="font-cinzel text-xs font-bold uppercase tracking-wider text-ink">
+                Ceylon Hospitality Standard
+              </p>
+              <p className="font-jakarta text-[11px] text-ink/60 mt-1">
+                Honouring ancient island traditions with contemporary five-star indulgence.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {/* Three Core Brand Pillars */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 pt-8 border-t border-skynest-hairline">
+          <div className="p-6 bg-ink/[0.015] border border-skynest-hairline">
+            <span className="font-mono text-xs font-bold text-skynest-accent tracking-widest block mb-2">01 / DESIGN</span>
+            <h3 className="font-cinzel text-lg font-bold text-ink uppercase mb-2">Architectural Reverence</h3>
+            <p className="font-jakarta text-xs leading-relaxed text-ink/70">
+              Structures that respect their environment. Open-air colonnades, natural stone, and infinity lines that disappear into the horizon.
+            </p>
+          </div>
+
+          <div className="p-6 bg-ink/[0.015] border border-skynest-hairline">
+            <span className="font-mono text-xs font-bold text-skynest-accent tracking-widest block mb-2">02 / FLAVOUR</span>
+            <h3 className="font-cinzel text-lg font-bold text-ink uppercase mb-2">Bespoke Gastronomy</h3>
+            <p className="font-jakarta text-xs leading-relaxed text-ink/70">
+              Locally cultivated Ceylon spices, fresh ocean catches, and world-class wine cellars celebrating the culinary spirit of Sri Lanka.
+            </p>
+          </div>
+
+          <div className="p-6 bg-ink/[0.015] border border-skynest-hairline">
+            <span className="font-mono text-xs font-bold text-skynest-accent tracking-widest block mb-2">03 / SERVICE</span>
+            <h3 className="font-cinzel text-lg font-bold text-ink uppercase mb-2">Uncompromising Care</h3>
+            <p className="font-jakarta text-xs leading-relaxed text-ink/70">
+              Personalized 24/7 concierge, tailored island itineraries, and private wellness rituals curated for discerning travellers.
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
 
 // ---------------------------------------------------------------------------
 // Main Page Component
@@ -1577,6 +1742,9 @@ export default function SkyNestHomePage() {
 
       {/* Branch 03 — Colombo City */}
       <ColomboBranchSection reducedMotion={reducedMotion} />
+
+      {/* About Section — Philosophy, Architecture & Heritage */}
+      <AboutSection reducedMotion={reducedMotion} />
 
       {/* Premium Architectural Footer */}
       <SkyNestFooter />
