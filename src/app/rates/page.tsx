@@ -1027,9 +1027,162 @@ export default function RatesPage() {
             </div>
           </div>
 
+          {/* ── 03 · Interactive Nightly Rate Estimator ── */}
+          <div className="bg-white border border-skynest-hairline p-6 lg:p-8 space-y-6 shadow-sm" data-reveal>
+            <div className="border-b border-skynest-hairline pb-4 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+              <div>
+                <span className="font-jakarta text-[11px] font-bold tracking-[0.2em] uppercase text-skynest-accent">
+                  Interactive Tariff Calculator
+                </span>
+                <h3 className="font-cinzel text-xl font-bold text-ink uppercase">
+                  Nightly Sanctuary Tariff Breakdown
+                </h3>
+              </div>
+              <span className="text-xs font-jakarta text-ink/60">
+                Rule B13 &bull; Versioned Statutory Sri Lankan Taxes
+              </span>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+              {/* Selectors Column */}
+              <div className="lg:col-span-7 space-y-5">
+                <div>
+                  <label className="text-xs font-jakarta font-semibold uppercase tracking-wider text-ink/60 block mb-2">
+                    1. Select Sanctuary Room Category
+                  </label>
+                  <div className="grid grid-cols-2 gap-2">
+                    {ROOM_TIERS.map((r) => (
+                      <button
+                        key={r.id}
+                        type="button"
+                        onClick={() => setSelectedRoomId(r.id)}
+                        className={`p-3 text-left border transition-all ${
+                          selectedRoomId === r.id
+                            ? 'border-skynest-accent bg-amber-50/40 shadow-sm ring-1 ring-skynest-accent'
+                            : 'border-skynest-hairline bg-white hover:border-ink/40'
+                        }`}
+                      >
+                        <div className="font-cinzel text-sm font-bold text-ink">{r.name}</div>
+                        <div className="text-xs font-jakarta text-skynest-accent font-semibold mt-0.5">
+                          {formatPrice(r.usdRate)} / night
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div>
+                  <label className="text-xs font-jakarta font-semibold uppercase tracking-wider text-ink/60 block mb-2">
+                    2. Select Ceylonese Gastronomy Plan
+                  </label>
+                  <div className="grid grid-cols-2 gap-2">
+                    {MEAL_PLANS.map((p) => (
+                      <button
+                        key={p.id}
+                        type="button"
+                        onClick={() => setSelectedPlanId(p.id)}
+                        className={`p-3 text-left border transition-all ${
+                          selectedPlanId === p.id
+                            ? 'border-skynest-accent bg-amber-50/40 shadow-sm ring-1 ring-skynest-accent'
+                            : 'border-skynest-hairline bg-white hover:border-ink/40'
+                        }`}
+                      >
+                        <div className="font-cinzel text-sm font-bold text-ink">{p.name}</div>
+                        <div className="text-xs font-jakarta text-skynest-accent font-semibold mt-0.5">
+                          {p.usdRate === 0 ? 'Included' : `+${formatPrice(p.usdRate)}`}
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              {/* Estimate Breakdown Column */}
+              <div className="lg:col-span-5 bg-paper/80 border border-skynest-hairline p-6 space-y-4">
+                <div className="text-xs font-jakarta font-semibold uppercase tracking-wider text-ink/60 pb-2 border-b border-skynest-hairline">
+                  Tariff Summary &bull; Per Night
+                </div>
+
+                <div className="space-y-2 text-xs font-jakarta">
+                  <div className="flex items-center justify-between text-ink/80">
+                    <span>{currentRoom.name} Base Rate</span>
+                    <span className="font-semibold text-ink">{formatPrice(currentRoom.usdRate)}</span>
+                  </div>
+                  <div className="flex items-center justify-between text-ink/80">
+                    <span>{currentPlan.name} ({currentPlan.code})</span>
+                    <span className="font-semibold text-ink">
+                      {currentPlan.usdRate === 0 ? 'Included' : `+${formatPrice(currentPlan.usdRate)}`}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between text-ink/60 pt-2 border-t border-skynest-hairline">
+                    <span>Subtotal Before Taxes</span>
+                    <span className="font-semibold text-ink">{formatPrice(subtotalUsd)}</span>
+                  </div>
+
+                  {/* Statutory Taxes */}
+                  <div className="pt-2 border-t border-skynest-hairline/80 space-y-1 text-[11px] text-ink/60">
+                    <div className="flex items-center justify-between">
+                      <span>Service Charge (10.0%)</span>
+                      <span>{formatPrice(Math.round(serviceChargeUsd))}</span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span>Tourism Dev Levy (TDL 1.0%)</span>
+                      <span>{formatPrice(Math.round(tdlUsd))}</span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span>SSCL (2.5%)</span>
+                      <span>{formatPrice(Math.round(ssclUsd))}</span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span>VAT (18.0%)</span>
+                      <span>{formatPrice(Math.round(vatUsd))}</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Final Net Quote */}
+                <div className="pt-3 border-t border-skynest-hairline flex items-center justify-between">
+                  <div>
+                    <div className="text-[10px] uppercase font-bold tracking-wider text-ink/50">Total Quoted Rate</div>
+                    <div className="text-[10px] text-emerald-700">Taxes &amp; Service Included</div>
+                  </div>
+                  <div className="text-right">
+                    <div className="font-cinzel text-2xl font-bold text-skynest-accent">
+                      {formatPrice(Math.round(totalWithTaxesUsd))}
+                    </div>
+                    <div className="text-[10px] text-ink/50">Per Night &bull; Standard Occupancy</div>
+                  </div>
+                </div>
+
+                <Link
+                  href="/book"
+                  className="w-full mt-2 py-3 bg-ink hover:bg-skynest-accent text-white font-jakarta text-xs font-semibold uppercase tracking-[0.16em] transition-colors flex items-center justify-center gap-2"
+                >
+                  <span>Book This Experience</span>
+                  <ArrowRight className="w-3.5 h-3.5" />
+                </Link>
+              </div>
+            </div>
+          </div>
+
+          {/* ── 04 · Transparent Sri Lankan Tax Cascade Editorial ── */}
+          <div className="border border-skynest-hairline bg-white p-6 sm:p-8 space-y-4" data-reveal>
+            <div className="flex items-center gap-3">
+              <ShieldCheck className="w-5 h-5 text-skynest-accent" />
+              <h4 className="font-cinzel text-lg font-bold text-ink">
+                Our Guarantee of Transparent Hospitality
+              </h4>
+            </div>
+            <p className="font-jakarta text-xs sm:text-sm text-ink/75 leading-relaxed">
+              At Sky Nest, we operate strictly in compliance with Inland Revenue Department regulations of Sri Lanka. All room folios and invoices clearly separate statutory obligations ($SC ightarrow TDL ightarrow SSCL ightarrow VAT$). Guests never encounter surprise fees upon checkout.
+            </p>
+          </div>
 
         </div>
       </div>
+
+      {/* ── Standard Sky Nest Footer ── */}
+      <SkyNestFooter />
     </div>
   );
 }
