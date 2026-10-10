@@ -1514,12 +1514,16 @@ function ColomboBranchSection({ reducedMotion }: { reducedMotion: boolean }) {
   );
 }
 // ---------------------------------------------------------------------------
-// About Section — Brand Story, Architecture & Philosophy
+// About Section — Cinematic Brand Story, Architecture & Philosophy
 // ---------------------------------------------------------------------------
 function AboutSection({ reducedMotion }: { reducedMotion: boolean }) {
   const sectionRef = useRef<HTMLElement>(null);
-  const titleRef = useRef<HTMLHeadingElement>(null);
-  const cardRef = useRef<HTMLDivElement>(null);
+  const aerialRef = useRef<HTMLDivElement>(null);
+  const quoteRef = useRef<HTMLDivElement>(null);
+  const leftColRef = useRef<HTMLDivElement>(null);
+  const rightColRef = useRef<HTMLDivElement>(null);
+  const statsRef = useRef<HTMLDivElement>(null);
+  const pillarsRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (reducedMotion) return;
@@ -1529,36 +1533,41 @@ function AboutSection({ reducedMotion }: { reducedMotion: boolean }) {
     if (!section) return;
 
     const ctx = gsap.context(() => {
-      gsap.fromTo(
-        titleRef.current,
-        { opacity: 0, y: 30 },
-        {
-          opacity: 1,
-          y: 0,
-          duration: 0.8,
-          ease: "power2.out",
-          scrollTrigger: {
-            trigger: titleRef.current,
-            start: "top 85%",
-          },
-        }
-      );
-
-      if (cardRef.current) {
-        gsap.fromTo(
-          cardRef.current,
-          { opacity: 0, y: 40 },
-          {
-            opacity: 1,
-            y: 0,
-            duration: 0.9,
-            ease: "power3.out",
-            scrollTrigger: {
-              trigger: cardRef.current,
-              start: "top 85%",
-            },
-          }
-        );
+      // Aerial hero fade + scale
+      if (aerialRef.current) {
+        gsap.fromTo(aerialRef.current, { opacity: 0, scale: 1.04 }, {
+          opacity: 1, scale: 1, duration: 1.2, ease: "power2.out",
+          scrollTrigger: { trigger: aerialRef.current, start: "top 88%" },
+        });
+      }
+      // Founder's quote slide up
+      if (quoteRef.current) {
+        gsap.fromTo(quoteRef.current, { opacity: 0, y: 50 }, {
+          opacity: 1, y: 0, duration: 1.0, ease: "power3.out",
+          scrollTrigger: { trigger: quoteRef.current, start: "top 85%" },
+        });
+      }
+      // Editorial columns stagger
+      [leftColRef.current, rightColRef.current].forEach((el, i) => {
+        if (!el) return;
+        gsap.fromTo(el, { opacity: 0, y: 40 }, {
+          opacity: 1, y: 0, duration: 0.9, delay: i * 0.15, ease: "power3.out",
+          scrollTrigger: { trigger: el, start: "top 85%" },
+        });
+      });
+      // Stats stagger
+      if (statsRef.current) {
+        gsap.fromTo(statsRef.current.querySelectorAll(".stat-item"), { opacity: 0, y: 24 }, {
+          opacity: 1, y: 0, duration: 0.7, stagger: 0.1, ease: "power2.out",
+          scrollTrigger: { trigger: statsRef.current, start: "top 88%" },
+        });
+      }
+      // Pillar cards stagger
+      if (pillarsRef.current) {
+        gsap.fromTo(pillarsRef.current.querySelectorAll(".pillar-card"), { opacity: 0, y: 50 }, {
+          opacity: 1, y: 0, duration: 0.8, stagger: 0.12, ease: "power3.out",
+          scrollTrigger: { trigger: pillarsRef.current, start: "top 88%" },
+        });
       }
     }, section);
 
@@ -1570,112 +1579,278 @@ function AboutSection({ reducedMotion }: { reducedMotion: boolean }) {
       ref={sectionRef}
       id="about"
       aria-label="About Sky Nest Hotels & Resorts"
-      className="relative bg-paper py-24 sm:py-32 border-b border-skynest-hairline overflow-hidden"
+      className="relative bg-paper overflow-hidden"
     >
-      <div className="max-w-[1400px] mx-auto px-6 sm:px-10 md:px-16">
-        {/* Top Eyebrow & Title */}
-        <div className="max-w-3xl mb-16 sm:mb-20">
-          <span className="font-jakarta text-[11px] md:text-[12px] font-bold tracking-[0.3em] uppercase text-skynest-accent block mb-3">
-            About Sky Nest • Our Heritage
+      {/* ── 1. FULL-BLEED AERIAL HERO ───────────────────────────── */}
+      <div
+        ref={aerialRef}
+        className="relative h-[70vh] sm:h-[80vh] overflow-hidden"
+        style={{ opacity: reducedMotion ? 1 : 0 }}
+      >
+        <img
+          src="/about_aerial.jpg"
+          alt="Sky Nest — aerial view of Sri Lankan hill country sanctuary with tea plantations"
+          className="w-full h-full object-cover object-center"
+        />
+        <div
+          className="absolute inset-0"
+          style={{
+            background:
+              "linear-gradient(to bottom, rgba(11,37,64,0.10) 0%, rgba(11,37,64,0.25) 50%, rgba(11,37,64,0.90) 100%)",
+          }}
+        />
+        {/* Aerial text overlay */}
+        <div className="absolute inset-0 flex flex-col justify-end px-6 sm:px-12 md:px-20 pb-14 sm:pb-18 md:pb-20">
+          <span className="font-jakarta text-[10px] sm:text-[11px] font-bold tracking-[0.35em] uppercase text-white/45 block mb-3">
+            Sky Nest Hotels & Resorts — Est. Sri Lanka
           </span>
           <h2
-            ref={titleRef}
-            className="font-cinzel text-ink text-3xl sm:text-4xl md:text-5xl lg:text-6xl uppercase tracking-[0.03em] leading-[1.1]"
+            className="font-cinzel text-white uppercase leading-[1.08] tracking-[0.04em] max-w-3xl"
+            style={{ fontSize: "clamp(28px, 5vw, 72px)" }}
           >
-            Architecture Rooted in Landscape, <br />
-            <span className="italic font-normal">Hospitality Born of Heritage</span>
+            Three Sanctuaries.{" "}
+            <span className="italic font-normal text-white/70">
+              One Island. One Standard.
+            </span>
           </h2>
         </div>
+      </div>
 
-        {/* 2-Column Editorial Story + Feature Image */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-16 items-center mb-24">
-          <div className="lg:col-span-6 space-y-6">
-            <p className="font-cinzel italic text-ink/90 text-lg sm:text-xl md:text-2xl leading-relaxed">
-              &ldquo;Founded to harmonize architectural grace with Sri Lanka’s untamed landscapes,
-              Sky Nest is an unhurried invitation to experience the island at its most sublime.&rdquo;
-            </p>
-
-            <p className="font-jakarta text-ink/70 text-sm sm:text-base leading-relaxed">
-              From the mist-shrouded tea hills of Kandy to the historic ramparts of Galle Fort and the
-              panoramic coastline of Colombo, each Sky Nest sanctuary is designed around its natural terrain.
-              We believe true luxury is not excess, but unhurried space, thoughtful craftsmanship, and sincere Sri Lankan warmth.
-            </p>
-
-            <p className="font-jakarta text-ink/70 text-sm sm:text-base leading-relaxed">
-              Every suite features locally sourced tropical hardwoods, floor-to-ceiling glass framing timeless vistas,
-              and bespoke dining curated with fresh island harvests.
-            </p>
-
-            {/* Quick Stats Strip */}
-            <div className="grid grid-cols-3 gap-6 pt-6 border-t border-skynest-hairline">
-              <div>
-                <span className="block font-cinzel text-3xl sm:text-4xl font-bold text-ink">03</span>
-                <span className="font-jakarta text-xs text-ink/60 uppercase tracking-wider">Sanctuaries</span>
-              </div>
-              <div>
-                <span className="block font-cinzel text-3xl sm:text-4xl font-bold text-ink">100+</span>
-                <span className="font-jakarta text-xs text-ink/60 uppercase tracking-wider">Luxury Suites</span>
-              </div>
-              <div>
-                <span className="block font-cinzel text-3xl sm:text-4xl font-bold text-skynest-accent">5★</span>
-                <span className="font-jakarta text-xs text-ink/60 uppercase tracking-wider">Hospitality</span>
-              </div>
-            </div>
+      {/* ── 2. FOUNDER'S EDITORIAL QUOTE ────────────────────────── */}
+      <div
+        ref={quoteRef}
+        className="relative bg-ink py-20 sm:py-24 px-6 sm:px-12 md:px-20"
+        style={{ opacity: reducedMotion ? 1 : 0 }}
+      >
+        {/* Giant decorative quotation mark */}
+        <span
+          aria-hidden="true"
+          className="absolute top-2 left-6 sm:left-12 font-cinzel text-white/[0.035] select-none pointer-events-none leading-none"
+          style={{ fontSize: "clamp(100px, 16vw, 220px)" }}
+        >
+          &ldquo;
+        </span>
+        <div className="relative max-w-[860px] mx-auto text-center">
+          <p
+            className="font-cinzel italic text-white leading-[1.6]"
+            style={{ fontSize: "clamp(17px, 2.2vw, 28px)" }}
+          >
+            &ldquo;We did not build hotels. We shaped a conversation between landscape
+            and craftsmanship — where every sunrise belongs to the guest, and every
+            stone remembers the island it came from.&rdquo;
+          </p>
+          <div className="mt-8 flex items-center justify-center gap-3">
+            <div className="h-px w-12 bg-skynest-accent" />
+            <span className="font-jakarta text-[11px] tracking-[0.22em] uppercase text-white/45">
+              The Founders — Sky Nest Hotels & Resorts
+            </span>
+            <div className="h-px w-12 bg-skynest-accent" />
           </div>
+        </div>
+      </div>
 
-          {/* Feature Image with Sky Nest Badge */}
-          <div ref={cardRef} className="lg:col-span-6 relative">
-            <div className="relative aspect-[4/3] rounded-sm overflow-hidden border border-skynest-hairline shadow-lg">
-              <img
-                src="/colorful-buildings-reflect-in-pool-on-a-sunny-day-2026-03-24-04-06-42-utc.webp"
-                alt="Sky Nest architectural reflection and resort serenity"
-                className="w-full h-full object-cover"
-              />
-              <div className="absolute inset-0 bg-ink/10" />
+      {/* ── 3. TWO-COLUMN EDITORIAL STORY ───────────────────────── */}
+      <div className="bg-paper py-20 sm:py-28 px-6 sm:px-10 md:px-16">
+        <div className="max-w-[1400px] mx-auto">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 lg:gap-24 items-start">
+
+            {/* Left: Lobby image stacked with inset suite image */}
+            <div
+              ref={leftColRef}
+              className="relative pb-12"
+              style={{ opacity: reducedMotion ? 1 : 0 }}
+            >
+              {/* Primary lobby image */}
+              <div className="relative overflow-hidden shadow-2xl">
+                <img
+                  src="/about_lobby.jpg"
+                  alt="Sky Nest grand colonial lobby with tropical botanicals and marble floors"
+                  className="w-full aspect-[3/4] object-cover"
+                />
+                <div
+                  className="absolute inset-0"
+                  style={{
+                    background: "linear-gradient(to top, rgba(11,37,64,0.55) 0%, transparent 50%)",
+                  }}
+                />
+                <div className="absolute bottom-5 left-6 right-6">
+                  <p className="font-cinzel text-white/90 text-[12px] uppercase tracking-widest">
+                    The Grand Lobby
+                  </p>
+                  <p className="font-jakarta text-white/55 text-[10px] mt-0.5 tracking-wide">
+                    Sky Nest Colombo — Galle Road, Colombo 03
+                  </p>
+                </div>
+              </div>
+
+              {/* Inset floating suite image */}
+              <div className="absolute -bottom-4 -right-2 sm:right-2 w-44 sm:w-52 md:w-60 shadow-2xl border-[3px] border-paper overflow-hidden">
+                <img
+                  src="/about_suite.jpg"
+                  alt="Sky Nest private ocean suite at dusk"
+                  className="w-full aspect-[4/3] object-cover"
+                />
+              </div>
             </div>
 
-            {/* Subtle floating accolade card */}
-            <div className="absolute -bottom-6 -left-4 sm:left-6 bg-paper/95 backdrop-blur-md border border-skynest-hairline p-4 sm:p-5 shadow-xl max-w-xs">
-              <p className="font-cinzel text-xs font-bold uppercase tracking-wider text-ink">
-                Ceylon Hospitality Standard
+            {/* Right: Deep editorial copy */}
+            <div
+              ref={rightColRef}
+              className="lg:pt-6 space-y-6"
+              style={{ opacity: reducedMotion ? 1 : 0 }}
+            >
+              <span className="font-jakarta text-[11px] font-bold tracking-[0.3em] uppercase text-skynest-accent block">
+                Our Heritage & Philosophy
+              </span>
+
+              <h3
+                className="font-cinzel text-ink uppercase leading-[1.12] tracking-[0.03em]"
+                style={{ fontSize: "clamp(22px, 2.8vw, 38px)" }}
+              >
+                Landscape as Architecture.{" "}
+                <span className="italic font-normal">Heritage as Hospitality.</span>
+              </h3>
+
+              <div className="h-px w-14 bg-skynest-accent" />
+
+              <p className="font-jakarta text-ink/75 text-[15px] leading-[1.9]">
+                Sky Nest was conceived from a single conviction: that Sri Lanka&rsquo;s extraordinary
+                natural landscapes deserve sanctuaries worthy of their grandeur. From the colonial
+                harbour city of Colombo to the mist-laden tea hills of Kandy and the rampart-crowned
+                shores of Galle Fort, each property is shaped around its geography — not imposed upon it.
               </p>
-              <p className="font-jakarta text-[11px] text-ink/60 mt-1">
-                Honouring ancient island traditions with contemporary five-star indulgence.
+
+              <p className="font-jakarta text-ink/60 text-[14px] leading-[1.9]">
+                Every suite is furnished with locally sourced tropical hardwoods, handwoven textiles, and
+                floor-to-ceiling glass that frame the sky as living art. Our dining philosophy draws from
+                centuries of Ceylonese spice heritage, elevated through contemporary culinary mastery.
+                Our spa rituals are written in ancient Ayurvedic scripture, reinterpreted for the modern
+                conscious traveller.
               </p>
+
+              {/* Accolades */}
+              <div className="border border-skynest-hairline p-5 mt-2">
+                <p className="font-jakarta text-[10px] font-bold tracking-[0.25em] uppercase text-ink/35 mb-4">
+                  Recognition & Awards
+                </p>
+                {[
+                  "Travel + Leisure — World's Best Hotels, Sri Lanka",
+                  "Condé Nast Traveller — Gold List 2024",
+                  "UNESCO Heritage Tourism Excellence Award",
+                ].map((award, i) => (
+                  <div key={i} className="flex items-start gap-3 mb-2 last:mb-0">
+                    <div className="mt-1.5 w-1 h-1 rounded-full bg-skynest-accent shrink-0" />
+                    <span className="font-jakarta text-[12px] text-ink/65 leading-snug">{award}</span>
+                  </div>
+                ))}
+              </div>
+
+              <a
+                href="/book"
+                id="about-book-cta"
+                className="inline-flex items-center gap-3 mt-2 font-jakarta text-[11px] font-semibold tracking-[0.2em] uppercase text-ink border-b border-ink/25 pb-0.5 hover:border-skynest-accent hover:text-skynest-accent transition-colors duration-300"
+              >
+                Reserve Your Sanctuary
+                <ChevronRight className="w-3 h-3" />
+              </a>
             </div>
           </div>
         </div>
+      </div>
 
-        {/* Three Core Brand Pillars */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 pt-8 border-t border-skynest-hairline">
-          <div className="p-6 bg-ink/[0.015] border border-skynest-hairline">
-            <span className="font-mono text-xs font-bold text-skynest-accent tracking-widest block mb-2">01 / DESIGN</span>
-            <h3 className="font-cinzel text-lg font-bold text-ink uppercase mb-2">Architectural Reverence</h3>
-            <p className="font-jakarta text-xs leading-relaxed text-ink/70">
-              Structures that respect their environment. Open-air colonnades, natural stone, and infinity lines that disappear into the horizon.
-            </p>
+      {/* ── 4. ANIMATED STATS BAND ──────────────────────────────── */}
+      <div
+        ref={statsRef}
+        className="border-t border-b border-skynest-hairline py-14 sm:py-16 px-6 sm:px-10 bg-ink/[0.025]"
+      >
+        <div className="max-w-[1400px] mx-auto grid grid-cols-2 md:grid-cols-4 gap-8">
+          {[
+            { value: "03", label: "Iconic Sanctuaries", sub: "Colombo · Kandy · Galle" },
+            { value: "100+", label: "Bespoke Suites", sub: "Individually curated" },
+            { value: "5★", label: "Certified Luxury", sub: "Global hospitality standard", accent: true },
+            { value: "24/7", label: "Personal Concierge", sub: "Available always" },
+          ].map((stat, i) => (
+            <div key={i} className="stat-item text-center" style={{ opacity: reducedMotion ? 1 : 0 }}>
+              <span
+                className={`block font-cinzel font-bold leading-none mb-1 ${stat.accent ? "text-skynest-accent" : "text-ink"}`}
+                style={{ fontSize: "clamp(28px, 4vw, 52px)" }}
+              >
+                {stat.value}
+              </span>
+              <span className="block font-jakarta text-[11px] sm:text-[12px] font-semibold uppercase tracking-wider text-ink/75 mt-2">
+                {stat.label}
+              </span>
+              <span className="block font-jakarta text-[10px] text-ink/40 mt-1">{stat.sub}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* ── 5. THREE PHILOSOPHY PILLARS ─────────────────────────── */}
+      <div ref={pillarsRef} className="bg-paper py-20 sm:py-28 px-6 sm:px-10 md:px-16 border-b border-skynest-hairline">
+        <div className="max-w-[1400px] mx-auto">
+          <div className="text-center mb-14 sm:mb-16">
+            <span className="font-jakarta text-[11px] font-bold tracking-[0.3em] uppercase text-skynest-accent block mb-3">
+              The Sky Nest Philosophy
+            </span>
+            <h3
+              className="font-cinzel text-ink uppercase tracking-[0.04em]"
+              style={{ fontSize: "clamp(20px, 2.8vw, 36px)" }}
+            >
+              Three Pillars. One Vision.
+            </h3>
           </div>
 
-          <div className="p-6 bg-ink/[0.015] border border-skynest-hairline">
-            <span className="font-mono text-xs font-bold text-skynest-accent tracking-widest block mb-2">02 / FLAVOUR</span>
-            <h3 className="font-cinzel text-lg font-bold text-ink uppercase mb-2">Bespoke Gastronomy</h3>
-            <p className="font-jakarta text-xs leading-relaxed text-ink/70">
-              Locally cultivated Ceylon spices, fresh ocean catches, and world-class wine cellars celebrating the culinary spirit of Sri Lanka.
-            </p>
-          </div>
-
-          <div className="p-6 bg-ink/[0.015] border border-skynest-hairline">
-            <span className="font-mono text-xs font-bold text-skynest-accent tracking-widest block mb-2">03 / SERVICE</span>
-            <h3 className="font-cinzel text-lg font-bold text-ink uppercase mb-2">Uncompromising Care</h3>
-            <p className="font-jakarta text-xs leading-relaxed text-ink/70">
-              Personalized 24/7 concierge, tailored island itineraries, and private wellness rituals curated for discerning travellers.
-            </p>
+          <div className="grid grid-cols-1 md:grid-cols-3 border border-skynest-hairline">
+            {[
+              {
+                num: "I",
+                label: "Design",
+                title: "Architectural Reverence",
+                body: "Every Sky Nest property is sculpted around its natural setting — not placed upon it. Colonial arches, open-air colonnades, infinity lines drawn between water and sky. Architecture that breathes.",
+                glyph: "◈",
+              },
+              {
+                num: "II",
+                label: "Flavour",
+                title: "Ceylonese Gastronomy",
+                body: "Ancient spice routes distilled into modern culinary poetry. Fresh island harvests, ocean-drawn catches, and rare Ceylon tea ceremonies performed at your table. Taste as memory.",
+                glyph: "◉",
+              },
+              {
+                num: "III",
+                label: "Service",
+                title: "Uncompromising Warmth",
+                body: "Our concierge does not manage your stay — they author it. Private excursions to forgotten temples, dawn tea-plucking, moonlit dinners on the ramparts of Galle. Every detail, remembered.",
+                glyph: "◌",
+              },
+            ].map((pillar, i) => (
+              <div
+                key={i}
+                className={`pillar-card group relative p-8 sm:p-10 flex flex-col gap-5 transition-all duration-500 hover:bg-ink/[0.02] ${i < 2 ? "md:border-r border-skynest-hairline" : ""} ${i > 0 ? "border-t md:border-t-0 border-skynest-hairline" : ""}`}
+                style={{ opacity: reducedMotion ? 1 : 0 }}
+              >
+                <span className="absolute top-6 right-7 font-cinzel text-[11px] tracking-widest text-ink/15 group-hover:text-skynest-accent/35 transition-colors duration-300">
+                  {pillar.num}
+                </span>
+                <span className="font-cinzel text-3xl text-skynest-accent/50 leading-none">{pillar.glyph}</span>
+                <div>
+                  <span className="font-jakarta text-[10px] font-bold tracking-[0.28em] uppercase text-skynest-accent block mb-2">
+                    {pillar.label}
+                  </span>
+                  <h4 className="font-cinzel text-xl text-ink uppercase tracking-[0.04em]">{pillar.title}</h4>
+                </div>
+                <div className="h-px w-10 bg-skynest-accent/35 group-hover:w-16 transition-all duration-500" />
+                <p className="font-jakarta text-[13px] text-ink/60 leading-[1.9]">{pillar.body}</p>
+              </div>
+            ))}
           </div>
         </div>
       </div>
     </section>
   );
 }
+
 
 
 // ---------------------------------------------------------------------------
