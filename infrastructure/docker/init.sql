@@ -315,6 +315,38 @@ CREATE TABLE IF NOT EXISTS report_snapshots (
 );
 
 -- 17. Audit Logs (App-level Observer: Node.js auditEmitter)
+-- 18. Login Challenges (2FA Sign-In Authorization)
+CREATE TABLE IF NOT EXISTS login_challenges (
+    challenge_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_account_id UUID NOT NULL REFERENCES user_accounts(user_account_id) ON DELETE CASCADE,
+    auth_token VARCHAR(128) NOT NULL UNIQUE,
+    otp_code VARCHAR(10) NOT NULL,
+    ip_address VARCHAR(50),
+    user_agent VARCHAR(255),
+    status VARCHAR(20) NOT NULL DEFAULT 'PENDING',
+    expires_at TIMESTAMPTZ NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    approved_at TIMESTAMPTZ
+);
+
+CREATE INDEX IF NOT EXISTS idx_login_challenges_token ON login_challenges(auth_token);
+CREATE INDEX IF NOT EXISTS idx_login_challenges_status ON login_challenges(challenge_id, status);
+
+-- 19. Trusted Guest Devices (30-Day Device Trust for 2FA Bypass)
+CREATE TABLE IF NOT EXISTS trusted_guest_devices (
+    device_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_account_id UUID NOT NULL REFERENCES user_accounts(user_account_id) ON DELETE CASCADE,
+    device_token_hash VARCHAR(64) NOT NULL UNIQUE,
+    device_name VARCHAR(255),
+    ip_address VARCHAR(50),
+    last_used_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    expires_at TIMESTAMP WITH TIME ZONE NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_trusted_devices_lookup ON trusted_guest_devices(device_token_hash, user_account_id, expires_at);
+CREATE INDEX IF NOT EXISTS idx_trusted_devices_user ON trusted_guest_devices(user_account_id);
+
 CREATE TABLE IF NOT EXISTS audit_logs (
     audit_id    UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     entity_type VARCHAR(50) NOT NULL,
