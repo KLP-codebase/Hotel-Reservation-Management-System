@@ -21,6 +21,9 @@ const envSchema = z.object({
                     ).default('noreply@skynest.lk'),
   APP_URL:          z.string().url().default('http://localhost:3000'),
 
+  // ── Gemini AI ──────────────────────────────────────────────────────
+  GEMINI_API_KEY:   z.string().optional(),
+
   // Resend (required when EMAIL_PROVIDER=resend, optional otherwise)
   RESEND_API_KEY:   z.string().optional(),
 
