@@ -98,6 +98,7 @@ jobs:
         run: |
           scp infrastructure/azure/docker-compose.prod.yml infrastructure/azure/Caddyfile \
             "$VM_USER@$VM_HOST:/opt/skynest/"
+          scp -r database/migrations "$VM_USER@$VM_HOST:/opt/skynest/"
 
       - name: Deploy
         run: |
@@ -109,6 +110,39 @@ jobs:
           else
             echo "IMAGE_TAG=${IMAGE_TAG}" >> .env
           fi
+          # 1. Start postgres and wait until ready
+          docker compose -f docker-compose.prod.yml up -d postgres
+          echo "Waiting for PostgreSQL database container to be healthy..."
+          until docker compose -f docker-compose.prod.yml exec -T postgres pg_isready >/dev/null 2>&1; do
+            sleep 2
+          done
+
+          # 2. Automated Migration Runner (tracks applied migrations in schema_migrations)
+          set -a
+          [ -f .env ] && . .env
+          set +a
+
+          docker compose -f docker-compose.prod.yml exec -T postgres psql -U "${POSTGRES_USER}" -d "${POSTGRES_DB}" -c "
+            CREATE TABLE IF NOT EXISTS schema_migrations (
+              id SERIAL PRIMARY KEY,
+              filename VARCHAR(255) UNIQUE NOT NULL,
+              applied_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+            );
+          "
+
+          for f in $(ls -1 migrations/*.sql | sort); do
+            fname=$(basename "$f")
+            applied=$(docker compose -f docker-compose.prod.yml exec -T postgres psql -U "${POSTGRES_USER}" -d "${POSTGRES_DB}" -t -A -c "SELECT COUNT(*) FROM schema_migrations WHERE filename = '$fname';")
+            if [ "$applied" = "0" ]; then
+              echo "Applying migration: $fname..."
+              docker compose -f docker-compose.prod.yml exec -T postgres psql -U "${POSTGRES_USER}" -d "${POSTGRES_DB}" -f "/dev/stdin" < "$f"
+              docker compose -f docker-compose.prod.yml exec -T postgres psql -U "${POSTGRES_USER}" -d "${POSTGRES_DB}" -c "INSERT INTO schema_migrations (filename) VALUES ('$fname');"
+            else
+              echo "Migration $fname already applied, skipping."
+            fi
+          done
+
+          # 3. Pull and update backend & frontend
           docker compose -f docker-compose.prod.yml pull backend frontend
           docker compose -f docker-compose.prod.yml up -d --remove-orphans
           sleep 5

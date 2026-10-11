@@ -77,12 +77,35 @@ router.post('/', async (req: Request, res: Response) => {
         roomLines.push({ ...line, primary_guest_id: await resolveGuest(line.primary_guest_id) });
     }
 
+    const sessionId = (req.body as any).session_id || (req.headers['x-session-id'] as string);
+    const roomIds = roomLines.map(r => r.room_id).filter(Boolean);
+
+    // Verify concurrency hold: if any room is held by another active session, reject
+    if (roomIds.length > 0) {
+        const holdConflict = await db.query<{ id: string; number: string }>(
+            `SELECT r.id, r.number
+             FROM rooms r
+             JOIN room_holds rh ON rh.room_id = r.id
+             WHERE r.id = ANY($1::varchar[])
+               AND rh.expires_at > CURRENT_TIMESTAMP
+               AND ($2::varchar IS NULL OR rh.session_id <> $2::varchar)
+             LIMIT 1`,
+            [roomIds, sessionId || null]
+        );
+        if (holdConflict.rows.length > 0) {
+            return res.status(409).json({
+                success: false,
+                code: 'ROOM_HELD_BY_ANOTHER_GUEST',
+                message: `Room ${holdConflict.rows[0].number} is currently held by another guest. Please select a different room or wait for the hold to expire.`,
+            });
+        }
+    }
+
     const booking = await repo.createBooking({ ...header, booked_by_guest_id: bookerId }, roomLines);
 
     // Release any temporary room holds upon successful booking creation
-    const roomIdsToRelease = roomLines.map(r => r.room_id).filter(Boolean);
-    if (roomIdsToRelease.length > 0) {
-        await db.query('DELETE FROM room_holds WHERE room_id = ANY($1::varchar[])', [roomIdsToRelease]).catch(() => {});
+    if (roomIds.length > 0) {
+        await db.query('DELETE FROM room_holds WHERE room_id = ANY($1::varchar[])', [roomIds]).catch(() => {});
     }
 
     res.status(201).json({ success: true, data: booking });
@@ -165,6 +188,13 @@ router.patch('/:id/status', ...staffOnly, async (req: Request, res: Response) =>
     if (!updated) {
         throw Errors.conflict('Booking status was changed by someone else. Reload and try again.');
     }
+
+    // 5. Cascade status to booking_rooms (fires trg_sync_room_status to update physical room availability)
+    await db.query(
+        'UPDATE booking_rooms SET status = $1 WHERE booking_id = $2',
+        [nextStatus, bookingId]
+    ).catch(err => console.warn('[Bookings] Failed to cascade status to booking_rooms:', err));
+
     res.json({ success: true, data: updated });
 });
 
