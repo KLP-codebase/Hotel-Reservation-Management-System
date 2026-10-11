@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
-import { MessageSquare, X, Send, RotateCcw, Sparkles } from "lucide-react";
+import { MessageSquare, X, Send, RotateCcw } from "lucide-react";
 import { apiFetch } from "@/lib/api-client";
 
 interface Message {
@@ -17,6 +17,27 @@ const STARTER_PROMPTS = [
     "Explain the Sri Lankan tax cascade on bills",
     "How can I reserve a suite?",
 ];
+
+/** Official Sky Nest Mountain Glyph Logo */
+function MountainGlyph({ className = "" }: { className?: string }) {
+    return (
+        <svg
+            aria-hidden="true"
+            viewBox="0 0 28 16"
+            fill="none"
+            className={className}
+            xmlns="http://www.w3.org/2000/svg"
+        >
+            <path
+                d="M1 15 L10 3 L14 8 L18 2 L27 15"
+                stroke="currentColor"
+                strokeWidth="1.8"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+            />
+        </svg>
+    );
+}
 
 export function SkyNestConcierge() {
     const [isOpen, setIsOpen] = useState(false);
@@ -128,11 +149,11 @@ export function SkyNestConcierge() {
             {!isOpen && (
                 <button
                     onClick={() => setIsOpen(true)}
-                    aria-label="Open Sky Nest AI Concierge"
+                    aria-label="Open Sky Nest Virtual Concierge"
                     className="group relative flex items-center gap-3 bg-ink text-white px-5 py-3.5 border border-skynest-hairline/30 shadow-[0_12px_36px_rgba(11,37,64,0.25)] hover:border-skynest-accent hover:shadow-[0_16px_44px_rgba(217,114,44,0.2)] transition-all duration-300 rounded-full"
                 >
                     <div className="relative flex items-center justify-center">
-                        <Sparkles className="w-4 h-4 text-skynest-accent animate-pulse" />
+                        <MountainGlyph className="w-4 h-auto text-skynest-accent" />
                     </div>
                     <span className="font-jakarta text-[12px] font-medium tracking-[0.15em] uppercase">
                         Virtual Concierge
@@ -152,15 +173,15 @@ export function SkyNestConcierge() {
                     {/* Header */}
                     <div className="bg-ink px-5 py-4 flex items-center justify-between border-b border-white/10 shrink-0">
                         <div className="flex items-center gap-3">
-                            <div className="w-8 h-8 rounded-full border border-skynest-accent/40 bg-ink flex items-center justify-center">
-                                <Sparkles className="w-3.5 h-3.5 text-skynest-accent" />
+                            <div className="w-8 h-8 rounded-full border border-skynest-accent/40 bg-ink/80 flex items-center justify-center shadow-inner">
+                                <MountainGlyph className="w-4 h-auto text-skynest-accent" />
                             </div>
                             <div>
                                 <h3 className="font-cinzel text-white text-[14px] uppercase tracking-[0.08em] font-medium">
                                     Sky Nest Concierge
                                 </h3>
-                                <span className="font-jakarta text-[10px] text-white/50 tracking-wider uppercase block">
-                                    Online Host · Gemini AI
+                                <span className="font-jakarta text-[10px] text-skynest-accent/80 tracking-widest uppercase block">
+                                    Resort Host · Sanctuary Guide
                                 </span>
                             </div>
                         </div>
