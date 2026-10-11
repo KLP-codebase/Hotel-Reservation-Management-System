@@ -18,6 +18,8 @@ import servicesRoutes from './routes/services.routes';
 import invoicesRoutes from './routes/invoices.routes';
 import taxRoutes from './routes/tax.routes';
 import reportsRoutes from './routes/reports.routes';
+import chatRoutes from './routes/chat.routes';
+
 
 
 // ── GoF: Chain of Responsibility ──────────────────────────────────────────────
@@ -52,6 +54,7 @@ app.use('/api/v1/room-types', roomTypeRoutes);
 app.use('/api/v1/availability', availabilityRoutes);
 app.use('/api/v1/bookings', bookingRoutes);
 app.use('/api/v1/booking-rooms', bookingRoomRoutes);
+app.use('/api/v1/chat', chatRoutes);
 
 // ── Admin monitoring routes (RBAC: ADMINISTRATOR, MANAGER, DBA) ───────────────
 app.use('/api/v1/dashboard', dashboardRoutes);
