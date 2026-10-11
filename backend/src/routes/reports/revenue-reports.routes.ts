@@ -4,7 +4,7 @@ import { db } from '../../config/db';
 import { RevenueReportRepository } from '../../repositories/reports/revenue-report.repository';
 
 // ── Person 1 Workspace: Financial & Revenue Specialist ────────────────────────
-// Report 4: GET /api/v1/reports/revenue/monthly?year=2026&branchId=...
+// Report 4: GET /api/v1/reports/revenue/monthly?year=2026&month=10&branchId=...
 // Report 2: GET /api/v1/reports/revenue/billing-summary?status=...&agingDays=...&search=...&branchId=...
 // Note: authenticate + authorize('ADMINISTRATOR','MANAGER','DBA') is applied
 // by the parent reports.routes.ts aggregator. No need to re-apply here.
@@ -17,6 +17,7 @@ const repo = new RevenueReportRepository(db);
 /**
  * Zod schema for validating query parameters passed to GET /api/v1/reports/revenue/monthly
  * - year: 4-digit fiscal year between 2000 and 2100 (defaults to current year)
+ * - month: optional 1-12 month selector (null for full year)
  * - branchId: optional UUID for single-branch filtering, or empty string for all branches
  */
 const monthlyRevenueSchema = z.object({
@@ -26,6 +27,13 @@ const monthlyRevenueSchema = z.object({
     .transform((v) => (v ? parseInt(v, 10) : new Date().getFullYear()))
     .refine((v) => v >= 2000 && v <= 2100, {
       message: 'year must be a 4-digit year between 2000 and 2100',
+    }),
+  month: z
+    .string()
+    .optional()
+    .transform((v) => (v && v !== '' ? parseInt(v, 10) : null))
+    .refine((v) => v === null || (v >= 1 && v <= 12), {
+      message: 'month must be between 1 and 12',
     }),
   branchId: z.string().uuid('branchId must be a valid UUID').optional().or(z.literal('')),
 });
@@ -63,16 +71,17 @@ router.get('/monthly', async (req: Request, res: Response) => {
     });
   }
 
-  const { year, branchId } = parsed.data;
+  const { year, month, branchId } = parsed.data;
   const branchIdVal = branchId && branchId !== '' ? branchId : null;
 
-  const rows = await repo.getMonthlyRevenue(branchIdVal, year);
+  const rows = await repo.getMonthlyRevenue(branchIdVal, year, month ?? null);
 
   return res.json({
     success: true,
     data: rows,
     meta: {
       year,
+      month: month ?? null,
       branchId: branchIdVal,
       count: rows.length,
     },

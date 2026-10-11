@@ -1,3 +1,4 @@
+import { TrustedDeviceRepository } from '../repositories/trusted-device.repository';
 import { LoginChallengeRepository } from '../repositories/login-challenge.repository';
 import { env } from '../config/env';
 import crypto from 'crypto';
@@ -42,6 +43,7 @@ export class AuthService {
     private readonly repo: UserAccountRepository,
     private readonly strategy: AuthStrategy,
     private readonly challengeRepo?: LoginChallengeRepository,
+    private readonly trustedDeviceRepo?: TrustedDeviceRepository,
   ) {}
 
   private maskEmail(email: string): string {
@@ -51,7 +53,7 @@ export class AuthService {
     return `${maskedName}@${domain}`;
   }
 
-  async login(dto: LoginDto, ipAddress?: string) {
+  async login(dto: LoginDto, ipAddress?: string, deviceToken?: string, userAgent?: string) {
     // Step 1: find account (Repository / Template Method)
     const account = await this.repo.findByUsername(dto.username);
     if (!account) throw Errors.invalidCreds();
@@ -65,10 +67,49 @@ export class AuthService {
       throw Errors.emailNotVerified('Please verify your email before logging in. Check your inbox for the verification link.');
     }
 
+    const isGuest = account.account_type === 'GUEST';
+
+    // Step 2.5: Check if device is trusted (30-day HttpOnly cookie bypass for GUEST)
+    if (isGuest && this.trustedDeviceRepo && deviceToken) {
+      const tokenHash = crypto.createHash('sha256').update(deviceToken).digest('hex');
+      const trustedDevice = await this.trustedDeviceRepo.findValidDevice(account.user_account_id, tokenHash);
+      if (trustedDevice) {
+        // Device is verified & valid within 30 days!
+        await this.trustedDeviceRepo.touchDevice(tokenHash);
+        await this.repo.updateLastLogin(account.user_account_id);
+
+        const payload = new JwtPayloadBuilder()
+          .setSubject(account.user_account_id)
+          .setRole(account.account_type)
+          .setBranch(account.branch_id ?? null)
+          .build();
+        const token = this.strategy.sign(payload);
+
+        auditEmitter.emit('auth.login', {
+          actorId:    account.user_account_id,
+          entityType: 'user_accounts',
+          entityId:   account.user_account_id,
+          action:     'LOGIN',
+          ipAddress,
+        });
+
+        return ResponseFactory.ok({
+          token,
+          user: {
+            id:          account.user_account_id,
+            username:    account.username,
+            role:        account.account_type,
+            branchId:    account.branch_id ?? null,
+          },
+          deviceTrusted: true,
+          deviceToken,
+        }, 'Sign-in successful via trusted device.');
+      }
+    }
+
     // Step 3: Check if email authorization challenge is required
     // Bypass challenge for staff roles (ADMINISTRATOR, MANAGER, RECEPTIONIST, SERVICE_STAFF, DBA).
     // Real staff are yet to be implemented; only GUEST accounts require 2FA sign-in authorization email.
-    const isGuest = account.account_type === 'GUEST';
     if (this.challengeRepo && account.email && isGuest) {
       const authToken = crypto.randomBytes(32).toString('hex');
       const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
@@ -399,7 +440,7 @@ export class AuthService {
     });
   }
 
-  async checkChallengeStatus(challengeId: string) {
+  async checkChallengeStatus(challengeId: string, ipAddress?: string, userAgent?: string) {
     if (!this.challengeRepo) throw Errors.internal();
     const challenge = await this.challengeRepo.findById(challengeId);
     if (!challenge) throw Errors.notFound('Challenge not found');
@@ -409,6 +450,18 @@ export class AuthService {
     }
 
     if (challenge.status === 'APPROVED') {
+      let rawDeviceToken: string | undefined = undefined;
+      if (this.trustedDeviceRepo && challenge.account_type === 'GUEST') {
+        rawDeviceToken = crypto.randomBytes(32).toString('hex');
+        const tokenHash = crypto.createHash('sha256').update(rawDeviceToken).digest('hex');
+        await this.trustedDeviceRepo.registerDevice(
+          challenge.user_account_id,
+          tokenHash,
+          ipAddress,
+          userAgent,
+        );
+      }
+
       const payload = new JwtPayloadBuilder()
         .setSubject(challenge.user_account_id)
         .setRole(challenge.account_type as any)
@@ -419,6 +472,7 @@ export class AuthService {
       return ResponseFactory.ok({
         status: 'APPROVED',
         token,
+        deviceToken: rawDeviceToken,
         user: {
           id: challenge.user_account_id,
           username: challenge.username,
@@ -435,7 +489,7 @@ export class AuthService {
     return ResponseFactory.ok({ status: 'PENDING' });
   }
 
-  async verifyLoginChallenge(params: { challengeId?: string; token?: string; otpCode?: string }, ipAddress?: string) {
+  async verifyLoginChallenge(params: { challengeId?: string; token?: string; otpCode?: string }, ipAddress?: string, userAgent?: string) {
     if (!this.challengeRepo) throw Errors.internal();
 
     let challenge = null;
@@ -462,6 +516,19 @@ export class AuthService {
     await this.challengeRepo.approve(challenge.challenge_id);
     await this.repo.updateLastLogin(challenge.user_account_id);
 
+    // Register 30-day trusted device
+    let rawDeviceToken: string | undefined = undefined;
+    if (this.trustedDeviceRepo && challenge.account_type === 'GUEST') {
+      rawDeviceToken = crypto.randomBytes(32).toString('hex');
+      const tokenHash = crypto.createHash('sha256').update(rawDeviceToken).digest('hex');
+      await this.trustedDeviceRepo.registerDevice(
+        challenge.user_account_id,
+        tokenHash,
+        ipAddress,
+        userAgent,
+      );
+    }
+
     // Build JWT & sign session token
     const payload = new JwtPayloadBuilder()
       .setSubject(challenge.user_account_id)
@@ -481,6 +548,7 @@ export class AuthService {
     return ResponseFactory.ok({
       status: 'APPROVED',
       token,
+      deviceToken: rawDeviceToken,
       user: {
         id:          challenge.user_account_id,
         username:    challenge.username,

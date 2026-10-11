@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import {
-  X, Receipt, CreditCard, DollarSign, Printer, CheckCircle2,
+  X, Receipt, CreditCard, DollarSign, Printer, Download, CheckCircle2,
   AlertCircle, Building, Calendar, User, ShieldCheck, Check,
   Hotel, FileText, Clock, Phone, Mail, Layers
 } from "lucide-react";
@@ -245,7 +245,28 @@ export function TotalBillModal({ isOpen, onClose, booking, onPaymentSaved, initi
   };
 
 
+  const handleSavePdf = () => {
+    if (!invoice) return;
+    setActiveTab("invoice");
+
+    const originalTitle = document.title;
+    const invCode = `INV-${invoice.booking_id.replace(/[^a-zA-Z0-9]/g, "").slice(-6).toUpperCase()}${invoice.is_consolidated ? "-ALL" : `-${invoice.room_number}`}`;
+    const guestSlug = (invoice.guest_name || "Guest").replace(/\s+/g, "_");
+    document.title = `SkyNest_Tax_Invoice_${invCode}_${guestSlug}`;
+
+    setTimeout(() => {
+      window.print();
+      setTimeout(() => {
+        document.title = originalTitle;
+      }, 1000);
+    }, 150);
+  };
+
   const handlePrint = () => {
+    handleSavePdf();
+  };
+
+  const handlePrintPopupLegacy = () => {
     if (!invoice || !b) return;
     const printWindow = window.open('', '_blank', 'width=850,height=950');
     if (!printWindow) return;
@@ -654,6 +675,24 @@ export function TotalBillModal({ isOpen, onClose, booking, onPaymentSaved, initi
       id="printable-invoice-container"
       className="bg-white border border-skynest-hairline rounded-[2px] p-6 sm:p-8 shadow-xs text-ink font-jakarta"
     >
+      {/* Receptionist Browser PDF Notice */}
+      <div className="mb-4 p-3 bg-amber-500/10 border border-amber-500/30 rounded flex items-center justify-between text-xs text-ink/80 print-hidden-element">
+        <div className="flex items-center gap-2">
+          <FileText className="w-4 h-4 text-skynest-accent shrink-0" />
+          <span>
+            Official Tax Invoice ready. Click <strong>&quot;Save as PDF&quot;</strong> and select your browser&apos;s <strong>&quot;Save as PDF&quot;</strong> printer destination to download.
+          </span>
+        </div>
+        <button
+          type="button"
+          onClick={handleSavePdf}
+          className="px-3 py-1 bg-ink text-white rounded text-[11px] font-semibold tracking-wider uppercase flex items-center gap-1.5 hover:bg-skynest-accent transition-colors shrink-0 ml-3 cursor-pointer"
+        >
+          <Download className="w-3.5 h-3.5 text-skynest-accent" />
+          <span>Save as PDF</span>
+        </button>
+      </div>
+
       {/* 1. Official Invoice Header */}
       <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-6 pb-6 border-b border-skynest-hairline">
         <div>
@@ -934,26 +973,34 @@ export function TotalBillModal({ isOpen, onClose, booking, onPaymentSaved, initi
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-ink/60 backdrop-blur-sm animate-in fade-in duration-200 overflow-y-auto">
-      {/* Print Specific CSS */}
+      {/* Print Specific CSS for Browser 'Save as PDF' & Direct Printing */}
       <style>{`
         @media print {
-          body * {
-            visibility: hidden;
+          @page {
+            size: A4 portrait;
+            margin: 8mm;
+          }
+          body {
+            visibility: hidden !important;
+            background: #ffffff !important;
           }
           #printable-invoice-container, #printable-invoice-container * {
-            visibility: visible;
+            visibility: visible !important;
           }
           #printable-invoice-container {
-            position: absolute;
-            left: 0;
-            top: 0;
-            width: 100%;
-            margin: 0;
-            padding: 0;
-            background: white !important;
-            color: black !important;
+            position: fixed !important;
+            left: 0 !important;
+            top: 0 !important;
+            width: 100% !important;
+            margin: 0 !important;
+            padding: 16px !important;
+            background: #ffffff !important;
+            color: #0b2540 !important;
             border: none !important;
             box-shadow: none !important;
+            z-index: 999999 !important;
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
           }
           .print-hidden-element {
             display: none !important;
@@ -1008,8 +1055,18 @@ export function TotalBillModal({ isOpen, onClose, booking, onPaymentSaved, initi
             </div>
 
             <button
+              type="button"
+              onClick={handleSavePdf}
+              className="px-3.5 py-1.5 rounded-[3px] bg-skynest-accent text-white hover:bg-skynest-accent/90 transition-colors flex items-center gap-1.5 text-xs font-jakarta font-semibold tracking-wider uppercase shadow-xs cursor-pointer"
+              title="Generate PDF using your browser's built-in Save as PDF destination"
+            >
+              <Download className="w-3.5 h-3.5" />
+              <span>Save as PDF</span>
+            </button>
+            <button
+              type="button"
               onClick={handlePrint}
-              className="px-3.5 py-1.5 rounded-[3px] bg-paper border border-skynest-hairline text-ink hover:border-skynest-accent hover:text-skynest-accent transition-colors flex items-center gap-1.5 text-xs font-jakarta font-semibold tracking-wider uppercase shadow-xs"
+              className="px-3.5 py-1.5 rounded-[3px] bg-paper border border-skynest-hairline text-ink hover:border-skynest-accent hover:text-skynest-accent transition-colors flex items-center gap-1.5 text-xs font-jakarta font-semibold tracking-wider uppercase shadow-xs cursor-pointer"
               title="Print official tax invoice"
             >
               <Printer className="w-3.5 h-3.5 text-skynest-accent" />

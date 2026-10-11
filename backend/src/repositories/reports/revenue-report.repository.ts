@@ -89,17 +89,18 @@ export class RevenueReportRepository {
 
   /**
    * Report 4: Monthly Revenue per Branch
-   * Dynamically segregates room tariff vs service revenue. Since live `invoices`
-   * stores a combined `subtotal`, service revenue is summed from `service_usage`
-   * and the remainder is attributed to room charges. The 4-tier Sri Lankan tax
-   * cascade (SC → TDL → SSCL → VAT) is extracted directly from `invoices`.
+   * Dynamically segregates room tariff vs service revenue using live `invoices`
+   * columns: room_charges, service_charges, discount_amount, and 4-tier Sri Lankan
+   * statutory taxes (service_charge_tax, tdl_amount, ssc_amount, vat_amount).
    *
    * @param branchId - Optional UUID to filter a single branch (null = all branches)
    * @param year     - 4-digit fiscal year (e.g. 2026)
+   * @param month    - Optional month (1-12) to filter to a single month (null = full year)
    */
   async getMonthlyRevenue(
     branchId: string | null,
     year: number,
+    month?: number | null,
   ): Promise<MonthlyRevenueRow[]> {
     const sql = `
       WITH monthly_invoices AS (
@@ -108,15 +109,17 @@ export class RevenueReportRepository {
           i.booking_room_id,
           b.branch_id,
           br.branch_name,
-          TO_CHAR(COALESCE(i.issued_at, i.created_at, CURRENT_TIMESTAMP), 'YYYY-MM') AS month_key,
-          TO_CHAR(COALESCE(i.issued_at, i.created_at, CURRENT_TIMESTAMP), 'Mon YYYY') AS month_label,
-          EXTRACT(MONTH FROM COALESCE(i.issued_at, i.created_at, CURRENT_TIMESTAMP)) AS month_num,
-          COALESCE(i.subtotal, 0)       AS subtotal,
-          COALESCE(i.sc_amount, 0)      AS sc_amount,
-          COALESCE(i.tdl_amount, 0)     AS tdl_amount,
-          COALESCE(i.sscl_amount, 0)    AS sscl_amount,
-          COALESCE(i.vat_amount, 0)     AS vat_amount,
-          COALESCE(i.total_amount, 0)   AS total_amount
+          TO_CHAR(COALESCE(i.generated_at, CURRENT_TIMESTAMP), 'YYYY-MM') AS month_key,
+          TO_CHAR(COALESCE(i.generated_at, CURRENT_TIMESTAMP), 'Mon YYYY') AS month_label,
+          EXTRACT(MONTH FROM COALESCE(i.generated_at, CURRENT_TIMESTAMP)) AS month_num,
+          (COALESCE(i.room_charges, 0) + COALESCE(i.service_charges, 0) - COALESCE(i.discount_amount, 0)) AS subtotal,
+          COALESCE(i.room_charges, 0)       AS room_charges,
+          COALESCE(i.service_charges, 0)    AS service_charges,
+          COALESCE(i.service_charge_tax, 0) AS sc_amount,
+          COALESCE(i.tdl_amount, 0)         AS tdl_amount,
+          COALESCE(i.ssc_amount, 0)         AS sscl_amount,
+          COALESCE(i.vat_amount, 0)         AS vat_amount,
+          COALESCE(i.total_amount, 0)       AS total_amount
         FROM invoices i
         JOIN booking_rooms bkr
           ON (bkr.booking_room_id = i.booking_room_id
@@ -126,29 +129,21 @@ export class RevenueReportRepository {
               OR b.id = bkr.booking_id::text)
         JOIN branches br ON br.branch_id = b.branch_id
         WHERE ($1::uuid IS NULL OR br.branch_id = $1::uuid)
-          AND EXTRACT(YEAR FROM COALESCE(i.issued_at, i.created_at, CURRENT_TIMESTAMP)) = $2::int
-      ),
-      service_totals_per_invoice AS (
-        SELECT
-          mi.invoice_id,
-          COALESCE(SUM(su.quantity * su.price_at_usage), 0) AS service_revenue
-        FROM monthly_invoices mi
-        LEFT JOIN service_usage su ON su.booking_room_id = mi.booking_room_id
-        GROUP BY mi.invoice_id
+          AND EXTRACT(YEAR FROM COALESCE(i.generated_at, CURRENT_TIMESTAMP)) = $2::int
+          AND ($3::int IS NULL OR EXTRACT(MONTH FROM COALESCE(i.generated_at, CURRENT_TIMESTAMP)) = $3::int)
       )
       SELECT
         mi.month_key,
         mi.month_label,
         mi.branch_id::text                                                             AS branch_id,
         mi.branch_name,
-        ROUND(SUM(GREATEST(0, mi.subtotal - st.service_revenue)), 2)::text            AS total_room_revenue,
-        ROUND(SUM(st.service_revenue), 2)::text                                       AS total_service_revenue,
+        ROUND(SUM(mi.room_charges), 2)::text                                          AS total_room_revenue,
+        ROUND(SUM(mi.service_charges), 2)::text                                       AS total_service_revenue,
         ROUND(SUM(mi.subtotal), 2)::text                                              AS subtotal_base_revenue,
         ROUND(SUM(mi.sc_amount + mi.tdl_amount + mi.sscl_amount + mi.vat_amount), 2)::text
                                                                                        AS total_taxes_collected,
         ROUND(SUM(mi.total_amount), 2)::text                                          AS gross_revenue
       FROM monthly_invoices mi
-      JOIN service_totals_per_invoice st ON st.invoice_id = mi.invoice_id
       GROUP BY mi.month_key, mi.month_label, mi.month_num, mi.branch_id, mi.branch_name
       ORDER BY mi.month_key ASC, mi.branch_name ASC;
     `;
@@ -156,6 +151,7 @@ export class RevenueReportRepository {
     const { rows } = await this.db.query<MonthlyRevenueRow>(sql, [
       branchId ?? null,
       year,
+      month ?? null,
     ]);
 
     return rows;
@@ -164,8 +160,7 @@ export class RevenueReportRepository {
   /**
    * Report 2: Guest Billing Summary & Unpaid Balances
    * Highlights outstanding balances, debtor aging (>30d, >60d, >90d), and
-   * partially paid folios using the canonical `guests.id` join and
-   * live `invoices` column names (subtotal, sc_amount, amount_paid).
+   * partially paid folios using canonical live `invoices` schema columns.
    *
    * @param branchId  - Optional UUID to scope by branch
    * @param status    - 'ALL' | 'UNPAID' | 'PARTIALLY_PAID' | 'SETTLED' | null
@@ -187,25 +182,25 @@ export class RevenueReportRepository {
         g.phone                                                                        AS guest_phone,
         br.branch_name,
         STRING_AGG(DISTINCT rm.number, ', ')                                           AS room_numbers,
-        COALESCE(i.subtotal, 0)::text                                                  AS base_amount,
-        COALESCE(i.sc_amount, 0)::text                                                 AS service_charge_tax,
+        (COALESCE(i.room_charges, 0) + COALESCE(i.service_charges, 0) - COALESCE(i.discount_amount, 0))::text AS base_amount,
+        COALESCE(i.service_charge_tax, 0)::text                                        AS service_charge_tax,
         COALESCE(i.tdl_amount, 0)::text                                                AS tdl_amount,
-        COALESCE(i.sscl_amount, 0)::text                                               AS sscl_amount,
+        COALESCE(i.ssc_amount, 0)::text                                                AS sscl_amount,
         COALESCE(i.vat_amount, 0)::text                                                AS vat_amount,
         COALESCE(i.total_amount, 0)::text                                              AS total_amount,
-        COALESCE(SUM(COALESCE(p.amount_paid, p.amount, 0)), 0)::text                  AS total_paid,
+        COALESCE(SUM(p.amount), 0)::text                                               AS total_paid,
         ROUND(
           COALESCE(i.total_amount, 0)
-          - COALESCE(SUM(COALESCE(p.amount_paid, p.amount, 0)), 0),
+          - COALESCE(SUM(p.amount), 0),
           2
         )::text                                                                        AS balance_due,
-        COALESCE(i.issued_at, i.created_at, CURRENT_TIMESTAMP)::text                  AS invoice_date,
-        (CURRENT_DATE - COALESCE(i.issued_at, i.created_at, CURRENT_TIMESTAMP)::date) AS aging_days,
+        COALESCE(i.generated_at, CURRENT_TIMESTAMP)::text                              AS invoice_date,
+        (CURRENT_DATE - COALESCE(i.generated_at, CURRENT_TIMESTAMP)::date)            AS aging_days,
         CASE
           WHEN (COALESCE(i.total_amount, 0)
-                - COALESCE(SUM(COALESCE(p.amount_paid, p.amount, 0)), 0)) <= 0.01
+                - COALESCE(SUM(p.amount), 0)) <= 0.01
                THEN 'SETTLED'
-          WHEN COALESCE(SUM(COALESCE(p.amount_paid, p.amount, 0)), 0) > 0
+          WHEN COALESCE(SUM(p.amount), 0) > 0
                THEN 'PARTIALLY_PAID'
           ELSE 'UNPAID'
         END                                                                            AS computed_status
@@ -230,23 +225,23 @@ export class RevenueReportRepository {
         ))
       GROUP BY
         i.invoice_id, b.id, b.booking_id, g.first_name, g.last_name, g.email, g.phone,
-        br.branch_name, i.subtotal, i.sc_amount, i.tdl_amount, i.sscl_amount, i.vat_amount,
-        i.total_amount, i.issued_at, i.created_at
+        br.branch_name, i.room_charges, i.service_charges, i.discount_amount, i.service_charge_tax,
+        i.tdl_amount, i.ssc_amount, i.vat_amount, i.total_amount, i.generated_at
       HAVING ($2::text IS NULL OR $2 = 'ALL' OR
         ($2 = 'UNPAID'
           AND ROUND(COALESCE(i.total_amount, 0)
-                    - COALESCE(SUM(COALESCE(p.amount_paid, p.amount, 0)), 0), 2) > 0.01
-          AND COALESCE(SUM(COALESCE(p.amount_paid, p.amount, 0)), 0) = 0)
+                    - COALESCE(SUM(p.amount), 0), 2) > 0.01
+          AND COALESCE(SUM(p.amount), 0) = 0)
         OR ($2 = 'PARTIALLY_PAID'
-          AND COALESCE(SUM(COALESCE(p.amount_paid, p.amount, 0)), 0) > 0
+          AND COALESCE(SUM(p.amount), 0) > 0
           AND ROUND(COALESCE(i.total_amount, 0)
-                    - COALESCE(SUM(COALESCE(p.amount_paid, p.amount, 0)), 0), 2) > 0.01)
+                    - COALESCE(SUM(p.amount), 0), 2) > 0.01)
         OR ($2 = 'SETTLED'
           AND ROUND(COALESCE(i.total_amount, 0)
-                    - COALESCE(SUM(COALESCE(p.amount_paid, p.amount, 0)), 0), 2) <= 0.01)
+                    - COALESCE(SUM(p.amount), 0), 2) <= 0.01)
       )
       AND ($3::int IS NULL OR
-           (CURRENT_DATE - COALESCE(i.issued_at, i.created_at, CURRENT_TIMESTAMP)::date) >= $3::int)
+           (CURRENT_DATE - COALESCE(i.generated_at, CURRENT_TIMESTAMP)::date) >= $3::int)
       ORDER BY balance_due DESC, invoice_date DESC;
     `;
 

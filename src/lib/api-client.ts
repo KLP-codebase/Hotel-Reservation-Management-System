@@ -57,6 +57,7 @@ export async function apiFetch<T>(
 
   const res = await fetch(`${cleanBase}${normalizedPath}`, {
     ...options,
+    credentials: options.credentials ?? 'include',
     headers: {
       'Content-Type': 'application/json',
       ...(token ? { Authorization: `Bearer ${token}` } : {}),

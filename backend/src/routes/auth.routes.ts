@@ -1,3 +1,6 @@
+import crypto from 'crypto';
+import { TrustedDeviceRepository } from '../repositories/trusted-device.repository';
+import { env } from '../config/env';
 import { Router, Request, Response } from 'express';
 import { z } from 'zod';
 import { validate } from '../middleware/validate.middleware';
@@ -14,7 +17,25 @@ const router = Router();
 const repo = new UserAccountRepository(db);
 const staffRepo = new StaffRepository(db);
 const challengeRepo = new LoginChallengeRepository(db);
-const service = new AuthService(repo, authStrategy, challengeRepo);
+const trustedDeviceRepo = new TrustedDeviceRepository(db);
+const service = new AuthService(repo, authStrategy, challengeRepo, trustedDeviceRepo);
+
+function setDeviceTrustCookie(req: Request, res: Response, deviceToken: string) {
+  const isProd = env.NODE_ENV === 'production';
+  const isSecure = Boolean(
+    req.secure ||
+    req.headers['x-forwarded-proto'] === 'https' ||
+    (isProd && !req.headers.host?.includes('localhost'))
+  );
+
+  res.cookie('sn_device_trust', deviceToken, {
+    httpOnly: true,
+    secure: isSecure,
+    sameSite: 'lax',
+    path: '/',
+    maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days in milliseconds
+  });
+}
 
 // ── Zod schemas ───────────────────────────────────────────────────────────────
 const LoginSchema = z.object({
@@ -51,13 +72,24 @@ const AcceptInviteSchema = z.object({
 
 
 router.get('/login-challenge/:id', async (req: Request, res: Response) => {
-  const result = await service.checkChallengeStatus(req.params.id);
+  const ipAddress = (req.headers['x-forwarded-for'] as string)?.split(',')[0]?.trim() || req.socket.remoteAddress;
+  const userAgent = req.headers['user-agent'];
+  const result = await service.checkChallengeStatus(req.params.id, ipAddress, userAgent);
+  const data = result.data as { deviceToken?: string } | undefined;
+  if (data?.deviceToken) {
+    setDeviceTrustCookie(req, res, data.deviceToken);
+  }
   res.status(200).json(result);
 });
 
 router.post('/login-challenge/verify', async (req: Request, res: Response) => {
   const ipAddress = (req.headers['x-forwarded-for'] as string)?.split(',')[0]?.trim() || req.socket.remoteAddress;
-  const result = await service.verifyLoginChallenge(req.body, ipAddress);
+  const userAgent = req.headers['user-agent'];
+  const result = await service.verifyLoginChallenge(req.body, ipAddress, userAgent);
+  const data = result.data as { deviceToken?: string } | undefined;
+  if (data?.deviceToken) {
+    setDeviceTrustCookie(req, res, data.deviceToken);
+  }
   res.status(200).json(result);
 });
 
@@ -68,8 +100,15 @@ router.post('/login-challenge/resend', async (req: Request, res: Response) => {
 });
 
 router.post('/login', validate(LoginSchema), async (req: Request, res: Response) => {
-  const ip = req.ip ?? req.socket.remoteAddress;
-  const result = await service.login(req.body, ip);
+  const ip = (req.headers['x-forwarded-for'] as string)?.split(',')[0]?.trim() || req.ip || req.socket.remoteAddress;
+  const userAgent = req.headers['user-agent'];
+  const deviceToken = req.cookies?.sn_device_trust || (req.headers['x-device-trust'] as string);
+
+  const result = await service.login(req.body, ip, deviceToken, userAgent);
+  const data = result.data as { deviceToken?: string } | undefined;
+  if (data?.deviceToken) {
+    setDeviceTrustCookie(req, res, data.deviceToken);
+  }
   res.status(200).json(result);
 });
 
@@ -112,9 +151,18 @@ router.post('/accept-invite', validate(AcceptInviteSchema), async (req: Request,
   res.status(200).json(result);
 });
 
-router.post('/logout', authenticate, (req: Request, res: Response) => {
-  res.clearCookie('sn_token');
-  res.status(200).json({ success: true, message: 'Logged out — clear your token.' });
+router.post('/logout', authenticate, async (req: Request, res: Response) => {
+  const deviceToken = req.cookies?.sn_device_trust || (req.headers['x-device-trust'] as string);
+  const forgetDevice = req.query.forgetDevice === 'true' || req.body?.forgetDevice === true;
+
+  if (forgetDevice && deviceToken) {
+    const tokenHash = crypto.createHash('sha256').update(deviceToken).digest('hex');
+    await trustedDeviceRepo.revokeDevice(tokenHash);
+    res.clearCookie('sn_device_trust', { path: '/' });
+  }
+
+  res.clearCookie('sn_token', { path: '/' });
+  res.status(200).json({ success: true, message: 'Logged out successfully.' });
 });
 
 router.get('/me', authenticate, async (req: Request, res: Response) => {
