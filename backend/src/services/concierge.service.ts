@@ -94,12 +94,20 @@ HOW TO GUIDE THE USER:
             parts: [{ text: userMessage }],
         });
 
-        // 3. Call Gemini with retry resilience against temporary 503 traffic spikes
+        // 3. Candidate model cascade (tries active models with fallback resilience)
+        const candidateModels = [
+            'gemini-3.7-flash',
+            'gemini-3.5-flash',
+            'gemini-3.1-flash-lite',
+            'gemini-3.8-flash',
+        ];
+
         let lastError: any = null;
-        for (let attempt = 1; attempt <= 3; attempt++) {
+
+        for (const modelName of candidateModels) {
             try {
                 const response = await this.ai.models.generateContent({
-                    model: 'gemini-3.8-flash',
+                    model: modelName,
                     contents,
                     config: {
                         systemInstruction: this.getSystemInstruction(branchNames),
@@ -107,18 +115,20 @@ HOW TO GUIDE THE USER:
                     },
                 });
 
-                return response.text || 'It is my absolute pleasure to assist you. How may I serve your stay today?';
+                if (response.text) {
+                    return response.text;
+                }
             } catch (err: any) {
                 lastError = err;
-                if (attempt < 3 && (err?.message?.includes('503') || err?.message?.includes('UNAVAILABLE'))) {
-                    await new Promise((resolve) => setTimeout(resolve, 1200 * attempt));
-                    continue;
-                }
-                throw err;
+                console.warn(`[ConciergeService] Model ${modelName} failed, trying next fallback:`, err?.status || err?.message);
+                // If quota exhausted (429) or temporary server spike (503), continue to next model in list
+                continue;
             }
         }
 
+        // If all models failed, throw the last error
         throw lastError;
+
     }
 }
 
