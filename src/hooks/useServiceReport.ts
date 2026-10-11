@@ -1,9 +1,9 @@
-import { useState, useEffect, useCallback, Dispatch, SetStateAction } from 'react';
+import { useState, useEffect, useCallback, Dispatch, SetStateAction } from "react";
 import { 
   fetchServiceUsageReport, 
   ServiceReportQueryParams, 
   ServiceUsageReportRow 
-} from '../lib/api/reports/service-report.api';
+} from "../lib/api/reports/service-report.api";
 
 export interface UseServiceReportReturn {
   data: ServiceUsageReportRow[];
@@ -28,16 +28,38 @@ export function useServiceReport(
       setError(null);
       const reportData = await fetchServiceUsageReport(filters);
       setData(reportData);
-    } catch (err: any) {
-      setError(err?.message || 'Failed to load service usage report.');
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Failed to load service usage report.";
+      setError(message);
     } finally {
       setLoading(false);
     }
   }, [filters]);
 
   useEffect(() => {
-    loadData();
-  }, [loadData]);
+    let cancelled = false;
+    (async () => {
+      try {
+        setError(null);
+        const reportData = await fetchServiceUsageReport(filters);
+        if (!cancelled) {
+          setData(reportData);
+        }
+      } catch (err: unknown) {
+        if (!cancelled) {
+          const message = err instanceof Error ? err.message : "Failed to load service usage report.";
+          setError(message);
+        }
+      } finally {
+        if (!cancelled) {
+          setLoading(false);
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [filters]);
 
   return {
     data,
