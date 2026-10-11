@@ -33,7 +33,7 @@ export function DashboardHeader({
 }: {
   onRefresh?: () => void;
   refreshing?: boolean;
-  lastRefresh?: Date;
+  lastRefresh?: Date | null;
 }) {
   const { user, loading, logout } = useAuth();
   const pathname = usePathname();
@@ -53,22 +53,26 @@ export function DashboardHeader({
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
-  const navItems = user
-    ? NAV_ITEMS.filter((item) => item.roles.includes(user.role))
-    : DEFAULT_NAV_ITEMS;
-
-  const roleLabel = user
-    ? user.role === "MANAGER"
-      ? "General Manager"
-      : user.role === "RECEPTIONIST"
-        ? "Front Desk"
-        : user.role === "GUEST"
-          ? "Guest Sanctuary"
-          : titleCase(user.role)
-    : "Portal";
-
   const normalizedPath = pathname?.replace(/\/$/, "") || "";
   const isActivity = normalizedPath === "/dashboard/activity";
+
+  const navItems = isActivity
+    ? NAV_ITEMS.filter((item) => item.roles.includes("GUEST"))
+    : user
+      ? NAV_ITEMS.filter((item) => item.roles.includes(user.role))
+      : DEFAULT_NAV_ITEMS;
+
+  const roleLabel = isActivity
+    ? "Guest Sanctuary"
+    : user
+      ? user.role === "MANAGER"
+        ? "General Manager"
+        : user.role === "RECEPTIONIST"
+          ? "Front Desk"
+          : user.role === "GUEST"
+            ? "Guest Sanctuary"
+            : titleCase(user.role)
+      : "Portal";
 
   return (
     <header

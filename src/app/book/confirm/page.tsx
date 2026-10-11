@@ -254,6 +254,9 @@ function BookingConfirmContent() {
   const [confirmed, setConfirmed] = useState<ConfirmedBookingDetails | null>(null);
   const [scrolled, setScrolled] = useState(false);
   const [holdConflict, setHoldConflict] = useState<string | null>(null);
+  const contentRef = useRef<HTMLDivElement>(null);
+  const [isDownloading, setIsDownloading] = useState(false);
+  const [downloadSuccessMessage, setDownloadSuccessMessage] = useState<string | null>(null);
 
   // Animation Ref
   const containerRef = useRef<HTMLDivElement>(null);
@@ -440,6 +443,43 @@ function BookingConfirmContent() {
     }, containerRef);
     return () => ctx.revert();
   }, [confirmed]);
+
+  const handleDownloadPdf = async () => {
+    if (!contentRef.current) return;
+    setIsDownloading(true);
+    setDownloadSuccessMessage(null);
+
+    try {
+      // 1. Change dynamic import from html2pdf.js to html2canvas-pro & jspdf
+      const html2canvas = (await import('html2canvas-pro')).default;
+      const { jsPDF } = await import('jspdf');
+
+      const element = contentRef.current;
+
+      // 2. Render canvas using html2canvas-pro (bypasses the lab() color error)
+      const canvas = await html2canvas(element, {
+        scale: 2,
+        useCORS: true,
+        logging: false,
+      });
+
+      // 3. Convert canvas image to PDF
+      const imgData = canvas.toDataURL('image/jpeg', 0.98);
+      const pdf = new jsPDF('portrait', 'in', 'letter');
+      
+      const imgWidth = 8.5 - 0.8; // 0.4in margins on each side
+      const imgHeight = (canvas.height * imgWidth) / canvas.width;
+
+      pdf.addImage(imgData, 'JPEG', 0.4, 0.4, imgWidth, imgHeight);
+      pdf.save(`SkyNest_Reservation_${confirmed?.bookingId || 'Receipt'}.pdf`);
+
+      setDownloadSuccessMessage('Your reservation PDF receipt has been downloaded successfully!');
+    } catch (err) {
+      console.error('PDF Generation Error:', err);
+    } finally {
+      setIsDownloading(false);
+    }
+  };
 
   // Date and Duration Calculations
   const nights = (checkIn && checkOut)
@@ -683,7 +723,7 @@ function BookingConfirmContent() {
         </nav>
 
         <div className="pt-28 pb-16 px-6 max-w-4xl mx-auto">
-          <div className="sn-confirm-card border border-skynest-hairline bg-white p-8 md:p-12 shadow-[0_16px_40px_rgba(11,37,64,0.06)] space-y-8">
+          <div ref={contentRef} className="sn-confirm-card border border-skynest-hairline bg-white p-8 md:p-12 shadow-[0_16px_40px_rgba(11,37,64,0.06)] space-y-8">
             <div className="text-center pb-6 border-b border-skynest-hairline space-y-2">
               <span className="w-12 h-12 mx-auto flex items-center justify-center text-white bg-skynest-accent text-xl">
                 ✓
@@ -808,13 +848,33 @@ function BookingConfirmContent() {
               </span>
             </div>
 
-            <div className="flex flex-col sm:flex-row gap-3 mt-6 pt-6 border-t border-skynest-hairline">
+            <div data-html2canvas-ignore="true" className="flex flex-col sm:flex-row gap-3 mt-6 pt-6 border-t border-skynest-hairline">
               <Link
                 href="/"
                 className="flex-1 py-3.5 text-center font-jakarta font-semibold text-xs tracking-wider uppercase border border-ink bg-ink text-paper hover:bg-skynest-accent hover:border-skynest-accent transition-all"
               >
                 Return to Home
               </Link>
+
+              {/* NEW DOWNLOAD BUTTON ADDED HERE */}
+              <button
+                type="button"
+                onClick={handleDownloadPdf}
+                disabled={isDownloading}
+                className="flex-1 py-3.5 text-center font-jakarta font-semibold text-xs tracking-wider uppercase border border-skynest-accent bg-skynest-accent text-white hover:bg-skynest-accent/90 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+              >
+                {isDownloading ? (
+                  'Generating PDF...'
+                ) : (
+                  <>
+                    <span>Download PDF Receipt</span>
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    </svg>
+                  </>
+                )}
+              </button>
+
               <Link
                 href="/book"
                 className="flex-1 py-3.5 text-center font-jakarta font-semibold text-xs tracking-wider uppercase border border-ink text-ink hover:bg-ink hover:text-paper transition-all"

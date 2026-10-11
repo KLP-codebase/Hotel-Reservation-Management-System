@@ -120,11 +120,10 @@ interface ChangeLogEntry {
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 function usePrefersReducedMotion(): boolean {
-  const [reduced, setReduced] = useState(
-    () => typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches
-  );
+  const [reduced, setReduced] = useState(false);
   useEffect(() => {
     const mql = window.matchMedia("(prefers-reduced-motion: reduce)");
+    setReduced(mql.matches);
     const handler = (e: MediaQueryListEvent) => setReduced(e.matches);
     mql.addEventListener("change", handler);
     return () => mql.removeEventListener("change", handler);
@@ -153,7 +152,7 @@ export default function DashboardPage() {
   const [roomFilter, setRoomFilter] = useState<"ALL" | "OCCUPIED" | "AVAILABLE" | "MAINTENANCE">("ALL");
   const [rosterDay, setRosterDay] = useState<"today" | "tomorrow">("today");
   const [guestSearch, setGuestSearch] = useState<string>("");
-  const [lastRefresh, setLastRefresh] = useState<Date>(new Date());
+  const [lastRefresh, setLastRefresh] = useState<Date | null>(null);
 
   const isManager = user?.role === "MANAGER";
   const isReceptionist = user?.role === "RECEPTIONIST";
@@ -393,7 +392,7 @@ export default function DashboardPage() {
                     </option>
                   ))}
                 </select>
-                <ChevronDown className="absolute right-0 w-4 h-4 text-white/60 pointer-events-none" />
+                <ChevronDown className="absolute right-0 top-1/2 -translate-y-1/2 w-4 h-4 text-white/60 pointer-events-none" />
               </label>
             )}
           />
