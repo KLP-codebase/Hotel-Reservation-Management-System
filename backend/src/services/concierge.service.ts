@@ -94,17 +94,31 @@ HOW TO GUIDE THE USER:
             parts: [{ text: userMessage }],
         });
 
-        // 3. Call Gemini 3.8 Flash
-        const response = await this.ai.models.generateContent({
-            model: 'gemini-3.8-flash',
-            contents,
-            config: {
-                systemInstruction: this.getSystemInstruction(branchNames),
-                temperature: 0.7,
-            },
-        });
+        // 3. Call Gemini with retry resilience against temporary 503 traffic spikes
+        let lastError: any = null;
+        for (let attempt = 1; attempt <= 3; attempt++) {
+            try {
+                const response = await this.ai.models.generateContent({
+                    model: 'gemini-3.8-flash',
+                    contents,
+                    config: {
+                        systemInstruction: this.getSystemInstruction(branchNames),
+                        temperature: 0.7,
+                    },
+                });
 
-        return response.text || 'It is my absolute pleasure to assist you. How may I serve your stay today?';
+                return response.text || 'It is my absolute pleasure to assist you. How may I serve your stay today?';
+            } catch (err: any) {
+                lastError = err;
+                if (attempt < 3 && (err?.message?.includes('503') || err?.message?.includes('UNAVAILABLE'))) {
+                    await new Promise((resolve) => setTimeout(resolve, 1200 * attempt));
+                    continue;
+                }
+                throw err;
+            }
+        }
+
+        throw lastError;
     }
 }
 
