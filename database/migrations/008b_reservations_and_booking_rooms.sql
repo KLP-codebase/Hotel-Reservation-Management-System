@@ -73,6 +73,7 @@ ALTER TABLE bookings ADD COLUMN IF NOT EXISTS booked_by_staff_id UUID REFERENCES
 ALTER TABLE bookings ADD COLUMN IF NOT EXISTS notes TEXT;
 
 -- Defaults for convenience
+ALTER TABLE bookings ADD COLUMN IF NOT EXISTS booking_ref VARCHAR(50);
 ALTER TABLE bookings ALTER COLUMN booking_ref SET DEFAULT ('SN-' || upper(substr(md5(random()::text), 1, 8)));
 
 -- 5. Create booking_rooms table (Child line items for bookings)
@@ -112,6 +113,7 @@ CREATE INDEX IF NOT EXISTS idx_brooms_dates       ON booking_rooms(check_in_date
 CREATE INDEX IF NOT EXISTS idx_brooms_status      ON booking_rooms(status);
 
 -- 8. Create v_booking_details view (Facade over bookings + booking_rooms + rooms + guests)
+DROP VIEW IF EXISTS v_booking_details CASCADE;
 CREATE OR REPLACE VIEW v_booking_details AS
 SELECT
     b.booking_id,

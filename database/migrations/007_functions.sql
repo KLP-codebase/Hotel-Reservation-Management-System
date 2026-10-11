@@ -4,6 +4,7 @@
 -- ─────────────────────────────────────────────────────────────────────────────
 
 -- ── Function 1: create staff + user_account atomically ───────────────────────
+DROP FUNCTION IF EXISTS fn_create_staff_account;
 CREATE OR REPLACE FUNCTION fn_create_staff_account(
     p_branch_id      UUID,
     p_first_name     VARCHAR,
@@ -51,6 +52,7 @@ END;
 $$;
 
 -- ── Function 2: soft-deactivate staff + account atomically ───────────────────
+DROP FUNCTION IF EXISTS fn_deactivate_staff(UUID);
 CREATE OR REPLACE FUNCTION fn_deactivate_staff(p_staff_id UUID)
 RETURNS VOID LANGUAGE plpgsql AS $$
 BEGIN
@@ -73,6 +75,7 @@ END;
 $$;
 
 -- ── Function 3: update staff + optionally reassign branch ─────────────────────
+DROP FUNCTION IF EXISTS fn_update_staff;
 CREATE OR REPLACE FUNCTION fn_update_staff(
     p_staff_id   UUID,
     p_first_name VARCHAR DEFAULT NULL,
