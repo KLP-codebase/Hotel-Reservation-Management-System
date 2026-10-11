@@ -359,7 +359,7 @@ export default function BillingPage() {
                                         </option>
                                     ))}
                                 </select>
-                                <ChevronDown className="absolute right-0 w-3.5 h-3.5 text-white/60 pointer-events-none" />
+                                <ChevronDown className="absolute right-0 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-white/60 pointer-events-none" />
                             </label>
                         )}
                         <MastheadRefresh onClick={fetchData} loading={loading} />

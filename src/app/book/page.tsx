@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
+import { ChevronDown } from 'lucide-react';
 import { ShaderBackground } from '@/components/ui/adisyon-shader';
 import { useBranches } from '@/hooks/useBranches';
 
@@ -392,11 +393,23 @@ export default function BookPage() {
 
     try {
       const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000';
+      let sessionId = '';
+      if (typeof window !== 'undefined') {
+        sessionId = localStorage.getItem('sn_booking_session') || '';
+        if (!sessionId) {
+          sessionId = 'sn_sess_' + Math.random().toString(36).substring(2) + Date.now().toString(36);
+          localStorage.setItem('sn_booking_session', sessionId);
+        }
+      }
+
       const qs = new URLSearchParams({
         branch_id: params.branch_id,
         check_in: params.check_in,
         check_out: params.check_out,
       });
+      if (sessionId) {
+        qs.append('session_id', sessionId);
+      }
 
       // Pass room_type only if a specific category was chosen
       if (params.room_type && params.room_type !== 'ALL') {
@@ -442,7 +455,7 @@ export default function BookPage() {
   }
 
   // ── Proceed to Booking Confirmation ────────────────────────────────────────
-  function handleProceed() {
+  async function handleProceed() {
     if (selectedRooms.length < targetRoomCount) {
       setSelectionWarning(`Please select ${targetRoomCount - selectedRooms.length} more room${targetRoomCount - selectedRooms.length === 1 ? '' : 's'} to fulfill your chosen count of ${targetRoomCount}.`);
       return;
@@ -464,6 +477,41 @@ export default function BookPage() {
     const roomTypes = selectedRooms.map(r => r.type).join(',');
     const roomRates = selectedRooms.map(r => r.price_per_night).join(',');
     const roomCapacities = selectedRooms.map(r => r.max_guests || 2).join(',');
+
+    // ── Competitive Room Hold Verification ──
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000';
+    let sessId = '';
+    if (typeof window !== 'undefined') {
+      sessId = localStorage.getItem('sn_booking_session') || '';
+      if (!sessId) {
+        sessId = 'sn_sess_' + Math.random().toString(36).substring(2) + Date.now().toString(36);
+        localStorage.setItem('sn_booking_session', sessId);
+      }
+    }
+
+    try {
+      const holdRes = await fetch(`${apiUrl}/api/v1/availability/hold-rooms`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          room_ids: selectedRooms.map(r => r.id),
+          check_in: params.check_in,
+          check_out: params.check_out,
+          session_id: sessId,
+        }),
+      });
+
+      const holdData = await holdRes.json();
+      if (!holdRes.ok || !holdData.success) {
+        setSelectionWarning(
+          holdData.message ||
+          'Competitive Booking Notice: One or more of your chosen rooms are currently held by another guest completing their reservation on overlapping dates. Please choose an alternate room.'
+        );
+        return;
+      }
+    } catch {
+      // Proceed on non-fatal network error
+    }
 
     const qs = new URLSearchParams({
       room_ids: roomIds,
@@ -599,20 +647,23 @@ export default function BookPage() {
                 <label className="block font-jakarta text-[11px] font-bold tracking-[0.18em] uppercase mb-2 text-ink/70">
                   Location <span className="text-skynest-accent">*</span>
                 </label>
-                <select
-                  name="branch_id"
-                  value={params.branch_id}
-                  onChange={handleChange}
-                  className="w-full px-4 py-3.5 rounded-none font-jakarta text-sm border border-skynest-hairline bg-[#FDFCFA] text-ink outline-none focus:border-skynest-accent transition-colors duration-200 cursor-pointer"
-                  required
-                >
-                  <option value="">Select a Location</option>
-                  {BRANCHES.map(b => (
-                    <option key={b.id} value={b.id}>
-                      {b.name}
-                    </option>
-                  ))}
-                </select>
+                <div className="relative">
+                  <select
+                    name="branch_id"
+                    value={params.branch_id}
+                    onChange={handleChange}
+                    className="w-full h-[50px] pl-4 pr-10 appearance-none rounded-none font-jakarta text-sm border border-skynest-hairline bg-[#FDFCFA] text-ink outline-none focus:border-skynest-accent transition-colors duration-200 cursor-pointer"
+                    required
+                  >
+                    <option value="">Select a Location</option>
+                    {BRANCHES.map(b => (
+                      <option key={b.id} value={b.id}>
+                        {b.name}
+                      </option>
+                    ))}
+                  </select>
+                  <ChevronDown className="absolute right-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-ink/60 pointer-events-none" />
+                </div>
               </div>
 
               {/* Room Type Filter */}
@@ -620,18 +671,21 @@ export default function BookPage() {
                 <label className="block font-jakarta text-[11px] font-bold tracking-[0.18em] uppercase mb-2 text-ink/70">
                   Category Filter
                 </label>
-                <select
-                  name="room_type"
-                  value={params.room_type}
-                  onChange={handleChange}
-                  className="w-full px-4 py-3.5 rounded-none font-jakarta text-sm border border-skynest-hairline bg-[#FDFCFA] text-ink outline-none focus:border-skynest-accent transition-colors duration-200 cursor-pointer"
-                >
-                  {ROOM_TYPES.map(rt => (
-                    <option key={rt.id} value={rt.id}>
-                      {rt.name}
-                    </option>
-                  ))}
-                </select>
+                <div className="relative">
+                  <select
+                    name="room_type"
+                    value={params.room_type}
+                    onChange={handleChange}
+                    className="w-full h-[50px] pl-4 pr-10 appearance-none rounded-none font-jakarta text-sm border border-skynest-hairline bg-[#FDFCFA] text-ink outline-none focus:border-skynest-accent transition-colors duration-200 cursor-pointer"
+                  >
+                    {ROOM_TYPES.map(rt => (
+                      <option key={rt.id} value={rt.id}>
+                        {rt.name}
+                      </option>
+                    ))}
+                  </select>
+                  <ChevronDown className="absolute right-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-ink/60 pointer-events-none" />
+                </div>
               </div>
 
               {/* Check-in */}
@@ -645,7 +699,7 @@ export default function BookPage() {
                   value={params.check_in}
                   onChange={handleChange}
                   min={today}
-                  className="w-full px-4 py-3.5 rounded-none font-jakarta text-sm border border-skynest-hairline bg-[#FDFCFA] text-ink outline-none focus:border-skynest-accent transition-colors duration-200"
+                  className="w-full h-[50px] px-4 rounded-none font-jakarta text-sm border border-skynest-hairline bg-[#FDFCFA] text-ink outline-none focus:border-skynest-accent transition-colors duration-200"
                   required
                 />
               </div>
@@ -661,7 +715,7 @@ export default function BookPage() {
                   value={params.check_out}
                   onChange={handleChange}
                   min={params.check_in || today}
-                  className="w-full px-4 py-3.5 rounded-none font-jakarta text-sm border border-skynest-hairline bg-[#FDFCFA] text-ink outline-none focus:border-skynest-accent transition-colors duration-200"
+                  className="w-full h-[50px] px-4 rounded-none font-jakarta text-sm border border-skynest-hairline bg-[#FDFCFA] text-ink outline-none focus:border-skynest-accent transition-colors duration-200"
                   required
                 />
               </div>
@@ -847,17 +901,20 @@ export default function BookPage() {
                           <label className="font-jakarta text-[10px] font-bold tracking-wider uppercase text-ink/60">
                             Child {i + 1} Age
                           </label>
-                          <select
-                            value={age}
-                            onChange={(e) => updateChildAge(i, parseInt(e.target.value, 10))}
-                            className="w-full px-2.5 py-1.5 rounded-none font-jakarta text-xs font-semibold border border-skynest-hairline bg-[#FDFCFA] text-ink outline-none focus:border-skynest-accent transition-colors cursor-pointer"
-                          >
-                            {Array.from({ length: 12 }).map((_, a) => (
-                              <option key={a} value={a}>
-                                {a === 0 ? 'Under 1 yr (Infant)' : `${a} yr${a > 1 ? 's' : ''} old`}
-                              </option>
-                            ))}
-                          </select>
+                          <div className="relative">
+                            <select
+                              value={age}
+                              onChange={(e) => updateChildAge(i, parseInt(e.target.value, 10))}
+                              className="w-full h-[32px] pl-2.5 pr-7 appearance-none rounded-none font-jakarta text-xs font-semibold border border-skynest-hairline bg-[#FDFCFA] text-ink outline-none focus:border-skynest-accent transition-colors cursor-pointer"
+                            >
+                              {Array.from({ length: 12 }).map((_, a) => (
+                                <option key={a} value={a}>
+                                  {a === 0 ? 'Under 1 yr (Infant)' : `${a} yr${a > 1 ? 's' : ''} old`}
+                                </option>
+                              ))}
+                            </select>
+                            <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-ink/60 pointer-events-none" />
+                          </div>
                         </div>
                       );
                     })}

@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import Link from 'next/link';
-import { Mail, Phone, MapPin, Clock, Send, CheckCircle2, ChevronRight, Globe2, Compass } from 'lucide-react';
+import { Mail, Phone, MapPin, Clock, Send, CheckCircle2, ChevronRight, ChevronDown, Globe2, Compass } from 'lucide-react';
 import SkyNestFooter from '@/components/marketing/SkyNestFooter';
 
 function MountainGlyph({ className = '' }: { className?: string }) {
@@ -297,30 +297,36 @@ export default function ContactPageClient() {
                       <label className="text-[11px] font-semibold uppercase tracking-wider text-ink/70">
                         Department
                       </label>
-                      <select
-                        value={form.department}
-                        onChange={(e) => setForm({ ...form, department: e.target.value })}
-                        className="w-full px-4 py-3 bg-paper border border-skynest-hairline text-ink text-sm focus:border-skynest-accent focus:outline-none transition-colors cursor-pointer"
-                      >
-                        {ENQUIRY_DEPARTMENTS.map((d) => (
-                          <option key={d.id} value={d.id}>{d.label}</option>
-                        ))}
-                      </select>
+                      <div className="relative">
+                        <select
+                          value={form.department}
+                          onChange={(e) => setForm({ ...form, department: e.target.value })}
+                          className="w-full h-[46px] pl-4 pr-10 appearance-none bg-paper border border-skynest-hairline text-ink text-sm focus:border-skynest-accent focus:outline-none transition-colors cursor-pointer"
+                        >
+                          {ENQUIRY_DEPARTMENTS.map((d) => (
+                            <option key={d.id} value={d.id}>{d.label}</option>
+                          ))}
+                        </select>
+                        <ChevronDown className="absolute right-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-ink/60 pointer-events-none" />
+                      </div>
                     </div>
                     <div className="space-y-1.5">
                       <label className="text-[11px] font-semibold uppercase tracking-wider text-ink/70">
                         Property of Interest
                       </label>
-                      <select
-                        value={form.sanctuary}
-                        onChange={(e) => setForm({ ...form, sanctuary: e.target.value })}
-                        className="w-full px-4 py-3 bg-paper border border-skynest-hairline text-ink text-sm focus:border-skynest-accent focus:outline-none transition-colors cursor-pointer"
-                      >
-                        <option value="any">All Sanctuaries / General</option>
-                        <option value="colombo">Colombo Sky Tower</option>
-                        <option value="kandy">Kandy Misty Peak</option>
-                        <option value="galle">Galle Coastal Villa</option>
-                      </select>
+                      <div className="relative">
+                        <select
+                          value={form.sanctuary}
+                          onChange={(e) => setForm({ ...form, sanctuary: e.target.value })}
+                          className="w-full h-[46px] pl-4 pr-10 appearance-none bg-paper border border-skynest-hairline text-ink text-sm focus:border-skynest-accent focus:outline-none transition-colors cursor-pointer"
+                        >
+                          <option value="any">All Sanctuaries / General</option>
+                          <option value="colombo">Colombo Sky Tower</option>
+                          <option value="kandy">Kandy Misty Peak</option>
+                          <option value="galle">Galle Coastal Villa</option>
+                        </select>
+                        <ChevronDown className="absolute right-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-ink/60 pointer-events-none" />
+                      </div>
                     </div>
                   </div>
 

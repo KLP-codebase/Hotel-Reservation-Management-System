@@ -156,7 +156,7 @@ const Cloudscape = ({
 
     const gl = canvas.getContext("webgl", { antialias: true, alpha: true });
     if (!gl) {
-      console.error("WebGL not supported");
+      console.warn("WebGL not supported");
       return;
     }
 
@@ -166,6 +166,7 @@ const Cloudscape = ({
     const compileGLSLShader = (type: number, source: string) => {
       const shader = gl.createShader(type);
       if (!shader) {
+        console.warn("Failed to create shader");
         return null;
       }
       gl.shaderSource(shader, source);

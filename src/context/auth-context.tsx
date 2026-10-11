@@ -19,21 +19,17 @@ interface AuthContextValue {
 const AuthContext = createContext<AuthContextValue | null>(null);
 
 export function AuthProvider({ children }: PropsWithChildren) {
-  const [user, setUser] = useState<UserProfile | null>(() => {
-    if (typeof window !== 'undefined') {
-      try {
-        const cached = localStorage.getItem('skynest_user');
-        return cached ? JSON.parse(cached) : null;
-      } catch {
-        return null;
-      }
-    }
-    return null;
-  });
+  const [user, setUser] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
 
   // Restore session on mount
   useEffect(() => {
+    try {
+      const cached = localStorage.getItem('skynest_user');
+      if (cached) {
+        setUser(JSON.parse(cached));
+      }
+    } catch {}
     authClient.me()
       .then((profile) => {
         setUser(profile);
