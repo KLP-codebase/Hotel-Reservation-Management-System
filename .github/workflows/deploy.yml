@@ -110,19 +110,28 @@ jobs:
           else
             echo "IMAGE_TAG=${IMAGE_TAG}" >> .env
           fi
+          # IMPORTANT: this script reaches the VM as bash's stdin (ssh ... bash -s <<EOF).
+          # Every `docker compose exec -T` below must read from /dev/null or from a file;
+          # otherwise docker swallows the rest of this script and the deploy silently stops
+          # (this is why the pull/up steps and the migrations never ran before).
+          DC="docker compose -f docker-compose.prod.yml"
+          set -a
+          [ -f .env ] && . ./.env
+          set +a
+
           # 1. Start postgres and wait until ready
-          docker compose -f docker-compose.prod.yml up -d postgres
+          $DC up -d postgres
           echo "Waiting for PostgreSQL database container to be healthy..."
-          until docker compose -f docker-compose.prod.yml exec -T postgres pg_isready >/dev/null 2>&1; do
+          until $DC exec -T postgres pg_isready -U "$POSTGRES_USER" -d "$POSTGRES_DB" </dev/null >/dev/null 2>&1; do
             sleep 2
           done
 
-          # 2. Automated Migration Runner (tracks applied migrations in schema_migrations)
-          set -a
-          [ -f .env ] && . .env
-          set +a
+          # 2. Automated Migration Runner (tracks applied migrations in schema_migrations).
+          # A failing migration rolls back, is NOT recorded, and aborts the deploy before
+          # new containers start, so the site keeps running the previous version.
+          psql_q() { $DC exec -T postgres psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -v ON_ERROR_STOP=1 -t -A "$@" </dev/null; }
 
-          docker compose -f docker-compose.prod.yml exec -T postgres psql -U "${POSTGRES_USER}" -d "${POSTGRES_DB}" -c "
+          psql_q -c "
             CREATE TABLE IF NOT EXISTS schema_migrations (
               id SERIAL PRIMARY KEY,
               filename VARCHAR(255) UNIQUE NOT NULL,
@@ -132,22 +141,31 @@ jobs:
 
           for f in $(ls -1 migrations/*.sql | sort); do
             fname=$(basename "$f")
-            applied=$(docker compose -f docker-compose.prod.yml exec -T postgres psql -U "${POSTGRES_USER}" -d "${POSTGRES_DB}" -t -A -c "SELECT COUNT(*) FROM schema_migrations WHERE filename = '$fname';")
+            applied=$(psql_q -c "SELECT COUNT(*) FROM schema_migrations WHERE filename = '$fname';")
             if [ "$applied" = "0" ]; then
               echo "Applying migration: $fname..."
-              docker compose -f docker-compose.prod.yml exec -T postgres psql -U "${POSTGRES_USER}" -d "${POSTGRES_DB}" -f "/dev/stdin" < "$f"
-              docker compose -f docker-compose.prod.yml exec -T postgres psql -U "${POSTGRES_USER}" -d "${POSTGRES_DB}" -c "INSERT INTO schema_migrations (filename) VALUES ('$fname');"
+              $DC exec -T postgres psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -v ON_ERROR_STOP=1 --single-transaction -f - < "$f"
+              psql_q -c "INSERT INTO schema_migrations (filename) VALUES ('$fname');"
             else
               echo "Migration $fname already applied, skipping."
             fi
           done
 
           # 3. Pull and update backend & frontend
-          docker compose -f docker-compose.prod.yml pull backend frontend
-          docker compose -f docker-compose.prod.yml up -d --remove-orphans
+          $DC pull backend frontend
+          $DC up -d --remove-orphans
           sleep 5
-          docker compose -f docker-compose.prod.yml exec -T caddy caddy reload --config /etc/caddy/Caddyfile
+          $DC exec -T caddy caddy reload --config /etc/caddy/Caddyfile </dev/null
           docker image prune -f
+
+          # 4. Fail the job if the running containers are not the images we just deployed
+          for s in backend frontend; do
+            img=$($DC ps -q "$s" | xargs docker inspect --format '{{.Config.Image}}')
+            case "$img" in
+              *":${IMAGE_TAG}") echo "$s is running $img" ;;
+              *) echo "ERROR: $s is running $img, expected tag ${IMAGE_TAG}"; exit 1 ;;
+            esac
+          done
           EOF
 
       - name: Smoke test
