@@ -52,6 +52,8 @@ export function SkyNestConcierge() {
     ]);
 
     const messagesEndRef = useRef<HTMLDivElement>(null);
+    const idCounter = useRef(0);
+    const nextMessageId = () => `msg-${++idCounter.current}`;
 
     // Auto-scroll to bottom of conversation
     useEffect(() => {
@@ -64,10 +66,9 @@ export function SkyNestConcierge() {
         const prompt = (textToSend ?? input).trim();
         if (!prompt || isLoading) return;
 
-        const userMessageId = Date.now().toString();
         const newMessages: Message[] = [
             ...messages,
-            { id: userMessageId, role: "user", text: prompt },
+            { id: nextMessageId(), role: "user", text: prompt },
         ];
 
         setMessages(newMessages);
@@ -92,7 +93,7 @@ export function SkyNestConcierge() {
             setMessages((prev) => [
                 ...prev,
                 {
-                    id: (Date.now() + 1).toString(),
+                    id: nextMessageId(),
                     role: "model",
                     text: res.reply || "It is my pleasure to assist you.",
                 },
@@ -101,7 +102,7 @@ export function SkyNestConcierge() {
             setMessages((prev) => [
                 ...prev,
                 {
-                    id: (Date.now() + 1).toString(),
+                    id: nextMessageId(),
                     role: "model",
                     text: "I apologize, but our concierge desk is momentarily delayed. Please feel free to explore our booking page (/book) or try again shortly.",
                 },
