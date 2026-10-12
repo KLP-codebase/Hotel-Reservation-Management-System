@@ -20,6 +20,7 @@ const envSchema = z.object({
                       'EMAIL_FROM must contain a valid email address'
                     ).default('noreply@skynest.lk'),
   APP_URL:          z.string().url().default('http://localhost:3000'),
+  CONTACT_INBOX_EMAIL: z.string().email().default('ashinthyajayakody@gmail.com'),
 
   // ── Gemini AI ──────────────────────────────────────────────────────
   GEMINI_API_KEY:   z.string().optional(),
