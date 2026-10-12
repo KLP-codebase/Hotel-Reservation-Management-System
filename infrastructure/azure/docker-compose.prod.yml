@@ -51,6 +51,8 @@ services:
       NODE_ENV: production
       NEXTAUTH_SECRET: ${NEXTAUTH_SECRET}
       NEXTAUTH_URL: https://${APP_DOMAIN}
+      # src/middleware.ts verifies the sn_token JWT, so it needs the same secret the backend signs with.
+      JWT_SECRET: ${JWT_SECRET}
 
   caddy:
     image: caddy:2-alpine
