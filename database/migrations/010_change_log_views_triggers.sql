@@ -193,51 +193,62 @@ EXCEPTION WHEN undefined_table THEN NULL; END $$;
 
 -- View 1: v_booking_details — 7-table JOIN Facade
 DROP VIEW IF EXISTS v_booking_details CASCADE;
-
 CREATE OR REPLACE VIEW v_booking_details AS
 SELECT
     b.booking_id,
     b.branch_id,
-    b.status          AS booking_status,
+    b.status              AS booking_status,
+    b.notes               AS booking_notes,
     b.notes,
-    b.created_at      AS booking_created_at,
-    br.branch_name,
-    br.city           AS branch_city,
-    g.id              AS guest_id,
-    g.first_name      AS guest_first_name,
-    g.last_name       AS guest_last_name,
-    g.email           AS guest_email,
-    g.phone           AS guest_phone,
-    broom.booking_room_id,
-    broom.room_id,
-    broom.room_type_id,
-    broom.check_in_date,
-    broom.check_out_date,
-    broom.rate_at_booking,
-    broom.status      AS room_status,
-    (broom.check_out_date - broom.check_in_date) AS nights,
-    r.number          AS room_number,
-    NULL::INT         AS floor_number,
-    r.status          AS physical_room_status,
-    rt.type_name      AS room_type_name,
-    rt.base_daily_rate AS room_type_base_price,
+    b.created_at          AS booking_created_at,
+    brk.branch_name,
+    brk.city              AS branch_city,
+    g.guest_id            AS booker_guest_id,
+    g.guest_id,
+    g.first_name          AS guest_first_name,
+    g.last_name           AS guest_last_name,
+    g.email               AS guest_email,
+    g.phone               AS guest_phone,
+    g.loyalty_tier        AS guest_loyalty_tier,
+    br.booking_room_id,
+    br.room_id,
+    br.room_type_id,
+    br.check_in_date,
+    br.check_out_date,
+    (br.check_out_date - br.check_in_date) AS nights,
+    br.rate_at_booking,
+    br.status             AS room_status,
+    br.status             AS room_stay_status,
+    r.room_number,
+    r.floor,
+    r.floor               AS floor_number,
+    r.status              AS physical_room_status,
+    rt.type_name          AS room_type_name,
+    rt.base_daily_rate    AS room_type_base_price,
+    rt.base_daily_rate,
+    rt.capacity           AS room_capacity,
+    mp.plan_id            AS meal_plan_id,
+    mp.plan_name          AS meal_plan_name,
+    mp.price_per_night    AS meal_plan_price,
     inv.invoice_id,
-    inv.total_room_charges    AS room_charges,
-    inv.total_service_charges AS service_charges,
-    inv.tax_amount,
-    inv.tdl_amount,
+    inv.room_charges,
+    inv.service_charges,
     inv.discount_amount,
-    inv.net_amount            AS total_amount,
-    inv.payment_status        AS invoice_status,
-    inv.created_at            AS invoice_generated_at
+    inv.service_charge_tax,
+    inv.tdl_amount,
+    inv.ssc_amount,
+    inv.vat_amount,
+    inv.total_amount,
+    inv.status            AS invoice_status,
+    inv.generated_at      AS invoice_generated_at
 FROM bookings b
-JOIN branches          br    ON br.branch_id              = b.branch_id
-JOIN guests            g     ON g.id::text                = b.booked_by_guest_id::text
-LEFT JOIN booking_rooms broom ON broom.booking_id         = b.booking_id
-LEFT JOIN rooms         r     ON r.id                     = broom.room_id
-LEFT JOIN room_types    rt    ON rt.room_type_id          = broom.room_type_id
-LEFT JOIN invoices      inv   ON inv.booking_room_id      = broom.booking_room_id;
-
+JOIN branches brk ON brk.branch_id = b.branch_id
+LEFT JOIN guests g ON g.id = b.booked_by_guest_id
+LEFT JOIN booking_rooms br ON br.booking_id = b.booking_id
+LEFT JOIN rooms r ON r.id = br.room_id
+LEFT JOIN room_types rt ON rt.room_type_id = br.room_type_id
+LEFT JOIN meal_plans mp ON mp.plan_id = br.plan_id
+LEFT JOIN invoices inv ON inv.booking_room_id = br.booking_room_id;
 COMMENT ON VIEW v_booking_details IS
     'GoF Facade: Unified projection over 7 normalized tables.';
 
@@ -272,27 +283,28 @@ DROP VIEW IF EXISTS v_invoice_estimate CASCADE;
 
 CREATE OR REPLACE VIEW v_invoice_estimate AS
 SELECT
-    broom.booking_room_id,
-    broom.booking_id,
-    broom.check_in_date,
-    broom.check_out_date,
-    broom.rate_at_booking,
-    (broom.check_out_date - broom.check_in_date)                         AS nights,
-    (broom.check_out_date - broom.check_in_date) * broom.rate_at_booking AS estimated_room_charges,
-    COALESCE(su_agg.total_service, 0)                                    AS estimated_service_charges,
-    ((broom.check_out_date - broom.check_in_date) * broom.rate_at_booking
-        + COALESCE(su_agg.total_service, 0))                             AS estimated_subtotal,
-    inv.invoice_id,
-    inv.net_amount                                                       AS final_total,
-    inv.payment_status                                                   AS invoice_status
-FROM booking_rooms broom
+    br.booking_room_id,
+    br.booking_id,
+    br.status AS room_status,
+    (br.check_out_date - br.check_in_date) AS nights,
+    br.rate_at_booking,
+    (br.check_out_date - br.check_in_date) * br.rate_at_booking AS estimated_room_charges,
+    COALESCE(su.services_total, 0.00) AS estimated_service_charges,
+    ((br.check_out_date - br.check_in_date) * br.rate_at_booking) + COALESCE(su.services_total, 0.00) AS estimated_subtotal,
+    ROUND((((br.check_out_date - br.check_in_date) * br.rate_at_booking) + COALESCE(su.services_total, 0.00)) * 0.1000, 2) AS estimated_service_charge,
+    ROUND(((((br.check_out_date - br.check_in_date) * br.rate_at_booking) + COALESCE(su.services_total, 0.00)) * 1.1000) * 0.0100, 2) AS estimated_tdl,
+    ROUND(((((br.check_out_date - br.check_in_date) * br.rate_at_booking) + COALESCE(su.services_total, 0.00)) * 1.1100) * 0.0250, 2) AS estimated_sscl,
+    ROUND(((((br.check_out_date - br.check_in_date) * br.rate_at_booking) + COALESCE(su.services_total, 0.00)) * 1.1350) * 0.1800, 2) AS estimated_vat,
+    ROUND((((br.check_out_date - br.check_in_date) * br.rate_at_booking) + COALESCE(su.services_total, 0.00)) * 1.3393, 2) AS final_total,
+    COALESCE(inv.status, 'OPEN') AS invoice_status,
+    inv.invoice_id
+FROM booking_rooms br
 LEFT JOIN (
-    SELECT booking_room_id,
-           SUM(quantity * price_at_usage) AS total_service
+    SELECT booking_room_id, SUM(quantity * price_at_usage) AS services_total
     FROM service_usage
     GROUP BY booking_room_id
-) su_agg ON su_agg.booking_room_id = broom.booking_room_id
-LEFT JOIN invoices inv ON inv.booking_room_id = broom.booking_room_id;
+) su ON su.booking_room_id = br.booking_room_id
+LEFT JOIN invoices inv ON inv.booking_room_id = br.booking_room_id;
 
 COMMENT ON VIEW v_invoice_estimate IS
     'Read-only live folio estimate: room charges + service_usage before checkout.';

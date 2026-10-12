@@ -159,6 +159,7 @@ CREATE TRIGGER trg_sync_room_status
     FOR EACH ROW EXECUTE FUNCTION fn_sync_room_status();
 
 -- ── view (same text as init.sql) ────────────────────────────────────────────
+DROP VIEW IF EXISTS v_booking_details CASCADE;
 CREATE OR REPLACE VIEW v_booking_details AS
 SELECT
     b.booking_id,

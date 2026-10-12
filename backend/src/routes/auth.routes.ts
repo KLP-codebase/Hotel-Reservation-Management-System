@@ -20,6 +20,24 @@ const challengeRepo = new LoginChallengeRepository(db);
 const trustedDeviceRepo = new TrustedDeviceRepository(db);
 const service = new AuthService(repo, authStrategy, challengeRepo, trustedDeviceRepo);
 
+
+function setAuthTokenCookie(req: Request, res: Response, token: string) {
+  const isProd = env.NODE_ENV === 'production';
+  const isSecure = Boolean(
+    req.secure ||
+    req.headers['x-forwarded-proto'] === 'https' ||
+    (isProd && !req.headers.host?.includes('localhost'))
+  );
+
+  res.cookie('sn_token', token, {
+    httpOnly: true,
+    secure: isSecure,
+    sameSite: 'lax',
+    path: '/',
+    maxAge: 8 * 60 * 60 * 1000, // 8 hours (matches JWT_EXPIRES_IN=8h)
+  });
+}
+
 function setDeviceTrustCookie(req: Request, res: Response, deviceToken: string) {
   const isProd = env.NODE_ENV === 'production';
   const isSecure = Boolean(
@@ -79,6 +97,10 @@ router.get('/login-challenge/:id', async (req: Request, res: Response) => {
   if (data?.deviceToken) {
     setDeviceTrustCookie(req, res, data.deviceToken);
   }
+  const token = (result.data as any)?.token;
+  if (token) {
+    setAuthTokenCookie(req, res, token);
+  }
   res.status(200).json(result);
 });
 
@@ -89,6 +111,10 @@ router.post('/login-challenge/verify', async (req: Request, res: Response) => {
   const data = result.data as { deviceToken?: string } | undefined;
   if (data?.deviceToken) {
     setDeviceTrustCookie(req, res, data.deviceToken);
+  }
+  const token = (result.data as any)?.token;
+  if (token) {
+    setAuthTokenCookie(req, res, token);
   }
   res.status(200).json(result);
 });
@@ -108,6 +134,10 @@ router.post('/login', validate(LoginSchema), async (req: Request, res: Response)
   const data = result.data as { deviceToken?: string } | undefined;
   if (data?.deviceToken) {
     setDeviceTrustCookie(req, res, data.deviceToken);
+  }
+  const token = (result.data as any)?.token;
+  if (token) {
+    setAuthTokenCookie(req, res, token);
   }
   res.status(200).json(result);
 });
@@ -131,6 +161,10 @@ router.post('/register', validate(RegisterSchema), async (req: Request, res: Res
 router.post('/verify-email', validate(VerifyEmailSchema), async (req: Request, res: Response) => {
   const ipAddress = (req.headers['x-forwarded-for'] as string)?.split(',')[0]?.trim() || req.socket.remoteAddress;
   const result = await service.verifyEmail(req.body.token, ipAddress);
+  const token = (result.data as any)?.token;
+  if (token) {
+    setAuthTokenCookie(req, res, token);
+  }
   res.status(200).json(result);
 });
 
@@ -152,16 +186,33 @@ router.post('/accept-invite', validate(AcceptInviteSchema), async (req: Request,
 });
 
 router.post('/logout', authenticate, async (req: Request, res: Response) => {
+  const isProd = env.NODE_ENV === 'production';
+  const isSecure = Boolean(
+    req.secure ||
+    req.headers['x-forwarded-proto'] === 'https' ||
+    (isProd && !req.headers.host?.includes('localhost'))
+  );
+
   const deviceToken = req.cookies?.sn_device_trust || (req.headers['x-device-trust'] as string);
   const forgetDevice = req.query.forgetDevice === 'true' || req.body?.forgetDevice === true;
 
   if (forgetDevice && deviceToken) {
     const tokenHash = crypto.createHash('sha256').update(deviceToken).digest('hex');
     await trustedDeviceRepo.revokeDevice(tokenHash);
-    res.clearCookie('sn_device_trust', { path: '/' });
+    res.clearCookie('sn_device_trust', {
+      path: '/',
+      httpOnly: true,
+      secure: isSecure,
+      sameSite: 'lax',
+    });
   }
 
-  res.clearCookie('sn_token', { path: '/' });
+  res.clearCookie('sn_token', {
+    path: '/',
+    httpOnly: true,
+    secure: isSecure,
+    sameSite: 'lax',
+  });
   res.status(200).json({ success: true, message: 'Logged out successfully.' });
 });
 

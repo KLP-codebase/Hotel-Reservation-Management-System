@@ -1,374 +1,436 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import Link from 'next/link';
-import { Mail, Phone, MapPin, Clock, Send, CheckCircle2, ChevronRight, ChevronDown, Globe2, Compass } from 'lucide-react';
+import gsap from 'gsap';
+import { ScrollTrigger } from 'gsap/ScrollTrigger';
+import { ArrowUpRight, ChevronDown, Clock, Mail, MapPin, Phone } from 'lucide-react';
 import SkyNestFooter from '@/components/marketing/SkyNestFooter';
+import SkyNestNav from '@/components/marketing/SkyNestNav';
+import { apiFetch } from '@/lib/api-client';
 
-function MountainGlyph({ className = '' }: { className?: string }) {
-  return (
-    <svg aria-hidden="true" viewBox="0 0 28 16" fill="none" className={className} xmlns="http://www.w3.org/2000/svg">
-      <path d="M1 15 L10 3 L14 8 L18 2 L27 15" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  );
-}
+gsap.registerPlugin(ScrollTrigger);
 
 const SANCTUARIES = [
   {
+    id: 'colombo',
     name: 'Colombo Sky Tower',
-    region: 'Western Province · Marine Promenade',
-    address: '45 Galle Face Centre Road, Colombo 03, Sri Lanka',
+    region: 'Western Province',
+    tagline: 'Marine promenade, rooftop horizon',
+    image: '/Colombo.webp',
+    address: '45 Galle Face Centre Road, Colombo 03',
     phone: '+94 11 234 5600',
     email: 'colombo@skynesthotels.com',
-    hours: '24/7 Front Desk · Check-in 14:00',
+    hours: '24-hour front desk · Check-in 14:00',
   },
   {
+    id: 'kandy',
     name: 'Kandy Misty Peak',
-    region: 'Central Highlands · Tea Valleys',
-    address: '12 Hantana Mountain Road, Kandy 20000, Sri Lanka',
+    region: 'Central Highlands',
+    tagline: 'Tea valleys, mountain stillness',
+    image: '/Kandy_hotel.webp',
+    address: '12 Hantana Mountain Road, Kandy 20000',
     phone: '+94 81 234 5610',
     email: 'kandy@skynesthotels.com',
-    hours: '24/7 Concierge · Mountain Transfer Hub',
+    hours: '24-hour concierge · Mountain transfers',
   },
   {
+    id: 'galle',
     name: 'Galle Coastal Villa',
-    region: 'Southern Coast · Historic Ramparts',
-    address: '88 Lighthouse Street, Galle Fort, Sri Lanka',
+    region: 'Southern Coast',
+    tagline: 'Historic ramparts, open ocean',
+    image: '/Galle.webp',
+    address: '88 Lighthouse Street, Galle Fort',
     phone: '+94 91 234 5620',
     email: 'galle@skynesthotels.com',
-    hours: '24/7 Residence Team · Ocean Pier Access',
+    hours: '24-hour residence team · Ocean pier access',
   },
 ];
 
 const ENQUIRY_DEPARTMENTS = [
-  { id: 'reservations', label: 'Suite Reservations & Stays', email: 'reservations@skynesthotels.com' },
-  { id: 'concierge', label: 'Curated Experiences & Dining', email: 'concierge@skynesthotels.com' },
-  { id: 'events', label: 'Weddings & Private Retreats', email: 'events@skynesthotels.com' },
-  { id: 'press', label: 'Media & Corporate Relations', email: 'press@skynesthotels.com' },
+  { id: 'reservations', label: 'Suite Reservations & Stays' },
+  { id: 'concierge', label: 'Curated Experiences & Dining' },
+  { id: 'events', label: 'Weddings & Private Retreats' },
+  { id: 'press', label: 'Media & Corporate Relations' },
 ];
 
+const EMPTY_FORM = {
+  firstName: '',
+  lastName: '',
+  email: '',
+  phone: '',
+  department: 'reservations',
+  sanctuary: 'any',
+  message: '',
+};
+
+const fieldClass =
+  'w-full bg-transparent border-0 border-b border-ink/20 px-0 py-3 text-[15px] text-ink placeholder:text-ink/30 focus:border-skynest-accent focus:outline-none focus:ring-0 transition-colors duration-300';
+const labelClass =
+  'block font-jakarta text-[10px] font-semibold uppercase tracking-[0.24em] text-ink/50';
+
+function usePrefersReducedMotion() {
+  return useSyncExternalStore(
+    (notify) => {
+      const mq = window.matchMedia('(prefers-reduced-motion: reduce)');
+      mq.addEventListener('change', notify);
+      return () => mq.removeEventListener('change', notify);
+    },
+    () => window.matchMedia('(prefers-reduced-motion: reduce)').matches,
+    () => false,
+  );
+}
+
+/** Thin gold-orange rule with a centred diamond — editorial divider */
+function Ornament({ className = '' }: { className?: string }) {
+  return (
+    <div aria-hidden className={`flex items-center gap-4 ${className}`}>
+      <span className="h-px w-12 bg-skynest-accent/60" />
+      <span className="block h-1 w-1 rotate-45 bg-skynest-accent" />
+      <span className="h-px w-12 bg-skynest-accent/60" />
+    </div>
+  );
+}
+
 export default function ContactPageClient() {
-  const [form, setForm] = useState({
-    firstName: '',
-    lastName: '',
-    email: '',
-    phone: '',
-    department: 'reservations',
-    sanctuary: 'any',
-    message: '',
-  });
+  const rootRef = useRef<HTMLDivElement>(null);
+  const reducedMotion = usePrefersReducedMotion();
+
+  const [form, setForm] = useState(EMPTY_FORM);
   const [submitted, setSubmitted] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  // GSAP: scroll reveals
+  useEffect(() => {
+    if (reducedMotion || !rootRef.current) return;
+    const ctx = gsap.context(() => {
+      gsap.utils.toArray<HTMLElement>('[data-reveal]').forEach((el) => {
+        gsap.from(el, {
+          y: 40,
+          opacity: 0,
+          duration: 1,
+          ease: 'power3.out',
+          scrollTrigger: { trigger: el, start: 'top 88%', once: true },
+        });
+      });
+
+    }, rootRef);
+    return () => ctx.revert();
+  }, [reducedMotion]);
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!form.firstName || !form.email || !form.message) return;
+    if (!form.firstName || !form.email || !form.message || loading) return;
     setLoading(true);
-    // Simulate submission
-    setTimeout(() => {
-      setLoading(false);
+    setError(null);
+    try {
+      await apiFetch('/contact', { method: 'POST', body: JSON.stringify(form) });
       setSubmitted(true);
-    }, 700);
+    } catch (err) {
+      setError(
+        err instanceof Error && err.message
+          ? err.message
+          : 'We could not send your enquiry. Please try again shortly.',
+      );
+    } finally {
+      setLoading(false);
+    }
   };
 
+  const departmentLabel =
+    ENQUIRY_DEPARTMENTS.find((d) => d.id === form.department)?.label ?? 'concierge';
+
   return (
-    <div className="min-h-screen bg-paper text-ink flex flex-col font-jakarta">
-      {/* ── Top Floating Navigation Bar ── */}
-      <header className="sticky top-0 z-50 bg-paper/90 backdrop-blur-md border-b border-skynest-hairline">
-        <div className="max-w-[1440px] mx-auto px-6 md:px-12 h-20 flex items-center justify-between">
-          <Link href="/" className="flex items-center gap-2 group">
-            <MountainGlyph className="w-6 h-auto text-ink group-hover:text-skynest-accent transition-colors" />
-            <span className="font-cinzel text-base tracking-[0.3em] uppercase text-ink font-bold">
-              SKYNEST
-            </span>
-          </Link>
+    <div ref={rootRef} className="min-h-screen bg-paper text-ink flex flex-col font-jakarta">
+      <SkyNestNav navProgress={1} />
+      <div aria-hidden className="h-14 md:h-16" />
 
-          <nav className="hidden md:flex items-center gap-8 text-[12px] font-medium tracking-[0.12em] uppercase text-ink/75">
-            <Link href="/" className="hover:text-skynest-accent transition-colors">Home</Link>
-            <Link href="/book" className="hover:text-skynest-accent transition-colors">Sanctuaries & Suites</Link>
-            <Link href="/privacy" className="hover:text-skynest-accent transition-colors">Privacy Charter</Link>
-            <span className="text-skynest-accent font-semibold">Contact</span>
-          </nav>
-
-          <div className="flex items-center gap-3">
-            <Link
-              href="/book"
-              className="px-5 py-2 text-[11px] font-semibold tracking-[0.15em] uppercase border border-ink text-ink hover:bg-ink hover:text-white transition-all duration-200"
-            >
-              Reserve A Suite
-            </Link>
-          </div>
-        </div>
-      </header>
-
-      {/* ── Hero / Editorial Title Strip ── */}
-      <section className="relative py-16 md:py-24 border-b border-skynest-hairline bg-paper">
-        <div className="max-w-[1440px] mx-auto px-6 md:px-12">
-          <div className="max-w-3xl space-y-4">
-            <div className="inline-flex items-center gap-2 px-3 py-1 bg-skynest-accent/10 border border-skynest-accent/20 text-skynest-accent text-[11px] font-semibold tracking-[0.2em] uppercase">
-              <Compass size={13} />
-              <span>Direct Concierge & Sanctuary Inquiries</span>
-            </div>
-            <h1 className="font-cinzel italic text-4xl md:text-6xl text-ink leading-[1.05]">
-              Begin Your Journey to Unhurried Luxury
-            </h1>
-            <p className="font-jakarta text-ink-faded text-base md:text-lg leading-relaxed pt-2">
-              Whether you are planning a bespoke coastal residency, arranging private tea-plantation expeditions,
-              or inquiring with our executive reservations desk, our team is at your unhurried service.
+      {/* ── 3. Sanctuaries ────────────────────────────────────────────── */}
+      <section className="py-24 md:py-32">
+        <div className="mx-auto max-w-[1440px] px-6 md:px-12">
+          <div data-reveal className="mx-auto max-w-2xl text-center">
+            <p className="font-cinzel italic text-[15px] tracking-[0.12em] text-skynest-accent">
+              Our island sanctuaries
             </p>
+            <h2 className="mt-4 font-cinzel italic font-normal leading-[1.1] text-ink text-[clamp(2rem,4vw,3.5rem)]">
+              Speak with the team on the ground
+            </h2>
+            <Ornament className="mt-8 justify-center" />
+          </div>
+
+          <div className="mt-16 grid grid-cols-1 gap-8 lg:grid-cols-3">
+            {SANCTUARIES.map((s) => (
+              <article
+                key={s.id}
+                data-reveal
+                className="group flex flex-col border border-skynest-hairline bg-white transition-colors duration-500 hover:border-skynest-accent/50"
+              >
+                <div className="relative h-64 overflow-hidden bg-ink">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={s.image}
+                    alt={`${s.name} exterior`}
+                    className="h-full w-full object-cover transition-transform duration-[1400ms] ease-out group-hover:scale-105"
+                  />
+                  <div
+                    aria-hidden
+                    className="absolute inset-0"
+                    style={{
+                      background:
+                        'linear-gradient(to top, rgba(11,37,64,0.7) 0%, rgba(11,37,64,0) 60%)',
+                    }}
+                  />
+                  <p className="absolute bottom-4 left-6 right-6 text-[10px] font-semibold uppercase tracking-[0.24em] text-white/80">
+                    {s.region}
+                  </p>
+                </div>
+
+                <div className="flex flex-1 flex-col p-8">
+                  <h3 className="font-cinzel italic text-[clamp(1.5rem,2.5vw,2rem)] leading-[1.2] text-ink">
+                    {s.name}
+                  </h3>
+                  <p className="mt-2 text-sm text-ink/50">{s.tagline}</p>
+
+                  <dl className="mt-8 space-y-4 border-t border-skynest-hairline pt-8 text-sm text-ink/70">
+                    <div className="flex gap-4">
+                      <MapPin size={16} strokeWidth={1.25} className="mt-0.5 shrink-0 text-skynest-accent" />
+                      <dd>{s.address}</dd>
+                    </div>
+                    <div className="flex gap-4">
+                      <Phone size={16} strokeWidth={1.25} className="mt-0.5 shrink-0 text-skynest-accent" />
+                      <dd>
+                        <a href={`tel:${s.phone.replace(/\s+/g, '')}`} className="transition-colors hover:text-skynest-accent">
+                          {s.phone}
+                        </a>
+                      </dd>
+                    </div>
+                    <div className="flex gap-4">
+                      <Mail size={16} strokeWidth={1.25} className="mt-0.5 shrink-0 text-skynest-accent" />
+                      <dd>
+                        <a href={`mailto:${s.email}`} className="break-all transition-colors hover:text-skynest-accent">
+                          {s.email}
+                        </a>
+                      </dd>
+                    </div>
+                    <div className="flex gap-4">
+                      <Clock size={16} strokeWidth={1.25} className="mt-0.5 shrink-0 text-skynest-accent" />
+                      <dd className="text-ink/50">{s.hours}</dd>
+                    </div>
+                  </dl>
+                </div>
+              </article>
+            ))}
           </div>
         </div>
       </section>
 
-      {/* ── Main Dual-Column Content (Directory & Inquiry Form) ── */}
-      <section className="py-16 md:py-20 flex-1">
-        <div className="max-w-[1440px] mx-auto px-6 md:px-12 grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-16">
-          
-          {/* Column 1: Sanctuary Properties Directory (5 cols) */}
-          <div className="lg:col-span-5 space-y-8">
-            <div>
-              <span className="font-cinzel italic text-sm text-skynest-accent block mb-1">
-                Our Island Sanctuaries
-              </span>
-              <h2 className="font-cinzel text-2xl text-ink font-semibold">
-                Direct Property Contacts
-              </h2>
-              <p className="text-xs text-ink-faded mt-1">
-                Reach out directly to front-desk management at any of our three Sri Lankan properties.
-              </p>
-            </div>
+      {/* ── 4. Enquiry — dark editorial panel + form ──────────────────── */}
+      <section id="enquiry" className="relative isolate scroll-mt-16 bg-ink">
+        <div className="mx-auto max-w-[1440px] px-6 md:px-12 py-24 md:py-32 grid grid-cols-1 gap-16 lg:grid-cols-12 lg:gap-24">
+          {/* Left: invitation */}
+          <div data-reveal className="lg:col-span-5 text-white">
+            <p className="font-cinzel italic text-[15px] tracking-[0.12em] text-skynest-accent">
+              Concierge Desk
+            </p>
+            <h2 className="mt-4 font-cinzel italic font-normal leading-[1.1] text-[clamp(2rem,4vw,3.5rem)]">
+              Send an unhurried enquiry
+            </h2>
+            <Ornament className="mt-8" />
+            <p className="mt-8 max-w-md text-[17px] leading-relaxed text-white/60">
+              Share your preferred dates, party size and the occasion. A dedicated hospitality
+              specialist will craft a considered reply within twelve hours.
+            </p>
 
-            <div className="space-y-6">
-              {SANCTUARIES.map((s) => (
-                <div
-                  key={s.name}
-                  className="p-6 border border-skynest-hairline bg-white/70 hover:border-skynest-accent/50 transition-all duration-200 group"
-                >
-                  <div className="flex items-start justify-between">
-                    <div>
-                      <h3 className="font-cinzel text-lg text-ink font-bold group-hover:text-skynest-accent transition-colors">
-                        {s.name}
-                      </h3>
-                      <p className="text-[11px] tracking-wider uppercase text-skynest-accent font-semibold mt-0.5">
-                        {s.region}
-                      </p>
-                    </div>
-                    <MapPin size={18} className="text-ink-faded group-hover:text-skynest-accent transition-colors shrink-0" />
-                  </div>
-
-                  <div className="mt-4 space-y-2 text-xs text-ink/75">
-                    <p className="flex items-center gap-2">
-                      <Globe2 size={13} className="text-ink-faded shrink-0" />
-                      <span>{s.address}</span>
-                    </p>
-                    <p className="flex items-center gap-2 font-mono">
-                      <Phone size={13} className="text-ink-faded shrink-0" />
-                      <a href={`tel:${s.phone.replace(/\s+/g, '')}`} className="hover:text-skynest-accent transition-colors">
-                        {s.phone}
-                      </a>
-                    </p>
-                    <p className="flex items-center gap-2 font-mono">
-                      <Mail size={13} className="text-ink-faded shrink-0" />
-                      <a href={`mailto:${s.email}`} className="hover:text-skynest-accent transition-colors">
-                        {s.email}
-                      </a>
-                    </p>
-                    <p className="flex items-center gap-2 text-[11px] text-ink-faded pt-1">
-                      <Clock size={13} className="shrink-0" />
-                      <span>{s.hours}</span>
-                    </p>
-                  </div>
-                </div>
-              ))}
-            </div>
-
-            {/* Quick Support Badge */}
-            <div className="p-6 border border-ink/10 bg-ink text-white">
-              <h4 className="font-cinzel italic text-base">Central Operations Hotline</h4>
-              <p className="text-xs text-white/60 mt-1 leading-relaxed">
-                For instant assistance with active stays or urgent guest logistics:
-              </p>
-              <div className="mt-3 font-mono text-lg font-bold text-skynest-accent">
-                +94 11 234 5600
-              </div>
-              <p className="text-[10px] text-white/40 uppercase tracking-widest mt-1">Available 24 Hours Daily</p>
-            </div>
+            <figure className="mt-16 border-l border-skynest-accent/60 pl-8">
+              <blockquote className="font-cinzel italic text-xl leading-relaxed text-white/80">
+                &ldquo;Luxury is the quiet certainty that everything has already been taken care of.&rdquo;
+              </blockquote>
+              <figcaption className="mt-4 text-[10px] font-semibold uppercase tracking-[0.24em] text-white/40">
+                The SkyNest Standard
+              </figcaption>
+            </figure>
           </div>
 
-          {/* Column 2: Interactive Inquiries Form (7 cols) */}
-          <div className="lg:col-span-7">
-            <div className="border border-skynest-hairline bg-white p-8 md:p-12 shadow-sm">
-              <span className="font-cinzel italic text-sm text-skynest-accent block mb-1">
-                Concierge Desk
-              </span>
-              <h2 className="font-cinzel text-2xl md:text-3xl text-ink font-semibold">
-                Send an Unhurried Enquiry
-              </h2>
-              <p className="text-xs md:text-sm text-ink-faded mt-2 leading-relaxed">
-                Complete the dispatch details below. A dedicated hospitality specialist will curate a response
-                within 12 hours.
-              </p>
-
+          {/* Right: form on paper */}
+          <div data-reveal className="lg:col-span-7">
+            <div className="bg-paper p-8 md:p-16">
               {submitted ? (
-                <div className="mt-8 p-8 border border-emerald-500/30 bg-emerald-50/50 text-center space-y-4">
-                  <div className="w-12 h-12 mx-auto rounded-full bg-emerald-100 flex items-center justify-center text-emerald-700">
-                    <CheckCircle2 size={24} />
-                  </div>
-                  <h3 className="font-cinzel text-xl text-ink font-semibold">
-                    Thank You, {form.firstName}
+                <div className="py-8 text-center">
+                  <Ornament className="justify-center" />
+                  <h3 className="mt-8 font-cinzel italic text-[clamp(1.5rem,2.5vw,2rem)] text-ink">
+                    Thank you, {form.firstName}
                   </h3>
-                  <p className="text-xs text-ink/70 max-w-md mx-auto leading-relaxed">
-                    Your enquiry has been dispatched to our {form.department} team. A confirmation receipt
-                    has been transmitted to <span className="font-mono text-ink font-semibold">{form.email}</span>.
+                  <p className="mx-auto mt-4 max-w-md text-[15px] leading-relaxed text-ink/60">
+                    Your enquiry has been passed to our {departmentLabel.toLowerCase()} team.
+                    We will reply to{' '}
+                    <span className="font-semibold text-ink">{form.email}</span> shortly.
                   </p>
                   <button
+                    type="button"
                     onClick={() => {
                       setSubmitted(false);
-                      setForm({ firstName: '', lastName: '', email: '', phone: '', department: 'reservations', sanctuary: 'any', message: '' });
+                      setForm(EMPTY_FORM);
                     }}
-                    className="inline-flex items-center gap-1.5 px-4 py-2 border border-skynest-hairline text-xs font-semibold uppercase tracking-wider text-ink hover:border-ink transition-colors"
+                    className="mt-12 border border-ink px-8 py-4 text-[11px] font-medium uppercase tracking-[0.2em] text-ink transition-colors duration-300 hover:bg-ink hover:text-white"
                   >
-                    Submit Another Inquiry
+                    Send another enquiry
                   </button>
                 </div>
               ) : (
-                <form onSubmit={handleSubmit} className="mt-8 space-y-6">
-                  {/* Row 1: Name */}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div className="space-y-1.5">
-                      <label className="text-[11px] font-semibold uppercase tracking-wider text-ink/70">
-                        First Name <span className="text-skynest-accent">*</span>
+                <form onSubmit={handleSubmit} className="space-y-12">
+                  <div className="grid grid-cols-1 gap-12 sm:grid-cols-2">
+                    <div>
+                      <label htmlFor="firstName" className={labelClass}>
+                        First name <span className="text-skynest-accent">*</span>
                       </label>
                       <input
+                        id="firstName"
                         type="text"
                         required
                         value={form.firstName}
                         onChange={(e) => setForm({ ...form, firstName: e.target.value })}
-                        placeholder="e.g. Kasun"
-                        className="w-full px-4 py-3 bg-paper border border-skynest-hairline text-ink text-sm focus:border-skynest-accent focus:outline-none transition-colors"
+                        placeholder="Kasun"
+                        className={fieldClass}
                       />
                     </div>
-                    <div className="space-y-1.5">
-                      <label className="text-[11px] font-semibold uppercase tracking-wider text-ink/70">
-                        Last Name
+                    <div>
+                      <label htmlFor="lastName" className={labelClass}>
+                        Last name
                       </label>
                       <input
+                        id="lastName"
                         type="text"
                         value={form.lastName}
                         onChange={(e) => setForm({ ...form, lastName: e.target.value })}
-                        placeholder="e.g. Perera"
-                        className="w-full px-4 py-3 bg-paper border border-skynest-hairline text-ink text-sm focus:border-skynest-accent focus:outline-none transition-colors"
+                        placeholder="Perera"
+                        className={fieldClass}
                       />
                     </div>
                   </div>
 
-                  {/* Row 2: Email & Phone */}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div className="space-y-1.5">
-                      <label className="text-[11px] font-semibold uppercase tracking-wider text-ink/70">
-                        Email Address <span className="text-skynest-accent">*</span>
+                  <div className="grid grid-cols-1 gap-12 sm:grid-cols-2">
+                    <div>
+                      <label htmlFor="email" className={labelClass}>
+                        Email address <span className="text-skynest-accent">*</span>
                       </label>
                       <input
+                        id="email"
                         type="email"
                         required
                         value={form.email}
                         onChange={(e) => setForm({ ...form, email: e.target.value })}
                         placeholder="you@example.com"
-                        className="w-full px-4 py-3 bg-paper border border-skynest-hairline text-ink text-sm focus:border-skynest-accent focus:outline-none transition-colors"
+                        className={fieldClass}
                       />
                     </div>
-                    <div className="space-y-1.5">
-                      <label className="text-[11px] font-semibold uppercase tracking-wider text-ink/70">
-                        Contact Phone
+                    <div>
+                      <label htmlFor="phone" className={labelClass}>
+                        Contact phone
                       </label>
                       <input
+                        id="phone"
                         type="tel"
                         value={form.phone}
                         onChange={(e) => setForm({ ...form, phone: e.target.value })}
                         placeholder="+94 77 123 4567"
-                        className="w-full px-4 py-3 bg-paper border border-skynest-hairline text-ink text-sm focus:border-skynest-accent focus:outline-none transition-colors"
+                        className={fieldClass}
                       />
                     </div>
                   </div>
 
-                  {/* Row 3: Department & Preferred Property */}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div className="space-y-1.5">
-                      <label className="text-[11px] font-semibold uppercase tracking-wider text-ink/70">
+                  <div className="grid grid-cols-1 gap-12 sm:grid-cols-2">
+                    <div>
+                      <label htmlFor="department" className={labelClass}>
                         Department
                       </label>
                       <div className="relative">
                         <select
+                          id="department"
                           value={form.department}
                           onChange={(e) => setForm({ ...form, department: e.target.value })}
-                          className="w-full h-[46px] pl-4 pr-10 appearance-none bg-paper border border-skynest-hairline text-ink text-sm focus:border-skynest-accent focus:outline-none transition-colors cursor-pointer"
+                          className={`${fieldClass} appearance-none pr-8 cursor-pointer`}
                         >
                           {ENQUIRY_DEPARTMENTS.map((d) => (
-                            <option key={d.id} value={d.id}>{d.label}</option>
+                            <option key={d.id} value={d.id}>
+                              {d.label}
+                            </option>
                           ))}
                         </select>
-                        <ChevronDown className="absolute right-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-ink/60 pointer-events-none" />
+                        <ChevronDown className="pointer-events-none absolute right-0 top-1/2 h-4 w-4 -translate-y-1/2 text-ink/40" />
                       </div>
                     </div>
-                    <div className="space-y-1.5">
-                      <label className="text-[11px] font-semibold uppercase tracking-wider text-ink/70">
-                        Property of Interest
+                    <div>
+                      <label htmlFor="sanctuary" className={labelClass}>
+                        Sanctuary of interest
                       </label>
                       <div className="relative">
                         <select
+                          id="sanctuary"
                           value={form.sanctuary}
                           onChange={(e) => setForm({ ...form, sanctuary: e.target.value })}
-                          className="w-full h-[46px] pl-4 pr-10 appearance-none bg-paper border border-skynest-hairline text-ink text-sm focus:border-skynest-accent focus:outline-none transition-colors cursor-pointer"
+                          className={`${fieldClass} appearance-none pr-8 cursor-pointer`}
                         >
-                          <option value="any">All Sanctuaries / General</option>
-                          <option value="colombo">Colombo Sky Tower</option>
-                          <option value="kandy">Kandy Misty Peak</option>
-                          <option value="galle">Galle Coastal Villa</option>
+                          <option value="any">All sanctuaries / general</option>
+                          {SANCTUARIES.map((s) => (
+                            <option key={s.id} value={s.id}>
+                              {s.name}
+                            </option>
+                          ))}
                         </select>
-                        <ChevronDown className="absolute right-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-ink/60 pointer-events-none" />
+                        <ChevronDown className="pointer-events-none absolute right-0 top-1/2 h-4 w-4 -translate-y-1/2 text-ink/40" />
                       </div>
                     </div>
                   </div>
 
-                  {/* Row 4: Message */}
-                  <div className="space-y-1.5">
-                    <label className="text-[11px] font-semibold uppercase tracking-wider text-ink/70">
-                      Enquiry Details <span className="text-skynest-accent">*</span>
+                  <div>
+                    <label htmlFor="message" className={labelClass}>
+                      Your enquiry <span className="text-skynest-accent">*</span>
                     </label>
                     <textarea
+                      id="message"
                       required
-                      rows={5}
+                      rows={4}
                       value={form.message}
                       onChange={(e) => setForm({ ...form, message: e.target.value })}
-                      placeholder="Please share your preferred dates, party size, bespoke requirements, or dining expectations..."
-                      className="w-full px-4 py-3 bg-paper border border-skynest-hairline text-ink text-sm focus:border-skynest-accent focus:outline-none transition-colors resize-y"
+                      placeholder="Preferred dates, party size, celebrations, dining wishes…"
+                      className={`${fieldClass} resize-none`}
                     />
                   </div>
 
-                  {/* Submit Button */}
-                  <div className="pt-2 flex flex-col sm:flex-row items-center justify-between gap-4">
-                    <p className="text-[11px] text-ink-faded">
-                      By submitting, you agree to SkyNest’s{' '}
-                      <Link href="/privacy" className="underline hover:text-ink">Privacy Charter</Link>.
+                  {error && (
+                    <p role="alert" className="border-l-2 border-skynest-accent pl-4 text-sm text-ink/70">
+                      {error}
+                    </p>
+                  )}
+
+                  <div className="flex flex-col items-start gap-8 pt-4 sm:flex-row sm:items-center sm:justify-between">
+                    <p className="max-w-xs text-xs leading-relaxed text-ink/50">
+                      By submitting you agree to our{' '}
+                      <Link href="/privacy" className="underline underline-offset-4 transition-colors hover:text-skynest-accent">
+                        Privacy Charter
+                      </Link>
+                      .
                     </p>
                     <button
                       type="submit"
                       disabled={loading}
-                      className="w-full sm:w-auto px-8 py-3.5 bg-skynest-accent hover:bg-[#c46322] text-white text-xs font-semibold uppercase tracking-[0.15em] transition-all duration-200 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+                      className="group inline-flex w-full items-center justify-center gap-4 bg-ink px-12 py-4 text-[11px] font-medium uppercase tracking-[0.2em] text-white transition-colors duration-300 hover:bg-skynest-accent disabled:opacity-50 sm:w-auto"
                     >
-                      <span>{loading ? 'Transmitting...' : 'Dispatch Inquiry'}</span>
-                      <Send size={13} />
+                      {loading ? 'Sending…' : 'Dispatch enquiry'}
+                      <ArrowUpRight
+                        size={14}
+                        className="transition-transform duration-300 group-hover:-translate-y-0.5 group-hover:translate-x-0.5"
+                      />
                     </button>
                   </div>
                 </form>
               )}
             </div>
           </div>
-
         </div>
       </section>
 
-      {/* ── Footer ── */}
       <SkyNestFooter />
     </div>
   );

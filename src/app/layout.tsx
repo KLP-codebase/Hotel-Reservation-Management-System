@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Plus_Jakarta_Sans, Cinzel } from "next/font/google";
 import "@/styles/globals.css";
 import { Providers } from "@/components/layout/Providers";
+import { SkyNestConcierge } from "@/components/ui/SkyNestConcierge";
 
 const cinzel = Cinzel({
   subsets: ["latin"],
@@ -51,7 +52,7 @@ export default function RootLayout({
   return (
     <html lang="en" className={`${cinzel.variable} ${jakarta.variable}`} suppressHydrationWarning>
       <body className="min-h-screen bg-background font-sans antialiased" suppressHydrationWarning>
-        <Providers>{children}</Providers>
+        <Providers>{children}<SkyNestConcierge /></Providers>
       </body>
     </html>
   );

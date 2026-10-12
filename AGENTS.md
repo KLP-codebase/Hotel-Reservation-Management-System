@@ -53,9 +53,9 @@ Before submitting any UI change, verify:
 ## Architectural Mandates & Authoritative References
 
 Always read and conform to the project specifications in `Resources/`:
-- **System Architecture:** [`Resources/ARCHITECTURE.md`](file:///f:/Third%20Sem/DB/Project/Github%20Repo/Hotel-Reservation-Management-System/Resources/ARCHITECTURE.md) — the designed relational model (17 relations as specified; **18 tables exist live**, including legacy duplicates), two-tier concurrency control, 4-tier Sri Lankan tax cascade ($SC \rightarrow TDL \rightarrow SSCL \rightarrow VAT$), GoF patterns, and REST endpoints.
-- **UI Screen Inventory & Content Copy:** [`Resources/SkyNest_Site_Map_and_Content_Copy.md`](file:///f:/Third%20Sem/DB/Project/Github%20Repo/Hotel-Reservation-Management-System/Resources/SkyNest_Site_Map_and_Content_Copy.md) — Exact editorial copy, form labels, empty states, and validation warnings for all 15 screens.
-- **Design System Specification:** [`.gemini/skills/sky-nest-design.md`](file:///f:/Third%20Sem/DB/Project/Github%20Repo/Hotel-Reservation-Management-System/.gemini/skills/sky-nest-design.md) — Typography (`font-cinzel`, `font-jakarta`), color tokens (`#D9722C` `skynest-accent`, `#0B2540` `text-ink`, `#FDFCFA` `bg-paper`), and motion guidelines.
+- **System Architecture:** [`Resources/ARCHITECTURE.md`](Resources/ARCHITECTURE.md) — the designed relational model (17 relations as specified; **18 tables exist live**, including legacy duplicates), two-tier concurrency control, 4-tier Sri Lankan tax cascade ($SC \rightarrow TDL \rightarrow SSCL \rightarrow VAT$), GoF patterns, and REST endpoints.
+- **UI Screen Inventory & Content Copy:** [`Resources/SkyNest_Site_Map_and_Content_Copy.md`](Resources/SkyNest_Site_Map_and_Content_Copy.md) — Exact editorial copy, form labels, empty states, and validation warnings for all 15 screens.
+- **Design System Specification:** [`.gemini/skills/sky-nest-design.md`](.gemini/skills/sky-nest-design.md) — Typography (`font-cinzel`, `font-jakarta`), color tokens (`#D9722C` `skynest-accent`, `#0B2540` `text-ink`, `#FDFCFA` `bg-paper`), and motion guidelines.
 
 ### API Architecture Mandate
 The Express backend (port 4000) is the **sole authoritative API surface** (SI-01). The Next.js frontend communicates directly via `NEXT_PUBLIC_API_URL=http://localhost:4000/api/v1`. Do NOT create duplicate business logic in Next.js `src/app/api/**` route handlers.
