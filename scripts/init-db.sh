@@ -38,7 +38,7 @@ su - postgres -c "psql -d skynest -f '$REPO_DIR/database/migrations/004_create_a
 su - postgres -c "psql -d skynest -f '$REPO_DIR/database/migrations/005_triggers.sql'"
 su - postgres -c "psql -d skynest -f '$REPO_DIR/database/migrations/006_views.sql'"
 su - postgres -c "psql -d skynest -f '$REPO_DIR/database/migrations/007_functions.sql'"
-su - postgres -c "psql -d skynest -f '$REPO_DIR/database/migrations/008_indexes.sql'"
+su - postgres -c "psql -d skynest -f '$REPO_DIR/database/migrations/008a_indexes.sql'"
 
 echo "========================================="
 echo "✅ PostgreSQL Setup & Seeding Complete!"

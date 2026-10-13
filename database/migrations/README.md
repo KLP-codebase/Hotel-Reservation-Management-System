@@ -13,9 +13,21 @@ psql $DATABASE_URL -f database/migrations/004_create_audit_logs.sql
 psql $DATABASE_URL -f database/migrations/005_triggers.sql
 psql $DATABASE_URL -f database/migrations/006_views.sql
 psql $DATABASE_URL -f database/migrations/007_functions.sql
-psql $DATABASE_URL -f database/migrations/008_indexes.sql
+psql $DATABASE_URL -f database/migrations/008a_indexes.sql
+psql $DATABASE_URL -f database/migrations/008b_reservations_and_booking_rooms.sql
 psql $DATABASE_URL -f database/migrations/009_billing_and_tax_schema.sql
-psql $DATABASE_URL -f database/migrations/010_reservations_and_booking_rooms.sql
+psql $DATABASE_URL -f database/migrations/010_change_log_views_triggers.sql
+psql $DATABASE_URL -f database/migrations/011_live_double_booking_guard.sql
+psql $DATABASE_URL -f database/migrations/012_email_verification_and_staff_invites.sql
+psql $DATABASE_URL -f database/migrations/013a_create_report_snapshots.sql
+psql $DATABASE_URL -f database/migrations/013b_live_schema_parity.sql
+psql $DATABASE_URL -f database/migrations/014_fix_change_log_trigger.sql
+psql $DATABASE_URL -f database/migrations/015_booking_rooms_primary_guest_varchar.sql
+psql $DATABASE_URL -f database/migrations/016_service_usage_folio_details.sql
+psql $DATABASE_URL -f database/migrations/017_guest_activity_archive.sql
+psql $DATABASE_URL -f database/migrations/018_login_challenges.sql
+psql $DATABASE_URL -f database/migrations/019_room_holds_concurrency.sql
+psql $DATABASE_URL -f database/migrations/020_trusted_guest_devices.sql
 ```
 
 Or with Docker running:

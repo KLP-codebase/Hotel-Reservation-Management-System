@@ -4,14 +4,7 @@ import React from 'react';
 import Link from 'next/link';
 import { ShieldCheck, Lock, FileText, UserCheck, Database, Scale, Eye, RefreshCw } from 'lucide-react';
 import SkyNestFooter from '@/components/marketing/SkyNestFooter';
-
-function MountainGlyph({ className = '' }: { className?: string }) {
-  return (
-    <svg aria-hidden="true" viewBox="0 0 28 16" fill="none" className={className} xmlns="http://www.w3.org/2000/svg">
-      <path d="M1 15 L10 3 L14 8 L18 2 L27 15" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  );
-}
+import SkyNestNav from '@/components/marketing/SkyNestNav';
 
 const SECTIONS = [
   {
@@ -130,33 +123,9 @@ const SECTIONS = [
 export default function PrivacyPageClient() {
   return (
     <div className="min-h-screen bg-paper text-ink flex flex-col font-jakarta">
-      {/* ── Top Navigation Bar ── */}
-      <header className="sticky top-0 z-50 bg-paper/90 backdrop-blur-md border-b border-skynest-hairline">
-        <div className="max-w-[1440px] mx-auto px-6 md:px-12 h-20 flex items-center justify-between">
-          <Link href="/" className="flex items-center gap-2 group">
-            <MountainGlyph className="w-6 h-auto text-ink group-hover:text-skynest-accent transition-colors" />
-            <span className="font-cinzel text-base tracking-[0.3em] uppercase text-ink font-bold">
-              SKYNEST
-            </span>
-          </Link>
-
-          <nav className="hidden md:flex items-center gap-8 text-[12px] font-medium tracking-[0.12em] uppercase text-ink/75">
-            <Link href="/" className="hover:text-skynest-accent transition-colors">Home</Link>
-            <Link href="/book" className="hover:text-skynest-accent transition-colors">Sanctuaries & Suites</Link>
-            <span className="text-skynest-accent font-semibold">Privacy Charter</span>
-            <Link href="/contact" className="hover:text-skynest-accent transition-colors">Contact</Link>
-          </nav>
-
-          <div className="flex items-center gap-3">
-            <Link
-              href="/contact"
-              className="px-5 py-2 text-[11px] font-semibold tracking-[0.15em] uppercase border border-ink text-ink hover:bg-ink hover:text-white transition-all duration-200"
-            >
-              Concierge Desk
-            </Link>
-          </div>
-        </div>
-      </header>
+      <SkyNestNav navProgress={1} />
+      {/* Spacer for the fixed nav */}
+      <div aria-hidden className="h-14 md:h-16" />
 
       {/* ── Header Title Strip ── */}
       <section className="py-16 md:py-24 border-b border-skynest-hairline bg-paper">

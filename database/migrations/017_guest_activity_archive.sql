@@ -51,8 +51,8 @@ BEGIN
     b.check_out,
     GREATEST(1, COALESCE(EXTRACT(DAY FROM (b.check_out - b.check_in))::int, 1)) AS nights,
     COALESCE(brh.branch_name, 'Sky Nest Sanctuary') AS branch_name,
-    COALESCE(rt.type_name, r.type::text, 'Luxury Suite') AS room_type_name,
-    COALESCE(r.room_number, r.number, 'Suite') AS room_number,
+    COALESCE(rt.type_name, to_jsonb(r)->>'type', 'Luxury Suite') AS room_type_name,
+    COALESCE(to_jsonb(r)->>'room_number', to_jsonb(r)->>'number', 'Suite') AS room_number,
     br.booking_room_id,
     br.rate_at_booking,
     COALESCE(inv.total_amount, 0.00) AS invoice_total
@@ -61,7 +61,9 @@ BEGIN
   LEFT JOIN branches brh ON brh.branch_id = b.branch_id
   LEFT JOIN booking_rooms br ON br.booking_id = b.booking_id
   LEFT JOIN rooms r ON r.id::text = br.room_id::text
-  LEFT JOIN room_types rt ON rt.room_type_id = COALESCE(br.room_type_id, r.room_type_id)
+  -- rooms.room_type_id exists in init.sql but not on the live / migration-built schema,
+  -- so read it through to_jsonb() (NULL when the column is absent) instead of r.room_type_id.
+  LEFT JOIN room_types rt ON rt.room_type_id = COALESCE(br.room_type_id, NULLIF(to_jsonb(r)->>'room_type_id', '')::int)
   LEFT JOIN invoices inv ON inv.booking_room_id = br.booking_room_id
   WHERE b.booking_id = p_booking_id
   LIMIT 1;

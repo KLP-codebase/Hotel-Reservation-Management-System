@@ -19,6 +19,7 @@ import invoicesRoutes from './routes/invoices.routes';
 import taxRoutes from './routes/tax.routes';
 import reportsRoutes from './routes/reports.routes';
 import chatRoutes from './routes/chat.routes';
+import contactRoutes from './routes/contact.routes';
 
 
 
@@ -55,6 +56,7 @@ app.use('/api/v1/availability', availabilityRoutes);
 app.use('/api/v1/bookings', bookingRoutes);
 app.use('/api/v1/booking-rooms', bookingRoomRoutes);
 app.use('/api/v1/chat', chatRoutes);
+app.use('/api/v1/contact', contactRoutes);
 
 // ── Admin monitoring routes (RBAC: ADMINISTRATOR, MANAGER, DBA) ───────────────
 app.use('/api/v1/dashboard', dashboardRoutes);

@@ -52,6 +52,8 @@ export function SkyNestConcierge() {
     ]);
 
     const messagesEndRef = useRef<HTMLDivElement>(null);
+    const idCounter = useRef(0);
+    const nextMessageId = () => `msg-${++idCounter.current}`;
 
     // Auto-scroll to bottom of conversation
     useEffect(() => {
@@ -64,10 +66,9 @@ export function SkyNestConcierge() {
         const prompt = (textToSend ?? input).trim();
         if (!prompt || isLoading) return;
 
-        const userMessageId = Date.now().toString();
         const newMessages: Message[] = [
             ...messages,
-            { id: userMessageId, role: "user", text: prompt },
+            { id: nextMessageId(), role: "user", text: prompt },
         ];
 
         setMessages(newMessages);
@@ -92,7 +93,7 @@ export function SkyNestConcierge() {
             setMessages((prev) => [
                 ...prev,
                 {
-                    id: (Date.now() + 1).toString(),
+                    id: nextMessageId(),
                     role: "model",
                     text: res.reply || "It is my pleasure to assist you.",
                 },
@@ -101,7 +102,7 @@ export function SkyNestConcierge() {
             setMessages((prev) => [
                 ...prev,
                 {
-                    id: (Date.now() + 1).toString(),
+                    id: nextMessageId(),
                     role: "model",
                     text: "I apologize, but our concierge desk is momentarily delayed. Please feel free to explore our booking page or try again shortly.",
                 },
@@ -121,26 +122,55 @@ export function SkyNestConcierge() {
         ]);
     };
 
-    // Helper to format text with clickable links
-    const renderFormattedText = (text: string) => {
-        // If the text mentions /book, render it as an interactive link
-        if (text.includes("/book")) {
-            const parts = text.split("/book");
-            return (
-                <span>
-                    {parts[0]}
+    // Inline: **bold** and /book link
+    const renderInline = (line: string, key: string) => {
+        const nodes: React.ReactNode[] = [];
+        line.split(/(\*\*[^*]+\*\*|\/book)/g).forEach((part, i) => {
+            if (!part) return;
+            if (part === "/book") {
+                nodes.push(
                     <Link
+                        key={`${key}-${i}`}
                         href="/book"
                         onClick={() => setIsOpen(false)}
-                        className="inline-flex items-center gap-1 text-skynest-accent font-semibold underline underline-offset-2 hover:opacity-80 transition-opacity"
+                        className="text-skynest-accent font-semibold underline underline-offset-2 hover:opacity-80 transition-opacity"
                     >
-                        Reservation Portal (/book)
+                        Reservation Portal
                     </Link>
-                    {parts[1]}
-                </span>
-            );
-        }
-        return text;
+                );
+            } else if (part.startsWith("**") && part.endsWith("**")) {
+                nodes.push(<strong key={`${key}-${i}`} className="font-semibold">{part.slice(2, -2)}</strong>);
+            } else {
+                nodes.push(part);
+            }
+        });
+        return nodes;
+    };
+
+    // Block level: paragraphs (blank-line separated) and "- " bullet lists
+    const renderFormattedText = (text: string) => {
+        const blocks = text.trim().split(/\n{2,}/);
+        return (
+            <div className="space-y-3">
+                {blocks.map((block, bi) => {
+                    const lines = block.split("\n").map((l) => l.trim()).filter(Boolean);
+                    const isList = lines.length > 0 && lines.every((l) => /^[-•*]\s+/.test(l));
+                    if (isList) {
+                        return (
+                            <ul key={bi} className="space-y-2">
+                                {lines.map((l, li) => (
+                                    <li key={li} className="flex gap-2">
+                                        <span aria-hidden className="mt-[0.7em] h-1 w-1 shrink-0 bg-skynest-accent" />
+                                        <span>{renderInline(l.replace(/^[-•*]\s+/, ""), `${bi}-${li}`)}</span>
+                                    </li>
+                                ))}
+                            </ul>
+                        );
+                    }
+                    return <p key={bi}>{renderInline(lines.join(" "), String(bi))}</p>;
+                })}
+            </div>
+        );
     };
 
     return (

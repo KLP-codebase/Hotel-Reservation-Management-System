@@ -3,7 +3,7 @@ import dotenv from 'dotenv';
 import { z } from 'zod';
 
 // Explicitly load backend/.env as mandated by AGENTS.md
-dotenv.config({ path: path.resolve(__dirname, '../../.env'), override: true });
+dotenv.config({ path: path.resolve(__dirname, '../../.env'), override: false });
 
 const envSchema = z.object({
   DATABASE_URL:     z.string().min(1, 'DATABASE_URL is required'),
@@ -20,6 +20,7 @@ const envSchema = z.object({
                       'EMAIL_FROM must contain a valid email address'
                     ).default('noreply@skynest.lk'),
   APP_URL:          z.string().url().default('http://localhost:3000'),
+  CONTACT_INBOX_EMAIL: z.string().email().default('ashinthyajayakody@gmail.com'),
 
   // ── Gemini AI ──────────────────────────────────────────────────────
   GEMINI_API_KEY:   z.string().optional(),

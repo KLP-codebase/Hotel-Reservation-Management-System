@@ -48,34 +48,29 @@ CREATE TABLE IF NOT EXISTS user_accounts (
 -- ── GoF Decorator: Check Constraints ─────────────────────────────────────────
 -- Layered validation on top of base table definitions.
 -- These hold even if the API is bypassed (e.g., direct DB access).
-
 DO $$ BEGIN
-    ALTER TABLE bookings ADD CONSTRAINT chk_checkout_after_checkin CHECK (check_out > check_in);
-EXCEPTION WHEN undefined_table THEN null; WHEN duplicate_object THEN null; END $$;
-
-DO $$ BEGIN
-    ALTER TABLE bookings ADD CONSTRAINT chk_total_non_negative CHECK (total_amount >= 0);
-EXCEPTION WHEN undefined_table THEN null; WHEN duplicate_object THEN null; END $$;
-
-DO $$ BEGIN
-    ALTER TABLE bookings ADD CONSTRAINT chk_adults_positive CHECK (adults >= 1);
-EXCEPTION WHEN undefined_table THEN null; WHEN duplicate_object THEN null; END $$;
-
-DO $$ BEGIN
-    ALTER TABLE rooms ADD CONSTRAINT chk_price_positive CHECK (price_per_night > 0);
-EXCEPTION WHEN undefined_table THEN null; WHEN duplicate_object THEN null; END $$;
-
-DO $$ BEGIN
-    ALTER TABLE rooms ADD CONSTRAINT chk_max_guests_positive CHECK (max_guests >= 1);
-EXCEPTION WHEN undefined_table THEN null; WHEN duplicate_object THEN null; END $$;
-
-DO $$ BEGIN
-    ALTER TABLE bills ADD CONSTRAINT chk_bill_total_non_negative CHECK (total >= 0);
-EXCEPTION WHEN undefined_table THEN null; WHEN duplicate_object THEN null; END $$;
-
-DO $$ BEGIN
-    ALTER TABLE bills ADD CONSTRAINT chk_tax_non_negative CHECK (tax_amount >= 0);
-EXCEPTION WHEN undefined_table THEN null; WHEN duplicate_object THEN null; END $$;
+    IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='public' AND table_name='bookings' AND column_name='check_out') THEN
+        EXECUTE 'ALTER TABLE bookings ADD CONSTRAINT chk_checkout_after_checkin CHECK (check_out > check_in)';
+    END IF;
+    IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='public' AND table_name='bookings' AND column_name='total_amount') THEN
+        EXECUTE 'ALTER TABLE bookings ADD CONSTRAINT chk_total_non_negative CHECK (total_amount >= 0)';
+    END IF;
+    IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='public' AND table_name='bookings' AND column_name='adults') THEN
+        EXECUTE 'ALTER TABLE bookings ADD CONSTRAINT chk_adults_positive CHECK (adults >= 1)';
+    END IF;
+    IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='public' AND table_name='rooms' AND column_name='price_per_night') THEN
+        EXECUTE 'ALTER TABLE rooms ADD CONSTRAINT chk_price_positive CHECK (price_per_night > 0)';
+    END IF;
+    IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='public' AND table_name='rooms' AND column_name='max_guests') THEN
+        EXECUTE 'ALTER TABLE rooms ADD CONSTRAINT chk_max_guests_positive CHECK (max_guests >= 1)';
+    END IF;
+    IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='public' AND table_name='bills' AND column_name='total') THEN
+        EXECUTE 'ALTER TABLE bills ADD CONSTRAINT chk_bill_total_non_negative CHECK (total >= 0)';
+    END IF;
+    IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='public' AND table_name='bills' AND column_name='tax_amount') THEN
+        EXECUTE 'ALTER TABLE bills ADD CONSTRAINT chk_tax_non_negative CHECK (tax_amount >= 0)';
+    END IF;
+EXCEPTION WHEN duplicate_object THEN null; END $$;
 
 -- ── GoF Singleton Pattern: Administrator Uniqueness Constraint ─────────────────
 -- Guarantees at the database engine level that only ONE single Administrator
