@@ -1,3 +1,4 @@
+import { emailService } from '../services/email.service';
 import { Router, Request, Response } from 'express';
 import { z } from 'zod';
 import { db } from '../config/db';
@@ -32,6 +33,23 @@ const RoomLineSchema = z.object({
 
 // Schema for creating a booking. `rooms` is optional: when present, the header
 // and all room lines are created atomically in one transaction.
+
+const BookingServiceItemSchema = z.object({
+    service_id: z.number().int().positive(),
+    service_name: z.string().min(1),
+    category: z.string().optional(),
+    base_price: z.number().nonnegative(),
+    quantity: z.number().int().positive().optional().default(1),
+    room_index: z.number().int().nonnegative().optional().default(0),
+});
+
+const BookingPaymentInputSchema = z.object({
+    amount: z.number().positive(),
+    payment_method: z.string().min(1).default('CARD'),
+    is_deposit: z.boolean().optional().default(false),
+    reference_number: z.string().optional(),
+});
+
 const CreateBookingSchema = z.object({
     branch_id: z.string().uuid('branch_id must be a valid UUID'),
     booked_by_guest_id: z.string().min(1),
@@ -39,6 +57,8 @@ const CreateBookingSchema = z.object({
     adults: z.number().int().min(1).optional(),
     children: z.number().int().min(0).optional(),
     rooms: z.array(RoomLineSchema).optional(),
+    services: z.array(BookingServiceItemSchema).optional(),
+    payment: BookingPaymentInputSchema.optional(),
 });
 
 // Schema for updating status
@@ -101,14 +121,81 @@ router.post('/', async (req: Request, res: Response) => {
         }
     }
 
-    const booking = await repo.createBooking({ ...header, booked_by_guest_id: bookerId }, roomLines);
+    const { services = [], payment, ...bookingHeader } = header as any;
+    const booking = await repo.createBooking({ ...bookingHeader, booked_by_guest_id: bookerId }, roomLines);
 
     // Release any temporary room holds upon successful booking creation
     if (roomIds.length > 0) {
         await db.query('DELETE FROM room_holds WHERE room_id = ANY($1::varchar[])', [roomIds]).catch(() => {});
     }
 
-    res.status(201).json({ success: true, data: booking });
+    // Process optional selected add-on services
+    if (services.length > 0 && booking.rooms.length > 0) {
+        for (const s of services) {
+            const targetRoom = booking.rooms[s.room_index ?? 0] || booking.rooms[0];
+            await db.query(
+                `INSERT INTO service_usage (booking_room_id, service_id, quantity, price_at_usage, used_at)
+                 VALUES ($1, $2, $3, $4, CURRENT_TIMESTAMP)`,
+                [targetRoom.booking_room_id, s.service_id, s.quantity ?? 1, s.base_price]
+            ).catch(err => console.warn('[Bookings] Failed to insert service usage:', err.message));
+        }
+    }
+
+    // Ensure final bill/invoices are initialized for each room stay
+    for (const rm of booking.rooms) {
+        await db.query('SELECT sp_generate_final_bill($1::uuid)', [rm.booking_room_id]).catch(() => {});
+    }
+
+    // Process partial/full payment guarantee
+    let isConfirmed = false;
+    if (payment && booking.rooms.length > 0) {
+        const primaryRoomId = booking.rooms[0].booking_room_id;
+        const invRes = await db.query<{ invoice_id: string }>(
+            'SELECT invoice_id FROM invoices WHERE booking_room_id = $1 LIMIT 1',
+            [primaryRoomId]
+        );
+        const invId = invRes.rows[0]?.invoice_id;
+        if (invId) {
+            await db.query(
+                `INSERT INTO payments (invoice_id, amount, payment_method, reference_number)
+                 VALUES ($1, $2, $3, $4)`,
+                [invId, payment.amount, payment.payment_method || 'CARD', payment.reference_number || `ONLINE-PAY-${Date.now()}`]
+            ).catch(err => console.warn('[Bookings] Failed to record payment:', err.message));
+
+            // Instant status confirmation upon payment settlement
+            await db.query("UPDATE bookings SET status = 'CONFIRMED' WHERE booking_id = $1", [booking.booking_id]);
+            await db.query("UPDATE booking_rooms SET status = 'CONFIRMED' WHERE booking_id = $1", [booking.booking_id]);
+            isConfirmed = true;
+
+            // Trigger instant confirmation email
+            repo.findById(booking.booking_id).then((detail: any) => {
+                if (detail && detail.guest_email) {
+                    const room0 = detail.rooms[0];
+                    emailService.sendBookingConfirmationEmail({
+                        to: detail.guest_email,
+                        guestName: `${detail.guest_first_name || ''} ${detail.guest_last_name || ''}`.trim() || 'Valued Guest',
+                        branchName: detail.branch_name || 'Sky Nest Hotel',
+                        bookingRef: booking.booking_id,
+                        stayDates: room0 ? `${room0.check_in_date} to ${room0.check_out_date}` : 'Upcoming Stay',
+                        duration: `${detail.rooms.length} room(s)`,
+                        roomName: room0?.room_number ? `Room ${room0.room_number} (${room0.room_type_name || 'Standard'})` : (room0?.room_type_name || 'Standard Room'),
+                        roomRate: room0?.rate_at_booking ? `$${Number(room0.rate_at_booking).toFixed(2)} / night` : undefined,
+                        roomSubtotal: detail.total_amount ? `$${Number(detail.total_amount).toFixed(2)}` : undefined,
+                        grandTotal: detail.total_amount ? `$${Number(detail.total_amount).toFixed(2)}` : undefined,
+                    }).catch(err => console.warn('[Bookings] Payment confirmation email error:', err.message));
+                }
+            }).catch(err => console.warn('[Bookings] Failed to query detail for payment email:', err.message));
+        }
+    }
+
+    res.status(201).json({
+        success: true,
+        data: {
+            ...booking,
+            status: isConfirmed ? 'CONFIRMED' : 'PENDING',
+            payment_recorded: Boolean(payment),
+        }
+    });
 });
 
 // GET /api/v1/bookings — list all bookings
@@ -194,6 +281,27 @@ router.patch('/:id/status', ...staffOnly, async (req: Request, res: Response) =>
         'UPDATE booking_rooms SET status = $1 WHERE booking_id = $2',
         [nextStatus, bookingId]
     ).catch(err => console.warn('[Bookings] Failed to cascade status to booking_rooms:', err));
+
+    // 6. If confirmed by receptionist, trigger confirmation email to guest
+    if (nextStatus === 'CONFIRMED') {
+        repo.findById(bookingId).then((detail: any) => {
+            if (detail && detail.guest_email) {
+                const room0 = detail.rooms[0];
+                emailService.sendBookingConfirmationEmail({
+                    to: detail.guest_email,
+                    guestName: `${detail.guest_first_name || ''} ${detail.guest_last_name || ''}`.trim() || 'Valued Guest',
+                    branchName: detail.branch_name || 'Sky Nest Hotel',
+                    bookingRef: bookingId,
+                    stayDates: room0 ? `${room0.check_in_date} to ${room0.check_out_date}` : 'Upcoming Stay',
+                    duration: `${detail.rooms.length} room(s)`,
+                    roomName: room0?.room_number ? `Room ${room0.room_number} (${room0.room_type_name || 'Standard'})` : (room0?.room_type_name || 'Standard Room'),
+                    roomRate: room0?.rate_at_booking ? `$${Number(room0.rate_at_booking).toFixed(2)} / night` : undefined,
+                    roomSubtotal: detail.total_amount ? `$${Number(detail.total_amount).toFixed(2)}` : undefined,
+                    grandTotal: detail.total_amount ? `$${Number(detail.total_amount).toFixed(2)}` : undefined,
+                }).catch(err => console.warn('[Bookings] Confirmation email dispatch error:', err.message));
+            }
+        }).catch(err => console.warn('[Bookings] Failed to find booking for email:', err.message));
+    }
 
     res.json({ success: true, data: updated });
 });

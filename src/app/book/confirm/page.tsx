@@ -46,6 +46,15 @@ function MountainGlyph({ className = "", style }: { className?: string; style?: 
 }
 
 // ── Per-Room State Structure ────────────────────────────────────────────────
+
+interface AvailableCatalogueService {
+  service_id: number;
+  service_name: string;
+  category: string;
+  base_price: number;
+  is_active: boolean;
+}
+
 interface ConfiguredRoom {
   index: number;
   roomId: string;
@@ -230,6 +239,17 @@ function BookingConfirmContent() {
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
   const [notes, setNotes] = useState('');
+  // Add-on Services State
+  const [availableServices, setAvailableServices] = useState<AvailableCatalogueService[]>([]);
+  const [selectedServices, setSelectedServices]   = useState<Record<number, number>>({});
+  
+  // Payment Option State
+  const [paymentOption, setPaymentOption]         = useState<'DEPOSIT' | 'FULL' | 'ARRIVAL'>('DEPOSIT');
+  const [cardNumber, setCardNumber]               = useState('');
+  const [cardholderName, setCardholderName]       = useState('');
+  const [cardExpiry, setCardExpiry]               = useState('');
+  const [cardCvc, setCardCvc]                     = useState('');
+
 
   // Multi-room configuration state — synchronously initialized
   const [rooms, setRooms] = useState<ConfiguredRoom[]>(() =>
@@ -261,7 +281,32 @@ function BookingConfirmContent() {
   // Animation Ref
   const containerRef = useRef<HTMLDivElement>(null);
 
-  // Re-sync if query params change
+
+  // Fetch catalogue services for branch (with fallback)
+  useEffect(() => {
+    let isMounted = true;
+    async function loadServices() {
+      try {
+        const query = branchIdStr ? `?branch_id=${encodeURIComponent(branchIdStr)}&is_active=true` : '?is_active=true';
+        const res = await apiFetch<{ data: AvailableCatalogueService[] }>(`/api/v1/services/catalogue${query}`);
+        if (isMounted && res.data && res.data.length > 0) {
+          setAvailableServices(res.data);
+          return;
+        }
+        // Fallback: load all active services if branch query returned empty
+        const fallbackRes = await apiFetch<{ data: AvailableCatalogueService[] }>('/api/v1/services/catalogue?is_active=true');
+        if (isMounted) {
+          setAvailableServices(fallbackRes.data ?? []);
+        }
+      } catch (err) {
+        console.warn('[ConfirmBooking] Could not load catalogue services:', err);
+      }
+    }
+    loadServices();
+    return () => { isMounted = false; };
+  }, [branchIdStr]);
+
+    // Re-sync if query params change
   useEffect(() => {
     setRooms(
       buildInitialRooms(
@@ -515,12 +560,19 @@ function BookingConfirmContent() {
   // Total meal charges across all rooms
   const totalMealCost = roomCalculations.reduce((sum, r) => sum + r.mealCost, 0);
 
+  // Total ancillary services charges
+  const totalServiceCost = availableServices.reduce((sum, s) => {
+    const qty = selectedServices[s.service_id] || 0;
+    return sum + (s.base_price * qty);
+  }, 0);
+
   // Base Amount before taxes
-  const baseAmount = totalRoomCost + totalMealCost;
+  const baseAmount = totalRoomCost + totalMealCost + totalServiceCost;
 
   // 4-Tier Statutory Sri Lankan Tax Cascade
   const taxes = computeTaxCascade(baseAmount);
   const grandTotal = taxes.grandTotal;
+  const depositAmount = grandTotal * 0.20;
 
   // Guard for missing parameters
   if ((!roomIdStr && !roomIdsParam) || !branchIdStr || !checkIn || !checkOut) {
@@ -627,9 +679,27 @@ function BookingConfirmContent() {
         check_out_date: checkOut,
       }));
 
+      const payloadServices = availableServices
+        .filter(s => (selectedServices[s.service_id] || 0) > 0)
+        .map(s => ({
+          service_id: s.service_id,
+          service_name: s.service_name,
+          category: s.category,
+          base_price: s.base_price,
+          quantity: selectedServices[s.service_id],
+        }));
+
+      const payloadPayment = paymentOption === 'ARRIVAL' ? undefined : {
+        amount: Number((paymentOption === 'DEPOSIT' ? depositAmount : grandTotal).toFixed(2)),
+        payment_method: 'CARD',
+        is_deposit: paymentOption === 'DEPOSIT',
+        reference_number: `ONLINE-${Date.now().toString(36).toUpperCase()}`,
+      };
+
       const res = await apiFetch<{
         data: {
           booking_id: string;
+          status: string;
           rooms: { booking_room_id: string; room_number: string | null; room_id: string }[];
         };
       }>('/api/v1/bookings', {
@@ -649,6 +719,8 @@ function BookingConfirmContent() {
           adults: totalAdults,
           children: totalChildren,
           rooms: payloadRooms,
+          services: payloadServices.length > 0 ? payloadServices : undefined,
+          payment: payloadPayment,
         }),
       });
 
@@ -1013,7 +1085,7 @@ function BookingConfirmContent() {
                         key={p.id}
                         type="button"
                         onClick={() => applyMealPlanToAll(p.id)}
-                        className="px-2.5 py-1 text-[11px] font-jakarta font-medium border border-skynest-hairline bg-[#FDFCFA] hover:border-skynest-accent hover:text-skynest-accent text-ink/70 transition-colors"
+                        className="px-2.5 py-1 text-[11px] font-jakarta font-medium border border-skynest-hairline bg-[#FDFCFA] hover:border-ink hover:text-ink hover:bg-ink/[0.03] text-ink/70 transition-colors"
                       >
                         {p.name}
                       </button>
@@ -1094,7 +1166,7 @@ function BookingConfirmContent() {
                           <label className="text-[10px] font-jakarta font-bold uppercase tracking-wider text-ink/70">
                             Meal Plan for Room {room.roomNumber}
                           </label>
-                          <span className="text-[10px] font-jakarta text-skynest-accent font-semibold">
+                          <span className="text-[10px] font-jakarta text-ink/70 font-semibold">
                             {currentPlan.name} ({currentPlan.price === 0 ? 'Included' : `+$${currentPlan.price}/nt per guest ($${roomMealCost.toFixed(2)} total)`})
                           </span>
                         </div>
@@ -1108,7 +1180,7 @@ function BookingConfirmContent() {
                                 onClick={() => updateRoomMealPlan(room.index, plan.id)}
                                 className={`p-2.5 border cursor-pointer transition-all flex flex-col justify-between ${
                                   isSel
-                                    ? 'border-skynest-accent bg-skynest-accent/[0.08] shadow-xs'
+                                    ? 'border-ink bg-ink/[0.04] shadow-xs'
                                     : 'border-skynest-hairline bg-white hover:border-ink/40'
                                 }`}
                               >
@@ -1117,14 +1189,14 @@ function BookingConfirmContent() {
                                     {plan.name}
                                   </span>
                                   <span className={`w-3.5 h-3.5 rounded-full border flex items-center justify-center shrink-0 ${
-                                    isSel ? 'border-skynest-accent bg-skynest-accent' : 'border-ink/30'
+                                    isSel ? 'border-ink bg-ink' : 'border-ink/30'
                                   }`}>
                                     {isSel && <span className="w-1.5 h-1.5 rounded-full bg-white" />}
                                   </span>
                                 </div>
                                 <p className="font-jakarta text-[10px] text-ink/50 mt-1 line-clamp-1">{plan.description}</p>
                                 <span className={`text-[11px] font-jakarta font-bold mt-2 text-right ${
-                                  isSel ? 'text-skynest-accent' : 'text-ink/70'
+                                  isSel ? 'text-ink font-bold' : 'text-ink/70'
                                 }`}>
                                   {plan.price === 0 ? 'Included' : `+$${plan.price}/nt`}
                                 </span>
@@ -1224,12 +1296,119 @@ function BookingConfirmContent() {
               </div>
             </div>
 
-            {/* ── SECTION 03: Consolidated Reservation Summary & Statutory Taxes ── */}
+                        {/* ── SECTION 03: Curated Add-On Services & Experiences ── */}
+            <div className="sn-confirm-card p-6 md:p-8 rounded-none border border-skynest-hairline bg-white shadow-sm space-y-6">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-4 border-b border-skynest-hairline gap-2">
+                <div>
+                  <h2 className="font-cinzel text-base font-medium uppercase tracking-wider text-ink flex items-center gap-2.5">
+                    <span className="w-5 h-5 flex items-center justify-center text-[10px] font-bold text-white bg-ink">
+                      03
+                    </span>
+                    Curated Add-On Services & Experiences
+                  </h2>
+                  <p className="font-jakarta text-xs text-ink/50 mt-1">
+                    Select optional airport transfers, spa therapies, or destination tours curated for {branch?.name ?? 'your stay'}.
+                  </p>
+                </div>
+                {totalServiceCost > 0 && (
+                  <span className="font-cinzel text-xs font-bold text-ink uppercase tracking-wider bg-ink/[0.05] px-3 py-1 border border-skynest-hairline">
+                    Add-ons: +${totalServiceCost.toFixed(2)}
+                  </span>
+                )}
+              </div>
+
+              {availableServices.length === 0 ? (
+                <p className="font-jakarta text-xs text-ink/40 py-4 text-center">Loading luxury services for this branch...</p>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {availableServices.map((svc) => {
+                    const qty = selectedServices[svc.service_id] || 0;
+                    const isSelected = qty > 0;
+                    return (
+                      <div
+                        key={svc.service_id}
+                        className={`p-4 border transition-all flex flex-col justify-between ${
+                          isSelected
+                            ? 'border-ink bg-ink/[0.03] shadow-xs'
+                            : 'border-skynest-hairline bg-[#FDFCFA] hover:border-ink/30'
+                        }`}
+                      >
+                        <div>
+                          <div className="flex items-center justify-between gap-2 mb-2">
+                            <span className="text-[9px] font-jakarta font-bold uppercase tracking-wider px-2 py-0.5 bg-ink/5 text-ink/70 border border-skynest-hairline">
+                              {svc.category}
+                            </span>
+                            <span className="font-cinzel text-xs font-bold text-ink">
+                              ${Number(svc.base_price).toFixed(2)}
+                            </span>
+                          </div>
+                          <h4 className="font-cinzel text-sm font-semibold text-ink line-clamp-2">
+                            {svc.service_name}
+                          </h4>
+                          <p className="font-jakarta text-[11px] text-ink/50 mt-1">
+                            Available during your stay. Itemized in your room folio statement.
+                          </p>
+                        </div>
+
+                        <div className="pt-4 mt-3 border-t border-skynest-hairline flex items-center justify-between">
+                          {isSelected ? (
+                            <div className="flex items-center gap-2">
+                              <button
+                                type="button"
+                                onClick={() => setSelectedServices(prev => {
+                                  const updated = { ...prev };
+                                  if (qty <= 1) delete updated[svc.service_id];
+                                  else updated[svc.service_id] = qty - 1;
+                                  return updated;
+                                })}
+                                className="w-6 h-6 flex items-center justify-center border border-skynest-hairline text-ink hover:bg-ink hover:text-white transition-colors text-xs font-bold"
+                              >
+                                -
+                              </button>
+                              <span className="font-jakarta text-xs font-bold text-ink px-1 tabular-nums">
+                                {qty}
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() => setSelectedServices(prev => ({
+                                  ...prev,
+                                  [svc.service_id]: qty + 1,
+                                }))}
+                                className="w-6 h-6 flex items-center justify-center border border-skynest-hairline text-ink hover:bg-ink hover:text-white transition-colors text-xs font-bold"
+                              >
+                                +
+                              </button>
+                            </div>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={() => setSelectedServices(prev => ({
+                                ...prev,
+                                [svc.service_id]: 1,
+                              }))}
+                              className="px-3 py-1 text-[11px] font-jakarta font-semibold uppercase tracking-wider border border-skynest-hairline bg-white hover:border-ink hover:text-ink hover:bg-ink/[0.03] transition-colors text-ink/80"
+                            >
+                              + Add to Stay
+                            </button>
+                          )}
+                          <span className="font-jakarta text-[11px] text-ink font-semibold">
+                            {isSelected ? `$${(svc.base_price * qty).toFixed(2)}` : ''}
+                          </span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
+
+            {/* ── SECTION 04: Consolidated Reservation Summary & Statutory Taxes ── */}
             <div className="sn-confirm-card p-6 md:p-8 rounded-none border border-skynest-hairline bg-white shadow-sm space-y-6">
               <div className="pb-4 border-b border-skynest-hairline">
                 <h2 className="font-cinzel text-base font-medium uppercase tracking-wider text-ink flex items-center gap-2.5">
                   <span className="w-5 h-5 flex items-center justify-center text-[10px] font-bold text-white bg-ink">
-                    03
+                    04
                   </span>
                   Consolidated Reservation Summary & Bill
                 </h2>
@@ -1351,11 +1530,197 @@ function BookingConfirmContent() {
                     disabled={loading}
                     className="w-full py-4 rounded-none font-jakarta font-semibold text-xs tracking-wider uppercase transition-all duration-200 flex items-center justify-center gap-2 border border-ink bg-ink text-paper hover:bg-skynest-accent hover:border-skynest-accent cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
                   >
-                    {loading ? 'Confirming Reservation…' : `Confirm Reservation (${rooms.length} Room${rooms.length > 1 ? 's' : ''} • $${grandTotal.toFixed(2)})`}
+                    {loading ? 'Processing Reservation…' : paymentOption === 'DEPOSIT'
+                      ? `Confirm & Pay 20% Deposit ($${depositAmount.toFixed(2)})`
+                      : paymentOption === 'FULL'
+                      ? `Confirm & Pay Full Amount ($${grandTotal.toFixed(2)})`
+                      : `Submit Reservation ($0.00 today · Pay on Arrival)`}
                   </button>
                 </div>
               </div>
             </div>
+
+            {/* ── SECTION 05: Payment & Reservation Guarantee (Rule B12) ── */}
+            <div className="sn-confirm-card p-6 md:p-8 rounded-none border border-skynest-hairline bg-white shadow-sm space-y-6">
+              <div className="pb-4 border-b border-skynest-hairline">
+                <h2 className="font-cinzel text-base font-medium uppercase tracking-wider text-ink flex items-center gap-2.5">
+                  <span className="w-5 h-5 flex items-center justify-center text-[10px] font-bold text-white bg-ink">
+                    05
+                  </span>
+                  Payment Guarantee & Confirmation
+                </h2>
+                <p className="font-jakarta text-xs text-ink/50 mt-1">
+                  Select whether to guarantee your booking instantly via partial deposit, full prepayment, or hold for front desk review.
+                </p>
+              </div>
+
+              {/* 3 Payment Options */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                {/* Option 1: 20% Deposit */}
+                <div
+                  onClick={() => setPaymentOption('DEPOSIT')}
+                  className={`p-5 border cursor-pointer transition-all flex flex-col justify-between ${
+                    paymentOption === 'DEPOSIT'
+                      ? 'border-ink bg-ink/[0.03] shadow-sm'
+                      : 'border-skynest-hairline bg-[#FDFCFA] hover:border-ink/30'
+                  }`}
+                >
+                  <div>
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="font-cinzel text-xs font-bold text-ink uppercase tracking-wider">
+                        20% Deposit (Recommended)
+                      </span>
+                      <span className={`w-3.5 h-3.5 rounded-full border flex items-center justify-center shrink-0 ${
+                        paymentOption === 'DEPOSIT' ? 'border-ink bg-ink' : 'border-ink/30'
+                      }`}>
+                        {paymentOption === 'DEPOSIT' && <span className="w-1.5 h-1.5 rounded-full bg-white" />}
+                      </span>
+                    </div>
+                    <p className="font-jakarta text-[11px] text-ink/60 leading-relaxed">
+                      Instant guaranteed confirmation. Pay 20% today, settle remainder on arrival.
+                    </p>
+                  </div>
+                  <div className="mt-4 pt-3 border-t border-skynest-hairline flex items-baseline justify-between">
+                    <span className="font-jakarta text-[10px] text-ink/40 uppercase font-semibold">Charge Now</span>
+                    <span className="font-cinzel text-base font-bold text-ink">${depositAmount.toFixed(2)}</span>
+                  </div>
+                </div>
+
+                {/* Option 2: Full Prepayment */}
+                <div
+                  onClick={() => setPaymentOption('FULL')}
+                  className={`p-5 border cursor-pointer transition-all flex flex-col justify-between ${
+                    paymentOption === 'FULL'
+                      ? 'border-ink bg-ink/[0.03] shadow-sm'
+                      : 'border-skynest-hairline bg-[#FDFCFA] hover:border-ink/30'
+                  }`}
+                >
+                  <div>
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="font-cinzel text-xs font-bold text-ink uppercase tracking-wider">
+                        Pay in Full
+                      </span>
+                      <span className={`w-3.5 h-3.5 rounded-full border flex items-center justify-center shrink-0 ${
+                        paymentOption === 'FULL' ? 'border-ink bg-ink' : 'border-ink/30'
+                      }`}>
+                        {paymentOption === 'FULL' && <span className="w-1.5 h-1.5 rounded-full bg-white" />}
+                      </span>
+                    </div>
+                    <p className="font-jakarta text-[11px] text-ink/60 leading-relaxed">
+                      Instant guaranteed confirmation with zero outstanding balance upon check-in.
+                    </p>
+                  </div>
+                  <div className="mt-4 pt-3 border-t border-skynest-hairline flex items-baseline justify-between">
+                    <span className="font-jakarta text-[10px] text-ink/40 uppercase font-semibold">Charge Now</span>
+                    <span className="font-cinzel text-base font-bold text-ink">${grandTotal.toFixed(2)}</span>
+                  </div>
+                </div>
+
+                {/* Option 3: Pay on Arrival */}
+                <div
+                  onClick={() => setPaymentOption('ARRIVAL')}
+                  className={`p-5 border cursor-pointer transition-all flex flex-col justify-between ${
+                    paymentOption === 'ARRIVAL'
+                      ? 'border-ink bg-ink/[0.03] shadow-sm'
+                      : 'border-skynest-hairline bg-[#FDFCFA] hover:border-ink/30'
+                  }`}
+                >
+                  <div>
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="font-cinzel text-xs font-bold text-ink uppercase tracking-wider">
+                        Pay Upon Arrival
+                      </span>
+                      <span className={`w-3.5 h-3.5 rounded-full border flex items-center justify-center shrink-0 ${
+                        paymentOption === 'ARRIVAL' ? 'border-ink bg-ink' : 'border-ink/30'
+                      }`}>
+                        {paymentOption === 'ARRIVAL' && <span className="w-1.5 h-1.5 rounded-full bg-white" />}
+                      </span>
+                    </div>
+                    <p className="font-jakarta text-[11px] text-ink/60 leading-relaxed">
+                      Provisional hold. Submitted as PENDING for Front Desk Reception review & verification.
+                    </p>
+                  </div>
+                  <div className="mt-4 pt-3 border-t border-skynest-hairline flex items-baseline justify-between">
+                    <span className="font-jakarta text-[10px] text-ink/40 uppercase font-semibold">Charge Now</span>
+                    <span className="font-cinzel text-base font-bold text-ink/70">$0.00</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Credit Card Inputs (Rendered when Deposit or Full is active) */}
+              {paymentOption !== 'ARRIVAL' && (
+                <div className="p-5 bg-[#F8F6F2] border border-skynest-hairline space-y-4">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[11px] font-jakarta font-bold uppercase tracking-wider text-ink/70">
+                      Payment Card Details (Encrypted SSL Transaction)
+                    </span>
+                    <span className="text-[10px] font-jakarta text-emerald-700 bg-emerald-50 px-2 py-0.5 border border-emerald-200 uppercase font-semibold">
+                      Instant Confirmation
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block font-jakarta text-[10px] font-bold uppercase tracking-wider mb-1 text-ink/60">
+                        Cardholder Name *
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        placeholder="Name on card"
+                        value={cardholderName}
+                        onChange={e => setCardholderName(e.target.value)}
+                        className="w-full px-3 py-2.5 font-jakarta text-xs border border-skynest-hairline bg-white text-ink outline-none focus:border-skynest-accent"
+                      />
+                    </div>
+                    <div>
+                      <label className="block font-jakarta text-[10px] font-bold uppercase tracking-wider mb-1 text-ink/60">
+                        Card Number *
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        placeholder="4242 •••• •••• 4242"
+                        value={cardNumber}
+                        onChange={e => setCardNumber(e.target.value)}
+                        className="w-full px-3 py-2.5 font-jakarta text-xs border border-skynest-hairline bg-white text-ink outline-none focus:border-skynest-accent"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                    <div>
+                      <label className="block font-jakarta text-[10px] font-bold uppercase tracking-wider mb-1 text-ink/60">
+                        Expiry (MM/YY) *
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        placeholder="12/28"
+                        value={cardExpiry}
+                        onChange={e => setCardExpiry(e.target.value)}
+                        className="w-full px-3 py-2.5 font-jakarta text-xs border border-skynest-hairline bg-white text-ink outline-none focus:border-skynest-accent"
+                      />
+                    </div>
+                    <div>
+                      <label className="block font-jakarta text-[10px] font-bold uppercase tracking-wider mb-1 text-ink/60">
+                        CVV / CVC *
+                      </label>
+                      <input
+                        type="password"
+                        required
+                        placeholder="•••"
+                        maxLength={4}
+                        value={cardCvc}
+                        onChange={e => setCardCvc(e.target.value)}
+                        className="w-full px-3 py-2.5 font-jakarta text-xs border border-skynest-hairline bg-white text-ink outline-none focus:border-skynest-accent"
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+
           </form>
         </main>
       </div>

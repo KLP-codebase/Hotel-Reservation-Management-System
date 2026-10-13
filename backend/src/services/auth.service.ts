@@ -288,7 +288,7 @@ export class AuthService {
         firstName: account.first_name || 'Valued Guest',
         ipAddress: ipAddress || 'Unknown IP',
         loginTime: new Date(),
-      }).catch((err) => {
+      }).catch((err: any) => {
         console.warn('[AuthService] Login alert dispatch error on verification:', err.message);
       });
     }

@@ -286,6 +286,116 @@ function bookingConfirmationHtml(params: {
   `;
 }
 
+
+function invoiceUpdateHtml(params: {
+  guestName: string;
+  branchName: string;
+  bookingRef: string;
+  addedService: string;
+  serviceCategory: string;
+  serviceCost: string;
+  roomCharges: string;
+  serviceCharges: string;
+  taxTotal: string;
+  grandTotal: string;
+  actionUrl: string;
+}): string {
+  return `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <style>
+        body { font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #FDFCFA; color: #0B2540; margin: 0; padding: 30px 15px; }
+        .container { max-width: 620px; margin: 0 auto; background: #FFFFFF; border: 1px solid #E5E0D8; padding: 40px 32px; box-shadow: 0 4px 20px rgba(11,37,64,0.04); }
+        .logo { font-family: 'Cinzel', Georgia, serif; font-size: 24px; font-weight: 700; letter-spacing: 0.2em; color: #0B2540; text-transform: uppercase; margin-bottom: 20px; }
+        .accent-bar { width: 50px; height: 2px; background-color: #D9722C; margin-bottom: 24px; }
+        .status-badge { display: inline-block; background-color: #EFF6FF; border: 1px solid #BFDBFE; color: #1E40AF; font-size: 11px; font-weight: 600; letter-spacing: 0.15em; text-transform: uppercase; padding: 6px 14px; margin-bottom: 24px; }
+        h1 { font-family: 'Cinzel', Georgia, serif; font-size: 22px; font-weight: 600; letter-spacing: 0.05em; color: #0B2540; margin: 0 0 8px 0; }
+        p { font-size: 13px; line-height: 1.6; color: rgba(11, 37, 64, 0.8); margin: 8px 0; }
+        .section-title { font-family: 'Cinzel', Georgia, serif; font-size: 13px; font-weight: 700; letter-spacing: 0.12em; color: #0B2540; text-transform: uppercase; margin: 24px 0 12px 0; border-bottom: 1px solid #E5E0D8; padding-bottom: 6px; }
+        .ref-box { background: #F8F6F2; border: 1px solid #E5E0D8; padding: 18px 20px; margin: 16px 0; }
+        .ref-label { font-size: 10px; font-weight: 600; letter-spacing: 0.18em; text-transform: uppercase; color: rgba(11, 37, 64, 0.6); margin-bottom: 4px; }
+        .ref-val { font-family: monospace; font-size: 15px; font-weight: 700; color: #0B2540; letter-spacing: 0.08em; word-break: break-all; }
+        .btn { display: inline-block; background-color: #0B2540; color: #FFFFFF !important; text-decoration: none; padding: 14px 32px; font-size: 12px; font-weight: 600; letter-spacing: 0.18em; text-transform: uppercase; margin: 18px 0; }
+        .footer { border-top: 1px solid #E5E0D8; margin-top: 32px; padding-top: 20px; font-size: 11px; color: rgba(11, 37, 64, 0.5); text-align: center; line-height: 1.6; }
+      </style>
+    </head>
+    <body>
+      <div class="container">
+        <div class="logo">SKY NEST</div>
+        <div class="accent-bar"></div>
+        <div class="status-badge">&#10003; Stay Folio Updated &bull; Service Added</div>
+        <h1>Guest Folio Statement Update</h1>
+        <p>Dear ${params.guestName},</p>
+        <p>A new guest service has been added to your stay folio at <strong>${params.branchName}</strong> by front desk concierge. Below is your updated itemized account.</p>
+
+        <div class="ref-box">
+          <div class="ref-label">Booking Reference</div>
+          <div class="ref-val">${params.bookingRef}</div>
+        </div>
+
+        <div class="section-title">Newly Added Service Charge</div>
+        <table width="100%" cellpadding="0" cellspacing="0" border="0" style="border-collapse: collapse; margin-bottom: 16px;">
+          <tr>
+            <td style="font-size: 13px; color: rgba(11, 37, 64, 0.7); padding: 8px 0; border-bottom: 1px dashed #EDE8E1;">Service Item</td>
+            <td style="font-size: 13px; font-weight: 600; color: #0B2540; text-align: right; padding: 8px 0; border-bottom: 1px dashed #EDE8E1;">${params.addedService}</td>
+          </tr>
+          <tr>
+            <td style="font-size: 13px; color: rgba(11, 37, 64, 0.7); padding: 8px 0; border-bottom: 1px dashed #EDE8E1;">Category</td>
+            <td style="font-size: 13px; font-weight: 600; color: #0B2540; text-align: right; padding: 8px 0; border-bottom: 1px dashed #EDE8E1;">${params.serviceCategory}</td>
+          </tr>
+          <tr>
+            <td style="font-size: 13px; color: rgba(11, 37, 64, 0.7); padding: 8px 0;">Charge Amount</td>
+            <td style="font-size: 13px; font-weight: 600; color: #0B2540; text-align: right; padding: 8px 0;">${params.serviceCost}</td>
+          </tr>
+        </table>
+
+        <div class="section-title">Updated Folio Summary (Including Sri Lankan Tax Cascade)</div>
+        <table width="100%" cellpadding="0" cellspacing="0" border="0" style="border-collapse: collapse; margin-top: 8px; font-size: 12px;">
+          <tr>
+            <td style="padding: 6px 0; color: rgba(11, 37, 64, 0.75);">Accommodation Charges</td>
+            <td style="padding: 6px 0; text-align: right; font-weight: 600; color: #0B2540;">${params.roomCharges}</td>
+          </tr>
+          <tr>
+            <td style="padding: 6px 0; color: rgba(11, 37, 64, 0.75);">Total Ancillary Services</td>
+            <td style="padding: 6px 0; text-align: right; font-weight: 600; color: #0B2540;">${params.serviceCharges}</td>
+          </tr>
+          <tr>
+            <td style="padding: 6px 0; color: rgba(11, 37, 64, 0.75);">Statutory Taxes (SC, TDL, SSCL, VAT)</td>
+            <td style="padding: 6px 0; text-align: right; font-weight: 600; color: #0B2540;">${params.taxTotal}</td>
+          </tr>
+        </table>
+
+        <div style="background: #F8F6F2; border: 1px solid #E5E0D8; padding: 18px 20px; margin-top: 20px;">
+          <table width="100%" cellpadding="0" cellspacing="0" border="0">
+            <tr>
+              <td style="font-size: 11px; font-weight: 700; letter-spacing: 0.15em; text-transform: uppercase; color: #0B2540; vertical-align: middle;">
+                UPDATED INVOICE TOTAL
+              </td>
+              <td style="font-family: 'Cinzel', Georgia, serif; font-size: 24px; font-weight: 700; color: #D9722C; text-align: right; vertical-align: middle;">
+                ${params.grandTotal}
+              </td>
+            </tr>
+          </table>
+        </div>
+
+        <div style="text-align: center; margin-top: 28px;">
+          <a href="${params.actionUrl}" class="btn" target="_blank">View Updated Stay Folio</a>
+        </div>
+
+        <div class="footer">
+          <strong>Sky Nest Luxury Hotels &amp; Resorts</strong><br>
+          Web Portal: <a href="https://skynest.me/" style="color: #D9722C;">https://skynest.me/</a><br>
+          &copy; ${new Date().getFullYear()} Sky Nest Sri Lanka. All rights reserved.
+        </div>
+      </div>
+    </body>
+    </html>
+  `;
+}
+
 function loginAuthorizationHtml(params: {
   firstName: string;
   otpCode: string;
@@ -680,6 +790,40 @@ export class EmailService {
     }
   }
 
+
+  async sendInvoiceUpdateEmail(params: {
+    to: string;
+    guestName: string;
+    branchName: string;
+    bookingRef: string;
+    addedService: string;
+    serviceCategory: string;
+    serviceCost: string;
+    roomCharges: string;
+    serviceCharges: string;
+    taxTotal: string;
+    grandTotal: string;
+  }): Promise<boolean> {
+    const actionUrl = `${env.APP_URL}/dashboard/activity`;
+    if (env.NODE_ENV !== 'production') {
+      console.log(`[SKY NEST EMAIL] Updated Invoice dispatched to ${params.to} for booking ${params.bookingRef} (+${params.addedService}: ${params.serviceCost}, Total: ${params.grandTotal})`);
+    }
+    try {
+      return await this.provider.send({
+        from: env.EMAIL_FROM,
+        to: params.to,
+        subject: `Updated Folio Statement: ${params.branchName} (Ref: ${params.bookingRef.substring(0, 8)})`,
+        html: invoiceUpdateHtml({
+          ...params,
+          actionUrl,
+        }),
+      });
+    } catch (err: any) {
+      console.warn('[EmailService] Failed to send invoice update email:', err.message);
+      return false;
+    }
+  }
+
   async sendLoginAuthorizationEmail(params: {
     to: string;
     firstName: string;
@@ -719,4 +863,3 @@ export class EmailService {
 }
 
 export const emailService = new EmailService();
-

@@ -1034,16 +1034,27 @@ ON CONFLICT (tax_name, effective_from) DO UPDATE SET
 
 -- Seed Service Catalogue
 INSERT INTO service_catalogue (branch_id, service_name, category, base_price, is_active) VALUES
+    -- Colombo (b1111111-...) - 6 Curated Luxury Services
     ('b1111111-1111-1111-1111-111111111111', 'Airport Chauffeur Transfer',   'Transport',    45.00, true),
     ('b1111111-1111-1111-1111-111111111111', 'Ayurvedic Full Body Spa',      'Wellness',     75.00, true),
     ('b1111111-1111-1111-1111-111111111111', 'Luxury Champagne Breakfast',   'Dining',       30.00, true),
     ('b1111111-1111-1111-1111-111111111111', 'Express Laundry & Pressing',   'Housekeeping', 20.00, true),
     ('b1111111-1111-1111-1111-111111111111', 'Premium Suite Minibar Restock', 'Dining',       50.00, true),
+    ('b1111111-1111-1111-1111-111111111111', 'Colombo Heritage & City Tour', 'Experience',   40.00, true),
+    -- Galle (b2222222-...) - 6 Curated Luxury Services
     ('b2222222-2222-2222-2222-222222222222', 'Whale Watching Excursion',     'Experience',   85.00, true),
     ('b2222222-2222-2222-2222-222222222222', 'Fort Walking Tour & High Tea',  'Experience',   35.00, true),
+    ('b2222222-2222-2222-2222-222222222222', 'Airport Chauffeur Transfer',   'Transport',    75.00, true),
+    ('b2222222-2222-2222-2222-222222222222', 'Ayurvedic Oceanfront Spa',     'Wellness',     80.00, true),
+    ('b2222222-2222-2222-2222-222222222222', 'Luxury Champagne Breakfast',   'Dining',       30.00, true),
+    ('b2222222-2222-2222-2222-222222222222', 'Express Laundry & Pressing',   'Housekeeping', 20.00, true),
+    -- Kandy (b3333333-...) - 6 Curated Luxury Services
     ('b3333333-3333-3333-3333-333333333333', 'Tea Estate Guided Tour',       'Experience',   40.00, true),
     ('b3333333-3333-3333-3333-333333333333', 'Ayurvedic Herbal Treatment',   'Wellness',     65.00, true),
-    ('b3333333-3333-3333-3333-333333333333', 'Kandy Lake Sunset Cruise',     'Experience',   30.00, true)
+    ('b3333333-3333-3333-3333-333333333333', 'Kandy Lake Sunset Cruise',     'Experience',   30.00, true),
+    ('b3333333-3333-3333-3333-333333333333', 'Airport Chauffeur Transfer',   'Transport',    55.00, true),
+    ('b3333333-3333-3333-3333-333333333333', 'Luxury Champagne Breakfast',   'Dining',       30.00, true),
+    ('b3333333-3333-3333-3333-333333333333', 'Express Laundry & Pressing',   'Housekeeping', 20.00, true)
 ON CONFLICT (branch_id, service_name) DO UPDATE SET
     base_price = EXCLUDED.base_price,
     is_active  = EXCLUDED.is_active;

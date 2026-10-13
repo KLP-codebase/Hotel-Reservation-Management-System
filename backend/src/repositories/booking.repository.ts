@@ -182,6 +182,9 @@ export class BookingRepository {
                 b.notes,
                 b.created_at,
                 br.branch_name,
+                g.email AS guest_email,
+                g.first_name AS guest_first_name,
+                g.last_name AS guest_last_name,
                 COALESCE(
                     g.first_name || ' ' || g.last_name,
                     s.first_name || ' ' || s.last_name,
@@ -189,7 +192,7 @@ export class BookingRepository {
                 ) AS booker_name
             FROM bookings b
             LEFT JOIN branches br ON br.branch_id = b.branch_id
-            LEFT JOIN guests g ON g.id = b.booked_by_guest_id
+            LEFT JOIN guests g ON (g.id = b.booked_by_guest_id OR g.guest_id::text = b.booked_by_guest_id)
             LEFT JOIN staff s ON s.staff_id = b.booked_by_staff_id
             WHERE b.booking_id = $1
         `, [bookingId]);
