@@ -1,9 +1,19 @@
 import { DbAdapter } from '../config/db';
 
+export interface ActivityService {
+  serviceName: string;
+  category: string;
+  quantity: number;
+  unitPrice: number;
+  totalPrice: number;
+  usedAt: string;
+}
+
 export interface ActivityStay {
   archiveId: string;
   bookingId: string;
   bookingRef: string;
+  branchId?: string;
   branchName: string;
   roomTypeName: string;
   roomNumber: string;
@@ -13,14 +23,7 @@ export interface ActivityStay {
   totalPaid: number;
   loyaltyPoints: number;
   status: string;
-  services: Array<{
-    serviceName: string;
-    category: string;
-    quantity: number;
-    unitPrice: number;
-    totalPrice: number;
-    usedAt: string;
-  }>;
+  services: ActivityService[];
   isArchived: boolean;
 }
 
@@ -198,6 +201,7 @@ export class ActivityRepository {
       }>(
         `SELECT 
            b.booking_id,
+           b.branch_id::text AS branch_id,
            COALESCE(b.id, SUBSTRING(b.booking_id::text, 1, 8)) AS id,
            COALESCE(brh.branch_name, 'Sky Nest Sanctuary') AS branch_name,
            COALESCE(rt.type_name, to_jsonb(r)->>'type', 'Luxury Suite') AS room_type_name,
@@ -223,6 +227,55 @@ export class ActivityRepository {
       console.warn('[ActivityRepository] Live bookings query notice:', err.message);
     }
 
+
+    // 3. Fetch itemized services for live stays
+    const liveBookingIds = liveRows.map(r => r.booking_id).filter(Boolean);
+    const servicesByBookingId: Record<string, ActivityService[]> = {};
+
+    if (liveBookingIds.length > 0) {
+      try {
+        const servicesRes = await this.db.query<{
+          booking_id: string;
+          service_name: string;
+          category: string;
+          quantity: number;
+          unit_price: string;
+          total_price: string;
+          used_at: Date;
+        }>(
+          `SELECT 
+             br.booking_id,
+             COALESCE(sc.service_name, su.notes, 'Hotel Service') AS service_name,
+             COALESCE(sc.category, 'General') AS category,
+             COALESCE(su.quantity, 1) AS quantity,
+             COALESCE(su.price_at_usage, sc.base_price, 0)::text AS unit_price,
+             (COALESCE(su.quantity, 1) * COALESCE(su.price_at_usage, sc.base_price, 0))::text AS total_price,
+             su.used_at
+           FROM service_usage su
+           JOIN booking_rooms br ON br.booking_room_id = su.booking_room_id
+           LEFT JOIN service_catalogue sc ON sc.service_id = su.service_id
+           WHERE br.booking_id = ANY($1::uuid[])
+           ORDER BY su.used_at ASC`,
+          [liveBookingIds]
+        );
+
+        for (const row of servicesRes.rows) {
+          if (!servicesByBookingId[row.booking_id]) {
+            servicesByBookingId[row.booking_id] = [];
+          }
+          servicesByBookingId[row.booking_id].push({
+            serviceName: row.service_name,
+            category: row.category,
+            quantity: Number(row.quantity),
+            unitPrice: parseFloat(row.unit_price || '0'),
+            totalPrice: parseFloat(row.total_price || '0'),
+            usedAt: row.used_at ? new Date(row.used_at).toISOString() : new Date().toISOString(),
+          });
+        }
+      } catch (svcErr: any) {
+        console.warn('[ActivityRepository] Live services query notice:', svcErr.message);
+      }
+    }
 
     // Format archived stays
     const bookings: ActivityStay[] = archivedRows.map((r) => {
@@ -271,6 +324,7 @@ export class ActivityRepository {
         archiveId: l.booking_id,
         bookingId: l.booking_id,
         bookingRef: l.id || l.booking_id.substring(0, 8),
+        branchId: l.branch_id,
         branchName: l.branch_name,
         roomTypeName: l.room_type_name,
         roomNumber: l.room_number,
@@ -280,7 +334,7 @@ export class ActivityRepository {
         totalPaid,
         loyaltyPoints,
         status: l.status,
-        services: [],
+        services: servicesByBookingId[l.booking_id] || [],
         isArchived: false,
       });
     }

@@ -174,7 +174,7 @@ export function SkyNestConcierge() {
     };
 
     return (
-        <div className="fixed bottom-6 right-6 z-50 select-none">
+        <div className="fixed bottom-6 right-6 z-50 select-none print:hidden skynest-concierge" id="skynest-concierge-root">
             {/* ── 1. Floating Trigger Button ───────────────────────────── */}
             {!isOpen && (
                 <button

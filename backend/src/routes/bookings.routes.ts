@@ -40,6 +40,9 @@ const BookingServiceItemSchema = z.object({
     category: z.string().optional(),
     base_price: z.number().nonnegative(),
     quantity: z.number().int().positive().optional().default(1),
+    date: z.string().optional(),
+    appointment_time: z.string().optional(),
+    notes: z.string().optional(),
     room_index: z.number().int().nonnegative().optional().default(0),
 });
 
@@ -123,13 +126,16 @@ router.post('/', async (req: Request, res: Response) => {
 
     const { services = [], payment, ...bookingHeader } = header as any;
 
-    // Validate service quantity caps:
-    // - Spa / Wellness: max = adults * nights
+    // Validate service quantity caps and scheduling rules:
+    // - Spa / Wellness: max = adults * nights, and max 20 bookings per hour slot
     // - In-room Breakfast / Dining: max = (adults + children) * nights
+    // - Service dates cannot be outside stay dates
     if (services.length > 0 && roomLines.length > 0) {
         const firstLine = roomLines[0];
-        const checkInTime = new Date(firstLine.check_in_date).getTime();
-        const checkOutTime = new Date(firstLine.check_out_date).getTime();
+        const checkInStr = firstLine.check_in_date;
+        const checkOutStr = firstLine.check_out_date;
+        const checkInTime = new Date(checkInStr).getTime();
+        const checkOutTime = new Date(checkOutStr).getTime();
         const nights = Math.max(1, Math.round((checkOutTime - checkInTime) / (1000 * 60 * 60 * 24)));
         const adults = Number(header.adults) || 1;
         const children = Number(header.children) || 0;
@@ -140,6 +146,17 @@ router.post('/', async (req: Request, res: Response) => {
             const name = (s.service_name || '').toLowerCase();
             const qty = s.quantity ?? 1;
 
+            // Date boundary validation
+            if (s.date) {
+                if (s.date < checkInStr || s.date > checkOutStr) {
+                    return res.status(400).json({
+                        success: false,
+                        code: 'SERVICE_DATE_OUT_OF_RANGE',
+                        message: `Service date (${s.date}) cannot be outside your stay dates (${checkInStr} to ${checkOutStr}).`,
+                    });
+                }
+            }
+
             if (cat === 'wellness' || name.includes('spa') || name.includes('massage') || name.includes('ayurvedic')) {
                 const maxSpa = Math.max(1, adults * nights);
                 if (qty > maxSpa) {
@@ -148,6 +165,26 @@ router.post('/', async (req: Request, res: Response) => {
                         code: 'SERVICE_CAP_EXCEEDED',
                         message: `Orders for "${s.service_name}" cannot exceed ${maxSpa} (${adults} adult(s) × ${nights} night(s)).`,
                     });
+                }
+
+                // Check capacity for spa appointment time slot (max 20 per hour slot)
+                if (s.appointment_time && s.date) {
+                    const slotCountRes = await db.query<{ booked_count: string }>(
+                        `SELECT COALESCE(SUM(su.quantity), 0) AS booked_count
+                         FROM service_usage su
+                         JOIN booking_rooms br ON br.booking_room_id = su.booking_room_id
+                         JOIN bookings b       ON b.booking_id = br.booking_id
+                         WHERE b.branch_id = $1 AND su.appointment_time = $2 AND su.used_at::date = $3::date`,
+                        [header.branch_id, s.appointment_time, s.date]
+                    );
+                    const currentBooked = Number(slotCountRes.rows[0]?.booked_count || 0);
+                    if (currentBooked + qty > 20) {
+                        return res.status(409).json({
+                            success: false,
+                            code: 'SPA_SLOT_CAPACITY_EXCEEDED',
+                            message: `The Spa slot at ${s.appointment_time} on ${s.date} has reached capacity (20 guests max per hour). Currently booked: ${currentBooked}. Please select an alternative time.`,
+                        });
+                    }
                 }
             }
 
@@ -171,14 +208,24 @@ router.post('/', async (req: Request, res: Response) => {
         await db.query('DELETE FROM room_holds WHERE room_id = ANY($1::varchar[])', [roomIds]).catch(() => {});
     }
 
-    // Process optional selected add-on services
+    // Process optional selected add-on services with scheduling details
     if (services.length > 0 && booking.rooms.length > 0) {
         for (const s of services) {
             const targetRoom = booking.rooms[s.room_index ?? 0] || booking.rooms[0];
+            const serviceDate = s.date || roomLines[0]?.check_in_date || new Date().toISOString().split('T')[0];
+            const usedAt = s.appointment_time ? `${serviceDate} ${s.appointment_time}:00` : `${serviceDate} 12:00:00`;
             await db.query(
-                `INSERT INTO service_usage (booking_room_id, service_id, quantity, price_at_usage, used_at)
-                 VALUES ($1, $2, $3, $4, CURRENT_TIMESTAMP)`,
-                [targetRoom.booking_room_id, s.service_id, s.quantity ?? 1, s.base_price]
+                `INSERT INTO service_usage (booking_room_id, service_id, quantity, price_at_usage, used_at, appointment_time, notes)
+                 VALUES ($1, $2, $3, $4, $5::timestamp, $6, $7)`,
+                [
+                    targetRoom.booking_room_id,
+                    s.service_id,
+                    s.quantity ?? 1,
+                    s.base_price,
+                    usedAt,
+                    s.appointment_time || null,
+                    s.notes || (s.appointment_time ? `Appointment: ${serviceDate} at ${s.appointment_time}` : null),
+                ]
             ).catch(err => console.warn('[Bookings] Failed to insert service usage:', err.message));
         }
     }
@@ -188,45 +235,49 @@ router.post('/', async (req: Request, res: Response) => {
         await db.query('SELECT sp_generate_final_bill($1::uuid)', [rm.booking_room_id]).catch(() => {});
     }
 
-    // Process partial/full payment guarantee
+    // Process partial/full payment guarantee safely
     let isConfirmed = false;
     if (payment && booking.rooms.length > 0) {
-        const primaryRoomId = booking.rooms[0].booking_room_id;
-        const invRes = await db.query<{ invoice_id: string }>(
-            'SELECT invoice_id FROM invoices WHERE booking_room_id = $1 LIMIT 1',
-            [primaryRoomId]
-        );
-        const invId = invRes.rows[0]?.invoice_id;
-        if (invId) {
-            await db.query(
-                `INSERT INTO payments (invoice_id, amount, payment_method, reference_number)
-                 VALUES ($1, $2, $3, $4)`,
-                [invId, payment.amount, payment.payment_method || 'CARD', payment.reference_number || `ONLINE-PAY-${Date.now()}`]
-            ).catch(err => console.warn('[Bookings] Failed to record payment:', err.message));
+        try {
+            const primaryRoomId = booking.rooms[0].booking_room_id;
+            const invRes = await db.query<{ invoice_id: string }>(
+                'SELECT invoice_id FROM invoices WHERE booking_room_id = $1 LIMIT 1',
+                [primaryRoomId]
+            );
+            const invId = invRes.rows[0]?.invoice_id;
+            if (invId) {
+                await db.query(
+                    `INSERT INTO payments (invoice_id, amount, payment_method, reference_number)
+                     VALUES ($1, $2, $3, $4)`,
+                    [invId, payment.amount, payment.payment_method || 'CARD', payment.reference_number || `ONLINE-PAY-${Date.now()}`]
+                ).catch(err => console.warn('[Bookings] Failed to record payment:', err.message));
 
-            // Instant status confirmation upon payment settlement
-            await db.query("UPDATE bookings SET status = 'CONFIRMED' WHERE booking_id = $1", [booking.booking_id]);
-            await db.query("UPDATE booking_rooms SET status = 'CONFIRMED' WHERE booking_id = $1", [booking.booking_id]);
-            isConfirmed = true;
+                // Instant status confirmation upon payment settlement
+                await db.query("UPDATE bookings SET status = 'CONFIRMED' WHERE booking_id = $1", [booking.booking_id]).catch(() => {});
+                await db.query("UPDATE booking_rooms SET status = 'CONFIRMED' WHERE booking_id = $1", [booking.booking_id]).catch(() => {});
+                isConfirmed = true;
 
-            // Trigger instant confirmation email
-            repo.findById(booking.booking_id).then((detail: any) => {
-                if (detail && detail.guest_email) {
-                    const room0 = detail.rooms[0];
-                    emailService.sendBookingConfirmationEmail({
-                        to: detail.guest_email,
-                        guestName: `${detail.guest_first_name || ''} ${detail.guest_last_name || ''}`.trim() || 'Valued Guest',
-                        branchName: detail.branch_name || 'Sky Nest Hotel',
-                        bookingRef: booking.booking_id,
-                        stayDates: room0 ? `${room0.check_in_date} to ${room0.check_out_date}` : 'Upcoming Stay',
-                        duration: `${detail.rooms.length} room(s)`,
-                        roomName: room0?.room_number ? `Room ${room0.room_number} (${room0.room_type_name || 'Standard'})` : (room0?.room_type_name || 'Standard Room'),
-                        roomRate: room0?.rate_at_booking ? `$${Number(room0.rate_at_booking).toFixed(2)} / night` : undefined,
-                        roomSubtotal: detail.total_amount ? `$${Number(detail.total_amount).toFixed(2)}` : undefined,
-                        grandTotal: detail.total_amount ? `$${Number(detail.total_amount).toFixed(2)}` : undefined,
-                    }).catch(err => console.warn('[Bookings] Payment confirmation email error:', err.message));
-                }
-            }).catch(err => console.warn('[Bookings] Failed to query detail for payment email:', err.message));
+                // Trigger instant confirmation email
+                repo.findById(booking.booking_id).then((detail: any) => {
+                    if (detail && detail.guest_email) {
+                        const room0 = detail.rooms[0];
+                        emailService.sendBookingConfirmationEmail({
+                            to: detail.guest_email,
+                            guestName: `${detail.guest_first_name || ''} ${detail.guest_last_name || ''}`.trim() || 'Valued Guest',
+                            branchName: detail.branch_name || 'Sky Nest Hotel',
+                            bookingRef: booking.booking_id,
+                            stayDates: room0 ? `${room0.check_in_date} to ${room0.check_out_date}` : 'Upcoming Stay',
+                            duration: `${detail.rooms.length} room(s)`,
+                            roomName: room0?.room_number ? `Room ${room0.room_number} (${room0.room_type_name || 'Standard'})` : (room0?.room_type_name || 'Standard Room'),
+                            roomRate: room0?.rate_at_booking ? `$${Number(room0.rate_at_booking).toFixed(2)} / night` : undefined,
+                            roomSubtotal: detail.total_amount ? `$${Number(detail.total_amount).toFixed(2)}` : undefined,
+                            grandTotal: detail.total_amount ? `$${Number(detail.total_amount).toFixed(2)}` : undefined,
+                        }).catch(err => console.warn('[Bookings] Payment confirmation email error:', err.message));
+                    }
+                }).catch(err => console.warn('[Bookings] Failed to query detail for payment email:', err.message));
+            }
+        } catch (paymentErr: any) {
+            console.warn('[Bookings] Payment settlement notice:', paymentErr.message);
         }
     }
 

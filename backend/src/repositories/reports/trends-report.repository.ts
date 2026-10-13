@@ -52,7 +52,7 @@ export class TrendsReportRepository {
         ROUND(SUM(su.quantity * su.price_at_usage), 2)::float AS total_revenue
       FROM service_usage su
       JOIN service_catalogue sc ON sc.service_id = su.service_id
-      LEFT JOIN booking_rooms bkr ON bkr.booking_room_id::text = su.booking_room_id
+      LEFT JOIN booking_rooms bkr ON (bkr.booking_room_id = su.booking_room_id OR bkr.booking_room_id::text = su.booking_room_id::text)
       LEFT JOIN rooms rm ON rm.id = bkr.room_id
       WHERE ($1::uuid IS NULL OR rm.branch_id = $1::uuid)
         AND ($2::date IS NULL OR su.used_at::date >= $2::date)
@@ -87,7 +87,7 @@ export class TrendsReportRepository {
         ROUND(SUM(bkr.rate_at_booking * GREATEST(1, bkr.check_out_date - bkr.check_in_date)), 2)::float AS total_tariff_revenue
       FROM booking_rooms bkr
       JOIN rooms rm ON rm.id = bkr.room_id
-      LEFT JOIN room_types rt ON rt.type_name = rm.type::text OR rt.room_type_id = bkr.room_type_id
+      LEFT JOIN room_types rt ON (rt.type_name = rm.type::text OR rt.room_type_id::text = to_jsonb(bkr)->>'room_type_id')
       WHERE ($1::uuid IS NULL OR rm.branch_id = $1::uuid)
         AND ($2::date IS NULL OR bkr.created_at::date >= $2::date)
         AND ($3::date IS NULL OR bkr.created_at::date <= $3::date)
