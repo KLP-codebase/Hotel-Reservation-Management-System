@@ -190,6 +190,14 @@ function BookServiceModal({
   const [submitting, setSubmitting] = useState<boolean>(false);
   const [spaSlots, setSpaSlots] = useState<{ time: string; is_available: boolean; available_count?: number }[]>([]);
 
+  // Prevent Lenis smooth scroll from intercepting trackpad wheel events while modal is open
+  useEffect(() => {
+    window.__lenis?.stop();
+    return () => {
+      window.__lenis?.start();
+    };
+  }, []);
+
   useEffect(() => {
     if (selectedService?.category === 'Wellness' && preferredDate && stay.branchId) {
       apiFetch<{ success: boolean; data: { time: string; is_available: boolean; available_count?: number }[] }>(
@@ -280,12 +288,20 @@ function BookServiceModal({
   const totalPrice = selectedService ? Number(selectedService.base_price) * quantity : 0;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-ink/80 backdrop-blur-sm animate-in fade-in duration-200">
-      <div className="bg-paper border border-skynest-hairline shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden text-ink">
+    <div
+      data-lenis-prevent
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-ink/80 backdrop-blur-sm animate-in fade-in duration-200"
+      onWheel={(e) => e.stopPropagation()}
+    >
+      <div
+        data-lenis-prevent
+        className="bg-paper border border-skynest-hairline shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden text-ink overscroll-contain"
+        onWheel={(e) => e.stopPropagation()}
+      >
         {/* Header */}
-        <div className="px-6 py-4 bg-white border-b border-skynest-hairline flex items-center justify-between">
+        <div className="px-6 py-4 bg-white border-b border-skynest-hairline flex items-center justify-between shrink-0">
           <div>
-            <div className="text-[10px] font-jakarta uppercase tracking-[0.16em] text-skynest-accent font-semibold">
+            <div className="text-[11px] font-jakarta uppercase tracking-[0.16em] text-skynest-accent font-semibold">
               Sanctuary Concierge &bull; {stay.branchName}
             </div>
             <h2 className="font-cinzel text-xl font-bold text-ink">
@@ -305,7 +321,12 @@ function BookServiceModal({
         </div>
 
         {/* Form Body */}
-        <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-6 space-y-6">
+        <form
+          data-lenis-prevent
+          onWheel={(e) => e.stopPropagation()}
+          onSubmit={handleSubmit}
+          className="flex-1 overflow-y-auto overscroll-contain p-6 space-y-6"
+        >
           {error && (
             <div className="p-3 bg-rose-50 border border-rose-200 text-xs font-jakarta text-rose-800">
               {error}
@@ -345,7 +366,11 @@ function BookServiceModal({
             ) : filteredCatalogue.length === 0 ? (
               <div className="py-6 text-center text-xs text-ink/60">No available services found.</div>
             ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 max-h-48 overflow-y-auto pr-1">
+              <div
+                data-lenis-prevent
+                onWheel={(e) => e.stopPropagation()}
+                className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 max-h-48 overflow-y-auto overscroll-contain pr-1"
+              >
                 {filteredCatalogue.map((item) => {
                   const isSelected = selectedService?.service_id === item.service_id;
                   return (
@@ -473,7 +498,7 @@ function BookServiceModal({
               </div>
             </div>
             <div className="text-right">
-              <div className="font-cinzel text-lg font-bold text-skynest-accent">
+              <div className="font-cinzel text-lg font-bold text-skynest-accent tabular-nums">
                 ${totalPrice.toLocaleString(undefined, { minimumFractionDigits: 2 })}
               </div>
               <div className="text-[9px] font-jakarta text-ink/50">Billed to Room {stay.roomNumber}</div>
@@ -736,8 +761,8 @@ export default function GuestActivityPage() {
                     Rewards Balance
                   </span>
                   <div className="mt-3">
-                    <div className="font-cinzel text-3xl font-bold text-skynest-accent">
-                      {data.stats.totalPoints.toLocaleString()} <span className="text-sm font-sans font-normal text-ink/60">PTS</span>
+                    <div className="font-cinzel text-3xl font-bold text-skynest-accent tabular-nums flex items-baseline gap-1.5">
+                      {data.stats.totalPoints.toLocaleString()} <span className="font-jakarta text-xs font-normal text-skynest-accent">PTS</span>
                     </div>
                     <div className="text-[11px] font-jakarta text-ink/60 mt-0.5">1 pt per $10 settled</div>
                   </div>
@@ -874,7 +899,7 @@ export default function GuestActivityPage() {
                         <div className="flex items-center gap-4 text-xs font-jakarta">
                           <div className="bg-white border border-skynest-hairline px-3 py-1.5">
                             <span className="text-ink/60 mr-1.5">Points:</span>
-                            <span className="font-semibold text-skynest-accent">+{group.subtotalPoints} PTS</span>
+                            <span className="font-cinzel text-sm sm:text-base font-bold text-skynest-accent tabular-nums">+{group.subtotalPoints} <span className="font-jakarta text-xs font-normal text-skynest-accent">PTS</span></span>
                           </div>
                           <div className="bg-white border border-skynest-hairline px-3 py-1.5">
                             <span className="text-ink/60 mr-1.5">Spend:</span>
@@ -972,7 +997,7 @@ function StayCard({
               {isCompleted ? 'COMPLETED' : stay.status}
             </span>
             {stay.services && stay.services.length > 0 && (
-              <span className="text-[9px] uppercase tracking-[0.16em] font-semibold px-2 py-0.5 border border-skynest-accent/30 bg-skynest-accent/10 text-skynest-accent flex items-center gap-1">
+              <span className="font-jakarta text-[9px] uppercase tracking-[0.16em] font-semibold px-2 py-0.5 border border-skynest-accent/30 bg-skynest-accent/10 text-skynest-accent flex items-center gap-1">
                 <Sparkles className="w-3 h-3 text-skynest-accent" />
                 {stay.services.length} {stay.services.length === 1 ? 'Service Booked' : 'Services Booked'}
               </span>
@@ -1004,12 +1029,13 @@ function StayCard({
           </div>
 
           <div className="text-right border-l border-skynest-hairline pl-5">
-            <div className="font-jakarta text-[11px] text-skynest-accent uppercase tracking-wider font-semibold">
+            <div className="font-jakarta text-[11px] text-skynest-accent uppercase tracking-[0.14em] font-semibold">
               Rewards Earned
             </div>
-            <div className="font-cinzel text-base sm:text-lg font-bold text-skynest-accent flex items-center justify-end gap-1">
-              <Award className="w-4 h-4" />
-              +{stay.loyaltyPoints} PTS
+            <div className="font-cinzel text-base sm:text-lg font-bold text-skynest-accent tabular-nums flex items-center justify-end gap-1.5">
+              <Award className="w-4 h-4 text-skynest-accent" />
+              <span>+{stay.loyaltyPoints}</span>
+              <span className="font-jakarta text-xs font-normal text-skynest-accent">PTS</span>
             </div>
           </div>
         </div>

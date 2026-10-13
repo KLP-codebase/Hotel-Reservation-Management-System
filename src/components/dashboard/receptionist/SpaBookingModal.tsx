@@ -148,8 +148,16 @@ export function SpaBookingModal({ isOpen, onClose, booking, onOrderPlaced }: Spa
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-ink/60 backdrop-blur-sm animate-in fade-in duration-200">
-      <div className="bg-paper border border-skynest-hairline rounded-[4px] shadow-2xl w-full max-w-4xl max-h-[92vh] flex flex-col overflow-hidden">
+    <div
+      data-lenis-prevent
+      onWheel={(e) => e.stopPropagation()}
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-ink/60 backdrop-blur-sm animate-in fade-in duration-200"
+    >
+      <div
+        data-lenis-prevent
+        onWheel={(e) => e.stopPropagation()}
+        className="bg-paper border border-skynest-hairline rounded-[4px] shadow-2xl w-full max-w-4xl max-h-[92vh] flex flex-col overflow-hidden overscroll-contain"
+      >
         {/* Header */}
         <div className="px-6 py-5 border-b border-skynest-hairline bg-paper flex items-center justify-between shrink-0">
           <div>
@@ -176,7 +184,11 @@ export function SpaBookingModal({ isOpen, onClose, booking, onOrderPlaced }: Spa
         {/* Content Body: Treatment Picker + Schedule Matrix */}
         <div className="flex-1 overflow-hidden grid grid-cols-1 lg:grid-cols-12 divide-y lg:divide-y-0 lg:divide-x divide-skynest-hairline">
           {/* Left: Treatments Catalogue (5 cols) */}
-          <div className="lg:col-span-5 overflow-y-auto p-6 space-y-3">
+          <div
+            data-lenis-prevent
+            onWheel={(e) => e.stopPropagation()}
+            className="lg:col-span-5 overflow-y-auto overscroll-contain p-6 space-y-3"
+          >
             <h4 className="font-cinzel text-xs font-bold text-ink uppercase tracking-wider mb-2">
               1. Select Wellness Ritual
             </h4>
@@ -227,7 +239,11 @@ export function SpaBookingModal({ isOpen, onClose, booking, onOrderPlaced }: Spa
           </div>
 
           {/* Right: Date & Time Slot Collision Matrix (7 cols) */}
-          <div className="lg:col-span-7 overflow-y-auto p-6 flex flex-col justify-between space-y-6">
+          <div
+            data-lenis-prevent
+            onWheel={(e) => e.stopPropagation()}
+            className="lg:col-span-7 overflow-y-auto overscroll-contain p-6 flex flex-col justify-between space-y-6"
+          >
             <div>
               {/* Date Selector */}
               <div>
