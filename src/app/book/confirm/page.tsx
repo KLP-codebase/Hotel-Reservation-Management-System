@@ -277,9 +277,26 @@ function BookingConfirmContent() {
   const contentRef = useRef<HTMLDivElement>(null);
   const [isDownloading, setIsDownloading] = useState(false);
   const [downloadSuccessMessage, setDownloadSuccessMessage] = useState<string | null>(null);
+  const isBookingCompletedRef = useRef(false);
 
   // Animation Ref
   const containerRef = useRef<HTMLDivElement>(null);
+
+  // Cleanup holds on page unmount if booking was not completed
+  useEffect(() => {
+    return () => {
+      if (!isBookingCompletedRef.current && typeof window !== 'undefined') {
+        const sessId = localStorage.getItem('sn_booking_session') || '';
+        if (sessId) {
+          const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000';
+          fetch(`${apiUrl}/api/v1/availability/hold-rooms?session_id=${encodeURIComponent(sessId)}`, {
+            method: 'DELETE',
+            keepalive: true,
+          }).catch(() => {});
+        }
+      }
+    };
+  }, []);
 
 
   // Fetch catalogue services for branch (with fallback)
@@ -614,12 +631,24 @@ function BookingConfirmContent() {
             To prevent double bookings, rooms are held when a guest proceeds to confirmation. Please return to room selection to choose an alternate room or dates.
           </p>
           <div className="pt-3">
-            <Link
-              href="/book"
-              className="inline-block w-full py-3 rounded-none font-jakarta font-semibold text-xs tracking-wider uppercase border border-ink bg-ink text-paper hover:bg-skynest-accent hover:border-skynest-accent transition-all duration-200"
+            <button
+              type="button"
+              onClick={() => {
+                if (typeof window !== 'undefined') {
+                  const sessId = localStorage.getItem('sn_booking_session') || '';
+                  if (sessId) {
+                    const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000';
+                    fetch(`${apiUrl}/api/v1/availability/hold-rooms?session_id=${encodeURIComponent(sessId)}`, {
+                      method: 'DELETE',
+                    }).catch(() => {});
+                  }
+                }
+                router.push('/book');
+              }}
+              className="inline-block w-full py-3 rounded-none font-jakarta font-semibold text-xs tracking-wider uppercase border border-ink bg-ink text-paper hover:bg-skynest-accent hover:border-skynest-accent transition-all duration-200 cursor-pointer"
             >
               Return to Room Selection
-            </Link>
+            </button>
           </div>
         </div>
       </div>
@@ -721,8 +750,11 @@ function BookingConfirmContent() {
           rooms: payloadRooms,
           services: payloadServices.length > 0 ? payloadServices : undefined,
           payment: payloadPayment,
+          session_id: typeof window !== 'undefined' ? localStorage.getItem('sn_booking_session') || undefined : undefined,
         }),
       });
+
+      isBookingCompletedRef.current = true;
 
       // 3. Mark as confirmed
       const summaryRoomTypes = Array.from(new Set(rooms.map(r => r.roomTypeName))).join(' & ');
