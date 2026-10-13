@@ -1,3 +1,4 @@
+import { emailService } from '../services/email.service';
 import { Router, Request, Response } from 'express';
 import { PoolClient } from 'pg';
 import { z } from 'zod';
@@ -11,6 +12,25 @@ import { isUuid } from '../lib/uuid';
 
 const router = Router();
 const serviceRepo = new ServiceRepository(db);
+
+/**
+ * GET /api/v1/services/catalogue
+ * Returns all catalogue services with branch join and optional filtering.
+ */
+router.get('/catalogue', async (req: Request, res: Response) => {
+  const branchId = typeof req.query.branch_id === 'string' && req.query.branch_id !== 'ALL' && req.query.branch_id.trim() !== ''
+    ? req.query.branch_id
+    : undefined;
+  const category = typeof req.query.category === 'string' && req.query.category !== 'ALL' && req.query.category.trim() !== ''
+    ? req.query.category
+    : undefined;
+  const isActive = typeof req.query.is_active === 'string'
+    ? req.query.is_active === 'true'
+    : undefined;
+
+  const services = await serviceRepo.findAllCatalogue({ branch_id: branchId, category, is_active: isActive });
+  res.json({ success: true, data: services });
+});
 
 // RBAC: Authenticated users (staff and guests) can access services
 router.use(authenticate);
@@ -49,24 +69,7 @@ const UpdateCatalogueSchema = z.object({
   is_active:    z.boolean().optional(),
 });
 
-/**
- * GET /api/v1/services/catalogue
- * Returns all catalogue services with branch join and optional filtering.
- */
-router.get('/catalogue', async (req: Request, res: Response) => {
-  const branchId = typeof req.query.branch_id === 'string' && req.query.branch_id !== 'ALL' && req.query.branch_id.trim() !== ''
-    ? req.query.branch_id
-    : undefined;
-  const category = typeof req.query.category === 'string' && req.query.category !== 'ALL' && req.query.category.trim() !== ''
-    ? req.query.category
-    : undefined;
-  const isActive = typeof req.query.is_active === 'string'
-    ? req.query.is_active === 'true'
-    : undefined;
 
-  const services = await serviceRepo.findAllCatalogue({ branch_id: branchId, category, is_active: isActive });
-  res.json({ success: true, data: services });
-});
 
 /**
  * POST /api/v1/services/catalogue
@@ -387,7 +390,7 @@ router.get('/folio/:bookingId', async (req: Request, res: Response) => {
 // that already exists; sp_generate_final_bill creates one at check-out anyway.
 async function refreshRoomInvoice(client: PoolClient, bookingRoomId: string): Promise<void> {
   await client.query(
-    `SELECT sp_generate_final_bill(booking_room_id) FROM invoices WHERE booking_room_id = $1`,
+    `SELECT sp_generate_final_bill($1::uuid)`,
     [bookingRoomId]
   );
 }
@@ -495,6 +498,57 @@ router.post('/folio/:bookingId', async (req: Request, res: Response) => {
 
     // 5. Keep the room's invoice total in step (same transaction)
     await refreshRoomInvoice(client, line.booking_room_id);
+
+    // Look up guest and invoice snapshot for email notification
+    const guestInvoiceInfo = await client.query<{
+      email: string | null;
+      first_name: string | null;
+      last_name: string | null;
+      branch_name: string;
+      booking_id: string;
+      room_charges: string;
+      service_charges: string;
+      service_charge_tax: string;
+      tdl_amount: string;
+      ssc_amount: string;
+      vat_amount: string;
+      total_amount: string;
+    }>(
+      `SELECT g.email, g.first_name, g.last_name, br.branch_name, b.booking_id,
+              i.room_charges, i.service_charges, i.service_charge_tax,
+              i.tdl_amount, i.ssc_amount, i.vat_amount, i.total_amount
+       FROM booking_rooms bkr
+       JOIN bookings b ON b.booking_id = bkr.booking_id
+       JOIN branches br ON br.branch_id = b.branch_id
+       LEFT JOIN guests g ON (g.id = b.booked_by_guest_id OR g.guest_id::text = b.booked_by_guest_id)
+       LEFT JOIN invoices i ON i.booking_room_id = bkr.booking_room_id
+       WHERE bkr.booking_room_id = $1`,
+      [line.booking_room_id]
+    );
+
+    const info = guestInvoiceInfo.rows[0];
+    if (info && info.email) {
+      const taxSum = (
+        Number(info.service_charge_tax || 0) +
+        Number(info.tdl_amount || 0) +
+        Number(info.ssc_amount || 0) +
+        Number(info.vat_amount || 0)
+      ).toFixed(2);
+
+      emailService.sendInvoiceUpdateEmail({
+        to: info.email,
+        guestName: `${info.first_name || 'Valued'} ${info.last_name || 'Guest'}`.trim(),
+        branchName: info.branch_name,
+        bookingRef: info.booking_id,
+        addedService: input.service_name,
+        serviceCategory: input.category || 'Ancillary Service',
+        serviceCost: `$${(Number(input.price_at_usage) * input.quantity).toFixed(2)}`,
+        roomCharges: `$${Number(info.room_charges || 0).toFixed(2)}`,
+        serviceCharges: `$${Number(info.service_charges || 0).toFixed(2)}`,
+        taxTotal: `$${taxSum}`,
+        grandTotal: `$${Number(info.total_amount || 0).toFixed(2)}`,
+      }).catch(err => console.warn('[Services] Failed to dispatch invoice update email:', err.message));
+    }
 
     return { usage: usageRes.rows[0], line };
   });

@@ -2,7 +2,7 @@
 
 import React from 'react';
 import Link from 'next/link';
-import { ArrowLeft, ChevronRight } from 'lucide-react';
+import { ArrowLeft, ChevronRight, Plus, X, Utensils, Sparkles } from 'lucide-react';
 import { apiFetch, ApiError, toNum } from '@/lib/api-client';
 import { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
@@ -31,6 +31,27 @@ interface BookingRoom {
   nights: number;
   rate_at_booking: number;
   accompanying_guests: AccompanyingGuest[];
+}
+
+
+interface FolioService {
+  usage_id: string;
+  booking_room_id: string;
+  service_name: string;
+  category: string;
+  quantity: number;
+  price_at_usage: number;
+  total_price: number;
+  used_at: string;
+  notes: string | null;
+}
+
+interface CatalogueItem {
+  service_id: number;
+  service_name: string;
+  category: string;
+  base_price: number;
+  is_active: boolean;
 }
 
 interface BookingDetail {
@@ -78,6 +99,33 @@ export default function BookingDetailPage() {
   const [loading, setLoading]             = useState(true);
   const [error, setError]                 = useState<string | null>(null);
   const [actionLoading, setActionLoading] = useState(false);
+  const [folioServices, setFolioServices] = useState<FolioService[]>([]);
+  const [catalogue, setCatalogue]         = useState<CatalogueItem[]>([]);
+  const [showAddModal, setShowAddModal]   = useState(false);
+  const [selectedServiceId, setSelectedServiceId] = useState<number | ''>('');
+  const [serviceQty, setServiceQty]       = useState(1);
+  const [serviceNotes, setServiceNotes]   = useState('');
+  const [targetRoomId, setTargetRoomId]   = useState('');
+  const [serviceSubmitting, setServiceSubmitting] = useState(false);
+
+  const fetchFolioServices = async () => {
+    try {
+      const res = await apiFetch<{ data: FolioService[] }>(`/api/v1/services/folio/${id}`);
+      setFolioServices(res.data ?? []);
+    } catch {
+      // ignore
+    }
+  };
+
+  const fetchCatalogue = async () => {
+    try {
+      const res = await apiFetch<{ data: CatalogueItem[] }>('/api/v1/services/catalogue?is_active=true');
+      setCatalogue(res.data ?? []);
+    } catch {
+      // ignore
+    }
+  };
+
 
 
    const fetchBooking = async () => {
@@ -100,8 +148,48 @@ export default function BookingDetailPage() {
 
    useEffect(() => {
     fetchBooking();
+    fetchFolioServices();
+    fetchCatalogue();
   }, [id]);
 
+
+
+  const handleAddService = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedServiceId) {
+      flash('error', 'Please select a service from the catalogue.');
+      return;
+    }
+    const item = catalogue.find(c => c.service_id === Number(selectedServiceId));
+    if (!item) return;
+
+    setServiceSubmitting(true);
+    try {
+      const chosenRoomId = targetRoomId || booking?.rooms[0]?.booking_room_id;
+      await apiFetch(`/api/v1/services/folio/${id}`, {
+        method: 'POST',
+        body: JSON.stringify({
+          booking_room_id: chosenRoomId,
+          service_name: item.service_name,
+          category: item.category,
+          price_at_usage: item.base_price,
+          quantity: serviceQty,
+          notes: serviceNotes.trim() || undefined,
+        }),
+      });
+      flash('success', `${item.service_name} added to stay folio & updated invoice emailed to guest.`);
+      setShowAddModal(false);
+      setSelectedServiceId('');
+      setServiceQty(1);
+      setServiceNotes('');
+      await Promise.all([fetchBooking(), fetchFolioServices()]);
+    } catch (err) {
+      const msg = err instanceof ApiError ? err.message : 'Failed to add service.';
+      flash('error', msg);
+    } finally {
+      setServiceSubmitting(false);
+    }
+  };
 
   const handleStatusChange = async (newStatus: string) => {
     setActionLoading(true);
@@ -225,6 +313,78 @@ export default function BookingDetailPage() {
             )}
           </section>
 
+          {/* ── SECTION: Billable Folio Services (Rules B9 & B10) ───────────── */}
+          <section className="space-y-6 pt-6 border-t border-skynest-hairline">
+            <div className="flex items-center justify-between pb-4 border-b border-skynest-hairline">
+              <div>
+                <p className="font-jakarta text-[11px] font-medium tracking-[0.16em] uppercase text-ink/70">
+                  Guest Folio Services ({folioServices.length})
+                </p>
+                <p className="font-jakarta text-[12px] text-ink/50 mt-0.5">
+                  Ancillary dining, wellness & housekeeping charges billed to this stay.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  if (booking?.rooms && booking.rooms.length > 0) {
+                    setTargetRoomId(booking.rooms[0].booking_room_id);
+                  }
+                  setShowAddModal(true);
+                }}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-[4px] bg-ink text-white font-jakarta text-[11px] font-medium tracking-[0.08em] uppercase hover:bg-skynest-accent transition-colors duration-200"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                Add Service
+              </button>
+            </div>
+
+            {folioServices.length === 0 ? (
+              <div className="p-8 border border-dashed border-skynest-hairline text-center bg-[#FDFCFA]">
+                <Sparkles className="w-6 h-6 text-ink/30 mx-auto mb-2" />
+                <p className="font-jakarta text-[13px] text-ink/60">No additional services logged for this reservation yet.</p>
+                <p className="font-jakarta text-[11px] text-ink/40 mt-1">Use the button above to add in-room dining, spa, or transport.</p>
+              </div>
+            ) : (
+              <div className="border border-skynest-hairline overflow-hidden">
+                <table className="w-full text-left font-jakarta text-[13px]">
+                  <thead className="bg-[#F8F6F2] border-b border-skynest-hairline text-[10px] uppercase font-bold tracking-wider text-ink/60">
+                    <tr>
+                      <th className="py-2.5 px-4">Service Item</th>
+                      <th className="py-2.5 px-4">Category</th>
+                      <th className="py-2.5 px-4 text-center">Qty</th>
+                      <th className="py-2.5 px-4 text-right">Frozen Rate</th>
+                      <th className="py-2.5 px-4 text-right">Subtotal</th>
+                      <th className="py-2.5 px-4 text-right">Logged At</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-skynest-hairline bg-white">
+                    {folioServices.map((s) => (
+                      <tr key={s.usage_id} className="hover:bg-[#FDFCFA] transition-colors">
+                        <td className="py-3 px-4 font-medium text-ink">
+                          {s.service_name}
+                          {s.notes && <p className="text-[11px] text-ink/50 font-normal">{s.notes}</p>}
+                        </td>
+                        <td className="py-3 px-4 text-ink/70">
+                          <span className="inline-block px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider rounded bg-stone-100 text-stone-700">
+                            {s.category}
+                          </span>
+                        </td>
+                        <td className="py-3 px-4 text-center tabular-nums text-ink">{s.quantity}</td>
+                        <td className="py-3 px-4 text-right tabular-nums text-ink/70">{fmtMoney(toNum(s.price_at_usage))}</td>
+                        <td className="py-3 px-4 text-right tabular-nums font-semibold text-ink">{fmtMoney(toNum(s.total_price))}</td>
+                        <td className="py-3 px-4 text-right text-[11px] text-ink/50 tabular-nums">
+                          {new Date(s.used_at).toLocaleDateString()}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </section>
+
+
           {/* ── Sidebar ─────────────────────────────────────────────────── */}
           <aside className="space-y-12">
             <div className="space-y-6">
@@ -271,6 +431,134 @@ export default function BookingDetailPage() {
             )}
           </aside>
         </div>
+
+      {/* ── Add Service Modal (Receptionist Log to Folio) ─────────────────── */}
+      {showAddModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-fade-in">
+          <div className="w-full max-w-lg bg-white border border-skynest-hairline shadow-2xl p-6 md:p-8 space-y-6">
+            <div className="flex items-center justify-between pb-3 border-b border-skynest-hairline">
+              <div className="flex items-center gap-2">
+                <Utensils className="w-4 h-4 text-skynest-accent" />
+                <h3 className="font-cinzel text-[16px] font-bold text-ink uppercase tracking-wider">
+                  Log Service Charge to Folio
+                </h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowAddModal(false)}
+                className="text-ink/40 hover:text-ink transition-colors p-1"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <form onSubmit={handleAddService} className="space-y-4 font-jakarta text-[13px]">
+              <div>
+                <label className="block text-[11px] font-semibold uppercase tracking-wider text-ink/70 mb-1.5">
+                  Select Catalogue Service *
+                </label>
+                <select
+                  value={selectedServiceId}
+                  onChange={(e) => setSelectedServiceId(e.target.value ? Number(e.target.value) : '')}
+                  required
+                  className="w-full px-3 py-2 border border-skynest-hairline bg-white text-ink text-[13px] rounded-[4px] focus:outline-none focus:border-skynest-accent"
+                >
+                  <option value="">-- Choose from active catalogue --</option>
+                  {catalogue.map((c) => (
+                    <option key={c.service_id} value={c.service_id}>
+                      {c.service_name} ({c.category}) — ${Number(c.base_price).toFixed(2)}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {booking.rooms && booking.rooms.length > 1 && (
+                <div>
+                  <label className="block text-[11px] font-semibold uppercase tracking-wider text-ink/70 mb-1.5">
+                    Assign to Room *
+                  </label>
+                  <select
+                    value={targetRoomId}
+                    onChange={(e) => setTargetRoomId(e.target.value)}
+                    required
+                    className="w-full px-3 py-2 border border-skynest-hairline bg-white text-ink text-[13px] rounded-[4px] focus:outline-none focus:border-skynest-accent"
+                  >
+                    {booking.rooms.map((r) => (
+                      <option key={r.booking_room_id} value={r.booking_room_id}>
+                        Room {r.room_number ?? 'Unassigned'} ({r.room_type_name})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-[11px] font-semibold uppercase tracking-wider text-ink/70 mb-1.5">
+                    Quantity *
+                  </label>
+                  <input
+                    type="number"
+                    min="1"
+                    max="50"
+                    value={serviceQty}
+                    onChange={(e) => setServiceQty(Math.max(1, parseInt(e.target.value) || 1))}
+                    required
+                    className="w-full px-3 py-2 border border-skynest-hairline bg-white text-ink text-[13px] rounded-[4px] focus:outline-none focus:border-skynest-accent"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[11px] font-semibold uppercase tracking-wider text-ink/70 mb-1.5">
+                    Estimated Subtotal
+                  </label>
+                  <div className="px-3 py-2 bg-[#F8F6F2] border border-skynest-hairline font-semibold text-ink text-[13px] rounded-[4px]">
+                    {(() => {
+                      const item = catalogue.find(c => c.service_id === Number(selectedServiceId));
+                      const total = item ? item.base_price * serviceQty : 0;
+                      return fmtMoney(total);
+                    })()}
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-semibold uppercase tracking-wider text-ink/70 mb-1.5">
+                  Guest Notes / Special Requests (Optional)
+                </label>
+                <input
+                  type="text"
+                  placeholder="e.g. In-room dining delivered at 8:00 PM"
+                  value={serviceNotes}
+                  onChange={(e) => setServiceNotes(e.target.value)}
+                  className="w-full px-3 py-2 border border-skynest-hairline bg-white text-ink text-[13px] rounded-[4px] focus:outline-none focus:border-skynest-accent"
+                />
+              </div>
+
+              <div className="p-3 bg-amber-50/60 border border-amber-200/80 rounded-[4px] text-[11px] text-amber-900 leading-relaxed">
+                <strong>Notice:</strong> Charging this service permanently freezes unit rate (Rule B10) on the room folio, recalculates the Sri Lankan 4-tier statutory tax cascade, and dispatches an updated folio statement email to the guest.
+              </div>
+
+              <div className="flex items-center justify-end gap-3 pt-3 border-t border-skynest-hairline">
+                <button
+                  type="button"
+                  onClick={() => setShowAddModal(false)}
+                  className="px-4 py-2 border border-skynest-hairline font-jakarta text-[11px] font-medium uppercase tracking-wider text-ink/70 hover:bg-stone-50 transition-colors rounded-[4px]"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={serviceSubmitting}
+                  className="px-5 py-2 bg-ink text-white hover:bg-skynest-accent transition-colors font-jakarta text-[11px] font-semibold uppercase tracking-wider rounded-[4px] disabled:opacity-50"
+                >
+                  {serviceSubmitting ? 'Charging & Notifying...' : 'Charge to Folio & Email Guest'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
       </main>
     </>
   );
