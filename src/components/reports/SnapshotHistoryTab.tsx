@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { apiFetch } from '@/lib/api-client';
-import { Database, Calendar, Eye, RefreshCw, X } from 'lucide-react';
+import { Eye, RefreshCw, X } from 'lucide-react';
 
 interface SnapshotRecord {
   snapshot_id: string;
@@ -11,7 +11,7 @@ interface SnapshotRecord {
   report_period_end: string;
   branch_id: string | null;
   branch_name: string | null;
-  report_data: any;
+  report_data: Record<string, unknown>;
   generated_at: string;
 }
 
@@ -35,7 +35,22 @@ export function SnapshotHistoryTab() {
   };
 
   useEffect(() => {
-    fetchSnapshots();
+    let active = true;
+    (async () => {
+      try {
+        const res = await apiFetch<{ success: boolean; data: SnapshotRecord[] }>("/api/v1/reports/snapshots");
+        if (active && res?.data) {
+          setSnapshots(res.data);
+        }
+      } catch {
+        // ignore
+      } finally {
+        if (active) setLoading(false);
+      }
+    })();
+    return () => {
+      active = false;
+    };
   }, []);
 
   return (

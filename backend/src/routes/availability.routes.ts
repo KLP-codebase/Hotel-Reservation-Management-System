@@ -100,12 +100,27 @@ router.post("/hold-rooms", async (req: Request, res: Response) => {
 
 // DELETE /api/v1/availability/hold-rooms — Release hold
 router.delete("/hold-rooms", async (req: Request, res: Response) => {
-  const { room_ids, session_id } = req.body;
-  if (session_id) {
-    if (Array.isArray(room_ids) && room_ids.length > 0) {
-      await holdRepo.releaseHold(room_ids, session_id);
+  const sessionId = req.body?.session_id || (req.query?.session_id as string);
+  const roomIds = req.body?.room_ids || (req.query?.room_ids ? (req.query.room_ids as string).split(',') : undefined);
+  if (sessionId) {
+    if (Array.isArray(roomIds) && roomIds.length > 0) {
+      await holdRepo.releaseHold(roomIds, sessionId);
     } else {
-      await holdRepo.releaseSession(session_id);
+      await holdRepo.releaseSession(sessionId);
+    }
+  }
+  res.json({ success: true, message: "Room holds released" });
+});
+
+// POST /api/v1/availability/release-rooms — Convenience endpoint for sendBeacon / keepalive
+router.post("/release-rooms", async (req: Request, res: Response) => {
+  const sessionId = req.body?.session_id || (req.query?.session_id as string);
+  const roomIds = req.body?.room_ids || (req.query?.room_ids ? (req.query.room_ids as string).split(',') : undefined);
+  if (sessionId) {
+    if (Array.isArray(roomIds) && roomIds.length > 0) {
+      await holdRepo.releaseHold(roomIds, sessionId);
+    } else {
+      await holdRepo.releaseSession(sessionId);
     }
   }
   res.json({ success: true, message: "Room holds released" });

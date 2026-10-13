@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import Link from "next/link";
-import { MessageSquare, X, Send, RotateCcw } from "lucide-react";
+import { X, Send, RotateCcw } from "lucide-react";
 import { apiFetch } from "@/lib/api-client";
 
 interface Message {
@@ -62,7 +62,7 @@ export function SkyNestConcierge() {
         }
     }, [messages, isOpen, isLoading]);
 
-    const handleSend = async (textToSend?: string) => {
+    const handleSend = useCallback(async (textToSend?: string) => {
         const prompt = (textToSend ?? input).trim();
         if (!prompt || isLoading) return;
 
@@ -104,13 +104,13 @@ export function SkyNestConcierge() {
                 {
                     id: nextMessageId(),
                     role: "model",
-                    text: "I apologize, but our concierge desk is momentarily delayed. Please feel free to explore our booking page (/book) or try again shortly.",
+                    text: "I apologize, but our concierge desk is momentarily delayed. Please feel free to explore our booking page or try again shortly.",
                 },
             ]);
         } finally {
             setIsLoading(false);
         }
-    };
+    }, [input, isLoading, messages]);
 
     const handleReset = () => {
         setMessages([
@@ -247,8 +247,8 @@ export function SkyNestConcierge() {
                                 </span>
                                 <div
                                     className={`px-4 py-3 text-[13px] leading-[1.75] font-jakarta ${m.role === "user"
-                                            ? "bg-ink text-white rounded-none max-w-[85%] shadow-sm"
-                                            : "bg-white border border-skynest-hairline text-ink rounded-none max-w-[90%] shadow-sm"
+                                        ? "bg-ink text-white rounded-none max-w-[85%] shadow-sm"
+                                        : "bg-white border border-skynest-hairline text-ink rounded-none max-w-[90%] shadow-sm"
                                         }`}
                                 >
                                     {renderFormattedText(m.text)}

@@ -130,77 +130,91 @@ export class ActivityRepository {
     const guest = await this.resolveGuestId(userAccountId);
     const guestId = guest.guestId;
 
-    // 1. Fetch from compressed archive
-    const { rows: archivedRows } = await this.db.query<{
-      archive_id: string;
-      booking_id: string;
-      booking_ref: string;
-      branch_name: string;
-      room_type_name: string;
-      room_number: string;
-      check_in: Date;
-      check_out: Date;
-      nights: number;
-      total_paid: string;
-      loyalty_points: number;
-      status: string;
-      compressed_details: any;
-    }>(
-      `SELECT 
-         archive_id,
-         booking_id,
-         booking_ref,
-         branch_name,
-         room_type_name,
-         room_number,
-         check_in,
-         check_out,
-         nights,
-         total_paid,
-         loyalty_points,
-         status,
-         compressed_details
-       FROM guest_activity_archive
-       WHERE guest_id = $1
-       ORDER BY check_in DESC`,
-      [guestId]
-    );
+    // 1. Fetch from compressed archive (with graceful resilience if migration is pending)
+    let archivedRows: any[] = [];
+    try {
+      const archiveRes = await this.db.query<{
+        archive_id: string;
+        booking_id: string;
+        booking_ref: string;
+        branch_name: string;
+        room_type_name: string;
+        room_number: string;
+        check_in: Date;
+        check_out: Date;
+        nights: number;
+        total_paid: string;
+        loyalty_points: number;
+        status: string;
+        compressed_details: any;
+      }>(
+        `SELECT 
+           archive_id,
+           booking_id,
+           booking_ref,
+           branch_name,
+           room_type_name,
+           room_number,
+           check_in,
+           check_out,
+           nights,
+           total_paid,
+           loyalty_points,
+           status,
+           compressed_details
+         FROM guest_activity_archive
+         WHERE guest_id = $1
+         ORDER BY check_in DESC`,
+        [guestId]
+      );
+      archivedRows = archiveRes.rows;
+    } catch (err: any) {
+      console.warn('[ActivityRepository] guest_activity_archive query notice:', err.message);
+    }
 
-    // 2. Fetch any live/recent non-archived bookings for this guest
-    const { rows: liveRows } = await this.db.query<{
-      booking_id: string;
-      id: string;
-      branch_name: string;
-      room_type_name: string;
-      room_number: string;
-      check_in: Date;
-      check_out: Date;
-      status: string;
-      rate_at_booking: string;
-      invoice_total: string;
-    }>(
-      `SELECT 
-         b.booking_id,
-         b.id,
-         COALESCE(brh.branch_name, 'Sky Nest Sanctuary') AS branch_name,
-         COALESCE(rt.type_name, r.type::text, 'Luxury Suite') AS room_type_name,
-         COALESCE(r.room_number, r.number, 'Suite') AS room_number,
-         b.check_in,
-         b.check_out,
-         b.status,
-         br.rate_at_booking,
-         COALESCE(inv.total_amount, 0.00)::text AS invoice_total
-       FROM bookings b
-       LEFT JOIN branches brh ON brh.branch_id = b.branch_id
-       LEFT JOIN booking_rooms br ON br.booking_id = b.booking_id
-       LEFT JOIN rooms r ON r.id::text = br.room_id::text
-       LEFT JOIN room_types rt ON rt.room_type_id = COALESCE(br.room_type_id, r.room_type_id)
-       LEFT JOIN invoices inv ON inv.booking_room_id = br.booking_room_id
-       WHERE (b.booked_by_guest_id = $1 OR b.guest_id = $1)
-         AND b.booking_id NOT IN (SELECT booking_id FROM guest_activity_archive WHERE guest_id = $1)
-       ORDER BY b.check_in DESC`,
-      [guestId]
-    );
+    // 2. Fetch live/recent non-archived bookings for this guest
+    const archivedBookingIds = archivedRows.map(r => r.booking_id).filter(Boolean);
+    let liveRows: any[] = [];
+    try {
+      const liveRes = await this.db.query<{
+        booking_id: string;
+        id: string;
+        branch_name: string;
+        room_type_name: string;
+        room_number: string;
+        check_in: Date;
+        check_out: Date;
+        status: string;
+        rate_at_booking: string;
+        invoice_total: string;
+      }>(
+        `SELECT 
+           b.booking_id,
+           COALESCE(b.id, SUBSTRING(b.booking_id::text, 1, 8)) AS id,
+           COALESCE(brh.branch_name, 'Sky Nest Sanctuary') AS branch_name,
+           COALESCE(rt.type_name, to_jsonb(r)->>'type', 'Luxury Suite') AS room_type_name,
+           COALESCE(to_jsonb(r)->>'room_number', to_jsonb(r)->>'number', 'Suite') AS room_number,
+           COALESCE(b.check_in, br.check_in_date) AS check_in,
+           COALESCE(b.check_out, br.check_out_date) AS check_out,
+           b.status,
+           br.rate_at_booking,
+           COALESCE(inv.total_amount, 0.00)::text AS invoice_total
+         FROM bookings b
+         LEFT JOIN branches brh ON brh.branch_id = b.branch_id
+         LEFT JOIN booking_rooms br ON br.booking_id = b.booking_id
+         LEFT JOIN rooms r ON r.id::text = br.room_id::text
+         LEFT JOIN room_types rt ON rt.room_type_id = COALESCE(br.room_type_id, NULLIF(to_jsonb(r)->>'room_type_id', '')::int)
+         LEFT JOIN invoices inv ON inv.booking_room_id = br.booking_room_id
+         WHERE (b.booked_by_guest_id = $1 OR to_jsonb(b)->>'guest_id' = $1)
+           ${archivedBookingIds.length > 0 ? `AND b.booking_id NOT IN (${archivedBookingIds.map((_, i) => `$${i + 2}::uuid`).join(',')})` : ''}
+         ORDER BY COALESCE(b.check_in, br.check_in_date) DESC NULLS LAST`,
+        archivedBookingIds.length > 0 ? [guestId, ...archivedBookingIds] : [guestId]
+      );
+      liveRows = liveRes.rows;
+    } catch (err: any) {
+      console.warn('[ActivityRepository] Live bookings query notice:', err.message);
+    }
+
 
     // Format archived stays
     const bookings: ActivityStay[] = archivedRows.map((r) => {

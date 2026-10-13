@@ -21,7 +21,7 @@ async function main() {
     const ai = new GoogleGenAI({ apiKey });
 
     const response = await ai.models.generateContent({
-      model: 'gemini-3.8-flash',
+      model: 'gemini-3.5-flash',
       contents: 'Give a 1-sentence welcome greeting as the luxury Sky Nest Hotel concierge.',
     });
 

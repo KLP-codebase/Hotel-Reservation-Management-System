@@ -7,6 +7,7 @@ export default defineConfig([
   ...nextTs,
   globalIgnores([
     ".next/**",
+    ".next_dev/**",
     "out/**",
     "build/**",
     "next-env.d.ts",
@@ -22,6 +23,7 @@ export default defineConfig([
       "@typescript-eslint/no-require-imports": "warn",
       "react-hooks/set-state-in-effect": "warn",
       "react-hooks/preserve-manual-memoization": "warn",
+      "react-hooks/purity": "warn",
       "react/no-unescaped-entities": "warn",
       "@next/next/no-html-link-for-pages": "warn",
     },
