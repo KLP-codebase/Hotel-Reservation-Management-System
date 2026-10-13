@@ -25,6 +25,7 @@ export class ApiError extends Error {
     public readonly status: number,
     public readonly code: string,
     message: string,
+    public readonly errors?: Record<string, string[] | string>,
   ) {
     super(message);
     this.name = 'ApiError';
@@ -72,6 +73,7 @@ export async function apiFetch<T>(
       res.status,
       body?.code   ?? 'UNKNOWN',
       body?.message ?? 'Request failed',
+      body?.errors,
     );
   }
 
