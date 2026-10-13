@@ -64,11 +64,18 @@ export class BookingRepository {
         rooms: RoomLineInput[] = [],
     ): Promise<{ booking_id: string; rooms: AddedRoomLine[] }> {
         return this.db.transaction(async (client) => {
+            const guestQuery = await client.query<{ id: string; guest_id: string }>(`
+                SELECT id, guest_id FROM guests WHERE id = $1 OR guest_id::text = $1 LIMIT 1
+            `, [input.booked_by_guest_id]);
+            const resolvedBooker = guestQuery.rows[0];
+            const bookerIdVal = resolvedBooker?.id ?? input.booked_by_guest_id;
+            const bookerUuidVal = resolvedBooker?.guest_id ?? null;
+
             const header = await client.query<{ booking_id: string; branch_id: string }>(`
                 INSERT INTO bookings (branch_id, booked_by_guest_id, guest_id, notes, special_requests, adults, children)
-                VALUES ($1, $2, $2, $3, $3, $4, $5)
+                VALUES ($1, $2, $3, $4, $4, $5, $6)
                 RETURNING booking_id, branch_id
-            `, [input.branch_id, input.booked_by_guest_id, input.notes ?? null, input.adults ?? null, input.children ?? null]);
+            `, [input.branch_id, bookerIdVal, bookerUuidVal ?? bookerIdVal, input.notes ?? null, input.adults ?? null, input.children ?? null]);
 
             const created = header.rows[0];
             if (!created) throw Errors.internal();
@@ -94,12 +101,13 @@ export class BookingRepository {
         branchId: string,
         line: RoomLineInput,
     ): Promise<AddedRoomLine> {
-        // 1. Lock the room row. Two requests booking the same room now queue up
-        //    here, so the overlap check below cannot race.
+        // 1. Lock the room row resiliently across column variations (type vs room_type_id).
         const roomResult = await client.query<{
-            id: string; number: string | null; branch_id: string; price_per_night: string; room_type_id: number | null;
+            id: string; number: string | null; branch_id: string; price_per_night: string; type: string | null; room_type_id: number | null;
         }>(`
-            SELECT id, number, branch_id, price_per_night, room_type_id
+            SELECT id, number, branch_id, price_per_night,
+                   to_jsonb(rooms)->>'type' AS type,
+                   (to_jsonb(rooms)->>'room_type_id')::int AS room_type_id
             FROM rooms
             WHERE id = $1
             FOR UPDATE
@@ -111,8 +119,19 @@ export class BookingRepository {
             throw Errors.badRequest('Room does not belong to this booking\'s branch');
         }
 
+        // Map room type name to room_type_id if integer FK was not directly present
+        let roomTypeId = line.room_type_id ?? room.room_type_id ?? null;
+        if (!roomTypeId && room.type) {
+            const typeMap: Record<string, number> = {
+                STANDARD: 1,
+                DELUXE: 2,
+                SUITE: 3,
+                PRESIDENTIAL: 4,
+            };
+            roomTypeId = typeMap[room.type.toUpperCase()] ?? null;
+        }
+
         // 2. Overlap check — current room lines, plus legacy single-room bookings
-        //    (older code paths still write bookings.room_id / check_in / check_out).
         const clash = await client.query(`
             SELECT 1 FROM booking_rooms
             WHERE room_id = $1
@@ -132,8 +151,15 @@ export class BookingRepository {
             throw new AppError(409, 'ROOM_UNAVAILABLE', 'Room is already booked for the selected dates');
         }
 
-        // 3. Insert. rate_at_booking is the room's CURRENT nightly price, taken
-        //    server-side (never trusted from the client) and frozen from here on.
+        // Resolve line guest identity for both VARCHAR(36) and UUID schema variations
+        const guestQuery = await client.query<{ id: string; guest_id: string }>(`
+            SELECT id, guest_id FROM guests WHERE id = $1 OR guest_id::text = $1 LIMIT 1
+        `, [line.primary_guest_id]);
+        const resolvedLineGuest = guestQuery.rows[0];
+        const primaryGuestIdVal = resolvedLineGuest?.id ?? line.primary_guest_id;
+        const primaryGuestUuidVal = resolvedLineGuest?.guest_id ?? line.primary_guest_id;
+
+        // 3. Insert into booking_rooms with automatic fallback if UUID foreign key is enforced
         try {
             const inserted = await client.query<{ booking_room_id: string; rate_at_booking: string }>(`
                 INSERT INTO booking_rooms
@@ -142,7 +168,7 @@ export class BookingRepository {
                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
                 RETURNING booking_room_id, rate_at_booking
             `, [
-                bookingId, line.primary_guest_id, line.room_type_id ?? room.room_type_id ?? null,
+                bookingId, primaryGuestIdVal, roomTypeId,
                 room.id, line.plan_id ?? 1, line.check_in_date,
                 line.check_out_date, room.price_per_night,
             ]);
@@ -158,6 +184,27 @@ export class BookingRepository {
             if (err?.code === '23P01') {
                 throw new AppError(409, 'ROOM_UNAVAILABLE', 'Room is already booked for the selected dates');
             }
+            // 23503 / 22P02 = foreign key or uuid violation on primary_guest_id -> retry with canonical guest_id UUID
+            if ((err?.code === '23503' || err?.code === '22P02') && primaryGuestUuidVal && primaryGuestUuidVal !== primaryGuestIdVal) {
+                const retryInserted = await client.query<{ booking_room_id: string; rate_at_booking: string }>(`
+                    INSERT INTO booking_rooms
+                        (booking_id, primary_guest_id, room_type_id, room_id, plan_id,
+                         check_in_date, check_out_date, rate_at_booking)
+                    VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+                    RETURNING booking_room_id, rate_at_booking
+                `, [
+                    bookingId, primaryGuestUuidVal, roomTypeId,
+                    room.id, line.plan_id ?? 1, line.check_in_date,
+                    line.check_out_date, room.price_per_night,
+                ]);
+                return {
+                    booking_room_id: retryInserted.rows[0].booking_room_id,
+                    room_id: room.id,
+                    room_number: room.number,
+                    rate_at_booking: retryInserted.rows[0].rate_at_booking,
+                };
+            }
+            console.error('[insertRoomLine] Insert failed:', err.message, err.code);
             throw err;
         }
     }

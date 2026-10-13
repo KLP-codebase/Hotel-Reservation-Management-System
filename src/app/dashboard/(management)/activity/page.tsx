@@ -918,6 +918,12 @@ function StayCard({
             >
               {isCompleted ? 'COMPLETED' : stay.status}
             </span>
+            {stay.services && stay.services.length > 0 && (
+              <span className="text-[9px] uppercase tracking-[0.16em] font-semibold px-2 py-0.5 border border-skynest-accent/30 bg-skynest-accent/10 text-skynest-accent flex items-center gap-1">
+                <Sparkles className="w-3 h-3 text-skynest-accent" />
+                {stay.services.length} {stay.services.length === 1 ? 'Service Booked' : 'Services Booked'}
+              </span>
+            )}
           </div>
 
           <div className="flex flex-wrap items-center gap-3 sm:gap-4 text-xs font-jakarta text-ink/60">
