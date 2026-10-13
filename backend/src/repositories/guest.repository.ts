@@ -88,7 +88,7 @@ export class GuestRepository extends BaseRepository<Guest, CreateGuestDto, Updat
     > {
         const findExisting = async () => {
             const { rows } = await this.db.query<{ id: string; guest_id: string }>(
-                `SELECT id, guest_id FROM guests WHERE LOWER(email) = LOWER($1) LIMIT 1`,
+                `SELECT COALESCE(to_jsonb(guests)->>'id', guest_id::text) AS id, guest_id::text FROM guests WHERE LOWER(email) = LOWER($1) LIMIT 1`,
                 [dto.email]
             );
             return rows[0] ?? null;
@@ -98,7 +98,9 @@ export class GuestRepository extends BaseRepository<Guest, CreateGuestDto, Updat
         if (existing) return { created: false, guest: existing };
 
         try {
-            return { created: true, guest: await this.create(dto) };
+            const created = await this.create(dto);
+            const guestObj = { ...created, id: (created as any).id || (created as any).guest_id };
+            return { created: true, guest: guestObj };
         } catch (err) {
             // 23505 = unique_violation: someone created this email between our SELECT and INSERT
             if ((err as { code?: string })?.code === '23505') {

@@ -46,14 +46,14 @@ export class BookingRepository {
     // Accepts either guests.id or guests.guest_id and returns guests.id
     // (the value the bookings tables actually reference), or null if no such guest.
     async resolveGuestLegacyId(identifier: string): Promise<string | null> {
-        const result = await this.db.query<{ id: string }>(`
-            SELECT id
+        const result = await this.db.query<{ id: string; guest_id: string }>(`
+            SELECT COALESCE(to_jsonb(guests)->>'id', guest_id::text) AS id, guest_id::text
             FROM guests
-            WHERE id = $1 OR guest_id::text = $1
+            WHERE (to_jsonb(guests)->>'id' = $1) OR (guest_id::text = $1)
             LIMIT 1
         `, [identifier]);
 
-        return result.rows[0]?.id ?? null;
+        return result.rows[0]?.id ?? result.rows[0]?.guest_id ?? null;
     }
 
     // Creates the booking header and (optionally) its room lines in ONE transaction.
@@ -71,11 +71,24 @@ export class BookingRepository {
             const bookerIdVal = resolvedBooker?.id ?? input.booked_by_guest_id;
             const bookerUuidVal = resolvedBooker?.guest_id ?? null;
 
-            const header = await client.query<{ booking_id: string; branch_id: string }>(`
-                INSERT INTO bookings (branch_id, booked_by_guest_id, guest_id, notes, special_requests, adults, children)
-                VALUES ($1, $2, $3, $4, $4, $5, $6)
-                RETURNING booking_id, branch_id
-            `, [input.branch_id, bookerIdVal, bookerUuidVal ?? bookerIdVal, input.notes ?? null, input.adults ?? null, input.children ?? null]);
+            let header;
+            try {
+                header = await client.query<{ booking_id: string; branch_id: string }>(`
+                    INSERT INTO bookings (branch_id, booked_by_guest_id, guest_id, notes, special_requests, adults, children)
+                    VALUES ($1, $2, $3, $4, $4, $5, $6)
+                    RETURNING booking_id, branch_id
+                `, [input.branch_id, bookerIdVal, bookerUuidVal ?? bookerIdVal, input.notes ?? null, input.adults ?? null, input.children ?? null]);
+            } catch (err: any) {
+                if ((err?.code === '23503' || err?.code === '22P02') && bookerUuidVal && bookerUuidVal !== bookerIdVal) {
+                    header = await client.query<{ booking_id: string; branch_id: string }>(`
+                        INSERT INTO bookings (branch_id, booked_by_guest_id, guest_id, notes, special_requests, adults, children)
+                        VALUES ($1, $2, $3, $4, $4, $5, $6)
+                        RETURNING booking_id, branch_id
+                    `, [input.branch_id, bookerUuidVal, bookerUuidVal, input.notes ?? null, input.adults ?? null, input.children ?? null]);
+                } else {
+                    throw err;
+                }
+            }
 
             const created = header.rows[0];
             if (!created) throw Errors.internal();
