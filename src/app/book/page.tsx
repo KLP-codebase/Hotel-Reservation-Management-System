@@ -197,6 +197,18 @@ export default function BookPage() {
     return () => ctx.revert();
   }, [rooms]);
 
+  // ── Auto-release any previous holds when user lands on / returns to /book ─────
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const sessId = localStorage.getItem('sn_booking_session');
+    if (sessId) {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000';
+      fetch(`${apiUrl}/api/v1/availability/hold-rooms?session_id=${encodeURIComponent(sessId)}`, {
+        method: 'DELETE',
+      }).catch(() => {});
+    }
+  }, []);
+
   function scrollToResults() {
     setTimeout(() => {
       if (resultsRef.current) {
@@ -399,6 +411,11 @@ export default function BookPage() {
         if (!sessionId) {
           sessionId = 'sn_sess_' + Math.random().toString(36).substring(2) + Date.now().toString(36);
           localStorage.setItem('sn_booking_session', sessionId);
+        } else {
+          // Release any previous holds so fresh search shows all rooms as available
+          fetch(`${apiUrl}/api/v1/availability/hold-rooms?session_id=${encodeURIComponent(sessionId)}`, {
+            method: 'DELETE',
+          }).catch(() => {});
         }
       }
 
@@ -456,7 +473,20 @@ export default function BookPage() {
 
   // ── Proceed to Booking Confirmation ────────────────────────────────────────
   async function handleProceed() {
+    const releasePreviousHolds = () => {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000';
+      if (typeof window !== 'undefined') {
+        const sessId = localStorage.getItem('sn_booking_session') || '';
+        if (sessId) {
+          fetch(`${apiUrl}/api/v1/availability/hold-rooms?session_id=${encodeURIComponent(sessId)}`, {
+            method: 'DELETE',
+          }).catch(() => {});
+        }
+      }
+    };
+
     if (selectedRooms.length < targetRoomCount) {
+      releasePreviousHolds();
       setSelectionWarning(`Please select ${targetRoomCount - selectedRooms.length} more room${targetRoomCount - selectedRooms.length === 1 ? '' : 's'} to fulfill your chosen count of ${targetRoomCount}.`);
       return;
     }
@@ -465,9 +495,17 @@ export default function BookPage() {
     const childCount = Math.max(0, parseInt(params.children, 10) || 0);
     const totalPartyGuests = adultCount + childCount;
 
+    // Adult policy: at least 1 adult per room
+    if (adultCount < selectedRooms.length) {
+      releasePreviousHolds();
+      setSelectionWarning(`Sky Nest policy requires at least 1 adult per room. You have selected ${selectedRooms.length} room(s) for ${adultCount} adult(s). Please adjust your guest numbers.`);
+      return;
+    }
+
     // Capacity verification: Total capacity of all selected rooms must be >= total party guests
     const totalSelectedCapacity = selectedRooms.reduce((sum, r) => sum + (r.max_guests || 2), 0);
     if (totalPartyGuests > totalSelectedCapacity) {
+      releasePreviousHolds();
       setSelectionWarning(`The selected rooms have a combined capacity of ${totalSelectedCapacity} guests, but your party has ${totalPartyGuests} guests (${adultCount} adult${adultCount > 1 ? 's' : ''}, ${childCount} child${childCount > 1 ? 'ren' : ''}). Please select rooms with higher capacity (e.g. Deluxe, Suite, or Presidential) or add more rooms.`);
       return;
     }
