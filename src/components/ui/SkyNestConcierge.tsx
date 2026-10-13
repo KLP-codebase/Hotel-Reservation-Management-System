@@ -104,7 +104,7 @@ export function SkyNestConcierge() {
                 {
                     id: nextMessageId(),
                     role: "model",
-                    text: "I apologize, but our concierge desk is momentarily delayed. Please feel free to explore our booking page (/book) or try again shortly.",
+                    text: "I apologize, but our concierge desk is momentarily delayed. Please feel free to explore our booking page or try again shortly.",
                 },
             ]);
         } finally {
@@ -247,8 +247,8 @@ export function SkyNestConcierge() {
                                 </span>
                                 <div
                                     className={`px-4 py-3 text-[13px] leading-[1.75] font-jakarta ${m.role === "user"
-                                            ? "bg-ink text-white rounded-none max-w-[85%] shadow-sm"
-                                            : "bg-white border border-skynest-hairline text-ink rounded-none max-w-[90%] shadow-sm"
+                                        ? "bg-ink text-white rounded-none max-w-[85%] shadow-sm"
+                                        : "bg-white border border-skynest-hairline text-ink rounded-none max-w-[90%] shadow-sm"
                                         }`}
                                 >
                                     {renderFormattedText(m.text)}
