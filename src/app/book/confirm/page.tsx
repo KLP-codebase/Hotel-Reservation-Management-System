@@ -8,6 +8,10 @@ import { ShaderBackground } from '@/components/ui/adisyon-shader';
 import { useBranches } from '@/hooks/useBranches';
 import { apiFetch, ApiError } from '@/lib/api-client';
 
+function generateReferenceNumber(): string {
+  return `ONLINE-${Date.now().toString(36).toUpperCase()}`;
+}
+
 // ── Static Reference Data ───────────────────────────────────────────────────
 const ROOM_TYPES = [
   { id: 'STANDARD', name: 'Standard Room', rate: 120, capacity: 2 },
@@ -722,7 +726,7 @@ function BookingConfirmContent() {
         amount: Number((paymentOption === 'DEPOSIT' ? depositAmount : grandTotal).toFixed(2)),
         payment_method: 'CARD',
         is_deposit: paymentOption === 'DEPOSIT',
-        reference_number: `ONLINE-${Date.now().toString(36).toUpperCase()}`,
+        reference_number: generateReferenceNumber(),
       };
 
       const res = await apiFetch<{
