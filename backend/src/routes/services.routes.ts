@@ -32,124 +32,6 @@ router.get('/catalogue', async (req: Request, res: Response) => {
   res.json({ success: true, data: services });
 });
 
-// RBAC: Authenticated users (staff and guests) can access services
-router.use(authenticate);
-router.use(authorize('RECEPTIONIST', 'MANAGER', 'ADMINISTRATOR', 'DBA', 'GUEST'));
-
-const CreateCatalogueSchema = z.object({
-  branchId:     z.coerce.number().int().positive().optional(),
-  branch_id:    z.coerce.number().int().positive().optional(),
-  serviceName:  z.string().min(1).max(100).optional(),
-  service_name: z.string().min(1).max(100).optional(),
-  category:     z.string().min(1).max(50),
-  basePrice:    z.coerce.number().nonnegative().optional(),
-  base_price:   z.coerce.number().nonnegative().optional(),
-  isActive:     z.boolean().optional(),
-  is_active:    z.boolean().optional(),
-}).refine(d => (d.branchId ?? d.branch_id) !== undefined, {
-  message: 'Branch is required',
-  path: ['branchId'],
-}).refine(d => (d.serviceName ?? d.service_name) !== undefined, {
-  message: 'Service name is required',
-  path: ['serviceName'],
-}).refine(d => (d.basePrice ?? d.base_price) !== undefined, {
-  message: 'Base price is required',
-  path: ['basePrice'],
-});
-
-const UpdateCatalogueSchema = z.object({
-  branchId:     z.coerce.number().int().positive().optional(),
-  branch_id:    z.coerce.number().int().positive().optional(),
-  serviceName:  z.string().min(1).max(100).optional(),
-  service_name: z.string().min(1).max(100).optional(),
-  category:     z.string().min(1).max(50).optional(),
-  basePrice:    z.coerce.number().nonnegative().optional(),
-  base_price:   z.coerce.number().nonnegative().optional(),
-  isActive:     z.boolean().optional(),
-  is_active:    z.boolean().optional(),
-});
-
-
-
-/**
- * POST /api/v1/services/catalogue
- * Registers a new service in the catalogue.
- */
-router.post('/catalogue', authorize('MANAGER', 'ADMINISTRATOR', 'DBA'), async (req: Request, res: Response) => {
-  const parsed = CreateCatalogueSchema.parse(req.body);
-  const branchId = (parsed.branchId ?? parsed.branch_id)!;
-  const serviceName = (parsed.serviceName ?? parsed.service_name)!;
-  const basePrice = (parsed.basePrice ?? parsed.base_price)!;
-  const isActive = parsed.isActive ?? parsed.is_active ?? true;
-
-  const service = await serviceRepo.createCatalogue({
-    branch_id: branchId,
-    service_name: serviceName,
-    category: parsed.category,
-    base_price: basePrice,
-    is_active: isActive,
-  });
-  res.status(201).json({ success: true, message: 'Service registered successfully', data: service });
-});
-
-/**
- * PATCH /api/v1/services/catalogue/:id
- * Updates an existing service in the catalogue.
- */
-router.patch('/catalogue/:id', authorize('MANAGER', 'ADMINISTRATOR', 'DBA'), async (req: Request, res: Response) => {
-  const serviceId = parseInt(req.params.id, 10);
-  if (isNaN(serviceId)) {
-    return res.status(400).json({ success: false, message: 'Invalid service ID' });
-  }
-  const parsed = UpdateCatalogueSchema.parse(req.body);
-  const branchId = parsed.branchId ?? parsed.branch_id;
-  const serviceName = parsed.serviceName ?? parsed.service_name;
-  const basePrice = parsed.basePrice ?? parsed.base_price;
-  const isActive = parsed.isActive ?? parsed.is_active;
-
-  const updated = await serviceRepo.updateCatalogue(serviceId, {
-    branch_id: branchId,
-    service_name: serviceName,
-    category: parsed.category,
-    base_price: basePrice,
-    is_active: isActive,
-  });
-
-  if (!updated) {
-    return res.status(404).json({ success: false, message: 'Service not found' });
-  }
-  res.json({ success: true, message: 'Service updated successfully', data: updated });
-});
-
-/**
- * DELETE /api/v1/services/catalogue/:id
- * Soft deletes / deactivates a service in the catalogue.
- */
-router.delete('/catalogue/:id', authorize('MANAGER', 'ADMINISTRATOR', 'DBA'), async (req: Request, res: Response) => {
-  const serviceId = parseInt(req.params.id, 10);
-  if (isNaN(serviceId)) {
-    return res.status(400).json({ success: false, message: 'Invalid service ID' });
-  }
-  const ok = await serviceRepo.deleteCatalogue(serviceId);
-  if (!ok) {
-    return res.status(404).json({ success: false, message: 'Service not found' });
-  }
-  res.json({ success: true, message: 'Service deactivated successfully' });
-});
-
-const AddFolioServiceSchema = z.object({
-  // Room line to charge; defaults to the booking's first room line.
-  booking_room_id:  z.string().uuid().optional(),
-  service_name:     z.string().min(1, 'Service name is required'),
-  category:         z.string().min(1, 'Category is required'),
-  meal_time:        z.string().max(20).optional(),
-  quantity:         z.number().int().positive().default(1),
-  price_at_usage:   z.number().nonnegative('Price must be non-negative'),
-  notes:            z.string().optional(),
-  appointment_time: z.string().regex(/^\d{2}:\d{2}$/, 'Must be HH:MM').optional(),
-  date:             z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Must be YYYY-MM-DD').optional(),
-});
-
 /**
  * GET /api/v1/services/menus
  * Returns categorized in-room dining menus: Breakfast, Lunch, and Dinner.
@@ -291,46 +173,42 @@ router.get('/spa-slots', async (req: Request, res: Response) => {
   const dateStr   = /^\d{4}-\d{2}-\d{2}$/.test(rawDate) ? rawDate : new Date().toISOString().split('T')[0];
   const rawBranch = typeof req.query.branchId === 'string' ? req.query.branchId : req.user?.branchId;
   const branchId  = rawBranch && isUuid(rawBranch) ? rawBranch : null;
-  const standardTimes = ['09:00', '10:30', '12:00', '14:00', '15:30', '17:00', '18:30', '20:00'];
+  const standardTimes = ['09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00', '18:00', '19:00', '20:00'];
 
   // Ensure test dataset dates are alive today
   await syncAliveBookingDates(db).catch(() => {});
 
-  // A spa appointment is a Wellness charge with an appointment_time; its date is used_at::date.
+  // Query booked quantity per hour slot (Capacity: 20 bookings per hour slot)
   const bookedRes = await db.query(
-    `SELECT su.appointment_time, sc.service_name, br.booking_id,
-            COALESCE(g.first_name, 'Resident') AS first_name,
-            COALESCE(g.last_name, 'Guest')     AS last_name,
-            r.number AS room_number
+    `SELECT su.appointment_time,
+            COALESCE(SUM(su.quantity), 0)::int AS booked_count
      FROM service_usage su
      JOIN service_catalogue sc ON sc.service_id = su.service_id
      JOIN booking_rooms br     ON br.booking_room_id = su.booking_room_id
      JOIN bookings b           ON b.booking_id = br.booking_id
-     LEFT JOIN guests g        ON g.id = b.booked_by_guest_id
-     LEFT JOIN rooms r         ON r.id = br.room_id
-     WHERE sc.category = 'Wellness'
+     WHERE (sc.category = 'Wellness' OR sc.service_name ILIKE '%spa%')
        AND su.appointment_time IS NOT NULL
        AND su.used_at::date = $1::date
-       AND ($2::uuid IS NULL OR b.branch_id = $2::uuid)`,
+       AND ($2::uuid IS NULL OR b.branch_id = $2::uuid)
+     GROUP BY su.appointment_time`,
     [dateStr, branchId]
   );
 
-  const bookedMap = new Map<string, any>();
+  const countMap = new Map<string, number>();
   for (const row of bookedRes.rows) {
-    bookedMap.set(row.appointment_time, {
-      booking_id:     row.booking_id,
-      guest_name:     `${row.first_name} ${row.last_name}`.trim(),
-      room_number:    row.room_number,
-      treatment_name: row.service_name,
-    });
+    countMap.set(row.appointment_time, Number(row.booked_count || 0));
   }
 
+  const capacity = 20;
   const slots = standardTimes.map(time => {
-    const booked = bookedMap.get(time);
+    const bookedCount = countMap.get(time) || 0;
+    const isAvailable = bookedCount < capacity;
     return {
       time,
-      is_available: !booked,
-      booked_by: booked || undefined,
+      is_available: isAvailable,
+      booked_count: bookedCount,
+      capacity,
+      available_count: Math.max(0, capacity - bookedCount),
     };
   });
 
@@ -340,6 +218,125 @@ router.get('/spa-slots', async (req: Request, res: Response) => {
     count: slots.length,
     date: dateStr,
   });
+});
+
+
+// RBAC: Authenticated users (staff and guests) can access services
+router.use(authenticate);
+router.use(authorize('RECEPTIONIST', 'MANAGER', 'ADMINISTRATOR', 'DBA', 'GUEST'));
+
+const CreateCatalogueSchema = z.object({
+  branchId:     z.coerce.number().int().positive().optional(),
+  branch_id:    z.coerce.number().int().positive().optional(),
+  serviceName:  z.string().min(1).max(100).optional(),
+  service_name: z.string().min(1).max(100).optional(),
+  category:     z.string().min(1).max(50),
+  basePrice:    z.coerce.number().nonnegative().optional(),
+  base_price:   z.coerce.number().nonnegative().optional(),
+  isActive:     z.boolean().optional(),
+  is_active:    z.boolean().optional(),
+}).refine(d => (d.branchId ?? d.branch_id) !== undefined, {
+  message: 'Branch is required',
+  path: ['branchId'],
+}).refine(d => (d.serviceName ?? d.service_name) !== undefined, {
+  message: 'Service name is required',
+  path: ['serviceName'],
+}).refine(d => (d.basePrice ?? d.base_price) !== undefined, {
+  message: 'Base price is required',
+  path: ['basePrice'],
+});
+
+const UpdateCatalogueSchema = z.object({
+  branchId:     z.coerce.number().int().positive().optional(),
+  branch_id:    z.coerce.number().int().positive().optional(),
+  serviceName:  z.string().min(1).max(100).optional(),
+  service_name: z.string().min(1).max(100).optional(),
+  category:     z.string().min(1).max(50).optional(),
+  basePrice:    z.coerce.number().nonnegative().optional(),
+  base_price:   z.coerce.number().nonnegative().optional(),
+  isActive:     z.boolean().optional(),
+  is_active:    z.boolean().optional(),
+});
+
+
+
+/**
+ * POST /api/v1/services/catalogue
+ * Registers a new service in the catalogue.
+ */
+router.post('/catalogue', authorize('MANAGER', 'ADMINISTRATOR', 'DBA'), async (req: Request, res: Response) => {
+  const parsed = CreateCatalogueSchema.parse(req.body);
+  const branchId = (parsed.branchId ?? parsed.branch_id)!;
+  const serviceName = (parsed.serviceName ?? parsed.service_name)!;
+  const basePrice = (parsed.basePrice ?? parsed.base_price)!;
+  const isActive = parsed.isActive ?? parsed.is_active ?? true;
+
+  const service = await serviceRepo.createCatalogue({
+    branch_id: branchId,
+    service_name: serviceName,
+    category: parsed.category,
+    base_price: basePrice,
+    is_active: isActive,
+  });
+  res.status(201).json({ success: true, message: 'Service registered successfully', data: service });
+});
+
+/**
+ * PATCH /api/v1/services/catalogue/:id
+ * Updates an existing service in the catalogue.
+ */
+router.patch('/catalogue/:id', authorize('MANAGER', 'ADMINISTRATOR', 'DBA'), async (req: Request, res: Response) => {
+  const serviceId = parseInt(req.params.id, 10);
+  if (isNaN(serviceId)) {
+    return res.status(400).json({ success: false, message: 'Invalid service ID' });
+  }
+  const parsed = UpdateCatalogueSchema.parse(req.body);
+  const branchId = parsed.branchId ?? parsed.branch_id;
+  const serviceName = parsed.serviceName ?? parsed.service_name;
+  const basePrice = parsed.basePrice ?? parsed.base_price;
+  const isActive = parsed.isActive ?? parsed.is_active;
+
+  const updated = await serviceRepo.updateCatalogue(serviceId, {
+    branch_id: branchId,
+    service_name: serviceName,
+    category: parsed.category,
+    base_price: basePrice,
+    is_active: isActive,
+  });
+
+  if (!updated) {
+    return res.status(404).json({ success: false, message: 'Service not found' });
+  }
+  res.json({ success: true, message: 'Service updated successfully', data: updated });
+});
+
+/**
+ * DELETE /api/v1/services/catalogue/:id
+ * Soft deletes / deactivates a service in the catalogue.
+ */
+router.delete('/catalogue/:id', authorize('MANAGER', 'ADMINISTRATOR', 'DBA'), async (req: Request, res: Response) => {
+  const serviceId = parseInt(req.params.id, 10);
+  if (isNaN(serviceId)) {
+    return res.status(400).json({ success: false, message: 'Invalid service ID' });
+  }
+  const ok = await serviceRepo.deleteCatalogue(serviceId);
+  if (!ok) {
+    return res.status(404).json({ success: false, message: 'Service not found' });
+  }
+  res.json({ success: true, message: 'Service deactivated successfully' });
+});
+
+const AddFolioServiceSchema = z.object({
+  // Room line to charge; defaults to the booking's first room line.
+  booking_room_id:  z.string().uuid().optional(),
+  service_name:     z.string().min(1, 'Service name is required'),
+  category:         z.string().min(1, 'Category is required'),
+  meal_time:        z.string().max(20).optional(),
+  quantity:         z.number().int().positive().default(1),
+  price_at_usage:   z.number().nonnegative('Price must be non-negative'),
+  notes:            z.string().optional(),
+  appointment_time: z.string().regex(/^\d{2}:\d{2}$/, 'Must be HH:MM').optional(),
+  date:             z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Must be YYYY-MM-DD').optional(),
 });
 
 /**
@@ -464,16 +461,16 @@ router.post('/folio/:bookingId', async (req: Request, res: Response) => {
       await client.query(`SELECT pg_advisory_xact_lock(hashtext($1))`,
         [`spa:${line.branch_id}:${apptDate}:${input.appointment_time}`]);
       const taken = await client.query(
-        `SELECT 1
+        `SELECT COALESCE(SUM(su.quantity), 0)::int AS booked_count
          FROM service_usage su
          JOIN booking_rooms br ON br.booking_room_id = su.booking_room_id
          JOIN bookings b       ON b.booking_id = br.booking_id
-         WHERE b.branch_id = $1 AND su.appointment_time = $2 AND su.used_at::date = $3::date
-         LIMIT 1`,
+         WHERE b.branch_id = $1 AND su.appointment_time = $2 AND su.used_at::date = $3::date`,
         [line.branch_id, input.appointment_time, apptDate]
       );
-      if (taken.rows.length > 0) {
-        throw new AppError(409, 'SERVICE_CONFLICT', `The ${input.appointment_time} slot on ${apptDate} is already booked.`);
+      const currentBooked = Number(taken.rows[0]?.booked_count || 0);
+      if (currentBooked + (input.quantity || 1) > 20) {
+        throw new AppError(409, 'SERVICE_CONFLICT', `The ${input.appointment_time} slot on ${apptDate} is at maximum capacity (20 guests max per hour slot). Currently booked: ${currentBooked}.`);
       }
     }
 

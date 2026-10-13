@@ -281,16 +281,49 @@ export class BookingRepository {
                      br.check_in_date, br.check_out_date, br.rate_at_booking
         `, [bookingId]);
 
-        // rate_at_booking is a PER-NIGHT rate (billing uses nights × rate too),
-        // so each line's room charge is nights × rate.
-        const total_amount = roomsResult.rows.reduce(
+        // Fetch itemized add-on services for the stay
+        const servicesResult = await this.db.query(`
+            SELECT
+                su.usage_id,
+                su.booking_room_id,
+                COALESCE(sc.service_name, su.notes, 'Hotel Service') AS service_name,
+                COALESCE(sc.category, 'General') AS category,
+                COALESCE(su.quantity, 1)::int AS quantity,
+                COALESCE(su.price_at_usage, sc.base_price, 0)::numeric AS price_at_usage,
+                (COALESCE(su.quantity, 1) * COALESCE(su.price_at_usage, sc.base_price, 0))::numeric AS total_price,
+                su.used_at,
+                su.appointment_time,
+                su.notes
+            FROM service_usage su
+            JOIN booking_rooms br ON br.booking_room_id = su.booking_room_id
+            LEFT JOIN service_catalogue sc ON sc.service_id = su.service_id
+            WHERE br.booking_id = $1
+            ORDER BY su.used_at ASC
+        `, [bookingId]);
+
+        // Rate total calculation
+        const roomTotal = roomsResult.rows.reduce(
             (sum: number, row: any) => sum + Number(row.nights || 0) * parseFloat(row.rate_at_booking || 0), 0
         );
+        const serviceTotal = servicesResult.rows.reduce(
+            (sum: number, row: any) => sum + parseFloat(row.total_price || 0), 0
+        );
+
+        // Fetch invoice total if present
+        const invRes = await this.db.query<{ total_amount: string }>(`
+            SELECT SUM(COALESCE(total_amount, 0)) AS total_amount
+            FROM invoices inv
+            JOIN booking_rooms br ON br.booking_room_id = inv.booking_room_id
+            WHERE br.booking_id = $1
+        `, [bookingId]);
+        const invoiceTotal = parseFloat(invRes.rows[0]?.total_amount || '0');
+        const finalTotal = invoiceTotal > 0 ? invoiceTotal : (roomTotal + serviceTotal);
 
         return {
             ...header,
-            total_amount,
+            total_amount: finalTotal,
             rooms: roomsResult.rows,
+            services: servicesResult.rows,
         };
     }
 

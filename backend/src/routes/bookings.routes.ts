@@ -40,6 +40,9 @@ const BookingServiceItemSchema = z.object({
     category: z.string().optional(),
     base_price: z.number().nonnegative(),
     quantity: z.number().int().positive().optional().default(1),
+    date: z.string().optional(),
+    appointment_time: z.string().optional(),
+    notes: z.string().optional(),
     room_index: z.number().int().nonnegative().optional().default(0),
 });
 
@@ -123,13 +126,16 @@ router.post('/', async (req: Request, res: Response) => {
 
     const { services = [], payment, ...bookingHeader } = header as any;
 
-    // Validate service quantity caps:
-    // - Spa / Wellness: max = adults * nights
+    // Validate service quantity caps and scheduling rules:
+    // - Spa / Wellness: max = adults * nights, and max 20 bookings per hour slot
     // - In-room Breakfast / Dining: max = (adults + children) * nights
+    // - Service dates cannot be outside stay dates
     if (services.length > 0 && roomLines.length > 0) {
         const firstLine = roomLines[0];
-        const checkInTime = new Date(firstLine.check_in_date).getTime();
-        const checkOutTime = new Date(firstLine.check_out_date).getTime();
+        const checkInStr = firstLine.check_in_date;
+        const checkOutStr = firstLine.check_out_date;
+        const checkInTime = new Date(checkInStr).getTime();
+        const checkOutTime = new Date(checkOutStr).getTime();
         const nights = Math.max(1, Math.round((checkOutTime - checkInTime) / (1000 * 60 * 60 * 24)));
         const adults = Number(header.adults) || 1;
         const children = Number(header.children) || 0;
@@ -140,6 +146,17 @@ router.post('/', async (req: Request, res: Response) => {
             const name = (s.service_name || '').toLowerCase();
             const qty = s.quantity ?? 1;
 
+            // Date boundary validation
+            if (s.date) {
+                if (s.date < checkInStr || s.date > checkOutStr) {
+                    return res.status(400).json({
+                        success: false,
+                        code: 'SERVICE_DATE_OUT_OF_RANGE',
+                        message: `Service date (${s.date}) cannot be outside your stay dates (${checkInStr} to ${checkOutStr}).`,
+                    });
+                }
+            }
+
             if (cat === 'wellness' || name.includes('spa') || name.includes('massage') || name.includes('ayurvedic')) {
                 const maxSpa = Math.max(1, adults * nights);
                 if (qty > maxSpa) {
@@ -148,6 +165,26 @@ router.post('/', async (req: Request, res: Response) => {
                         code: 'SERVICE_CAP_EXCEEDED',
                         message: `Orders for "${s.service_name}" cannot exceed ${maxSpa} (${adults} adult(s) × ${nights} night(s)).`,
                     });
+                }
+
+                // Check capacity for spa appointment time slot (max 20 per hour slot)
+                if (s.appointment_time && s.date) {
+                    const slotCountRes = await db.query<{ booked_count: string }>(
+                        `SELECT COALESCE(SUM(su.quantity), 0) AS booked_count
+                         FROM service_usage su
+                         JOIN booking_rooms br ON br.booking_room_id = su.booking_room_id
+                         JOIN bookings b       ON b.booking_id = br.booking_id
+                         WHERE b.branch_id = $1 AND su.appointment_time = $2 AND su.used_at::date = $3::date`,
+                        [header.branch_id, s.appointment_time, s.date]
+                    );
+                    const currentBooked = Number(slotCountRes.rows[0]?.booked_count || 0);
+                    if (currentBooked + qty > 20) {
+                        return res.status(409).json({
+                            success: false,
+                            code: 'SPA_SLOT_CAPACITY_EXCEEDED',
+                            message: `The Spa slot at ${s.appointment_time} on ${s.date} has reached capacity (20 guests max per hour). Currently booked: ${currentBooked}. Please select an alternative time.`,
+                        });
+                    }
                 }
             }
 
@@ -171,14 +208,24 @@ router.post('/', async (req: Request, res: Response) => {
         await db.query('DELETE FROM room_holds WHERE room_id = ANY($1::varchar[])', [roomIds]).catch(() => {});
     }
 
-    // Process optional selected add-on services
+    // Process optional selected add-on services with scheduling details
     if (services.length > 0 && booking.rooms.length > 0) {
         for (const s of services) {
             const targetRoom = booking.rooms[s.room_index ?? 0] || booking.rooms[0];
+            const serviceDate = s.date || roomLines[0]?.check_in_date || new Date().toISOString().split('T')[0];
+            const usedAt = s.appointment_time ? `${serviceDate} ${s.appointment_time}:00` : `${serviceDate} 12:00:00`;
             await db.query(
-                `INSERT INTO service_usage (booking_room_id, service_id, quantity, price_at_usage, used_at)
-                 VALUES ($1, $2, $3, $4, CURRENT_TIMESTAMP)`,
-                [targetRoom.booking_room_id, s.service_id, s.quantity ?? 1, s.base_price]
+                `INSERT INTO service_usage (booking_room_id, service_id, quantity, price_at_usage, used_at, appointment_time, notes)
+                 VALUES ($1, $2, $3, $4, $5::timestamp, $6, $7)`,
+                [
+                    targetRoom.booking_room_id,
+                    s.service_id,
+                    s.quantity ?? 1,
+                    s.base_price,
+                    usedAt,
+                    s.appointment_time || null,
+                    s.notes || (s.appointment_time ? `Appointment: ${serviceDate} at ${s.appointment_time}` : null),
+                ]
             ).catch(err => console.warn('[Bookings] Failed to insert service usage:', err.message));
         }
     }

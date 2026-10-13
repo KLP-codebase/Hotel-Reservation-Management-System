@@ -15,8 +15,11 @@ interface SpaTreatment {
 }
 
 interface SpaSlot {
-  time:         string;
-  is_available: boolean;
+  time:            string;
+  is_available:    boolean;
+  booked_count?:   number;
+  capacity?:       number;
+  available_count?: number;
   booked_by?: {
     booking_id:     string;
     guest_name:     string;
@@ -293,11 +296,11 @@ export function SpaBookingModal({ isOpen, onClose, booking, onOrderPlaced }: Spa
                             </span>
                             {isBooked ? (
                               <span className="text-[9px] font-jakarta font-semibold px-1 py-0.2 rounded bg-rose-200/80 text-rose-800 uppercase">
-                                Booked
+                                Full (20/20)
                               </span>
                             ) : (
                               <span className={`text-[9px] font-jakarta uppercase ${isSelected ? "text-skynest-accent" : "text-emerald-600 font-semibold"}`}>
-                                Free
+                                Free {slot.available_count !== undefined ? `(${slot.available_count} left)` : ''}
                               </span>
                             )}
                           </div>

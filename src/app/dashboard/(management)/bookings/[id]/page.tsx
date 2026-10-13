@@ -44,6 +44,8 @@ interface FolioService {
   total_price: number;
   used_at: string;
   notes: string | null;
+  appointment_time?: string | null;
+  meal_time?: string | null;
 }
 
 interface CatalogueItem {
@@ -362,8 +364,15 @@ export default function BookingDetailPage() {
                     {folioServices.map((s) => (
                       <tr key={s.usage_id} className="hover:bg-[#FDFCFA] transition-colors">
                         <td className="py-3 px-4 font-medium text-ink">
-                          {s.service_name}
-                          {s.notes && <p className="text-[11px] text-ink/50 font-normal">{s.notes}</p>}
+                          <div className="flex items-center gap-2">
+                            <span>{s.service_name}</span>
+                            {s.appointment_time && (
+                              <span className="text-[9px] uppercase tracking-wider font-semibold px-1.5 py-0.5 border border-skynest-accent/40 bg-skynest-accent/10 text-skynest-accent">
+                                Slot: {s.appointment_time}
+                              </span>
+                            )}
+                          </div>
+                          {s.notes && <p className="text-[11px] text-ink/50 font-normal mt-0.5">{s.notes}</p>}
                         </td>
                         <td className="py-3 px-4 text-ink/70">
                           <span className="inline-block px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider rounded bg-stone-100 text-stone-700">

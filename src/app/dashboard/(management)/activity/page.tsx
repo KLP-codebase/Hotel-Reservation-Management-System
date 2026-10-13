@@ -48,6 +48,7 @@ interface ActivityStay {
   archiveId: string;
   bookingId: string;
   bookingRef: string;
+  branchId?: string;
   branchName: string;
   roomTypeName: string;
   roomNumber: string;
@@ -187,12 +188,24 @@ function BookServiceModal({
   const [timeSlot, setTimeSlot] = useState<string>('10:00');
   const [notes, setNotes] = useState<string>('');
   const [submitting, setSubmitting] = useState<boolean>(false);
+  const [spaSlots, setSpaSlots] = useState<{ time: string; is_available: boolean; available_count?: number }[]>([]);
+
+  useEffect(() => {
+    if (selectedService?.category === 'Wellness' && preferredDate && stay.branchId) {
+      apiFetch<{ success: boolean; data: { time: string; is_available: boolean; available_count?: number }[] }>(
+        `/api/v1/services/spa-slots?date=${encodeURIComponent(preferredDate)}&branchId=${encodeURIComponent(stay.branchId)}`
+      ).then((res) => {
+        if (res.success && res.data) setSpaSlots(res.data);
+      }).catch(() => {});
+    }
+  }, [selectedService?.category, preferredDate, stay.branchId]);
 
   useEffect(() => {
     async function fetchCatalogue() {
       setLoading(true);
       try {
-        const res = await apiFetch<{ data: CatalogueItem[] }>('/api/v1/services/catalogue?is_active=true');
+        const query = stay.branchId ? `?branch_id=${encodeURIComponent(stay.branchId)}&is_active=true` : '?is_active=true';
+        const res = await apiFetch<{ data: CatalogueItem[] }>(`/api/v1/services/catalogue${query}`);
         setCatalogue(res.data || []);
         if (res.data && res.data.length > 0) {
           setSelectedService(res.data[0]);
@@ -222,6 +235,17 @@ function BookServiceModal({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedService) return;
+
+    const stayMin = stay.checkIn ? stay.checkIn.split('T')[0] : '';
+    const stayMax = stay.checkOut ? stay.checkOut.split('T')[0] : '';
+    if (stayMin && preferredDate < stayMin) {
+      setError(`Requested date cannot be earlier than check-in (${stayMin}).`);
+      return;
+    }
+    if (stayMax && preferredDate > stayMax) {
+      setError(`Requested date cannot be later than check-out (${stayMax}).`);
+      return;
+    }
 
     setSubmitting(true);
     setError(null);
@@ -373,25 +397,54 @@ function BookServiceModal({
             </div>
             <div>
               <label className="text-[10px] font-jakarta uppercase tracking-wider text-ink/60 font-semibold block mb-1">
-                Requested Date
+                Requested Date (Within Stay)
               </label>
               <input
                 type="date"
                 value={preferredDate}
+                min={stay.checkIn ? stay.checkIn.split('T')[0] : undefined}
+                max={stay.checkOut ? stay.checkOut.split('T')[0] : undefined}
                 onChange={(e) => setPreferredDate(e.target.value)}
                 className="w-full bg-white border border-skynest-hairline px-3 py-2 text-xs font-jakarta focus:outline-none focus:border-skynest-accent"
               />
             </div>
             <div>
               <label className="text-[10px] font-jakarta uppercase tracking-wider text-ink/60 font-semibold block mb-1">
-                Preferred Time
+                {selectedService?.category === 'Wellness' ? 'Spa Slot (Max 20/hr)' : 'Preferred Time'}
               </label>
-              <input
-                type="time"
-                value={timeSlot}
-                onChange={(e) => setTimeSlot(e.target.value)}
-                className="w-full bg-white border border-skynest-hairline px-3 py-2 text-xs font-jakarta focus:outline-none focus:border-skynest-accent"
-              />
+              {selectedService?.category === 'Wellness' ? (
+                <select
+                  value={timeSlot}
+                  onChange={(e) => setTimeSlot(e.target.value)}
+                  className="w-full bg-white border border-skynest-hairline px-3 py-2 text-xs font-jakarta focus:outline-none focus:border-skynest-accent"
+                >
+                  {(spaSlots.length > 0 ? spaSlots : [
+                    { time: '09:00', is_available: true, available_count: 20 },
+                    { time: '10:00', is_available: true, available_count: 20 },
+                    { time: '11:00', is_available: true, available_count: 20 },
+                    { time: '12:00', is_available: true, available_count: 20 },
+                    { time: '13:00', is_available: true, available_count: 20 },
+                    { time: '14:00', is_available: true, available_count: 20 },
+                    { time: '15:00', is_available: true, available_count: 20 },
+                    { time: '16:00', is_available: true, available_count: 20 },
+                    { time: '17:00', is_available: true, available_count: 20 },
+                    { time: '18:00', is_available: true, available_count: 20 },
+                    { time: '19:00', is_available: true, available_count: 20 },
+                    { time: '20:00', is_available: true, available_count: 20 },
+                  ]).map((s) => (
+                    <option key={s.time} value={s.time} disabled={!s.is_available}>
+                      {s.time} {!s.is_available ? '— Fully Booked (20/20)' : `(${s.available_count ?? 20} slots left)`}
+                    </option>
+                  ))}
+                </select>
+              ) : (
+                <input
+                  type="time"
+                  value={timeSlot}
+                  onChange={(e) => setTimeSlot(e.target.value)}
+                  className="w-full bg-white border border-skynest-hairline px-3 py-2 text-xs font-jakarta focus:outline-none focus:border-skynest-accent"
+                />
+              )}
             </div>
           </div>
 

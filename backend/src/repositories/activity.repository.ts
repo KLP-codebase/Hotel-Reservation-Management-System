@@ -13,6 +13,7 @@ export interface ActivityStay {
   archiveId: string;
   bookingId: string;
   bookingRef: string;
+  branchId?: string;
   branchName: string;
   roomTypeName: string;
   roomNumber: string;
@@ -200,6 +201,7 @@ export class ActivityRepository {
       }>(
         `SELECT 
            b.booking_id,
+           b.branch_id::text AS branch_id,
            COALESCE(b.id, SUBSTRING(b.booking_id::text, 1, 8)) AS id,
            COALESCE(brh.branch_name, 'Sky Nest Sanctuary') AS branch_name,
            COALESCE(rt.type_name, to_jsonb(r)->>'type', 'Luxury Suite') AS room_type_name,
@@ -322,6 +324,7 @@ export class ActivityRepository {
         archiveId: l.booking_id,
         bookingId: l.booking_id,
         bookingRef: l.id || l.booking_id.substring(0, 8),
+        branchId: l.branch_id,
         branchName: l.branch_name,
         roomTypeName: l.room_type_name,
         roomNumber: l.room_number,
