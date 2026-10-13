@@ -1,6 +1,7 @@
 'use client';
 
-import { Suspense, useEffect, useRef, useState } from 'react';
+import { Suspense, useEffect, useRef, useState, useMemo, useCallback } from 'react';
+import { Sparkles } from 'lucide-react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import gsap from 'gsap';
@@ -246,6 +247,8 @@ function BookingConfirmContent() {
   // Add-on Services State
   const [availableServices, setAvailableServices] = useState<AvailableCatalogueService[]>([]);
   const [selectedServices, setSelectedServices]   = useState<Record<number, number>>({});
+  const [serviceSchedules, setServiceSchedules] = useState<Record<number, { date: string; timeSlot: string; notes?: string }>>({});
+  const [spaSlotsData, setSpaSlotsData] = useState<Record<string, { time: string; is_available: boolean; available_count?: number; booked_count?: number }[]>>({});
   
   // Payment Option State
   const [paymentOption, setPaymentOption]         = useState<'DEPOSIT' | 'FULL' | 'ARRIVAL'>('DEPOSIT');
@@ -302,6 +305,21 @@ function BookingConfirmContent() {
     };
   }, []);
 
+
+  const fetchSpaSlotsForDate = useCallback(async (date: string) => {
+    if (!branchIdStr || !date) return;
+    try {
+      const res = await apiFetch<{
+        success: boolean;
+        data: { time: string; is_available: boolean; available_count?: number; booked_count?: number }[];
+      }>(`/api/v1/services/spa-slots?date=${encodeURIComponent(date)}&branchId=${encodeURIComponent(branchIdStr)}`);
+      if (res.success && res.data) {
+        setSpaSlotsData(prev => ({ ...prev, [date]: res.data }));
+      }
+    } catch (err) {
+      console.warn('[ConfirmBooking] Failed to fetch spa slots:', err);
+    }
+  }, [branchIdStr]);
 
   // Fetch catalogue services for branch (with fallback)
   useEffect(() => {
@@ -587,6 +605,69 @@ function BookingConfirmContent() {
     return sum + (s.base_price * qty);
   }, 0);
 
+  // Service booking quantity caps based on guest count and stay duration
+  // - Spa / Wellness: capped at totalAdults * nights
+  // - In-room Breakfast / Dining: capped at (totalAdults + totalChildren) * nights
+  const totalGuests = totalAdults + totalChildren;
+  const getServiceCap = (svc: { service_name: string; category?: string }) => {
+    const cat = (svc.category || '').toLowerCase();
+    const name = (svc.service_name || '').toLowerCase();
+
+    // Spa / Wellness services: capped at totalAdults * nights
+    if (cat === 'wellness' || name.includes('spa') || name.includes('massage') || name.includes('ayurvedic')) {
+      const max = Math.max(1, totalAdults * nights);
+      return {
+        max,
+        label: `Max ${max} (${totalAdults} adult${totalAdults > 1 ? 's' : ''} × ${nights} nt${nights > 1 ? 's' : ''})`,
+        isSpa: true,
+      };
+    }
+
+    // In-room Breakfast / Dining: capped at (totalAdults + totalChildren) * nights
+    if (name.includes('breakfast') || (cat === 'dining' && (name.includes('breakfast') || name.includes('dining')))) {
+      const max = Math.max(1, totalGuests * nights);
+      return {
+        max,
+        label: `Max ${max} (${totalGuests} guest${totalGuests > 1 ? 's' : ''} × ${nights} nt${nights > 1 ? 's' : ''})`,
+        isBreakfast: true,
+      };
+    }
+
+    return {
+      max: 99,
+      label: null,
+      isSpa: false,
+    };
+  };
+
+  // Curated services list with scheduling details
+  const selectedServiceList: {
+    service_id: number;
+    service_name: string;
+    category: string;
+    base_price: number;
+    quantity: number;
+    date: string;
+    appointment_time?: string;
+    notes?: string;
+  }[] = useMemo(() => {
+    return availableServices
+      .filter(s => (selectedServices[s.service_id] || 0) > 0)
+      .map(s => {
+        const sched = serviceSchedules[s.service_id];
+        return {
+          service_id: s.service_id,
+          service_name: s.service_name,
+          category: s.category,
+          base_price: Number(s.base_price),
+          quantity: selectedServices[s.service_id],
+          date: sched?.date || checkIn,
+          appointment_time: sched?.timeSlot || (s.category === 'Wellness' ? '10:00' : undefined),
+          notes: sched?.notes || undefined,
+        };
+      });
+  }, [availableServices, selectedServices, serviceSchedules, checkIn]);
+
   // Base Amount before taxes
   const baseAmount = totalRoomCost + totalMealCost + totalServiceCost;
 
@@ -712,15 +793,22 @@ function BookingConfirmContent() {
         check_out_date: checkOut,
       }));
 
-      const payloadServices = availableServices
-        .filter(s => (selectedServices[s.service_id] || 0) > 0)
-        .map(s => ({
-          service_id: s.service_id,
-          service_name: s.service_name,
-          category: s.category,
-          base_price: s.base_price,
-          quantity: selectedServices[s.service_id],
-        }));
+      const payloadServices = selectedServiceList;
+
+      // Validate service quantity caps and stay date boundaries
+      for (const s of payloadServices) {
+        const cap = getServiceCap(s);
+        if (s.quantity > cap.max) {
+          setError(`Service "${s.service_name}" exceeds the allowed limit of ${cap.max} (${cap.label}).`);
+          setLoading(false);
+          return;
+        }
+        if (s.date && (s.date < checkIn || s.date > checkOut)) {
+          setError(`Service date for "${s.service_name}" (${s.date}) cannot be outside your stay dates (${checkIn} to ${checkOut}).`);
+          setLoading(false);
+          return;
+        }
+      }
 
       const payloadPayment = paymentOption === 'ARRIVAL' ? undefined : {
         amount: Number((paymentOption === 'DEPOSIT' ? depositAmount : grandTotal).toFixed(2)),
@@ -1360,6 +1448,8 @@ function BookingConfirmContent() {
                   {availableServices.map((svc) => {
                     const qty = selectedServices[svc.service_id] || 0;
                     const isSelected = qty > 0;
+                    const cap = getServiceCap(svc);
+                    const isMaxReached = qty >= cap.max;
                     return (
                       <div
                         key={svc.service_id}
@@ -1384,6 +1474,17 @@ function BookingConfirmContent() {
                           <p className="font-jakarta text-[11px] text-ink/50 mt-1">
                             Available during your stay. Itemized in your room folio statement.
                           </p>
+                          {cap.label && (
+                            <div className="mt-2.5">
+                              <span className={`inline-block text-[10px] font-jakarta px-2 py-0.5 border ${
+                                isMaxReached
+                                  ? 'bg-amber-50 text-amber-800 border-amber-300 font-semibold'
+                                  : 'bg-ink/[0.02] text-ink/60 border-skynest-hairline font-medium'
+                              }`}>
+                                {isMaxReached ? `Limit Reached: ${cap.label}` : cap.label}
+                              </span>
+                            </div>
+                          )}
                         </div>
 
                         <div className="pt-4 mt-3 border-t border-skynest-hairline flex items-center justify-between">
@@ -1406,11 +1507,17 @@ function BookingConfirmContent() {
                               </span>
                               <button
                                 type="button"
+                                disabled={isMaxReached}
                                 onClick={() => setSelectedServices(prev => ({
                                   ...prev,
-                                  [svc.service_id]: qty + 1,
+                                  [svc.service_id]: Math.min(cap.max, qty + 1),
                                 }))}
-                                className="w-6 h-6 flex items-center justify-center border border-skynest-hairline text-ink hover:bg-ink hover:text-white transition-colors text-xs font-bold"
+                                className={`w-6 h-6 flex items-center justify-center border text-xs font-bold transition-colors ${
+                                  isMaxReached
+                                    ? 'border-skynest-hairline text-ink/30 bg-ink/[0.02] cursor-not-allowed'
+                                    : 'border-skynest-hairline text-ink hover:bg-ink hover:text-white'
+                                }`}
+                                title={isMaxReached ? `Maximum limit reached (${cap.label})` : 'Add one more'}
                               >
                                 +
                               </button>
@@ -1418,11 +1525,12 @@ function BookingConfirmContent() {
                           ) : (
                             <button
                               type="button"
+                              disabled={cap.max < 1}
                               onClick={() => setSelectedServices(prev => ({
                                 ...prev,
                                 [svc.service_id]: 1,
                               }))}
-                              className="px-3 py-1 text-[11px] font-jakarta font-semibold uppercase tracking-wider border border-skynest-hairline bg-white hover:border-ink hover:text-ink hover:bg-ink/[0.03] transition-colors text-ink/80"
+                              className="px-3 py-1 text-[11px] font-jakarta font-semibold uppercase tracking-wider border border-skynest-hairline bg-white hover:border-ink hover:text-ink hover:bg-ink/[0.03] transition-colors text-ink/80 disabled:opacity-40 disabled:cursor-not-allowed"
                             >
                               + Add to Stay
                             </button>
@@ -1431,6 +1539,102 @@ function BookingConfirmContent() {
                             {isSelected ? `$${(svc.base_price * qty).toFixed(2)}` : ''}
                           </span>
                         </div>
+
+                        {isSelected && cap.isSpa && (
+                          <div className="mt-3 pt-3 border-t border-skynest-hairline space-y-2 bg-paper/70 p-2.5 border border-skynest-hairline/60">
+                            <div className="flex items-center justify-between">
+                              <span className="text-[10px] font-jakarta font-semibold uppercase tracking-wider text-skynest-accent flex items-center gap-1">
+                                <Sparkles className="w-3 h-3" /> Spa Appointment Schedule
+                              </span>
+                              <span className="text-[9px] font-jakarta text-ink/50">Capacity: 20/hr</span>
+                            </div>
+
+                            <div>
+                              <label className="block text-[9px] font-jakarta uppercase tracking-wider text-ink/60 font-semibold mb-0.5">
+                                Appointment Date (Within Stay: {checkIn} → {checkOut})
+                              </label>
+                              <input
+                                type="date"
+                                value={serviceSchedules[svc.service_id]?.date || checkIn}
+                                min={checkIn}
+                                max={checkOut}
+                                onChange={(e) => {
+                                  const newDate = e.target.value;
+                                  setServiceSchedules(prev => ({
+                                    ...prev,
+                                    [svc.service_id]: {
+                                      ...(prev[svc.service_id] || { timeSlot: '10:00' }),
+                                      date: newDate,
+                                    },
+                                  }));
+                                  fetchSpaSlotsForDate(newDate);
+                                }}
+                                className="w-full bg-white border border-skynest-hairline px-2 py-1 text-[11px] font-jakarta focus:outline-none focus:border-skynest-accent"
+                              />
+                            </div>
+
+                            <div>
+                              <label className="block text-[9px] font-jakarta uppercase tracking-wider text-ink/60 font-semibold mb-0.5">
+                                Preferred 1-Hour Time Slot
+                              </label>
+                              <select
+                                value={serviceSchedules[svc.service_id]?.timeSlot || '10:00'}
+                                onChange={(e) => {
+                                  const newSlot = e.target.value;
+                                  setServiceSchedules(prev => ({
+                                    ...prev,
+                                    [svc.service_id]: {
+                                      ...(prev[svc.service_id] || { date: checkIn }),
+                                      timeSlot: newSlot,
+                                    },
+                                  }));
+                                }}
+                                className="w-full bg-white border border-skynest-hairline px-2 py-1 text-[11px] font-jakarta focus:outline-none focus:border-skynest-accent"
+                              >
+                                {(spaSlotsData[serviceSchedules[svc.service_id]?.date || checkIn] || [
+                                  { time: '09:00', is_available: true, available_count: 20 },
+                                  { time: '10:00', is_available: true, available_count: 20 },
+                                  { time: '11:00', is_available: true, available_count: 20 },
+                                  { time: '12:00', is_available: true, available_count: 20 },
+                                  { time: '13:00', is_available: true, available_count: 20 },
+                                  { time: '14:00', is_available: true, available_count: 20 },
+                                  { time: '15:00', is_available: true, available_count: 20 },
+                                  { time: '16:00', is_available: true, available_count: 20 },
+                                  { time: '17:00', is_available: true, available_count: 20 },
+                                  { time: '18:00', is_available: true, available_count: 20 },
+                                  { time: '19:00', is_available: true, available_count: 20 },
+                                  { time: '20:00', is_available: true, available_count: 20 },
+                                ]).map((slot) => {
+                                  const disabled = !slot.is_available;
+                                  return (
+                                    <option key={slot.time} value={slot.time} disabled={disabled}>
+                                      {slot.time} {disabled ? '— Fully Booked (20/20)' : `(${slot.available_count ?? 20} slots left)`}
+                                    </option>
+                                  );
+                                })}
+                              </select>
+                            </div>
+
+                            <div>
+                              <input
+                                type="text"
+                                placeholder="Special requests, therapist note..."
+                                value={serviceSchedules[svc.service_id]?.notes || ''}
+                                onChange={(e) => {
+                                  const newNotes = e.target.value;
+                                  setServiceSchedules(prev => ({
+                                    ...prev,
+                                    [svc.service_id]: {
+                                      ...(prev[svc.service_id] || { date: checkIn, timeSlot: '10:00' }),
+                                      notes: newNotes,
+                                    },
+                                  }));
+                                }}
+                                className="w-full bg-white border border-skynest-hairline px-2 py-1 text-[10px] font-jakarta placeholder:text-ink/40 focus:outline-none focus:border-skynest-accent"
+                              />
+                            </div>
+                          </div>
+                        )}
                       </div>
                     );
                   })}
@@ -1497,19 +1701,47 @@ function BookingConfirmContent() {
                     ))}
                   </div>
 
-                  {/* Meal charges itemized */}
+                  {/* Meal charges itemized with explicit guest and nights multiplication */}
                   <div className="space-y-1.5 text-xs font-jakarta pt-2">
                     <div className="flex justify-between items-center text-ink font-semibold border-b border-skynest-hairline pb-1">
                       <span>Meal Plans ({rooms.length} Room{rooms.length > 1 ? 's' : ''})</span>
                       <span>${totalMealCost.toFixed(2)}</span>
                     </div>
-                    {roomCalculations.map((rm) => (
-                      <div key={rm.index} className="flex justify-between items-center text-ink/60 text-[11px] pl-3">
-                        <span>Room {rm.roomNumber}: {rm.planName} {rm.planPrice > 0 ? `(${nights} nt × $${rm.planPrice})` : '(Included)'}</span>
-                        <span className="font-semibold text-ink">${rm.mealCost.toFixed(2)}</span>
-                      </div>
-                    ))}
+                    {roomCalculations.map((rm) => {
+                      const guestCount = Math.max(1, (rm.adults || 1) + (rm.children || 0));
+                      return (
+                        <div key={rm.index} className="flex justify-between items-center text-ink/60 text-[11px] pl-3">
+                          <span>
+                            Room {rm.roomNumber}: {rm.planName}{' '}
+                            {rm.planPrice > 0
+                              ? `(${guestCount} guest${guestCount > 1 ? 's' : ''} × ${nights} nt × $${rm.planPrice}/guest/nt)`
+                              : '(Included)'}
+                          </span>
+                          <span className="font-semibold text-ink">${rm.mealCost.toFixed(2)}</span>
+                        </div>
+                      );
+                    })}
                   </div>
+
+                  {/* Curated Services & Add-Ons itemized */}
+                  {selectedServiceList.length > 0 && (
+                    <div className="space-y-1.5 text-xs font-jakarta pt-2">
+                      <div className="flex justify-between items-center text-ink font-semibold border-b border-skynest-hairline pb-1">
+                        <span>Curated Services & Add-Ons ({selectedServiceList.length} Selected)</span>
+                        <span>${totalServiceCost.toFixed(2)}</span>
+                      </div>
+                      {selectedServiceList.map((svc) => (
+                        <div key={svc.service_id} className="flex justify-between items-center text-ink/60 text-[11px] pl-3">
+                          <span>
+                            {svc.service_name} ({svc.quantity} × ${svc.base_price.toFixed(2)}
+                            {svc.date ? ` · Date: ${svc.date}` : ''}
+                            {svc.appointment_time ? ` @ ${svc.appointment_time}` : ''})
+                          </span>
+                          <span className="font-semibold text-ink">${(svc.base_price * svc.quantity).toFixed(2)}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
 
                   {/* Base Subtotal */}
                   <div className="flex justify-between items-center text-ink font-bold text-xs pt-2 border-t border-skynest-hairline">
@@ -1691,7 +1923,7 @@ function BookingConfirmContent() {
                       Payment Card Details (Encrypted SSL Transaction)
                     </span>
                     <span className="text-[10px] font-jakarta text-emerald-700 bg-emerald-50 px-2 py-0.5 border border-emerald-200 uppercase font-semibold">
-                      Instant Confirmation
+                      Instant Confirmation · Test Card Accepted
                     </span>
                   </div>
 
@@ -1753,6 +1985,10 @@ function BookingConfirmContent() {
                       />
                     </div>
                   </div>
+
+                  <p className="text-[10px] font-jakarta text-ink/50 leading-relaxed pt-1">
+                    Demo Mode Notice: External payment gateway (PayHere) is not connected. Real credit/debit card details are not required — any standard test card (e.g. 4242 4242 4242 4242) will confirm your booking.
+                  </p>
                 </div>
               )}
             </div>

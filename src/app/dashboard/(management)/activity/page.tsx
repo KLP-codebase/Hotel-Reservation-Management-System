@@ -48,6 +48,7 @@ interface ActivityStay {
   archiveId: string;
   bookingId: string;
   bookingRef: string;
+  branchId?: string;
   branchName: string;
   roomTypeName: string;
   roomNumber: string;
@@ -187,12 +188,32 @@ function BookServiceModal({
   const [timeSlot, setTimeSlot] = useState<string>('10:00');
   const [notes, setNotes] = useState<string>('');
   const [submitting, setSubmitting] = useState<boolean>(false);
+  const [spaSlots, setSpaSlots] = useState<{ time: string; is_available: boolean; available_count?: number }[]>([]);
+
+  // Prevent Lenis smooth scroll from intercepting trackpad wheel events while modal is open
+  useEffect(() => {
+    window.__lenis?.stop();
+    return () => {
+      window.__lenis?.start();
+    };
+  }, []);
+
+  useEffect(() => {
+    if (selectedService?.category === 'Wellness' && preferredDate && stay.branchId) {
+      apiFetch<{ success: boolean; data: { time: string; is_available: boolean; available_count?: number }[] }>(
+        `/api/v1/services/spa-slots?date=${encodeURIComponent(preferredDate)}&branchId=${encodeURIComponent(stay.branchId)}`
+      ).then((res) => {
+        if (res.success && res.data) setSpaSlots(res.data);
+      }).catch(() => {});
+    }
+  }, [selectedService?.category, preferredDate, stay.branchId]);
 
   useEffect(() => {
     async function fetchCatalogue() {
       setLoading(true);
       try {
-        const res = await apiFetch<{ data: CatalogueItem[] }>('/api/v1/services/catalogue?is_active=true');
+        const query = stay.branchId ? `?branch_id=${encodeURIComponent(stay.branchId)}&is_active=true` : '?is_active=true';
+        const res = await apiFetch<{ data: CatalogueItem[] }>(`/api/v1/services/catalogue${query}`);
         setCatalogue(res.data || []);
         if (res.data && res.data.length > 0) {
           setSelectedService(res.data[0]);
@@ -222,6 +243,17 @@ function BookServiceModal({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedService) return;
+
+    const stayMin = stay.checkIn ? stay.checkIn.split('T')[0] : '';
+    const stayMax = stay.checkOut ? stay.checkOut.split('T')[0] : '';
+    if (stayMin && preferredDate < stayMin) {
+      setError(`Requested date cannot be earlier than check-in (${stayMin}).`);
+      return;
+    }
+    if (stayMax && preferredDate > stayMax) {
+      setError(`Requested date cannot be later than check-out (${stayMax}).`);
+      return;
+    }
 
     setSubmitting(true);
     setError(null);
@@ -256,12 +288,20 @@ function BookServiceModal({
   const totalPrice = selectedService ? Number(selectedService.base_price) * quantity : 0;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-ink/80 backdrop-blur-sm animate-in fade-in duration-200">
-      <div className="bg-paper border border-skynest-hairline shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden text-ink">
+    <div
+      data-lenis-prevent
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-ink/80 backdrop-blur-sm animate-in fade-in duration-200"
+      onWheel={(e) => e.stopPropagation()}
+    >
+      <div
+        data-lenis-prevent
+        className="bg-paper border border-skynest-hairline shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden text-ink overscroll-contain"
+        onWheel={(e) => e.stopPropagation()}
+      >
         {/* Header */}
-        <div className="px-6 py-4 bg-white border-b border-skynest-hairline flex items-center justify-between">
+        <div className="px-6 py-4 bg-white border-b border-skynest-hairline flex items-center justify-between shrink-0">
           <div>
-            <div className="text-[10px] font-jakarta uppercase tracking-[0.16em] text-skynest-accent font-semibold">
+            <div className="text-[11px] font-jakarta uppercase tracking-[0.16em] text-skynest-accent font-semibold">
               Sanctuary Concierge &bull; {stay.branchName}
             </div>
             <h2 className="font-cinzel text-xl font-bold text-ink">
@@ -281,7 +321,12 @@ function BookServiceModal({
         </div>
 
         {/* Form Body */}
-        <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-6 space-y-6">
+        <form
+          data-lenis-prevent
+          onWheel={(e) => e.stopPropagation()}
+          onSubmit={handleSubmit}
+          className="flex-1 overflow-y-auto overscroll-contain p-6 space-y-6"
+        >
           {error && (
             <div className="p-3 bg-rose-50 border border-rose-200 text-xs font-jakarta text-rose-800">
               {error}
@@ -321,7 +366,11 @@ function BookServiceModal({
             ) : filteredCatalogue.length === 0 ? (
               <div className="py-6 text-center text-xs text-ink/60">No available services found.</div>
             ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 max-h-48 overflow-y-auto pr-1">
+              <div
+                data-lenis-prevent
+                onWheel={(e) => e.stopPropagation()}
+                className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 max-h-48 overflow-y-auto overscroll-contain pr-1"
+              >
                 {filteredCatalogue.map((item) => {
                   const isSelected = selectedService?.service_id === item.service_id;
                   return (
@@ -346,7 +395,7 @@ function BookServiceModal({
                           {item.category}
                         </span>
                         <span className="font-semibold text-ink">
-                          LKR {toNum(item.base_price).toLocaleString()}
+                          ${toNum(item.base_price).toLocaleString()}
                         </span>
                       </div>
                     </button>
@@ -373,25 +422,54 @@ function BookServiceModal({
             </div>
             <div>
               <label className="text-[10px] font-jakarta uppercase tracking-wider text-ink/60 font-semibold block mb-1">
-                Requested Date
+                Requested Date (Within Stay)
               </label>
               <input
                 type="date"
                 value={preferredDate}
+                min={stay.checkIn ? stay.checkIn.split('T')[0] : undefined}
+                max={stay.checkOut ? stay.checkOut.split('T')[0] : undefined}
                 onChange={(e) => setPreferredDate(e.target.value)}
                 className="w-full bg-white border border-skynest-hairline px-3 py-2 text-xs font-jakarta focus:outline-none focus:border-skynest-accent"
               />
             </div>
             <div>
               <label className="text-[10px] font-jakarta uppercase tracking-wider text-ink/60 font-semibold block mb-1">
-                Preferred Time
+                {selectedService?.category === 'Wellness' ? 'Spa Slot (Max 20/hr)' : 'Preferred Time'}
               </label>
-              <input
-                type="time"
-                value={timeSlot}
-                onChange={(e) => setTimeSlot(e.target.value)}
-                className="w-full bg-white border border-skynest-hairline px-3 py-2 text-xs font-jakarta focus:outline-none focus:border-skynest-accent"
-              />
+              {selectedService?.category === 'Wellness' ? (
+                <select
+                  value={timeSlot}
+                  onChange={(e) => setTimeSlot(e.target.value)}
+                  className="w-full bg-white border border-skynest-hairline px-3 py-2 text-xs font-jakarta focus:outline-none focus:border-skynest-accent"
+                >
+                  {(spaSlots.length > 0 ? spaSlots : [
+                    { time: '09:00', is_available: true, available_count: 20 },
+                    { time: '10:00', is_available: true, available_count: 20 },
+                    { time: '11:00', is_available: true, available_count: 20 },
+                    { time: '12:00', is_available: true, available_count: 20 },
+                    { time: '13:00', is_available: true, available_count: 20 },
+                    { time: '14:00', is_available: true, available_count: 20 },
+                    { time: '15:00', is_available: true, available_count: 20 },
+                    { time: '16:00', is_available: true, available_count: 20 },
+                    { time: '17:00', is_available: true, available_count: 20 },
+                    { time: '18:00', is_available: true, available_count: 20 },
+                    { time: '19:00', is_available: true, available_count: 20 },
+                    { time: '20:00', is_available: true, available_count: 20 },
+                  ]).map((s) => (
+                    <option key={s.time} value={s.time} disabled={!s.is_available}>
+                      {s.time} {!s.is_available ? '— Fully Booked (20/20)' : `(${s.available_count ?? 20} slots left)`}
+                    </option>
+                  ))}
+                </select>
+              ) : (
+                <input
+                  type="time"
+                  value={timeSlot}
+                  onChange={(e) => setTimeSlot(e.target.value)}
+                  className="w-full bg-white border border-skynest-hairline px-3 py-2 text-xs font-jakarta focus:outline-none focus:border-skynest-accent"
+                />
+              )}
             </div>
           </div>
 
@@ -420,8 +498,8 @@ function BookServiceModal({
               </div>
             </div>
             <div className="text-right">
-              <div className="font-cinzel text-lg font-bold text-skynest-accent">
-                LKR {totalPrice.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+              <div className="font-cinzel text-lg font-bold text-skynest-accent tabular-nums">
+                ${totalPrice.toLocaleString(undefined, { minimumFractionDigits: 2 })}
               </div>
               <div className="text-[9px] font-jakarta text-ink/50">Billed to Room {stay.roomNumber}</div>
             </div>
@@ -683,10 +761,10 @@ export default function GuestActivityPage() {
                     Rewards Balance
                   </span>
                   <div className="mt-3">
-                    <div className="font-cinzel text-3xl font-bold text-skynest-accent">
-                      {data.stats.totalPoints.toLocaleString()} <span className="text-sm font-sans font-normal text-ink/60">PTS</span>
+                    <div className="font-cinzel text-3xl font-bold text-skynest-accent tabular-nums flex items-baseline gap-1.5">
+                      {data.stats.totalPoints.toLocaleString()} <span className="font-jakarta text-xs font-normal text-skynest-accent">PTS</span>
                     </div>
-                    <div className="text-[11px] font-jakarta text-ink/60 mt-0.5">1 pt per 10 LKR settled</div>
+                    <div className="text-[11px] font-jakarta text-ink/60 mt-0.5">1 pt per $10 settled</div>
                   </div>
                 </div>
 
@@ -697,7 +775,7 @@ export default function GuestActivityPage() {
                   </span>
                   <div className="mt-3">
                     <div className="font-cinzel text-2xl font-bold text-ink">
-                      LKR {toNum(data.stats.totalSpent).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                      ${toNum(data.stats.totalSpent).toLocaleString(undefined, { minimumFractionDigits: 2 })}
                     </div>
                     <div className="text-[11px] font-jakarta text-ink/60 mt-0.5">Across all properties</div>
                   </div>
@@ -821,12 +899,12 @@ export default function GuestActivityPage() {
                         <div className="flex items-center gap-4 text-xs font-jakarta">
                           <div className="bg-white border border-skynest-hairline px-3 py-1.5">
                             <span className="text-ink/60 mr-1.5">Points:</span>
-                            <span className="font-semibold text-skynest-accent">+{group.subtotalPoints} PTS</span>
+                            <span className="font-cinzel text-sm sm:text-base font-bold text-skynest-accent tabular-nums">+{group.subtotalPoints} <span className="font-jakarta text-xs font-normal text-skynest-accent">PTS</span></span>
                           </div>
                           <div className="bg-white border border-skynest-hairline px-3 py-1.5">
                             <span className="text-ink/60 mr-1.5">Spend:</span>
                             <span className="font-semibold text-ink">
-                              LKR {toNum(group.subtotalSpent).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                              ${toNum(group.subtotalSpent).toLocaleString(undefined, { minimumFractionDigits: 2 })}
                             </span>
                           </div>
                         </div>
@@ -918,6 +996,12 @@ function StayCard({
             >
               {isCompleted ? 'COMPLETED' : stay.status}
             </span>
+            {stay.services && stay.services.length > 0 && (
+              <span className="font-jakarta text-[9px] uppercase tracking-[0.16em] font-semibold px-2 py-0.5 border border-skynest-accent/30 bg-skynest-accent/10 text-skynest-accent flex items-center gap-1">
+                <Sparkles className="w-3 h-3 text-skynest-accent" />
+                {stay.services.length} {stay.services.length === 1 ? 'Service Booked' : 'Services Booked'}
+              </span>
+            )}
           </div>
 
           <div className="flex flex-wrap items-center gap-3 sm:gap-4 text-xs font-jakarta text-ink/60">
@@ -940,17 +1024,18 @@ function StayCard({
           <div className="text-right">
             <div className="font-jakarta text-[11px] text-ink/50 uppercase tracking-wider">Total Settled</div>
             <div className="font-cinzel text-base sm:text-lg font-bold text-ink">
-              LKR {toNum(stay.totalPaid).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+              ${toNum(stay.totalPaid).toLocaleString(undefined, { minimumFractionDigits: 2 })}
             </div>
           </div>
 
           <div className="text-right border-l border-skynest-hairline pl-5">
-            <div className="font-jakarta text-[11px] text-skynest-accent uppercase tracking-wider font-semibold">
+            <div className="font-jakarta text-[11px] text-skynest-accent uppercase tracking-[0.14em] font-semibold">
               Rewards Earned
             </div>
-            <div className="font-cinzel text-base sm:text-lg font-bold text-skynest-accent flex items-center justify-end gap-1">
-              <Award className="w-4 h-4" />
-              +{stay.loyaltyPoints} PTS
+            <div className="font-cinzel text-base sm:text-lg font-bold text-skynest-accent tabular-nums flex items-center justify-end gap-1.5">
+              <Award className="w-4 h-4 text-skynest-accent" />
+              <span>+{stay.loyaltyPoints}</span>
+              <span className="font-jakarta text-xs font-normal text-skynest-accent">PTS</span>
             </div>
           </div>
         </div>
@@ -994,7 +1079,7 @@ function StayCard({
             <span className="col-span-6">Service / Amenity</span>
             <span className="col-span-2 text-center">Category</span>
             <span className="col-span-2 text-center">Qty x Unit</span>
-            <span className="col-span-2 text-right">Total (LKR)</span>
+            <span className="col-span-2 text-right">Total ($)</span>
           </div>
           {stay.services.map((svc, idx) => (
             <div key={idx} className="grid grid-cols-12 text-xs font-jakarta text-ink/80 py-1.5 items-center">
@@ -1004,10 +1089,10 @@ function StayCard({
               </div>
               <div className="col-span-2 text-center text-[11px] text-ink/60 truncate">{svc.category}</div>
               <div className="col-span-2 text-center text-xs">
-                {svc.quantity} &times; LKR {toNum(svc.unitPrice).toLocaleString()}
+                {svc.quantity} &times; ${toNum(svc.unitPrice).toLocaleString()}
               </div>
               <div className="col-span-2 text-right font-medium text-ink">
-                LKR {toNum(svc.totalPrice).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                ${toNum(svc.totalPrice).toLocaleString(undefined, { minimumFractionDigits: 2 })}
               </div>
             </div>
           ))}

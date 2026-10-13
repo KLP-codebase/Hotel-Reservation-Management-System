@@ -280,7 +280,7 @@ export function TotalBillModal({ isOpen, onClose, booking, onPaymentSaved, initi
       <tr>
         <td><strong>${item.description}</strong>${item.details ? `<br/><span style="font-size: 11px; color: #64748b;">${item.details}</span>` : ''}</td>
         <td class="text-right">${item.category}</td>
-        <td class="text-right">LKR ${Number(item.totalPrice).toLocaleString('en-LK', { minimumFractionDigits: 2 })}</td>
+        <td class="text-right">${Number(item.totalPrice).toLocaleString('en-LK', { minimumFractionDigits: 2 })}</td>
       </tr>
     `).join('');
 
@@ -357,7 +357,7 @@ export function TotalBillModal({ isOpen, onClose, booking, onPaymentSaved, initi
       <tr>
         <th>Description</th>
         <th class="text-right">Category</th>
-        <th class="text-right">Amount (LKR)</th>
+        <th class="text-right">Amount ($)</th>
       </tr>
     </thead>
     <tbody>
@@ -365,22 +365,22 @@ export function TotalBillModal({ isOpen, onClose, booking, onPaymentSaved, initi
       <tr>
         <td><strong>Statutory Service Charge (SC 10%)</strong><br/><span style="font-size: 11px; color: #64748b;">Hospitality employee service charge</span></td>
         <td class="text-right">Tax Cascade</td>
-        <td class="text-right">LKR ${Number(b.service_charge_tax).toLocaleString('en-LK', { minimumFractionDigits: 2 })}</td>
+        <td class="text-right">${Number(b.service_charge_tax).toLocaleString('en-LK', { minimumFractionDigits: 2 })}</td>
       </tr>
       <tr>
         <td><strong>Tourism Development Levy (TDL 1%)</strong><br/><span style="font-size: 11px; color: #64748b;">Sri Lanka Tourism Act turnover levy</span></td>
         <td class="text-right">Tax Cascade</td>
-        <td class="text-right">LKR ${Number(b.tdl_amount).toLocaleString('en-LK', { minimumFractionDigits: 2 })}</td>
+        <td class="text-right">${Number(b.tdl_amount).toLocaleString('en-LK', { minimumFractionDigits: 2 })}</td>
       </tr>
       <tr>
         <td><strong>Social Security Contribution Levy (SSCL 2.5%)</strong><br/><span style="font-size: 11px; color: #64748b;">Act No. 25 of 2022</span></td>
         <td class="text-right">Tax Cascade</td>
-        <td class="text-right">LKR ${Number(b.ssc_amount).toLocaleString('en-LK', { minimumFractionDigits: 2 })}</td>
+        <td class="text-right">${Number(b.ssc_amount).toLocaleString('en-LK', { minimumFractionDigits: 2 })}</td>
       </tr>
       <tr>
         <td><strong>Value Added Tax (VAT 18%)</strong><br/><span style="font-size: 11px; color: #64748b;">Inland Revenue Department</span></td>
         <td class="text-right">Tax Cascade</td>
-        <td class="text-right">LKR ${Number(b.vat_amount).toLocaleString('en-LK', { minimumFractionDigits: 2 })}</td>
+        <td class="text-right">${Number(b.vat_amount).toLocaleString('en-LK', { minimumFractionDigits: 2 })}</td>
       </tr>
     </tbody>
   </table>
@@ -388,19 +388,19 @@ export function TotalBillModal({ isOpen, onClose, booking, onPaymentSaved, initi
   <div class="totals">
     <div class="totals-row">
       <span>Base Subtotal (Room & Services)</span>
-      <span>LKR ${Number(b.base_amount).toLocaleString('en-LK', { minimumFractionDigits: 2 })}</span>
+      <span>${Number(b.base_amount).toLocaleString('en-LK', { minimumFractionDigits: 2 })}</span>
     </div>
     <div class="totals-row grand">
       <span>Total Invoiced</span>
-      <span>LKR ${Number(b.total_amount).toLocaleString('en-LK', { minimumFractionDigits: 2 })}</span>
+      <span>${Number(b.total_amount).toLocaleString('en-LK', { minimumFractionDigits: 2 })}</span>
     </div>
     <div class="totals-row">
       <span>Total Paid</span>
-      <span>LKR ${Number(b.total_paid).toLocaleString('en-LK', { minimumFractionDigits: 2 })}</span>
+      <span>${Number(b.total_paid).toLocaleString('en-LK', { minimumFractionDigits: 2 })}</span>
     </div>
     <div class="totals-row" style="color: ${b.balance_due > 0 ? '#b91c1c' : '#15803d'}; font-weight: 600;">
       <span>Balance Due</span>
-      <span>LKR ${Number(b.balance_due).toLocaleString('en-LK', { minimumFractionDigits: 2 })}</span>
+      <span>${Number(b.balance_due).toLocaleString('en-LK', { minimumFractionDigits: 2 })}</span>
     </div>
   </div>
 
