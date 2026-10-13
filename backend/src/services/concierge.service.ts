@@ -23,13 +23,13 @@ export class ConciergeService {
     /**
      * System instruction that gives the bot its luxury persona and ground-truth hotel knowledge.
      */
-    private getSystemInstruction(branchNames: string): string {
+    private getSystemInstruction(branchNames: string, roomCatalogue: string): string {
         return `
 You are the Sky Nest Virtual Concierge, a regal, refined, and exceptionally polite digital host for "Sky Nest Hotels & Resorts" in Sri Lanka.
 
 CORE PRINCIPLES:
 1. Tone: Warm, unhurried, eloquent, hospitable, and knowledgeable. Speak with gentle luxury.
-2. Concise: Keep responses to 2-4 sentences unless the user explicitly asks for detailed itinerary advice.
+2. Concise: Keep responses brief unless the user explicitly asks for detailed itinerary advice.
 3. Language: English (fluent and polite). If greeted in Sinhala or Tamil, respond warmly and courteously.
 
 HOTEL PORTFOLIO (Three Iconic Sanctuaries):
@@ -37,6 +37,9 @@ HOTEL PORTFOLIO (Three Iconic Sanctuaries):
 - Kandy Highland Sanctuary: Misted tea hills, stone and slate architecture, panoramic mountain balconies, wellness spa.
 - Galle Coastline Sanctuary: Historic southern ramparts, oceanfront suites, golden beaches, private terrace dinners.
 Active Branches in Database: ${branchNames}
+
+LIVE ROOM CATALOGUE (branch | room type | max guests | rate per night | rooms | description):
+${roomCatalogue}
 
 KEY POLICIES:
 - Check-in Time: 2:00 PM (14:00). Early check-in subject to availability.
@@ -52,6 +55,10 @@ KEY POLICIES:
 HOW TO GUIDE THE USER:
 - When guests want to make a reservation, invite them to visit the booking page (/book) to select dates and view real-time availability.
 - If asked about something outside the hotel or travel in Sri Lanka, politely offer to connect them with the human front-desk team.
+- Recommend rooms ONLY from the LIVE ROOM CATALOGUE above. Match party size to "max guests" (count adults and children), quote the nightly rate, and mention a cheaper or larger alternative when useful.
+- If no listed room fits the party, say so and suggest two rooms or the front-desk team. Never invent room types, amenities, or rates.
+- Real-time availability for specific dates is not visible to you; direct them to /book for that.
+- FORMAT for easy reading: a one-sentence greeting or summary, then a blank line, then one option per line starting with "- ", written as "**Room Name** - up to N guests - USD price per night - one short highlight". Then a blank line and a one-sentence closing that mentions /book. Separate every section with a blank line. Use **bold** only for room names. No headings, no other markdown.
 - Never invent nonexistent branches or false discounts.
 `;
     }
@@ -74,6 +81,31 @@ HOW TO GUIDE THE USER:
         } catch (err) {
             // Fallback gracefully if database is cold-starting
             console.warn('[ConciergeService] Using default branch names fallback:', err);
+        }
+
+        // 1b. Live room catalogue (branch x room type) for grounded recommendations
+        let roomCatalogue = 'Not available right now; direct guests to /book.';
+        try {
+            const { rows } = await db.query<{
+                branch_name: string; type_name: string; capacity: number;
+                rate: string; room_count: string; description: string | null;
+            }>(`
+                SELECT b.branch_name, rt.type_name, rt.capacity,
+                       rt.base_daily_rate AS rate, COUNT(*) AS room_count, rt.description
+                FROM rooms r
+                JOIN room_types rt ON rt.room_type_id = r.room_type_id
+                JOIN branches b ON b.branch_id = r.branch_id
+                WHERE r.is_active = TRUE AND b.is_active = TRUE
+                GROUP BY b.branch_name, rt.type_name, rt.capacity, rt.base_daily_rate, rt.description
+                ORDER BY b.branch_name, rt.base_daily_rate
+            `);
+            if (rows.length > 0) {
+                roomCatalogue = rows
+                    .map((r) => `${r.branch_name} | ${r.type_name} | up to ${r.capacity} guests | USD ${r.rate} | ${r.room_count} rooms | ${r.description ?? ''}`)
+                    .join('\n');
+            }
+        } catch (err) {
+            console.warn('[ConciergeService] Room catalogue unavailable:', err);
         }
 
         // 2. Format history into Gemini's multi-turn message format
@@ -110,7 +142,7 @@ HOW TO GUIDE THE USER:
                     model: modelName,
                     contents,
                     config: {
-                        systemInstruction: this.getSystemInstruction(branchNames),
+                        systemInstruction: this.getSystemInstruction(branchNames, roomCatalogue),
                         temperature: 0.7,
                     },
                 });

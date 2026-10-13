@@ -463,11 +463,68 @@ function loginAuthorizationHtml(params: {
 
 // ── Provider Interface ──────────────────────────────────────────────
 
+function escapeHtml(value: string): string {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+function contactEnquiryHtml(params: {
+  name: string;
+  email: string;
+  phone?: string;
+  department: string;
+  sanctuary: string;
+  message: string;
+}): string {
+  const row = (label: string, value: string) =>
+    `<div class="detail-row"><strong>${label}:</strong> ${escapeHtml(value)}</div>`;
+  return `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="utf-8">
+      <style>
+        body { font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #FDFCFA; color: #0B2540; margin: 0; padding: 40px 20px; }
+        .container { max-width: 560px; margin: 0 auto; background: #FFFFFF; border: 1px solid #E5E0D8; padding: 40px 32px; }
+        .logo { font-family: 'Cinzel', Georgia, serif; font-size: 24px; font-weight: 700; letter-spacing: 0.15em; color: #0B2540; text-transform: uppercase; margin-bottom: 24px; }
+        .accent-bar { width: 48px; height: 2px; background-color: #D9722C; margin-bottom: 24px; }
+        h1 { font-family: 'Cinzel', Georgia, serif; font-size: 20px; font-weight: 600; letter-spacing: 0.05em; color: #0B2540; margin-top: 0; }
+        .detail-box { background: #F8F6F2; border: 1px solid #E5E0D8; padding: 18px 20px; margin: 20px 0; }
+        .detail-row { font-size: 13px; color: rgba(11, 37, 64, 0.85); margin: 6px 0; line-height: 1.5; }
+        .message { font-size: 14px; line-height: 1.7; color: rgba(11, 37, 64, 0.85); white-space: pre-wrap; border-left: 2px solid #D9722C; padding-left: 16px; margin: 20px 0; }
+        .footer { border-top: 1px solid #E5E0D8; margin-top: 32px; padding-top: 20px; font-size: 12px; color: rgba(11, 37, 64, 0.5); }
+      </style>
+    </head>
+    <body>
+      <div class="container">
+        <div class="logo">SKY NEST</div>
+        <div class="accent-bar"></div>
+        <h1>New Concierge Enquiry</h1>
+        <div class="detail-box">
+          ${row('From', params.name)}
+          ${row('Email', params.email)}
+          ${row('Phone', params.phone || 'Not provided')}
+          ${row('Department', params.department)}
+          ${row('Sanctuary', params.sanctuary)}
+        </div>
+        <div class="message">${escapeHtml(params.message)}</div>
+        <div class="footer">Reply to this email to respond directly to the guest.</div>
+      </div>
+    </body>
+    </html>
+  `;
+}
+
 interface EmailPayload {
   from: string;
   to: string;
   subject: string;
   html: string;
+  replyTo?: string;
 }
 
 interface EmailProvider {
@@ -491,6 +548,7 @@ class ResendProvider implements EmailProvider {
       to: payload.to,
       subject: payload.subject,
       html: payload.html,
+      ...(payload.replyTo ? { replyTo: payload.replyTo } : {}),
     });
 
     if (error) {
@@ -535,6 +593,7 @@ class SmtpProvider implements EmailProvider {
       to: payload.to,
       subject: payload.subject,
       html: payload.html,
+      ...(payload.replyTo ? { replyTo: payload.replyTo } : {}),
     });
 
     console.log(`[SmtpProvider] Message sent: ${info.messageId}`);
@@ -857,6 +916,29 @@ export class EmailService {
       });
     } catch (err: any) {
       console.warn('[EmailService] Failed to send login authorization email:', err.message);
+      return false;
+    }
+  }
+
+  async sendContactEnquiryEmail(params: {
+    to: string;
+    name: string;
+    email: string;
+    phone?: string;
+    department: string;
+    sanctuary: string;
+    message: string;
+  }): Promise<boolean> {
+    try {
+      return await this.provider.send({
+        from: env.EMAIL_FROM,
+        to: params.to,
+        replyTo: params.email,
+        subject: `New enquiry: ${params.department} — ${params.name}`.replace(/[\r\n]+/g, ' '),
+        html: contactEnquiryHtml(params),
+      });
+    } catch (err: any) {
+      console.warn('[EmailService] Failed to send contact enquiry:', err.message);
       return false;
     }
   }
