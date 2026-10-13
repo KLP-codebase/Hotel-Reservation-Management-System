@@ -50,16 +50,21 @@ export class ActivityRepository {
    * Tier 3: Provision guest record if not yet created
    */
   async resolveGuestId(userAccountId: string): Promise<{ guestId: string; firstName: string; lastName: string; email: string }> {
-    // 1. Direct link on user_accounts
+    // 1. Direct link on user_accounts (using LEFT JOIN so accounts without staff rows still resolve)
     const { rows: direct } = await this.db.query<{
       guest_id: string;
       first_name: string;
       last_name: string;
       email: string;
     }>(
-      `SELECT ua.guest_id, s.first_name, s.last_name, s.email
+      `SELECT 
+         ua.guest_id, 
+         COALESCE(s.first_name, g.first_name, ua.username, 'Guest') AS first_name, 
+         COALESCE(s.last_name, g.last_name, '') AS last_name, 
+         COALESCE(s.email, g.email, ua.username || '@guest.skynest.lk') AS email
        FROM user_accounts ua
-       JOIN staff s ON s.staff_id = ua.staff_id
+       LEFT JOIN staff s ON s.staff_id = ua.staff_id
+       LEFT JOIN guests g ON (g.id = ua.guest_id OR g.guest_id::text = ua.guest_id)
        WHERE ua.user_account_id = $1 AND ua.guest_id IS NOT NULL`,
       [userAccountId]
     );
@@ -79,9 +84,12 @@ export class ActivityRepository {
       last_name: string;
       email: string;
     }>(
-      `SELECT s.first_name, s.last_name, s.email
+      `SELECT 
+         COALESCE(s.first_name, ua.username, 'Guest') AS first_name, 
+         COALESCE(s.last_name, '') AS last_name, 
+         COALESCE(s.email, ua.username || '@guest.skynest.lk') AS email
        FROM user_accounts ua
-       JOIN staff s ON s.staff_id = ua.staff_id
+       LEFT JOIN staff s ON s.staff_id = ua.staff_id
        WHERE ua.user_account_id = $1`,
       [userAccountId]
     );
