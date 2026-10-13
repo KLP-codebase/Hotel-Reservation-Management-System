@@ -99,7 +99,7 @@ export function ServiceTrendsReport() {
         { header: 'Category', accessor: s => s.category },
         { header: 'Orders Placed', accessor: s => s.total_orders },
         { header: 'Units Consumed', accessor: s => s.units_consumed },
-        { header: 'Revenue (LKR)', accessor: s => toNum(s.total_revenue).toFixed(2) },
+        { header: 'Revenue ($)', accessor: s => toNum(s.total_revenue).toFixed(2) },
       ]
     );
   };
@@ -193,7 +193,7 @@ export function ServiceTrendsReport() {
                 <th className="py-2.5 px-4">Category</th>
                 <th className="py-2.5 px-4 text-center">Orders</th>
                 <th className="py-2.5 px-4 text-center">Units Consumed</th>
-                <th className="py-2.5 px-4 text-right">Revenue (LKR)</th>
+                <th className="py-2.5 px-4 text-right">Revenue ($)</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-white/5 font-jakarta">
@@ -227,7 +227,7 @@ export function ServiceTrendsReport() {
                     <td className="py-3 px-4 text-center text-stone-300 font-mono">{svc.total_orders}</td>
                     <td className="py-3 px-4 text-center text-stone-300 font-mono">{svc.units_consumed}</td>
                     <td className="py-3 px-4 text-right font-mono font-semibold text-amber-300">
-                      LKR {toNum(svc.total_revenue).toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                      ${toNum(svc.total_revenue).toLocaleString('en-US', { minimumFractionDigits: 2 })}
                     </td>
                   </tr>
                 ))
@@ -305,7 +305,7 @@ export function ServiceTrendsReport() {
                       <td className="py-2.5 px-3 text-center font-mono text-stone-400">{rp.bookings_count}</td>
                       <td className="py-2.5 px-3 text-center font-mono text-amber-300">{rp.avg_nights} nights</td>
                       <td className="py-2.5 px-3 text-right font-mono text-stone-200">
-                        LKR {toNum(rp.total_tariff_revenue).toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                        ${toNum(rp.total_tariff_revenue).toLocaleString('en-US', { minimumFractionDigits: 2 })}
                       </td>
                     </tr>
                   ))

@@ -596,7 +596,7 @@ export default function BillingPage() {
                     </div>
 
                     <Field
-                        label="Amount (LKR)"
+                        label="Amount ($)"
                         type="number"
                         min="0.01"
                         step="0.01"

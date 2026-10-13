@@ -36,7 +36,7 @@ interface Props {
 
 function fmt(v: string | number): string {
   const n = typeof v === 'string' ? toNum(v) : v;
-  return 'LKR ' + n.toLocaleString('en-LK', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  return '$' + n.toLocaleString('en-LK', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
 const STATUS_OPTIONS = [
@@ -154,10 +154,10 @@ export function BillingSummaryReport({ selectedBranch: propBranch }: Props = {})
         { header: 'Guest Phone', accessor: r => r.guest_phone || '' },
         { header: 'Branch Name', accessor: r => r.branch_name },
         { header: 'Rooms', accessor: r => r.room_numbers || '' },
-        { header: 'Base Amount (LKR)', accessor: r => toNum(r.base_amount).toFixed(2) },
-        { header: 'Total Invoiced (LKR)', accessor: r => toNum(r.total_amount).toFixed(2) },
-        { header: 'Total Paid (LKR)', accessor: r => toNum(r.total_paid).toFixed(2) },
-        { header: 'Balance Due (LKR)', accessor: r => toNum(r.balance_due).toFixed(2) },
+        { header: 'Base Amount ($)', accessor: r => toNum(r.base_amount).toFixed(2) },
+        { header: 'Total Invoiced ($)', accessor: r => toNum(r.total_amount).toFixed(2) },
+        { header: 'Total Paid ($)', accessor: r => toNum(r.total_paid).toFixed(2) },
+        { header: 'Balance Due ($)', accessor: r => toNum(r.balance_due).toFixed(2) },
         { header: 'Invoice Date', accessor: r => r.invoice_date?.split('T')[0] || '' },
         { header: 'Debtor Aging (Days)', accessor: r => r.aging_days },
         { header: 'Status', accessor: r => r.computed_status },
@@ -323,9 +323,9 @@ export function BillingSummaryReport({ selectedBranch: propBranch }: Props = {})
       {/* KPI Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {[
-          { label: 'Total Invoiced (LKR)', value: fmt(totalInvoiced), accent: false },
-          { label: 'Settled Payments (LKR)', value: fmt(totalCollected), accent: false },
-          { label: 'Outstanding Arrears (LKR)', value: fmt(totalOutstanding), accent: totalOutstanding > 0 },
+          { label: 'Total Invoiced ($)', value: fmt(totalInvoiced), accent: false },
+          { label: 'Settled Payments ($)', value: fmt(totalCollected), accent: false },
+          { label: 'Outstanding Arrears ($)', value: fmt(totalOutstanding), accent: totalOutstanding > 0 },
           {
             label: 'Debtor Aging Status',
             value: `${aging30} >30d · ${aging60} >60d · ${aging90} >90d`,

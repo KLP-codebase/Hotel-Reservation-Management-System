@@ -587,6 +587,41 @@ function BookingConfirmContent() {
     return sum + (s.base_price * qty);
   }, 0);
 
+  // Service booking quantity caps based on guest count and stay duration
+  // - Spa / Wellness: capped at totalAdults * nights
+  // - In-room Breakfast / Dining: capped at (totalAdults + totalChildren) * nights
+  const totalGuests = totalAdults + totalChildren;
+  const getServiceCap = (svc: { service_name: string; category?: string }) => {
+    const cat = (svc.category || '').toLowerCase();
+    const name = (svc.service_name || '').toLowerCase();
+
+    // Spa / Wellness services: capped at totalAdults * nights
+    if (cat === 'wellness' || name.includes('spa') || name.includes('massage') || name.includes('ayurvedic')) {
+      const max = Math.max(1, totalAdults * nights);
+      return {
+        max,
+        label: `Max ${max} (${totalAdults} adult${totalAdults > 1 ? 's' : ''} × ${nights} nt${nights > 1 ? 's' : ''})`,
+        isSpa: true,
+      };
+    }
+
+    // In-room Breakfast / Dining: capped at (totalAdults + totalChildren) * nights
+    if (name.includes('breakfast') || (cat === 'dining' && (name.includes('breakfast') || name.includes('dining')))) {
+      const max = Math.max(1, totalGuests * nights);
+      return {
+        max,
+        label: `Max ${max} (${totalGuests} guest${totalGuests > 1 ? 's' : ''} × ${nights} nt${nights > 1 ? 's' : ''})`,
+        isBreakfast: true,
+      };
+    }
+
+    return {
+      max: 99,
+      label: null,
+      isSpa: false,
+    };
+  };
+
   // Base Amount before taxes
   const baseAmount = totalRoomCost + totalMealCost + totalServiceCost;
 
@@ -721,6 +756,16 @@ function BookingConfirmContent() {
           base_price: s.base_price,
           quantity: selectedServices[s.service_id],
         }));
+
+      // Validate service quantity caps
+      for (const s of payloadServices) {
+        const cap = getServiceCap(s);
+        if (s.quantity > cap.max) {
+          setError(`Service "${s.service_name}" exceeds the allowed limit of ${cap.max} (${cap.label}).`);
+          setLoading(false);
+          return;
+        }
+      }
 
       const payloadPayment = paymentOption === 'ARRIVAL' ? undefined : {
         amount: Number((paymentOption === 'DEPOSIT' ? depositAmount : grandTotal).toFixed(2)),
@@ -1360,6 +1405,8 @@ function BookingConfirmContent() {
                   {availableServices.map((svc) => {
                     const qty = selectedServices[svc.service_id] || 0;
                     const isSelected = qty > 0;
+                    const cap = getServiceCap(svc);
+                    const isMaxReached = qty >= cap.max;
                     return (
                       <div
                         key={svc.service_id}
@@ -1384,6 +1431,17 @@ function BookingConfirmContent() {
                           <p className="font-jakarta text-[11px] text-ink/50 mt-1">
                             Available during your stay. Itemized in your room folio statement.
                           </p>
+                          {cap.label && (
+                            <div className="mt-2.5">
+                              <span className={`inline-block text-[10px] font-jakarta px-2 py-0.5 border ${
+                                isMaxReached
+                                  ? 'bg-amber-50 text-amber-800 border-amber-300 font-semibold'
+                                  : 'bg-ink/[0.02] text-ink/60 border-skynest-hairline font-medium'
+                              }`}>
+                                {isMaxReached ? `Limit Reached: ${cap.label}` : cap.label}
+                              </span>
+                            </div>
+                          )}
                         </div>
 
                         <div className="pt-4 mt-3 border-t border-skynest-hairline flex items-center justify-between">
@@ -1406,11 +1464,17 @@ function BookingConfirmContent() {
                               </span>
                               <button
                                 type="button"
+                                disabled={isMaxReached}
                                 onClick={() => setSelectedServices(prev => ({
                                   ...prev,
-                                  [svc.service_id]: qty + 1,
+                                  [svc.service_id]: Math.min(cap.max, qty + 1),
                                 }))}
-                                className="w-6 h-6 flex items-center justify-center border border-skynest-hairline text-ink hover:bg-ink hover:text-white transition-colors text-xs font-bold"
+                                className={`w-6 h-6 flex items-center justify-center border text-xs font-bold transition-colors ${
+                                  isMaxReached
+                                    ? 'border-skynest-hairline text-ink/30 bg-ink/[0.02] cursor-not-allowed'
+                                    : 'border-skynest-hairline text-ink hover:bg-ink hover:text-white'
+                                }`}
+                                title={isMaxReached ? `Maximum limit reached (${cap.label})` : 'Add one more'}
                               >
                                 +
                               </button>
@@ -1418,11 +1482,12 @@ function BookingConfirmContent() {
                           ) : (
                             <button
                               type="button"
+                              disabled={cap.max < 1}
                               onClick={() => setSelectedServices(prev => ({
                                 ...prev,
                                 [svc.service_id]: 1,
                               }))}
-                              className="px-3 py-1 text-[11px] font-jakarta font-semibold uppercase tracking-wider border border-skynest-hairline bg-white hover:border-ink hover:text-ink hover:bg-ink/[0.03] transition-colors text-ink/80"
+                              className="px-3 py-1 text-[11px] font-jakarta font-semibold uppercase tracking-wider border border-skynest-hairline bg-white hover:border-ink hover:text-ink hover:bg-ink/[0.03] transition-colors text-ink/80 disabled:opacity-40 disabled:cursor-not-allowed"
                             >
                               + Add to Stay
                             </button>
@@ -1691,7 +1756,7 @@ function BookingConfirmContent() {
                       Payment Card Details (Encrypted SSL Transaction)
                     </span>
                     <span className="text-[10px] font-jakarta text-emerald-700 bg-emerald-50 px-2 py-0.5 border border-emerald-200 uppercase font-semibold">
-                      Instant Confirmation
+                      Instant Confirmation · Test Card Accepted
                     </span>
                   </div>
 
@@ -1753,6 +1818,10 @@ function BookingConfirmContent() {
                       />
                     </div>
                   </div>
+
+                  <p className="text-[10px] font-jakarta text-ink/50 leading-relaxed pt-1">
+                    Demo Mode Notice: External payment gateway (PayHere) is not connected. Real credit/debit card details are not required — any standard test card (e.g. 4242 4242 4242 4242) will confirm your booking.
+                  </p>
                 </div>
               )}
             </div>

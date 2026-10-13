@@ -514,7 +514,7 @@ export default function RoomsPage() {
           />
           <div className="grid grid-cols-2 gap-6">
             <Field
-              label="Rate (LKR / night)"
+              label="Rate ($ / night)"
               type="number"
               min="0"
               step="0.01"

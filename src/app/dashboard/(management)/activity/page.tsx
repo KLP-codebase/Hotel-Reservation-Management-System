@@ -346,7 +346,7 @@ function BookServiceModal({
                           {item.category}
                         </span>
                         <span className="font-semibold text-ink">
-                          LKR {toNum(item.base_price).toLocaleString()}
+                          ${toNum(item.base_price).toLocaleString()}
                         </span>
                       </div>
                     </button>
@@ -421,7 +421,7 @@ function BookServiceModal({
             </div>
             <div className="text-right">
               <div className="font-cinzel text-lg font-bold text-skynest-accent">
-                LKR {totalPrice.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                ${totalPrice.toLocaleString(undefined, { minimumFractionDigits: 2 })}
               </div>
               <div className="text-[9px] font-jakarta text-ink/50">Billed to Room {stay.roomNumber}</div>
             </div>
@@ -686,7 +686,7 @@ export default function GuestActivityPage() {
                     <div className="font-cinzel text-3xl font-bold text-skynest-accent">
                       {data.stats.totalPoints.toLocaleString()} <span className="text-sm font-sans font-normal text-ink/60">PTS</span>
                     </div>
-                    <div className="text-[11px] font-jakarta text-ink/60 mt-0.5">1 pt per 10 LKR settled</div>
+                    <div className="text-[11px] font-jakarta text-ink/60 mt-0.5">1 pt per $10 settled</div>
                   </div>
                 </div>
 
@@ -697,7 +697,7 @@ export default function GuestActivityPage() {
                   </span>
                   <div className="mt-3">
                     <div className="font-cinzel text-2xl font-bold text-ink">
-                      LKR {toNum(data.stats.totalSpent).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                      ${toNum(data.stats.totalSpent).toLocaleString(undefined, { minimumFractionDigits: 2 })}
                     </div>
                     <div className="text-[11px] font-jakarta text-ink/60 mt-0.5">Across all properties</div>
                   </div>
@@ -826,7 +826,7 @@ export default function GuestActivityPage() {
                           <div className="bg-white border border-skynest-hairline px-3 py-1.5">
                             <span className="text-ink/60 mr-1.5">Spend:</span>
                             <span className="font-semibold text-ink">
-                              LKR {toNum(group.subtotalSpent).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                              ${toNum(group.subtotalSpent).toLocaleString(undefined, { minimumFractionDigits: 2 })}
                             </span>
                           </div>
                         </div>
@@ -940,7 +940,7 @@ function StayCard({
           <div className="text-right">
             <div className="font-jakarta text-[11px] text-ink/50 uppercase tracking-wider">Total Settled</div>
             <div className="font-cinzel text-base sm:text-lg font-bold text-ink">
-              LKR {toNum(stay.totalPaid).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+              ${toNum(stay.totalPaid).toLocaleString(undefined, { minimumFractionDigits: 2 })}
             </div>
           </div>
 
@@ -994,7 +994,7 @@ function StayCard({
             <span className="col-span-6">Service / Amenity</span>
             <span className="col-span-2 text-center">Category</span>
             <span className="col-span-2 text-center">Qty x Unit</span>
-            <span className="col-span-2 text-right">Total (LKR)</span>
+            <span className="col-span-2 text-right">Total ($)</span>
           </div>
           {stay.services.map((svc, idx) => (
             <div key={idx} className="grid grid-cols-12 text-xs font-jakarta text-ink/80 py-1.5 items-center">
@@ -1004,10 +1004,10 @@ function StayCard({
               </div>
               <div className="col-span-2 text-center text-[11px] text-ink/60 truncate">{svc.category}</div>
               <div className="col-span-2 text-center text-xs">
-                {svc.quantity} &times; LKR {toNum(svc.unitPrice).toLocaleString()}
+                {svc.quantity} &times; ${toNum(svc.unitPrice).toLocaleString()}
               </div>
               <div className="col-span-2 text-right font-medium text-ink">
-                LKR {toNum(svc.totalPrice).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                ${toNum(svc.totalPrice).toLocaleString(undefined, { minimumFractionDigits: 2 })}
               </div>
             </div>
           ))}

@@ -97,15 +97,15 @@ export class ServiceRepository {
       let i = 1;
 
       if (filters?.branch_id !== undefined && String(filters.branch_id) !== 'ALL' && String(filters.branch_id).trim() !== '') {
-        conditions.push(`sc.branch_id::text = ${i++}::text`);
+        conditions.push(`sc.branch_id::text = $${i++}::text`);
         values.push(String(filters.branch_id));
       }
       if (filters?.category !== undefined && filters.category !== 'ALL' && filters.category.trim() !== '') {
-        conditions.push(`sc.category = ${i++}`);
+        conditions.push(`sc.category = $${i++}`);
         values.push(filters.category);
       }
       if (filters?.is_active !== undefined) {
-        conditions.push(`sc.is_active = ${i++}`);
+        conditions.push(`sc.is_active = $${i++}`);
         values.push(filters.is_active);
       }
 

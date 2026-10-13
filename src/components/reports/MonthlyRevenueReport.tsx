@@ -34,7 +34,7 @@ interface Props {
  */
 function fmt(v: string | number): string {
   const n = typeof v === 'string' ? toNum(v) : v;
-  return 'LKR ' + n.toLocaleString('en-LK', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  return '$' + n.toLocaleString('en-LK', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
 /**
@@ -150,11 +150,11 @@ export function MonthlyRevenueReport({ selectedBranch: propBranch, year: propYea
       [
         { header: 'Month', accessor: r => r.month_label },
         { header: 'Branch Name', accessor: r => r.branch_name },
-        { header: 'Room Revenue (LKR)', accessor: r => toNum(r.total_room_revenue).toFixed(2) },
-        { header: 'Service Revenue (LKR)', accessor: r => toNum(r.total_service_revenue).toFixed(2) },
-        { header: 'Subtotal Base (LKR)', accessor: r => toNum(r.subtotal_base_revenue).toFixed(2) },
-        { header: 'Taxes Collected (LKR)', accessor: r => toNum(r.total_taxes_collected).toFixed(2) },
-        { header: 'Gross Revenue (LKR)', accessor: r => toNum(r.gross_revenue).toFixed(2) },
+        { header: 'Room Revenue ($)', accessor: r => toNum(r.total_room_revenue).toFixed(2) },
+        { header: 'Service Revenue ($)', accessor: r => toNum(r.total_service_revenue).toFixed(2) },
+        { header: 'Subtotal Base ($)', accessor: r => toNum(r.subtotal_base_revenue).toFixed(2) },
+        { header: 'Taxes Collected ($)', accessor: r => toNum(r.total_taxes_collected).toFixed(2) },
+        { header: 'Gross Revenue ($)', accessor: r => toNum(r.gross_revenue).toFixed(2) },
       ]
     );
   };
@@ -390,8 +390,8 @@ export function MonthlyRevenueReport({ selectedBranch: propBranch, year: propYea
                   <thead>
                     <tr className="border-b border-white/10 bg-stone-900/50 text-[10px] uppercase font-mono tracking-wider text-stone-400">
                       <th className="p-3">Month</th>
-                      <th className="p-3">Room Tariff (LKR)</th>
-                      <th className="p-3">Services (LKR)</th>
+                      <th className="p-3">Room Tariff ($)</th>
+                      <th className="p-3">Services ($)</th>
                       <th className="p-3">Subtotal Base</th>
                       <th className="p-3">Taxes Collected</th>
                       <th className="p-3">Gross Revenue</th>

@@ -122,6 +122,48 @@ router.post('/', async (req: Request, res: Response) => {
     }
 
     const { services = [], payment, ...bookingHeader } = header as any;
+
+    // Validate service quantity caps:
+    // - Spa / Wellness: max = adults * nights
+    // - In-room Breakfast / Dining: max = (adults + children) * nights
+    if (services.length > 0 && roomLines.length > 0) {
+        const firstLine = roomLines[0];
+        const checkInTime = new Date(firstLine.check_in_date).getTime();
+        const checkOutTime = new Date(firstLine.check_out_date).getTime();
+        const nights = Math.max(1, Math.round((checkOutTime - checkInTime) / (1000 * 60 * 60 * 24)));
+        const adults = Number(header.adults) || 1;
+        const children = Number(header.children) || 0;
+        const totalGuests = adults + children;
+
+        for (const s of services) {
+            const cat = (s.category || '').toLowerCase();
+            const name = (s.service_name || '').toLowerCase();
+            const qty = s.quantity ?? 1;
+
+            if (cat === 'wellness' || name.includes('spa') || name.includes('massage') || name.includes('ayurvedic')) {
+                const maxSpa = Math.max(1, adults * nights);
+                if (qty > maxSpa) {
+                    return res.status(400).json({
+                        success: false,
+                        code: 'SERVICE_CAP_EXCEEDED',
+                        message: `Orders for "${s.service_name}" cannot exceed ${maxSpa} (${adults} adult(s) × ${nights} night(s)).`,
+                    });
+                }
+            }
+
+            if (name.includes('breakfast') || (cat === 'dining' && (name.includes('breakfast') || name.includes('dining')))) {
+                const maxBreakfast = Math.max(1, totalGuests * nights);
+                if (qty > maxBreakfast) {
+                    return res.status(400).json({
+                        success: false,
+                        code: 'SERVICE_CAP_EXCEEDED',
+                        message: `Orders for "${s.service_name}" cannot exceed ${maxBreakfast} (${totalGuests} guest(s) × ${nights} night(s)).`,
+                    });
+                }
+            }
+        }
+    }
+
     const booking = await repo.createBooking({ ...bookingHeader, booked_by_guest_id: bookerId }, roomLines);
 
     // Release any temporary room holds upon successful booking creation
