@@ -197,3 +197,85 @@ body::-webkit-scrollbar,
   0%, 100% { transform: translate3d(0, 0, 0) scale(0.98); }
   50% { transform: translate3d(-28px, 20px, 0) scale(1.03); }
 }
+/* ── Print / PDF Generation Styles (Executive Report Output) ──────────────── */
+@media print {
+  /* 1. Hide Virtual Concierge completely */
+  .skynest-concierge,
+  [aria-label="Open Sky Nest Virtual Concierge"],
+  [aria-label="Sky Nest Concierge Chat"],
+  #skynest-concierge-root {
+    display: none !important;
+    visibility: hidden !important;
+  }
+
+  /* 2. Hide app navigation, headers, footers, masthead, and action bars */
+  nav,
+  header,
+  footer,
+  aside,
+  .no-print,
+  .print\:hidden,
+  .dashboard-masthead,
+  .segmented-tabs,
+  button:not(.print-keep) {
+    display: none !important;
+  }
+
+  /* 3. Force background to white and text to dark ink */
+  html, body, main {
+    background: #ffffff !important;
+    color: #0b2540 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    width: 100% !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  /* 4. Convert dark report containers to crisp executive paper format */
+  .bg-ink, [class*="bg-stone-950"], [class*="bg-stone-900"], [class*="bg-paper"] {
+    background: #ffffff !important;
+    color: #0b2540 !important;
+    border-color: #d1cdc7 !important;
+    box-shadow: none !important;
+  }
+
+  /* 5. Ensure all text colors have strong contrast for reading/printing */
+  .text-stone-100, .text-stone-200, .text-stone-300, .text-stone-400, .text-stone-500,
+  .text-white, .text-ink-faded {
+    color: #0b2540 !important;
+  }
+
+  .text-skynest-accent, .text-amber-400, .text-amber-500 {
+    color: #b85d1e !important;
+  }
+
+  /* 6. Clean table layout and page-break rules */
+  tr, .print-card, [class*="grid"] > div {
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
+
+  table {
+    width: 100% !important;
+    border-collapse: collapse !important;
+  }
+
+  th {
+    background-color: #0b2540 !important;
+    color: #ffffff !important;
+    border: 1px solid #0b2540 !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  td {
+    border-bottom: 1px solid #e2ded7 !important;
+    color: #0b2540 !important;
+  }
+
+  @page {
+    margin: 1.5cm;
+    size: auto;
+  }
+}

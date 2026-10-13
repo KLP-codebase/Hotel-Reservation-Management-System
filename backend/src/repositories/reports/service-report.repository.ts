@@ -4,10 +4,16 @@ import { ServiceUsageQueryParams, ServiceUsageReportRow } from './service-report
 
 export class ServiceReportRepository {
   async getServiceUsageBreakdown(params: ServiceUsageQueryParams): Promise<ServiceUsageReportRow[]> {
+    const isUuid = (val?: string) =>
+      Boolean(val && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(val));
+
+    const isDate = (val?: string) =>
+      Boolean(val && /^\d{4}-\d{2}-\d{2}$/.test(val));
+
     const values = [
-      params.branchId || null,
-      params.startDate || null,
-      params.endDate || null,
+      isUuid(params.branchId) ? params.branchId : null,
+      isDate(params.startDate) ? params.startDate : null,
+      isDate(params.endDate) ? params.endDate : null,
       params.category || 'ALL',
     ];
 

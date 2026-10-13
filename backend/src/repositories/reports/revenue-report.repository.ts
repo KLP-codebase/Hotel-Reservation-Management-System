@@ -122,10 +122,10 @@ export class RevenueReportRepository {
           COALESCE(i.total_amount, 0)       AS total_amount
         FROM invoices i
         JOIN booking_rooms bkr
-          ON (bkr.booking_room_id = i.booking_room_id
+          ON (bkr.booking_room_id::text = i.booking_room_id::text
               OR bkr.booking_id::text = i.booking_room_id::text)
         JOIN bookings b
-          ON (b.booking_id = bkr.booking_id
+          ON (b.booking_id::text = bkr.booking_id::text
               OR b.id = bkr.booking_id::text)
         JOIN branches br ON br.branch_id = b.branch_id
         WHERE ($1::uuid IS NULL OR br.branch_id = $1::uuid)
@@ -206,15 +206,15 @@ export class RevenueReportRepository {
         END                                                                            AS computed_status
       FROM invoices i
       JOIN booking_rooms bkr
-        ON (bkr.booking_room_id = i.booking_room_id
+        ON (bkr.booking_room_id::text = i.booking_room_id::text
             OR bkr.booking_id::text = i.booking_room_id::text)
       JOIN bookings b
-        ON (b.booking_id = bkr.booking_id
+        ON (b.booking_id::text = bkr.booking_id::text
             OR b.id = bkr.booking_id::text)
       JOIN branches br ON br.branch_id = b.branch_id
-      LEFT JOIN rooms rm ON rm.id = bkr.room_id
-      LEFT JOIN guests g ON g.id = b.booked_by_guest_id
-      LEFT JOIN payments p ON p.invoice_id = i.invoice_id
+      LEFT JOIN rooms rm ON (rm.id::text = bkr.room_id::text OR rm.room_id::text = bkr.room_id::text)
+      LEFT JOIN guests g ON (g.id::text = b.booked_by_guest_id::text OR g.guest_id::text = b.booked_by_guest_id::text)
+      LEFT JOIN payments p ON p.invoice_id::text = i.invoice_id::text
       WHERE ($1::uuid IS NULL OR b.branch_id = $1::uuid)
         AND ($4::text IS NULL OR (
           g.first_name ILIKE '%' || $4 || '%' OR
