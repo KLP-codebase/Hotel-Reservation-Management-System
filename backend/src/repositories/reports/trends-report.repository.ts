@@ -51,10 +51,10 @@ export class TrendsReportRepository {
         SUM(su.quantity)::int AS units_consumed,
         ROUND(SUM(su.quantity * su.price_at_usage), 2)::float AS total_revenue
       FROM service_usage su
-      JOIN service_catalogue sc ON sc.service_id = su.service_id
+      JOIN service_catalogue sc ON sc.service_id::text = su.service_id::text
       LEFT JOIN booking_rooms bkr ON (bkr.booking_room_id = su.booking_room_id OR bkr.booking_room_id::text = su.booking_room_id::text)
-      LEFT JOIN rooms rm ON rm.id = bkr.room_id
-      WHERE ($1::uuid IS NULL OR rm.branch_id = $1::uuid)
+      LEFT JOIN rooms rm ON (rm.id::text = bkr.room_id::text OR rm.room_id::text = bkr.room_id::text)
+      WHERE ($1::text IS NULL OR $1 = '' OR rm.branch_id::text = $1::text)
         AND ($2::date IS NULL OR su.used_at::date >= $2::date)
         AND ($3::date IS NULL OR su.used_at::date <= $3::date)
       GROUP BY sc.service_id, sc.service_name, sc.category
@@ -70,8 +70,8 @@ export class TrendsReportRepository {
         ROUND((COUNT(*)::numeric / NULLIF(SUM(COUNT(*)) OVER(), 0)) * 100, 1)::float AS percentage
       FROM booking_rooms bkr
       LEFT JOIN meal_plans mp ON mp.plan_id = bkr.plan_id
-      JOIN rooms rm ON rm.id = bkr.room_id
-      WHERE ($1::uuid IS NULL OR rm.branch_id = $1::uuid)
+      JOIN rooms rm ON (rm.id::text = bkr.room_id::text OR rm.room_id::text = bkr.room_id::text)
+      WHERE ($1::text IS NULL OR $1 = '' OR rm.branch_id::text = $1::text)
         AND ($2::date IS NULL OR bkr.created_at::date >= $2::date)
         AND ($3::date IS NULL OR bkr.created_at::date <= $3::date)
       GROUP BY mp.plan_name
@@ -86,9 +86,9 @@ export class TrendsReportRepository {
         ROUND(AVG(GREATEST(1, bkr.check_out_date - bkr.check_in_date)), 1)::float AS avg_nights,
         ROUND(SUM(bkr.rate_at_booking * GREATEST(1, bkr.check_out_date - bkr.check_in_date)), 2)::float AS total_tariff_revenue
       FROM booking_rooms bkr
-      JOIN rooms rm ON rm.id = bkr.room_id
+      JOIN rooms rm ON (rm.id::text = bkr.room_id::text OR rm.room_id::text = bkr.room_id::text)
       LEFT JOIN room_types rt ON (rt.type_name = rm.type::text OR rt.room_type_id::text = to_jsonb(bkr)->>'room_type_id')
-      WHERE ($1::uuid IS NULL OR rm.branch_id = $1::uuid)
+      WHERE ($1::text IS NULL OR $1 = '' OR rm.branch_id::text = $1::text)
         AND ($2::date IS NULL OR bkr.created_at::date >= $2::date)
         AND ($3::date IS NULL OR bkr.created_at::date <= $3::date)
       GROUP BY COALESCE(rt.type_name, rm.type::text, 'Standard Room')

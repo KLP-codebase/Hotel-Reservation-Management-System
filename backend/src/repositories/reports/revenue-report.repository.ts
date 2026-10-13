@@ -126,9 +126,9 @@ export class RevenueReportRepository {
               OR bkr.booking_id::text = i.booking_room_id::text)
         JOIN bookings b
           ON (b.booking_id::text = bkr.booking_id::text
-              OR b.id = bkr.booking_id::text)
-        JOIN branches br ON br.branch_id = b.branch_id
-        WHERE ($1::uuid IS NULL OR br.branch_id = $1::uuid)
+              OR to_jsonb(b)->>'id' = bkr.booking_id::text)
+        JOIN branches br ON br.branch_id::text = b.branch_id::text
+        WHERE ($1::text IS NULL OR $1 = '' OR br.branch_id::text = $1::text)
           AND EXTRACT(YEAR FROM COALESCE(i.generated_at, CURRENT_TIMESTAMP)) = $2::int
           AND ($3::int IS NULL OR EXTRACT(MONTH FROM COALESCE(i.generated_at, CURRENT_TIMESTAMP)) = $3::int)
       )
@@ -176,12 +176,12 @@ export class RevenueReportRepository {
     const sql = `
       SELECT
         i.invoice_id::text,
-        COALESCE(b.id, b.booking_id::text)                                             AS booking_reference,
+        COALESCE(to_jsonb(b)->>'id', b.booking_id::text)                                             AS booking_reference,
         CONCAT(COALESCE(g.first_name, ''), ' ', COALESCE(g.last_name, ''))            AS guest_name,
         g.email                                                                        AS guest_email,
         g.phone                                                                        AS guest_phone,
         br.branch_name,
-        STRING_AGG(DISTINCT rm.number, ', ')                                           AS room_numbers,
+        STRING_AGG(DISTINCT COALESCE(to_jsonb(rm)->>'number', rm.room_number), ', ')                                           AS room_numbers,
         (COALESCE(i.room_charges, 0) + COALESCE(i.service_charges, 0) - COALESCE(i.discount_amount, 0))::text AS base_amount,
         COALESCE(i.service_charge_tax, 0)::text                                        AS service_charge_tax,
         COALESCE(i.tdl_amount, 0)::text                                                AS tdl_amount,
@@ -210,21 +210,22 @@ export class RevenueReportRepository {
             OR bkr.booking_id::text = i.booking_room_id::text)
       JOIN bookings b
         ON (b.booking_id::text = bkr.booking_id::text
-            OR b.id = bkr.booking_id::text)
-      JOIN branches br ON br.branch_id = b.branch_id
+            OR to_jsonb(b)->>'id' = bkr.booking_id::text)
+      JOIN branches br ON br.branch_id::text = b.branch_id::text
       LEFT JOIN rooms rm ON (rm.id::text = bkr.room_id::text OR rm.room_id::text = bkr.room_id::text)
-      LEFT JOIN guests g ON (g.id::text = b.booked_by_guest_id::text OR g.guest_id::text = b.booked_by_guest_id::text)
+      LEFT JOIN guests g ON (to_jsonb(g)->>'id' = b.booked_by_guest_id::text OR g.guest_id::text = b.booked_by_guest_id::text)
       LEFT JOIN payments p ON p.invoice_id::text = i.invoice_id::text
-      WHERE ($1::uuid IS NULL OR b.branch_id = $1::uuid)
+      WHERE ($1::text IS NULL OR $1 = '' OR b.branch_id::text = $1::text)
         AND ($4::text IS NULL OR (
           g.first_name ILIKE '%' || $4 || '%' OR
           g.last_name  ILIKE '%' || $4 || '%' OR
-          b.id         ILIKE '%' || $4 || '%' OR
+          to_jsonb(b)->>'id' ILIKE '%' || $4 || '%' OR
           b.booking_id::text ILIKE '%' || $4 || '%' OR
-          rm.number    ILIKE '%' || $4 || '%'
+          to_jsonb(rm)->>'number' ILIKE '%' || $4 || '%' OR
+          rm.room_number ILIKE '%' || $4 || '%'
         ))
       GROUP BY
-        i.invoice_id, b.id, b.booking_id, g.first_name, g.last_name, g.email, g.phone,
+        i.invoice_id, to_jsonb(b)->>'id', b.booking_id, g.first_name, g.last_name, g.email, g.phone,
         br.branch_name, i.room_charges, i.service_charges, i.discount_amount, i.service_charge_tax,
         i.tdl_amount, i.ssc_amount, i.vat_amount, i.total_amount, i.generated_at
       HAVING ($2::text IS NULL OR $2 = 'ALL' OR

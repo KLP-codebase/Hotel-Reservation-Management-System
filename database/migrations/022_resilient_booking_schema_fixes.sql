@@ -27,6 +27,11 @@
 --
 -- 6. sp_generate_final_bill function:
 --    - Ensures sp_generate_final_bill(UUID) is present with fallback statutory tax rates
+--
+-- 7. Reports schema parity:
+--    - Ensures rooms has both number and room_number
+--    - Ensures bookings has id (VARCHAR)
+--    - Harmonizes report_snapshots branch_id and snapshot_id
 -- ══════════════════════════════════════════════════════════════════════════════
 
 BEGIN;
@@ -166,7 +171,10 @@ ALTER TABLE bookings
     ADD COLUMN IF NOT EXISTS children         INT,
     ADD COLUMN IF NOT EXISTS room_id          VARCHAR(36),
     ADD COLUMN IF NOT EXISTS check_in         TIMESTAMP,
-    ADD COLUMN IF NOT EXISTS check_out        TIMESTAMP;
+    ADD COLUMN IF NOT EXISTS check_out        TIMESTAMP,
+    ADD COLUMN IF NOT EXISTS id               VARCHAR(36);
+
+UPDATE bookings SET id = booking_id::text WHERE id IS NULL;
 
 
 -- ── 4. service_usage Harmonization ───────────────────────────────────────────
@@ -285,7 +293,6 @@ BEGIN
        AND CURRENT_DATE >= effective_from AND (effective_to IS NULL OR CURRENT_DATE <= effective_to)
      ORDER BY effective_from DESC LIMIT 1;
   EXCEPTION WHEN OTHERS THEN
-    -- Table tax_configurations may be missing or schema mismatch
     v_sc_pct   := NULL;
     v_tdl_pct  := NULL;
     v_sscl_pct := NULL;
@@ -335,5 +342,55 @@ BEGIN
   RETURN v_invoice_id;
 END;
 $$;
+
+
+-- ── 7. Rooms, Bookings & Report Snapshots Schema Parity ───────────────────────
+-- Ensure rooms has both 'number' and 'room_number'
+ALTER TABLE rooms ADD COLUMN IF NOT EXISTS number VARCHAR(20);
+UPDATE rooms SET number = room_number WHERE number IS NULL AND room_number IS NOT NULL;
+UPDATE rooms SET room_number = number WHERE room_number IS NULL AND number IS NOT NULL;
+
+-- Ensure report_snapshots table and columns accept UUID / VARCHAR
+CREATE TABLE IF NOT EXISTS report_snapshots (
+    snapshot_id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    report_type          VARCHAR(100) NOT NULL,
+    report_period_start  DATE NOT NULL,
+    report_period_end    DATE NOT NULL,
+    branch_id            VARCHAR(36),
+    report_data          JSONB NOT NULL,
+    generated_at         TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+DO $$
+DECLARE
+    v_branch_type text;
+    v_snap_type text;
+    c RECORD;
+BEGIN
+    SELECT data_type INTO v_branch_type
+    FROM information_schema.columns
+    WHERE table_schema = 'public' AND table_name = 'report_snapshots' AND column_name = 'branch_id';
+
+    IF v_branch_type IS NOT NULL AND v_branch_type <> 'uuid' AND v_branch_type <> 'character varying' THEN
+        FOR c IN
+            SELECT conname FROM pg_constraint
+            WHERE conrelid = 'report_snapshots'::regclass
+              AND contype = 'f'
+              AND conkey = ARRAY[(SELECT attnum FROM pg_attribute WHERE attrelid = 'report_snapshots'::regclass AND attname = 'branch_id')]
+        LOOP
+            EXECUTE format('ALTER TABLE report_snapshots DROP CONSTRAINT IF EXISTS %I', c.conname);
+        END LOOP;
+
+        ALTER TABLE report_snapshots ALTER COLUMN branch_id TYPE VARCHAR(36) USING branch_id::text;
+    END IF;
+
+    SELECT data_type INTO v_snap_type
+    FROM information_schema.columns
+    WHERE table_schema = 'public' AND table_name = 'report_snapshots' AND column_name = 'snapshot_id';
+
+    IF v_snap_type IS NOT NULL AND v_snap_type <> 'uuid' AND v_snap_type <> 'character varying' THEN
+        ALTER TABLE report_snapshots ALTER COLUMN snapshot_id TYPE VARCHAR(36) USING snapshot_id::text;
+    END IF;
+END $$;
 
 COMMIT;
