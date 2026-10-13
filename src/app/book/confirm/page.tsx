@@ -888,7 +888,15 @@ function BookingConfirmContent() {
         if (err.code === 'ROOM_UNAVAILABLE') {
           setError('One or more selected rooms have just been booked for these dates. Please go back and select available rooms.');
         } else if (err.code === 'VALIDATION_ERROR') {
-          setError('Please verify your personal information and try again.');
+          const detailMsgs = err.errors
+            ? Object.entries(err.errors)
+                .map(([field, msgs]) => {
+                  const msgText = Array.isArray(msgs) ? msgs.join(', ') : String(msgs);
+                  return `${field.replace(/_/g, ' ')}: ${msgText}`;
+                })
+                .join(' • ')
+            : '';
+          setError(detailMsgs || (err.message && err.message !== 'Validation failed' ? err.message : 'Please verify your personal information and try again.'));
         } else {
           setError(err.message);
         }

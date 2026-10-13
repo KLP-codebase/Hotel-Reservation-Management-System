@@ -35,7 +35,7 @@ const RoomLineSchema = z.object({
 // and all room lines are created atomically in one transaction.
 
 const BookingServiceItemSchema = z.object({
-    service_id: z.number().int().positive(),
+    service_id: z.union([z.number(), z.string()]),
     service_name: z.string().min(1),
     category: z.string().optional(),
     base_price: z.number().nonnegative(),
