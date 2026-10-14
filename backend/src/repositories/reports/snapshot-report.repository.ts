@@ -28,8 +28,15 @@ export class SnapshotReportRepository {
         report_period_end,
         branch_id,
         report_data
-      ) VALUES ($1, $2, $3, $4, $5::jsonb)
-      RETURNING *;
+      ) VALUES ($1, $2::date, $3::date, $4, $5::jsonb)
+      RETURNING
+        snapshot_id::text AS snapshot_id,
+        report_type,
+        report_period_start::text AS report_period_start,
+        report_period_end::text AS report_period_end,
+        branch_id::text AS branch_id,
+        report_data,
+        generated_at::text AS generated_at;
     `;
 
     const { rows } = await this.db.query<ReportSnapshot>(sql, [
@@ -52,18 +59,18 @@ export class SnapshotReportRepository {
 
     const sql = `
       SELECT
-        rs.snapshot_id,
+        rs.snapshot_id::text AS snapshot_id,
         rs.report_type,
         rs.report_period_start::text AS report_period_start,
         rs.report_period_end::text AS report_period_end,
-        rs.branch_id,
+        rs.branch_id::text AS branch_id,
         br.branch_name,
         rs.report_data,
         rs.generated_at::text AS generated_at
       FROM report_snapshots rs
-      LEFT JOIN branches br ON br.branch_id = rs.branch_id
+      LEFT JOIN branches br ON br.branch_id::text = rs.branch_id::text
       WHERE ($1::text IS NULL OR rs.report_type = $1)
-        AND ($2::uuid IS NULL OR rs.branch_id = $2::uuid)
+        AND ($2::text IS NULL OR $2 = '' OR rs.branch_id::text = $2::text)
       ORDER BY rs.generated_at DESC
       LIMIT $3::int;
     `;
@@ -80,17 +87,17 @@ export class SnapshotReportRepository {
   async getSnapshotById(id: string): Promise<ReportSnapshot | null> {
     const sql = `
       SELECT
-        rs.snapshot_id,
+        rs.snapshot_id::text AS snapshot_id,
         rs.report_type,
         rs.report_period_start::text AS report_period_start,
         rs.report_period_end::text AS report_period_end,
-        rs.branch_id,
+        rs.branch_id::text AS branch_id,
         br.branch_name,
         rs.report_data,
         rs.generated_at::text AS generated_at
       FROM report_snapshots rs
-      LEFT JOIN branches br ON br.branch_id = rs.branch_id
-      WHERE rs.snapshot_id = $1::uuid;
+      LEFT JOIN branches br ON br.branch_id::text = rs.branch_id::text
+      WHERE rs.snapshot_id::text = $1::text;
     `;
 
     const { rows } = await this.db.query<ReportSnapshot>(sql, [id]);
