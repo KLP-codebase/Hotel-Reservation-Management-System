@@ -7,7 +7,7 @@ import { db } from '../config/db';
 import { RoomRepository, RoomStatus } from '../repositories/room.repository';
 import { ResponseFactory } from '../lib/response';
 import { Errors } from '../lib/errors';
-import { managerBranch, assertManagerOwns } from '../lib/branch-scope';
+import { ownBranch, assertOwnBranch } from '../lib/branch-scope';
 
 const router = Router();
 const repo = new RoomRepository(db);
@@ -58,13 +58,13 @@ const UpdateRoomStatusSchema = z.object({
 
 // GET /rooms/stats/counts-by-type
 router.get('/stats/counts-by-type', optionalAuthenticate, async (req: Request, res: Response) => {
-  const counts = await repo.getRoomCountsByRoomType(managerBranch(req));
+  const counts = await repo.getRoomCountsByRoomType(ownBranch(req));
   res.status(200).json(ResponseFactory.ok(counts));
 });
 
-// GET /rooms — public; a signed-in manager sees only their branch.
+// GET /rooms — public; signed-in single-branch staff see only their branch.
 router.get('/', optionalAuthenticate, async (req: Request, res: Response) => {
-  const branchId = managerBranch(req) ?? (
+  const branchId = ownBranch(req) ?? (
     typeof req.query.branch_id === 'string' && req.query.branch_id !== 'ALL' && req.query.branch_id.trim() !== ''
       ? req.query.branch_id
       : undefined);
@@ -122,7 +122,7 @@ router.post(
     const branchId = (req.body.branchId ?? req.body.branch_id)!;
     const roomTypeId = (req.body.roomTypeId ?? req.body.room_type_id)!;
     const roomNumber = (req.body.roomNumber ?? req.body.room_number)!;
-    assertManagerOwns(req, branchId);
+    assertOwnBranch(req, branchId);
 
     const room = await repo.create({
       branch_id: branchId,
@@ -154,8 +154,8 @@ router.patch(
     const branchId = req.body.branchId ?? req.body.branch_id;
     const roomTypeId = req.body.roomTypeId ?? req.body.room_type_id;
     const roomNumber = req.body.roomNumber ?? req.body.room_number;
-    assertManagerOwns(req, existing.branch_id);
-    if (branchId !== undefined) assertManagerOwns(req, branchId);
+    assertOwnBranch(req, existing.branch_id);
+    if (branchId !== undefined) assertOwnBranch(req, branchId);
     const isActive = req.body.isActive ?? req.body.is_active;
 
     const updated = await repo.update(req.params.id, {
@@ -190,7 +190,7 @@ router.patch(
     if (!existing) {
       throw Errors.notFound('Room');
     }
-    assertManagerOwns(req, existing.branch_id);
+    assertOwnBranch(req, existing.branch_id);
 
     const updated = await repo.updateStatus(
       req.params.id,
@@ -214,7 +214,7 @@ router.delete(
     if (!existing) {
       throw Errors.notFound('Room');
     }
-    assertManagerOwns(req, existing.branch_id);
+    assertOwnBranch(req, existing.branch_id);
 
     await repo.softDelete(req.params.id);
 

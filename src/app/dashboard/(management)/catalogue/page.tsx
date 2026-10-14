@@ -5,8 +5,8 @@ import { Plus, Pencil, Trash2, ChevronDown, CalendarCheck, Check } from 'lucide-
 import { apiFetch, ApiError, toNum } from '@/lib/api-client';
 import { useAuth } from '@/context/auth-context';
 import {
-  DashboardMasthead, MastheadRefresh, SectionHeader, Segmented, Toolbar, FilterSelect,
-  Btn, IconBtn, Field, SelectField, Modal, Loading, Empty, StatusDot, tbl, fmtLKR, fmtDay, useFlash,
+  DashboardMasthead, MastheadRefresh, SectionHeader, Toolbar, FilterSelect,
+  Btn, IconBtn, Field, SelectField, Modal, Loading, Empty, StatusDot, tbl, fmtLKR, useFlash,
 } from '@/components/dashboard/ui';
 import { formatLKR } from '@/lib/currency';
 
@@ -28,17 +28,6 @@ interface CatalogueService {
   is_active:    boolean;
 }
 
-interface TaxConfig {
-  tax_id:         number;
-  tax_name:       string;
-  tax_percentage: number;
-  is_active:      boolean;
-  effective_from: string;
-  effective_to:   string | null;
-}
-
-type Tab = 'services' | 'taxes';
-
 const SERVICE_CATEGORIES = ['Dining', 'Wellness', 'Transport', 'Laundry', 'Activities', 'Other'];
 
 // ── Page Component ─────────────────────────────────────────────────────────────
@@ -49,19 +38,16 @@ export default function CataloguePage() {
   const isManager = user?.role === 'MANAGER';
   const canMutate = user && ['ADMINISTRATOR', 'DBA', 'MANAGER'].includes(user.role);
   // A manager runs one branch: they edit its services but only view chain-wide
-  // records (shared services, tax rates). The API enforces the same rule.
+  // records (shared services). The API enforces the same rule.
   const canEditService = (s: CatalogueService) =>
     isAdminOrDba || (isManager && !!user?.branchId && String(s.branch_id) === String(user.branchId));
-  const canEditTaxes = isAdminOrDba;
 
   // Data states
   const [services, setServices] = useState<CatalogueService[]>([]);
-  const [taxes,    setTaxes]    = useState<TaxConfig[]>([]);
   const [branches, setBranches] = useState<Branch[]>([]);
   const [loading,  setLoading]  = useState(true);
 
   // Tabs & filters
-  const [activeTab,        setActiveTab]        = useState<Tab>('services');
   const [filterBranch,     setFilterBranch]     = useState('ALL');
   const [filterCategory,   setFilterCategory]   = useState('ALL');
   const [filterStatus,     setFilterStatus]     = useState('ALL');
@@ -87,27 +73,18 @@ export default function CataloguePage() {
   const [bookNotes,       setBookNotes]       = useState('');
   const [bookSaving,      setBookSaving]      = useState(false);
 
-  // ── Tax modal state ──────────────────────────────────────────────────────────
-  const [taxModal,   setTaxModal]   = useState<'create' | 'edit' | null>(null);
-  const [taxEditing, setTaxEditing] = useState<TaxConfig | null>(null);
-  const [taxForm,    setTaxForm]    = useState({ taxName: '', taxPercentage: '', effectiveFrom: '', effectiveTo: '', isActive: true });
-  const [taxErrors,  setTaxErrors]  = useState<Record<string, string>>({});
-  const [taxSaving,  setTaxSaving]  = useState(false);
-
   // ── Data fetching ────────────────────────────────────────────────────────────
   const fetchAll = useCallback(async () => {
     setLoading(true);
     try {
-      const [svcRes, taxRes, bRes] = await Promise.all([
+      const [svcRes, bRes] = await Promise.all([
         apiFetch<{ data: CatalogueService[] }>('/api/v1/services/catalogue').catch(() => ({ data: [] })),
-        apiFetch<{ data: TaxConfig[] }>('/api/v1/taxes').catch(() => ({ data: [] })),
         // Managers only see their own branch, so they need no property list.
         isAdminOrDba
           ? apiFetch<{ data: Branch[] }>('/api/v1/branches').catch(() => ({ data: [] }))
           : Promise.resolve({ data: [] as Branch[] }),
       ]);
       setServices(svcRes.data);
-      setTaxes(taxRes.data);
       setBranches(bRes.data);
     } finally {
       setLoading(false);
@@ -275,82 +252,13 @@ export default function CataloguePage() {
     }
   }
 
-  // ── Tax CRUD ─────────────────────────────────────────────────────────────────
-  function openCreateTax() {
-    setTaxEditing(null);
-    setTaxForm({
-      taxName: '',
-      taxPercentage: '',
-      effectiveFrom: new Date().toISOString().split('T')[0],
-      effectiveTo: '',
-      isActive: true,
-    });
-    setTaxErrors({});
-    setTaxModal('create');
-  }
-
-  function openEditTax(t: TaxConfig) {
-    setTaxEditing(t);
-    setTaxForm({
-      taxName: t.tax_name,
-      taxPercentage: String(t.tax_percentage),
-      effectiveFrom: t.effective_from ? t.effective_from.split('T')[0] : '',
-      effectiveTo: t.effective_to ? t.effective_to.split('T')[0] : '',
-      isActive: t.is_active,
-    });
-    setTaxErrors({});
-    setTaxModal('edit');
-  }
-
-  function validateTaxForm() {
-    const errs: Record<string, string> = {};
-    if (!taxForm.taxName.trim()) errs.taxName = 'Tax name is required';
-    if (!taxForm.taxPercentage || isNaN(Number(taxForm.taxPercentage)) || Number(taxForm.taxPercentage) <= 0) {
-      errs.taxPercentage = 'Enter a positive tax percentage';
-    }
-    if (!taxForm.effectiveFrom) errs.effectiveFrom = 'Effective from date is required';
-    setTaxErrors(errs);
-    return Object.keys(errs).length === 0;
-  }
-
-  async function submitTaxForm() {
-    if (!validateTaxForm()) return;
-    setTaxSaving(true);
-    try {
-      if (taxModal === 'create') {
-        const body = {
-          tax_name:       taxForm.taxName.trim(),
-          tax_percentage: Number(taxForm.taxPercentage),
-          effective_from: taxForm.effectiveFrom,
-          effective_to:   taxForm.effectiveTo.trim() ? taxForm.effectiveTo : null,
-          is_active:      taxForm.isActive,
-        };
-        await apiFetch('/api/v1/taxes', { method: 'POST', body: JSON.stringify(body) });
-        flash('success', `Tax rate "${taxForm.taxName}" scheduled.`);
-      } else if (taxEditing) {
-        const body = {
-          tax_percentage: Number(taxForm.taxPercentage),
-          effective_to:   taxForm.effectiveTo.trim() ? taxForm.effectiveTo : null,
-          is_active:      taxForm.isActive,
-        };
-        await apiFetch(`/api/v1/taxes/${taxEditing.tax_id}`, { method: 'PATCH', body: JSON.stringify(body) });
-        flash('success', `Tax configuration "${taxEditing.tax_name}" updated.`);
-      }
-      setTaxModal(null);
-      await fetchAll();
-    } catch (e) {
-      flash('error', e instanceof ApiError ? e.message : 'Failed to save tax rate');
-    } finally {
-      setTaxSaving(false);
-    }
-  }
-
-
   // ── Headline figures ─────────────────────────────────────────────────────────
   const displayedServices = filterBranch === 'ALL' ? services : services.filter(s => String(s.branch_id) === filterBranch);
   const activeServices = displayedServices.filter(s => s.is_active).length;
   const categoriesUsed = new Set(displayedServices.map(s => s.category)).size;
-  const activeTaxes    = taxes.filter(t => t.is_active).length;
+  const avgPrice       = displayedServices.length
+    ? displayedServices.reduce((sum, s) => sum + toNum(s.base_price), 0) / displayedServices.length
+    : 0;
 
   const selectedBranchRow = branches.find((b) => String(b.branch_id) === filterBranch);
 
@@ -360,7 +268,7 @@ export default function CataloguePage() {
       {toasts}
 
       <DashboardMasthead
-        eyebrow={isManager ? `${user?.branchName ?? 'Sanctuary'} · Services` : 'Services & Taxes · Catalogue'}
+        eyebrow={isManager ? `${user?.branchName ?? 'Sanctuary'} · Services` : 'Services · Catalogue'}
         title="Catalogue"
         imageKey={user?.branchName || (filterBranch !== 'ALL' ? selectedBranchRow?.city : 'Colombo')}
         aside={
@@ -392,29 +300,20 @@ export default function CataloguePage() {
           isAdminOrDba
             ? { label: 'Properties', value: String(branches.length), sub: 'Offering services' }
             : { label: 'Inactive', value: String(displayedServices.length - activeServices), sub: 'Hidden from guests' },
-          { label: 'Tax rates',  value: String(activeTaxes),     sub: `of ${taxes.length} configured` },
+          { label: 'Avg price',  value: fmtLKR(avgPrice, 0), sub: 'Per service' },
         ]}
       />
 
       <main className="max-w-[1440px] mx-auto px-6 md:px-12 py-12 md:py-16">
         <section className="space-y-8">
           <SectionHeader
-            index={activeTab === 'services' ? `${filteredServices.length} of ${services.length} services` : `${taxes.length} rates`}
-            title={activeTab === 'services' ? 'Guest Services' : 'Tax Rates'}
-          >
-            <Segmented
-              value={activeTab}
-              onChange={setActiveTab}
-              options={[
-                { value: 'services', label: 'Services',  count: services.length },
-                { value: 'taxes',    label: 'Tax rates', count: taxes.length },
-              ]}
-            />
-          </SectionHeader>
+            index={`${filteredServices.length} of ${services.length} services`}
+            title="Guest Services"
+          />
 
           {loading ? (
             <Loading label="Loading catalogue" />
-          ) : activeTab === 'services' ? (
+          ) : (
             /* ── Services ───────────────────────────────────────────────────── */
             <div className="space-y-6">
               <Toolbar
@@ -513,56 +412,6 @@ export default function CataloguePage() {
                 </div>
               )}
             </div>
-          ) : (
-            /* ── Tax rates ──────────────────────────────────────────────────── */
-            <div className="space-y-6">
-              <Toolbar
-                action={canEditTaxes && <Btn variant="primary" onClick={openCreateTax}><Plus className="w-4 h-4" /> Schedule rate</Btn>}
-              >
-                <p className="font-jakarta text-[13px] text-ink/70 max-w-xl">
-                  Rate changes apply only to invoices issued after the effective date. Existing invoices keep their original amounts.
-                </p>
-              </Toolbar>
-
-              {taxes.length === 0 ? (
-                <Empty>No tax rates configured.</Empty>
-              ) : (
-                <div className={tbl.wrap}>
-                  <table className={`${tbl.table} min-w-[720px]`}>
-                    <thead>
-                      <tr className={tbl.headRow}>
-                        <th className={tbl.th}>Tax</th>
-                        <th className={tbl.th}>Rate</th>
-                        <th className={tbl.th}>Effective from</th>
-                        <th className={tbl.th}>Until</th>
-                        <th className={tbl.th}>Status</th>
-                        {canEditTaxes && <th className={`${tbl.th} text-right`}><span className="sr-only">Actions</span></th>}
-                      </tr>
-                    </thead>
-                    <tbody className={tbl.body}>
-                      {taxes.map(t => (
-                        <tr key={t.tax_id} className={tbl.row}>
-                          <td className={`${tbl.td} text-[15px]`}>{t.tax_name}</td>
-                          <td className={tbl.td}><span className="font-cinzel text-[20px] tabular-nums">{toNum(t.tax_percentage).toFixed(2)}%</span></td>
-                          <td className={`${tbl.td} tabular-nums whitespace-nowrap`}>{fmtDay(t.effective_from)}</td>
-                          <td className={`${tbl.td} tabular-nums whitespace-nowrap`}>{t.effective_to ? fmtDay(t.effective_to) : <span className="text-ink/70">Ongoing</span>}</td>
-                          <td className={tbl.td}>
-                            <StatusDot status={t.is_active ? 'ACTIVE' : 'SUPERSEDED'} label={t.is_active ? 'Active' : 'Superseded'} />
-                          </td>
-                          {canEditTaxes && (
-                            <td className={`${tbl.td} pr-0`}>
-                              <div className="flex items-center justify-end">
-                                <IconBtn label={`Edit ${t.tax_name}`} onClick={() => openEditTax(t)}><Pencil className="w-4 h-4" /></IconBtn>
-                              </div>
-                            </td>
-                          )}
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-            </div>
           )}
         </section>
       </main>
@@ -636,58 +485,6 @@ export default function CataloguePage() {
         </Modal>
       )}
 
-      {/* ── Modal — tax rate ──────────────────────────────────────────────────── */}
-      {taxModal && (
-        <Modal
-          eyebrow="Tax rate"
-          title={taxModal === 'create' ? 'Schedule tax rate' : `Edit ${taxEditing?.tax_name ?? 'tax rate'}`}
-          onClose={() => setTaxModal(null)}
-          footer={
-            <>
-              <Btn variant="ghost" onClick={() => setTaxModal(null)}>Cancel</Btn>
-              <Btn variant="primary" onClick={submitTaxForm} loading={taxSaving}>
-                {taxModal === 'create' ? 'Schedule' : 'Save changes'}
-              </Btn>
-            </>
-          }
-        >
-          {taxModal === 'create' && (
-            <Field
-              label="Name"
-              placeholder="e.g. VAT"
-              value={taxForm.taxName}
-              onChange={e => setTaxForm(p => ({ ...p, taxName: e.target.value }))}
-              error={taxErrors.taxName}
-            />
-          )}
-          <Field
-            label="Rate (%)"
-            type="number"
-            min="0"
-            step="0.01"
-            placeholder="18.00"
-            value={taxForm.taxPercentage}
-            onChange={e => setTaxForm(p => ({ ...p, taxPercentage: e.target.value }))}
-            error={taxErrors.taxPercentage}
-          />
-          <div className="grid grid-cols-2 gap-6">
-            <Field
-              label="Effective from"
-              type="date"
-              value={taxForm.effectiveFrom}
-              onChange={e => setTaxForm(p => ({ ...p, effectiveFrom: e.target.value }))}
-              error={taxErrors.effectiveFrom}
-              disabled={taxModal === 'edit'}
-            />
-            <Field
-              label="Until (optional)"
-              type="date"
-              value={taxForm.effectiveTo}
-              onChange={e => setTaxForm(p => ({ ...p, effectiveTo: e.target.value }))}
-            />
-          </div>
-        </Modal>
-      )}
       {/* ── Modal — book service for guest ──────────────────────────────────── */}
       {bookModalOpen && (
         <Modal
