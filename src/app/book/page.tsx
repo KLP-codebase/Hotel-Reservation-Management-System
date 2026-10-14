@@ -187,13 +187,18 @@ export default function BookPage() {
   useEffect(() => {
     if (rooms.length === 0 || !resultsRef.current) return;
     const ctx = gsap.context(() => {
-      gsap.from('.sn-room-card', {
-        opacity: 0,
-        y: 20,
-        duration: 0.4,
-        stagger: 0.06,
-        ease: 'power3.out',
-      });
+      gsap.fromTo(
+        '.sn-room-card',
+        { opacity: 0, y: 16 },
+        {
+          opacity: 1,
+          y: 0,
+          duration: 0.35,
+          stagger: 0.04,
+          ease: 'power2.out',
+          clearProps: 'all',
+        }
+      );
     }, resultsRef);
     return () => ctx.revert();
   }, [rooms]);
@@ -1153,17 +1158,28 @@ export default function BookPage() {
                   return (
                     <div
                       key={room.id}
-                      className={`sn-room-card rounded-none p-6 md:p-7 flex flex-col justify-between transition-all duration-300 border ${
+                      className={`sn-room-card relative rounded-none p-6 md:p-7 flex flex-col justify-between transition-all duration-300 border ${
                         isSelected
-                          ? 'bg-skynest-accent/[0.04] border-skynest-accent shadow-[0_12px_28px_rgba(217,114,44,0.12)]'
-                          : 'bg-white border-skynest-hairline shadow-[0_8px_24px_rgba(11,37,64,0.05)] hover:border-ink/30'
+                          ? 'bg-white border-2 border-skynest-accent ring-1 ring-skynest-accent/30 shadow-[0_16px_40px_rgba(217,114,44,0.16)]'
+                          : 'bg-white border-skynest-hairline shadow-[0_8px_24px_rgba(11,37,64,0.05)] hover:border-ink/30 hover:shadow-[0_12px_32px_rgba(11,37,64,0.08)]'
                       }`}
+                      style={{ opacity: 1 }}
                     >
+                      {isSelected && (
+                        <div className="absolute top-0 left-0 right-0 h-1 bg-skynest-accent" />
+                      )}
                       <div>
                         <div className="flex items-center justify-between pb-2 border-b border-skynest-hairline">
-                          <span className="font-jakarta text-[10px] font-bold tracking-[0.24em] uppercase text-skynest-accent">
-                            {room.type} ROOM
-                          </span>
+                          <div className="flex items-center gap-2">
+                            <span className="font-jakarta text-[10px] font-bold tracking-[0.24em] uppercase text-skynest-accent">
+                              {room.type} ROOM
+                            </span>
+                            {isSelected && (
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 text-[9px] font-jakarta font-bold uppercase tracking-wider bg-skynest-accent text-white shadow-xs">
+                                ✓ Selected
+                              </span>
+                            )}
+                          </div>
                           <span className="font-cinzel text-sm font-semibold text-ink">
                             {formatLKR(Number(room.price_per_night), 0)}/night
                           </span>
