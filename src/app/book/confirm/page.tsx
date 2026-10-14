@@ -22,6 +22,56 @@ const ROOM_TYPES = [
   { id: 'PRESIDENTIAL', name: 'Presidential Suite', rate: 500, capacity: 6 },
 ];
 
+const DEFAULT_AMENITIES_BY_TYPE: Record<string, string[]> = {
+  STANDARD: [
+    'High-Speed WiFi',
+    'Climate Control AC',
+    'Smart HD TV',
+    'Rain Shower',
+    'Mini Fridge & Tea Station',
+  ],
+  DELUXE: [
+    'High-Speed WiFi',
+    'Climate Control AC',
+    'Smart HD TV',
+    'Rain Shower',
+    'Deep Soaking Bathtub',
+    'Private Balcony',
+    'Mini Bar & Espresso Machine',
+    'Plush Bathrobes & Slippers',
+  ],
+  SUITE: [
+    'High-Speed WiFi',
+    'Climate Control AC',
+    '55-inch 4K Smart TV',
+    'Rain Shower',
+    'Deep Soaking Bathtub',
+    'Private Heated Jacuzzi',
+    'Dual Vanity Bathroom',
+    'Separate Living Lounge',
+    'Panoramic Balcony & Daybed',
+    'Mini Bar & Wine Chiller',
+    'Plush Bathrobes & Slippers',
+  ],
+  PRESIDENTIAL: [
+    'High-Speed WiFi',
+    'Climate Control AC',
+    '65-inch 4K OLED Cinema Display',
+    'Two Bathrooms',
+    'Private Heated Jacuzzi',
+    'Deep Soaking Marble Bathtub',
+    'Dual Rain Showers & Spa Bench',
+    'Private Oceanfront Terrace & Sundeck',
+    '24/7 Dedicated Butler Service',
+    'Separate Dining & Executive Living Hall',
+    'Full Premium Bar & Wine Cellar',
+    "Chef's Prep Pantry & Nespresso",
+    'Walk-in Master Wardrobe',
+    'Luxury Aromatherapy Toiletries',
+    'Plush Silk-Cotton Robes & Slippers',
+  ],
+};
+
 const MEAL_PLANS = [
   { id: 1, name: 'Room Only', description: 'Room only. Meals available à la carte.', price: 0 },
   { id: 2, name: 'Bed & Breakfast', description: 'Daily breakfast included.', price: 25 },
@@ -73,6 +123,7 @@ interface ConfiguredRoom {
   children: number;
   childAges: number[];
   mealPlanId: number;
+  amenities: string[];
 }
 
 // ── Sri Lanka 4-Tier Statutory Tax Cascade ──────────────────────────────────
@@ -164,6 +215,7 @@ function buildInitialRooms(
   initialAdults: number,
   initialChildren: number,
   childAgesParam: string,
+  roomAmenitiesParam?: string,
 ): ConfiguredRoom[] {
   const rawIds = roomIdsParam ? roomIdsParam.split(',').map(s => s.trim()).filter(Boolean) : (roomIdStr ? [roomIdStr] : []);
   const rawNumbers = roomNumbersParam ? roomNumbersParam.split(',').map(s => s.trim()).filter(Boolean) : [];
@@ -171,6 +223,9 @@ function buildInitialRooms(
   const rawRates = roomRatesParam ? roomRatesParam.split(',').map(s => parseFloat(s.trim())).filter(n => !isNaN(n)) : [];
   const rawCapacities = roomCapacitiesParam ? roomCapacitiesParam.split(',').map(s => parseInt(s.trim(), 10)).filter(n => !isNaN(n)) : [];
   const parsedChildAges = childAgesParam ? childAgesParam.split(',').map(s => parseInt(s.trim(), 10)).filter(n => !isNaN(n) && n >= 0 && n <= 11) : [];
+  const rawAmenitiesList = roomAmenitiesParam
+    ? roomAmenitiesParam.split('|').map(str => str.split(';').map(s => s.trim()).filter(Boolean))
+    : [];
 
   const count = Math.max(1, roomsCountParam, rawIds.length);
   const totalAdults = Math.max(count, initialAdults);
@@ -183,6 +238,9 @@ function buildInitialRooms(
     const rTypeName = rTypeObj?.name || (rType.charAt(0).toUpperCase() + rType.slice(1).toLowerCase() + ' Room');
     const rRate = rawRates[i] !== undefined ? rawRates[i] : (rTypeObj?.rate || 120);
     const rCapacity = rawCapacities[i] !== undefined ? rawCapacities[i] : (rTypeObj?.capacity || 2);
+    const rAmenities = (rawAmenitiesList[i] && rawAmenitiesList[i].length > 0)
+      ? rawAmenitiesList[i]
+      : (DEFAULT_AMENITIES_BY_TYPE[rType] || DEFAULT_AMENITIES_BY_TYPE.STANDARD);
 
     initialList.push({
       index: i + 1,
@@ -196,6 +254,7 @@ function buildInitialRooms(
       children: 0,
       childAges: [],
       mealPlanId: 1, // Default Room Only
+      amenities: rAmenities,
     });
   }
 
@@ -253,6 +312,7 @@ function BookingConfirmContent() {
   const initialChildren = parseInt(searchParams.get('children') ?? '0', 10) || 0;
   const roomCapacitiesParam = searchParams.get('room_capacities') ?? '';
   const childAgesParam = searchParams.get('child_ages') ?? '';
+  const roomAmenitiesParam = searchParams.get('room_amenities') ?? '';
 
   // Resolve human-readable details
   const { branches: BRANCHES } = useBranches();
@@ -293,6 +353,7 @@ function BookingConfirmContent() {
       initialAdults,
       initialChildren,
       childAgesParam,
+      roomAmenitiesParam,
     )
   );
 
@@ -1476,6 +1537,40 @@ function BookingConfirmContent() {
                           </span>
                         </div>
                       </div>
+
+                      {/* Room Amenities Badges */}
+                      {room.amenities && room.amenities.length > 0 && (
+                        <div className="pt-2.5 pb-1 border-b border-skynest-hairline/70">
+                          <div className="flex items-center justify-between mb-1.5">
+                            <span className="font-jakarta text-[10px] font-bold uppercase tracking-wider text-ink/60">
+                              Included Amenities ({room.amenities.length})
+                            </span>
+                            <span className="text-[9px] font-jakarta font-semibold uppercase tracking-wider text-skynest-accent">
+                              Complimentary
+                            </span>
+                          </div>
+                          <div className="flex flex-wrap gap-1.5">
+                            {room.amenities.map((item, idx) => {
+                              const isSignature = /jacuzzi|bath|two bathroom|butler|terrace|lounge|wine/i.test(item);
+                              return (
+                                <span
+                                  key={idx}
+                                  className={`inline-flex items-center gap-1.5 px-2 py-0.5 text-[10px] font-jakarta border ${
+                                    isSignature
+                                      ? 'bg-skynest-accent/10 text-skynest-accent border-skynest-accent/40 font-semibold'
+                                      : 'bg-white text-ink/75 border-skynest-hairline'
+                                  }`}
+                                >
+                                  {isSignature && (
+                                    <span className="w-1.5 h-1.5 rounded-full bg-skynest-accent shrink-0" />
+                                  )}
+                                  {item}
+                                </span>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      )}
 
                       {/* Designated Guest Occupancy (Fixed for this designated booking) */}
                       <div className="p-4 bg-white border border-skynest-hairline flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-xs">
