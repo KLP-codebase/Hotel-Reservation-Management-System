@@ -9,7 +9,7 @@ import { useParams } from 'next/navigation';
 import { useAuth } from '@/context/auth-context';
 import {
   DashboardMasthead, Btn, Loading, Empty, StatusDot,
-  fmtStayRange, fmtMoney, fmtDay, titleCase, useFlash,
+  fmtStayRange, fmtMoney, fmtDay, fmtDate, titleCase, useFlash, parseStayDate, toLocalYMD,
 } from '@/components/dashboard/ui';
 
 // ── Types ────────────────────────────────────────────────────────────────────
@@ -225,7 +225,15 @@ export default function BookingDetailPage() {
   }
 
   // ── Derived values ────────────────────────────────────────────────────────
-  const nextSteps  = TRANSITIONS[booking.status] ?? [];
+  // Check-in opens on the arrival day and closes the day before check-out (the API enforces this too).
+  const todayStr = toLocalYMD(new Date());
+  const inYmd    = (booking.rooms ?? []).map(r => toLocalYMD(parseStayDate(r.check_in_date))).filter(Boolean).sort()[0] ?? '';
+  const outYmd   = (booking.rooms ?? []).map(r => toLocalYMD(parseStayDate(r.check_out_date))).filter(Boolean).sort().at(-1) ?? '';
+  const canCheckIn  = !!inYmd && inYmd <= todayStr && todayStr < outYmd;
+  const checkInNote = booking.status === 'CONFIRMED' && !canCheckIn
+    ? (!inYmd ? 'No room to check in to' : todayStr < inYmd ? `Check-in opens ${fmtDate(inYmd)}` : 'Stay dates have passed')
+    : null;
+  const nextSteps  = (TRANSITIONS[booking.status] ?? []).filter(s => s !== 'CHECKED_IN' || canCheckIn);
   const totalNights = (booking.rooms ?? []).reduce((n, r) => Math.max(n, toNum(r.nights)), 0);
 
   // ── Page render ───────────────────────────────────────────────────────────
@@ -418,6 +426,9 @@ export default function BookingDetailPage() {
                     </Btn>
                   ))}
                 </div>
+                {checkInNote && (
+                  <p className="font-jakarta text-[12px] text-ink-faded">{checkInNote}</p>
+                )}
               </div>
             )}
 

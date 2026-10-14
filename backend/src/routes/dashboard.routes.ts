@@ -10,6 +10,7 @@ import { AuditRepository } from '../repositories/audit.repository';
 import { BookingRepository } from '../repositories/booking.repository';
 import { InvoiceRepository } from '../repositories/invoice.repository';
 import { AppError, Errors } from '../lib/errors';
+import { buildDbInvoice } from './invoices.routes';
 
 // ── GoF: Chain of Responsibility ──────────────────────────────────────────────
 // Route pipeline: authenticate → authorize(ADMINISTRATOR, MANAGER, DBA) → handler
@@ -141,10 +142,15 @@ async function lockForTransition(
   return booking;
 }
 
+// The hotel's calendar day (Sri Lanka), not the server's UTC clock.
+const HOTEL_TODAY = `(now() AT TIME ZONE 'Asia/Colombo')::date`;
+
 /**
  * POST /api/v1/dashboard/check-in
  * Front desk check-in: CONFIRMED → CHECKED_IN for the booking and all its rooms
  * (rooms become OCCUPIED via trigger) and records accompanying guests — one transaction.
+ * Allowed from the check-in day until the day before check-out: never early; a late
+ * arrival still checks in (and pays the full booked stay).
  */
 router.post('/check-in', validate(CheckInSchema), async (req: Request, res: Response) => {
   const { bookingId, bookingRoomId, accompanyingGuests } = req.body as z.infer<typeof CheckInSchema>;
@@ -152,6 +158,7 @@ router.post('/check-in', validate(CheckInSchema), async (req: Request, res: Resp
   const updated = await db.transaction(async (client) => {
     await lockForTransition(client, req, bookingId, 'CONFIRMED', 'checked in');
 
+    // Refuses an early or expired check-in (BookingRepository.assertCheckInOpen).
     const result = await bookingRepo.transitionStatus(client, bookingId, 'CONFIRMED', 'CHECKED_IN');
     if (!result) throw Errors.conflict('Booking status was changed by someone else. Reload and try again.');
 
@@ -174,12 +181,119 @@ router.post('/check-in', validate(CheckInSchema), async (req: Request, res: Resp
   });
 });
 
+interface DepartureSummary {
+  departure_date: string;
+  early: boolean;
+  nights_booked: number;
+  nights_billed: number;
+  cancelled_services: { service_name: string; used_at: string; amount: number }[];
+}
+
+/**
+ * Prepares a departure today (must run in the check-out transaction). A guest who
+ * leaves before the booked check-out date is billed for the nights actually
+ * stayed (at least one): each room line's check-out moves to today, which also
+ * frees the room for the remaining nights. Services dated after today are
+ * removed from the folio.
+ */
+async function prepareDeparture(client: PoolClient, bookingId: string): Promise<DepartureSummary> {
+  const { rows: lines } = await client.query<{
+    booking_room_id: string; nights_booked: number; departure: string; departure_label: string; shorten: boolean;
+  }>(`
+    SELECT booking_room_id,
+           (check_out_date - check_in_date)                                  AS nights_booked,
+           GREATEST(${HOTEL_TODAY}, check_in_date + 1)::text                 AS departure,
+           to_char(GREATEST(${HOTEL_TODAY}, check_in_date + 1), 'DD Mon YYYY') AS departure_label,
+           check_out_date > GREATEST(${HOTEL_TODAY}, check_in_date + 1)      AS shorten
+    FROM booking_rooms
+    WHERE booking_id = $1 AND status <> 'CANCELLED'
+    ORDER BY created_at, booking_room_id
+  `, [bookingId]);
+
+  let nightsBooked = 0;
+  let nightsBilled = 0;
+  for (const l of lines) {
+    nightsBooked += Number(l.nights_booked);
+    if (l.shorten) {
+      await client.query(
+        `UPDATE booking_rooms SET check_out_date = $2::date WHERE booking_room_id = $1`,
+        [l.booking_room_id, l.departure]
+      );
+    }
+  }
+  const { rows: [billed] } = await client.query<{ nights: string }>(
+    `SELECT COALESCE(SUM(check_out_date - check_in_date), 0) AS nights
+     FROM booking_rooms WHERE booking_id = $1 AND status <> 'CANCELLED'`,
+    [bookingId]
+  );
+  nightsBilled = Number(billed.nights);
+
+  const { rows: cancelled } = await client.query<{ service_name: string; used_at: string; amount: string }>(`
+    WITH gone AS (
+      DELETE FROM service_usage
+      WHERE booking_room_id = ANY($1::uuid[]) AND used_at::date > ${HOTEL_TODAY}
+      RETURNING service_id, used_at, quantity * price_at_usage AS amount, notes
+    )
+    SELECT COALESCE(sc.service_name, gone.notes, 'Hotel service') AS service_name,
+           gone.used_at::text AS used_at, gone.amount
+    FROM gone LEFT JOIN service_catalogue sc ON sc.service_id::text = gone.service_id::text
+    ORDER BY gone.used_at
+  `, [lines.map(l => l.booking_room_id)]);
+
+  return {
+    departure_date: lines[0]?.departure_label ?? '',
+    early: lines.some(l => l.shorten),
+    nights_booked: nightsBooked,
+    nights_billed: nightsBilled,
+    cancelled_services: cancelled.map(c => ({ ...c, amount: Number(c.amount) })),
+  };
+}
+
+// Thrown to roll the preview transaction back while carrying its result out.
+class PreviewResult extends Error {
+  constructor(public readonly data: unknown) { super('preview'); }
+}
+
+/**
+ * GET /api/v1/dashboard/check-out/preview?bookingId=...
+ * The bill as it will be if the guest checks out now: runs the check-out's
+ * recalculation inside a transaction that is always rolled back.
+ */
+router.get('/check-out/preview', async (req: Request, res: Response) => {
+  const parsed = z.string().uuid().safeParse(req.query.bookingId);
+  if (!parsed.success) throw Errors.badRequest('bookingId must be a valid UUID');
+  const bookingId = parsed.data;
+
+  try {
+    await db.transaction(async (client) => {
+      await lockForTransition(client, req, bookingId, 'CHECKED_IN', 'checked out');
+      const departure = await prepareDeparture(client, bookingId);
+      const invoice = await buildDbInvoice(bookingId, undefined, client);
+      if (!invoice) throw Errors.notFound('Invoice for booking ' + bookingId);
+      const owed = Math.round((invoice.breakdown.total_amount - invoice.breakdown.total_paid) * 100) / 100;
+      throw new PreviewResult({
+        departure,
+        invoice,
+        amount_due: Math.max(0, owed),
+        refund_due: Math.max(0, -owed),
+      });
+    });
+  } catch (err) {
+    if (err instanceof PreviewResult) {
+      res.json({ success: true, data: err.data });
+      return;
+    }
+    throw err;
+  }
+});
+
 /**
  * POST /api/v1/dashboard/check-out
- * Front desk check-out: CHECKED_IN → CHECKED_OUT for the booking and all its rooms.
- * Each room's final invoice is regenerated (so charges added during the stay are
- * billed); any balance left is either settled here (settleBalance) or blocks the
- * check-out — one transaction.
+ * Front desk check-out: CHECKED_IN → CHECKED_OUT for the booking and all its rooms,
+ * any day during the stay. An early departure is billed for the nights stayed
+ * (see prepareDeparture). Each room's invoice is rebuilt; a balance left is either
+ * settled here (settleBalance) or blocks the check-out, and an overpayment is
+ * refunded — one transaction.
  */
 router.post('/check-out', validate(CheckOutSchema), async (req: Request, res: Response) => {
   const { bookingId, paymentMethod, settleBalance } = req.body as z.infer<typeof CheckOutSchema>;
@@ -187,11 +301,11 @@ router.post('/check-out', validate(CheckOutSchema), async (req: Request, res: Re
   const outcome = await db.transaction(async (client) => {
     await lockForTransition(client, req, bookingId, 'CHECKED_IN', 'checked out');
 
+    const departure = await prepareDeparture(client, bookingId);
+
     // Before the status change: the CHECKED_OUT trigger archives the stay with
-    // its invoice total, so the invoices must already include the stay's charges.
-    for (const line of await bookingRepo.findLiveRoomLines(client, bookingId)) {
-      await client.query('SELECT sp_generate_final_bill($1::uuid)', [line.booking_room_id]);
-    }
+    // its invoice total, so the invoices must already reflect the final stay.
+    await buildDbInvoice(bookingId, undefined, client);
 
     const result = await bookingRepo.transitionStatus(client, bookingId, 'CHECKED_IN', 'CHECKED_OUT');
     if (!result) throw Errors.conflict('Booking status was changed by someone else. Reload and try again.');
@@ -201,14 +315,19 @@ router.post('/check-out', validate(CheckOutSchema), async (req: Request, res: Re
       paymentMethod,
     });
 
-    return { ...result, settlement };
+    return { ...result, departure, settlement };
   });
+
+  const { settlement, departure } = outcome;
+  const parts = ['Guest checked out.'];
+  if (departure.early) parts.push(`Early departure: billed ${departure.nights_billed} of ${departure.nights_booked} night(s).`);
+  if (settlement.settledNow > 0) parts.push(`Balance of $${settlement.settledNow.toFixed(2)} settled.`);
+  if (settlement.refundedNow > 0) parts.push(`Refund of $${settlement.refundedNow.toFixed(2)} recorded.`);
+  if (settlement.settledNow === 0 && settlement.refundedNow === 0) parts.push('Folio settled.');
 
   res.json({
     success: true,
-    message: outcome.settlement.settledNow > 0
-      ? `Guest checked out. Balance of ${outcome.settlement.settledNow.toFixed(2)} settled.`
-      : 'Guest checked out. Folio settled.',
+    message: parts.join(' '),
     data: outcome,
   });
 });

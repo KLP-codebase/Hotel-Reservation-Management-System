@@ -5,7 +5,7 @@ import {
   ChevronDown, Utensils, Sparkles, Receipt, CreditCard, LogOut, UserCheck, FileText,
 } from "lucide-react";
 import {
-  parseStayDate, toLocalYMD, fmtStayRange, fmtMoney, titleCase,
+  parseStayDate, toLocalYMD, fmtStayRange, fmtMoney, fmtDate, titleCase,
   StatusDot, SectionHeader, Segmented, SearchField, Empty, DashboardMasthead, RoomBoard,
 } from "../ui";
 import { InRoomDiningModal } from "./InRoomDiningModal";
@@ -229,6 +229,15 @@ export function ReceptionistHub({
                 const isCheckedOut = b.booking_status === "CHECKED_OUT";
                 const isArriving = isConfirmed && isToday(b.check_in_date);
                 const isDeparting = isCheckedIn && isToday(b.check_out_date);
+                // Check-in opens on the arrival day and stays open until check-out day
+                // (late arrivals). The server enforces the same rule in hotel time.
+                const inYmd = toLocalYMD(parseStayDate(b.check_in_date));
+                const outYmd = toLocalYMD(parseStayDate(b.check_out_date));
+                const canCheckIn = isConfirmed && inYmd <= todayStr && todayStr < outYmd;
+                const checkInNote = isConfirmed && !canCheckIn
+                  ? (todayStr < inYmd ? `Check-in opens ${fmtDate(b.check_in_date)}` : "Stay dates have passed")
+                  : null;
+                const checkOutLabel = isCheckedIn && todayStr < outYmd ? "Check out early" : "Check out";
                 const isExpanded = expandedRowKey === rowKey;
                 const nights = b.nights || 1;
                 const range = fmtStayRange(b.check_in_date, b.check_out_date);
@@ -282,11 +291,14 @@ export function ReceptionistHub({
 
                       {/* Next step + expand */}
                       <div className="flex items-center gap-2 md:justify-end">
-                        {isConfirmed && (
+                        {canCheckIn && (
                           <PrimaryBtn icon={UserCheck} onClick={() => openModalFor(b, "checkin")}>Check in</PrimaryBtn>
                         )}
-                        {isDeparting && (
-                          <PrimaryBtn icon={LogOut} onClick={() => openModalFor(b, "checkout")}>Check out</PrimaryBtn>
+                        {checkInNote && (
+                          <span className="font-jakarta text-[12px] text-ink/70 whitespace-nowrap">{checkInNote}</span>
+                        )}
+                        {isCheckedIn && (
+                          <PrimaryBtn icon={LogOut} onClick={() => openModalFor(b, "checkout")}>{checkOutLabel}</PrimaryBtn>
                         )}
                         <button
                           type="button"
@@ -310,7 +322,7 @@ export function ReceptionistHub({
                         </p>
 
                         <div className="flex flex-wrap items-center gap-2">
-                          {isConfirmed && (
+                          {canCheckIn && (
                             <ActionBtn icon={UserCheck} onClick={() => openModalFor(b, "checkin")}>Check in</ActionBtn>
                           )}
 
@@ -321,7 +333,7 @@ export function ReceptionistHub({
                               <ActionBtn icon={Receipt} onClick={() => openModalFor(b, "folio")}>Folio</ActionBtn>
                               <ActionBtn icon={FileText} onClick={() => openModalFor(b, "invoice")}>Invoice</ActionBtn>
                               <ActionBtn icon={CreditCard} onClick={() => openModalFor(b, "pay")}>Payment</ActionBtn>
-                              <PrimaryBtn icon={LogOut} onClick={() => openModalFor(b, "checkout")}>Check out</PrimaryBtn>
+                              <PrimaryBtn icon={LogOut} onClick={() => openModalFor(b, "checkout")}>{checkOutLabel}</PrimaryBtn>
                             </>
                           )}
 

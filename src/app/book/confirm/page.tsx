@@ -75,7 +75,7 @@ interface ConfiguredRoom {
 }
 
 // ── Sri Lanka 4-Tier Statutory Tax Cascade ──────────────────────────────────
-// SC (10%) -> TDL (1% on Base + SC) -> SSCL (2.5% on Base + SC + TDL) -> VAT (18% on Base + SC + TDL + SSCL)
+// SC (10% of base) · TDL (1% of base) · SSCL (2.5% of base) · VAT (18% of base + TDL + SSCL)
 interface TaxCascadeBreakdown {
   baseAmount: number;
   scTax: number;
@@ -88,10 +88,12 @@ interface TaxCascadeBreakdown {
 
 function computeTaxCascade(baseAmount: number): TaxCascadeBreakdown {
   const roundedBase = Math.round(baseAmount * 100) / 100;
+  // ARCHITECTURE.md §5.1 — same as the API and sp_generate_final_bill.
+  // SC, TDL and SSCL are on the base; VAT is on base + TDL + SSCL (SC is exempt).
   const scTax       = Math.round(roundedBase * 0.10 * 100) / 100;
-  const tdlTax      = Math.round((roundedBase + scTax) * 0.01 * 100) / 100;
-  const sscTax      = Math.round((roundedBase + scTax + tdlTax) * 0.025 * 100) / 100;
-  const vatTax      = Math.round((roundedBase + scTax + tdlTax + sscTax) * 0.18 * 100) / 100;
+  const tdlTax      = Math.round(roundedBase * 0.01 * 100) / 100;
+  const sscTax      = Math.round(roundedBase * 0.025 * 100) / 100;
+  const vatTax      = Math.round((roundedBase + tdlTax + sscTax) * 0.18 * 100) / 100;
   const totalTaxes  = Math.round((scTax + tdlTax + sscTax + vatTax) * 100) / 100;
   const grandTotal  = Math.round((roundedBase + totalTaxes) * 100) / 100;
 
@@ -1651,177 +1653,12 @@ function BookingConfirmContent() {
             </div>
 
 
-            {/* ── SECTION 04: Consolidated Reservation Summary & Statutory Taxes ── */}
+            {/* ── SECTION 04: Payment & Reservation Guarantee (Rule B12) ── */}
             <div className="sn-confirm-card p-6 md:p-8 rounded-none border border-skynest-hairline bg-white shadow-sm space-y-6">
               <div className="pb-4 border-b border-skynest-hairline">
                 <h2 className="font-cinzel text-base font-medium uppercase tracking-wider text-ink flex items-center gap-2.5">
                   <span className="w-5 h-5 flex items-center justify-center text-[10px] font-bold text-white bg-ink">
                     04
-                  </span>
-                  Consolidated Reservation Summary & Bill
-                </h2>
-                <p className="font-jakarta text-xs text-ink/50 mt-1">
-                  Itemized breakdown of accommodation for all {rooms.length} room{rooms.length > 1 ? 's' : ''}, individual meal plans, and Sri Lankan statutory taxes.
-                </p>
-              </div>
-
-              {/* Trip Overview Pill Grid */}
-              <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 p-4 bg-[#FDFCFA] border border-skynest-hairline text-xs">
-                <div>
-                  <span className="block text-[10px] uppercase tracking-wider text-ink/40 mb-0.5">Branch</span>
-                  <span className="font-medium text-ink">{branch?.name}</span>
-                </div>
-                <div>
-                  <span className="block text-[10px] uppercase tracking-wider text-ink/40 mb-0.5">Room Types</span>
-                  <span className="font-medium text-ink">
-                    {Array.from(new Set(rooms.map(r => r.roomTypeName))).join(' & ')}
-                  </span>
-                </div>
-                <div>
-                  <span className="block text-[10px] uppercase tracking-wider text-ink/40 mb-0.5">Rooms & Guests</span>
-                  <span className="font-medium text-ink">{rooms.length} Room{rooms.length > 1 ? 's' : ''} • {totalAdults} Ad, {totalChildren} Ch</span>
-                </div>
-                <div>
-                  <span className="block text-[10px] uppercase tracking-wider text-ink/40 mb-0.5">Dates</span>
-                  <span className="font-medium text-ink">{checkIn} → {checkOut}</span>
-                </div>
-                <div>
-                  <span className="block text-[10px] uppercase tracking-wider text-ink/40 mb-0.5">Duration</span>
-                  <span className="font-medium text-ink">{nights} Night{nights > 1 ? 's' : ''}</span>
-                </div>
-              </div>
-
-              {/* Comprehensive Financial Breakdown */}
-              <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-                {/* Itemized Lines (7 Cols) */}
-                <div className="lg:col-span-7 space-y-4">
-                  {/* Room Accommodation itemized */}
-                  <div className="space-y-1.5 text-xs font-jakarta">
-                    <div className="flex justify-between items-center text-ink font-semibold border-b border-skynest-hairline pb-1">
-                      <span>Room Accommodation ({rooms.length} Room{rooms.length > 1 ? 's' : ''} × {nights} Night{nights > 1 ? 's' : ''})</span>
-                      <span>${totalRoomCost.toFixed(2)}</span>
-                    </div>
-                    {rooms.map((rm) => (
-                      <div key={rm.index} className="flex justify-between items-center text-ink/60 text-[11px] pl-3">
-                        <span>Room {rm.roomNumber} ({rm.roomTypeName}): {nights} nt × ${rm.baseRate}/nt</span>
-                        <span>${(rm.baseRate * nights).toFixed(2)}</span>
-                      </div>
-                    ))}
-                  </div>
-
-                  {/* Meal charges itemized with explicit guest and nights multiplication */}
-                  <div className="space-y-1.5 text-xs font-jakarta pt-2">
-                    <div className="flex justify-between items-center text-ink font-semibold border-b border-skynest-hairline pb-1">
-                      <span>Meal Plans ({rooms.length} Room{rooms.length > 1 ? 's' : ''})</span>
-                      <span>${totalMealCost.toFixed(2)}</span>
-                    </div>
-                    {roomCalculations.map((rm) => {
-                      const guestCount = Math.max(1, (rm.adults || 1) + (rm.children || 0));
-                      return (
-                        <div key={rm.index} className="flex justify-between items-center text-ink/60 text-[11px] pl-3">
-                          <span>
-                            Room {rm.roomNumber}: {rm.planName}{' '}
-                            {rm.planPrice > 0
-                              ? `(${guestCount} guest${guestCount > 1 ? 's' : ''} × ${nights} nt × $${rm.planPrice}/guest/nt)`
-                              : '(Included)'}
-                          </span>
-                          <span className="font-semibold text-ink">${rm.mealCost.toFixed(2)}</span>
-                        </div>
-                      );
-                    })}
-                  </div>
-
-                  {/* Curated Services & Add-Ons itemized */}
-                  {selectedServiceList.length > 0 && (
-                    <div className="space-y-1.5 text-xs font-jakarta pt-2">
-                      <div className="flex justify-between items-center text-ink font-semibold border-b border-skynest-hairline pb-1">
-                        <span>Curated Services & Add-Ons ({selectedServiceList.length} Selected)</span>
-                        <span>${totalServiceCost.toFixed(2)}</span>
-                      </div>
-                      {selectedServiceList.map((svc) => (
-                        <div key={svc.service_id} className="flex justify-between items-center text-ink/60 text-[11px] pl-3">
-                          <span>
-                            {svc.service_name} ({svc.quantity} × ${svc.base_price.toFixed(2)}
-                            {svc.date ? ` · Date: ${svc.date}` : ''}
-                            {svc.appointment_time ? ` @ ${svc.appointment_time}` : ''})
-                          </span>
-                          <span className="font-semibold text-ink">${(svc.base_price * svc.quantity).toFixed(2)}</span>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-
-                  {/* Base Subtotal */}
-                  <div className="flex justify-between items-center text-ink font-bold text-xs pt-2 border-t border-skynest-hairline">
-                    <span>Base Subtotal (Net of Taxes)</span>
-                    <span>${baseAmount.toFixed(2)}</span>
-                  </div>
-
-                  {/* 4-Tier Tax Cascade itemized */}
-                  <div className="space-y-1 text-[11px] font-jakarta text-ink/60 pt-2 border-t border-skynest-hairline">
-                    <div className="flex justify-between items-center">
-                      <span>Service Charge (SC 10%)</span>
-                      <span>+${taxes.scTax.toFixed(2)}</span>
-                    </div>
-                    <div className="flex justify-between items-center">
-                      <span>Tourism Development Levy (TDL 1%)</span>
-                      <span>+${taxes.tdlTax.toFixed(2)}</span>
-                    </div>
-                    <div className="flex justify-between items-center">
-                      <span>Social Security Contribution Levy (SSCL 2.5%)</span>
-                      <span>+${taxes.sscTax.toFixed(2)}</span>
-                    </div>
-                    <div className="flex justify-between items-center">
-                      <span>Value Added Tax (VAT 18%)</span>
-                      <span>+${taxes.vatTax.toFixed(2)}</span>
-                    </div>
-                    <div className="flex justify-between items-center text-ink/80 font-medium pt-1 border-t border-dashed border-skynest-hairline">
-                      <span>Total Statutory Levies & Taxes</span>
-                      <span>+${taxes.totalTaxes.toFixed(2)}</span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Grand Total Card and Submission Button (5 Cols) */}
-                <div className="lg:col-span-5 p-6 bg-[#FDFCFA] border border-skynest-hairline flex flex-col justify-between space-y-6">
-                  <div>
-                    <span className="text-[10px] font-jakarta uppercase tracking-wider text-ink/40 block mb-1">
-                      Estimated Grand Total
-                    </span>
-                    <div className="flex items-baseline justify-between">
-                      <span className="font-cinzel text-3xl font-normal text-skynest-accent">
-                        ${grandTotal.toFixed(2)}
-                      </span>
-                      <span className="text-[10px] font-jakarta text-ink/50 uppercase font-semibold">
-                        All Taxes Included
-                      </span>
-                    </div>
-                    <p className="text-[10px] font-jakarta text-ink/40 mt-2">
-                      Covers all accommodation for {rooms.length} room{rooms.length > 1 ? 's' : ''}, individual meal plans, and statutory levies (SC, TDL, SSCL, VAT).
-                    </p>
-                  </div>
-
-                  <button
-                    type="submit"
-                    disabled={loading}
-                    className="w-full py-4 rounded-none font-jakarta font-semibold text-xs tracking-wider uppercase transition-all duration-200 flex items-center justify-center gap-2 border border-ink bg-ink text-paper hover:bg-skynest-accent hover:border-skynest-accent cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
-                  >
-                    {loading ? 'Processing Reservation…' : paymentOption === 'DEPOSIT'
-                      ? `Confirm & Pay 20% Deposit ($${depositAmount.toFixed(2)})`
-                      : paymentOption === 'FULL'
-                      ? `Confirm & Pay Full Amount ($${grandTotal.toFixed(2)})`
-                      : `Submit Reservation ($0.00 today · Pay on Arrival)`}
-                  </button>
-                </div>
-              </div>
-            </div>
-
-            {/* ── SECTION 05: Payment & Reservation Guarantee (Rule B12) ── */}
-            <div className="sn-confirm-card p-6 md:p-8 rounded-none border border-skynest-hairline bg-white shadow-sm space-y-6">
-              <div className="pb-4 border-b border-skynest-hairline">
-                <h2 className="font-cinzel text-base font-medium uppercase tracking-wider text-ink flex items-center gap-2.5">
-                  <span className="w-5 h-5 flex items-center justify-center text-[10px] font-bold text-white bg-ink">
-                    05
                   </span>
                   Payment Guarantee & Confirmation
                 </h2>
@@ -1999,6 +1836,171 @@ function BookingConfirmContent() {
                   </p>
                 </div>
               )}
+            </div>
+
+            {/* ── SECTION 05: Consolidated Reservation Summary & Statutory Taxes ── */}
+            <div className="sn-confirm-card p-6 md:p-8 rounded-none border border-skynest-hairline bg-white shadow-sm space-y-6">
+              <div className="pb-4 border-b border-skynest-hairline">
+                <h2 className="font-cinzel text-base font-medium uppercase tracking-wider text-ink flex items-center gap-2.5">
+                  <span className="w-5 h-5 flex items-center justify-center text-[10px] font-bold text-white bg-ink">
+                    05
+                  </span>
+                  Consolidated Reservation Summary & Bill
+                </h2>
+                <p className="font-jakarta text-xs text-ink/50 mt-1">
+                  Itemized breakdown of accommodation for all {rooms.length} room{rooms.length > 1 ? 's' : ''}, individual meal plans, and Sri Lankan statutory taxes.
+                </p>
+              </div>
+
+              {/* Trip Overview Pill Grid */}
+              <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 p-4 bg-[#FDFCFA] border border-skynest-hairline text-xs">
+                <div>
+                  <span className="block text-[10px] uppercase tracking-wider text-ink/40 mb-0.5">Branch</span>
+                  <span className="font-medium text-ink">{branch?.name}</span>
+                </div>
+                <div>
+                  <span className="block text-[10px] uppercase tracking-wider text-ink/40 mb-0.5">Room Types</span>
+                  <span className="font-medium text-ink">
+                    {Array.from(new Set(rooms.map(r => r.roomTypeName))).join(' & ')}
+                  </span>
+                </div>
+                <div>
+                  <span className="block text-[10px] uppercase tracking-wider text-ink/40 mb-0.5">Rooms & Guests</span>
+                  <span className="font-medium text-ink">{rooms.length} Room{rooms.length > 1 ? 's' : ''} • {totalAdults} Ad, {totalChildren} Ch</span>
+                </div>
+                <div>
+                  <span className="block text-[10px] uppercase tracking-wider text-ink/40 mb-0.5">Dates</span>
+                  <span className="font-medium text-ink">{checkIn} → {checkOut}</span>
+                </div>
+                <div>
+                  <span className="block text-[10px] uppercase tracking-wider text-ink/40 mb-0.5">Duration</span>
+                  <span className="font-medium text-ink">{nights} Night{nights > 1 ? 's' : ''}</span>
+                </div>
+              </div>
+
+              {/* Comprehensive Financial Breakdown */}
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+                {/* Itemized Lines (7 Cols) */}
+                <div className="lg:col-span-7 space-y-4">
+                  {/* Room Accommodation itemized */}
+                  <div className="space-y-1.5 text-xs font-jakarta">
+                    <div className="flex justify-between items-center text-ink font-semibold border-b border-skynest-hairline pb-1">
+                      <span>Room Accommodation ({rooms.length} Room{rooms.length > 1 ? 's' : ''} × {nights} Night{nights > 1 ? 's' : ''})</span>
+                      <span>${totalRoomCost.toFixed(2)}</span>
+                    </div>
+                    {rooms.map((rm) => (
+                      <div key={rm.index} className="flex justify-between items-center text-ink/60 text-[11px] pl-3">
+                        <span>Room {rm.roomNumber} ({rm.roomTypeName}): {nights} nt × ${rm.baseRate}/nt</span>
+                        <span>${(rm.baseRate * nights).toFixed(2)}</span>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Meal charges itemized with explicit guest and nights multiplication */}
+                  <div className="space-y-1.5 text-xs font-jakarta pt-2">
+                    <div className="flex justify-between items-center text-ink font-semibold border-b border-skynest-hairline pb-1">
+                      <span>Meal Plans ({rooms.length} Room{rooms.length > 1 ? 's' : ''})</span>
+                      <span>${totalMealCost.toFixed(2)}</span>
+                    </div>
+                    {roomCalculations.map((rm) => {
+                      const guestCount = Math.max(1, (rm.adults || 1) + (rm.children || 0));
+                      return (
+                        <div key={rm.index} className="flex justify-between items-center text-ink/60 text-[11px] pl-3">
+                          <span>
+                            Room {rm.roomNumber}: {rm.planName}{' '}
+                            {rm.planPrice > 0
+                              ? `(${guestCount} guest${guestCount > 1 ? 's' : ''} × ${nights} nt × $${rm.planPrice}/guest/nt)`
+                              : '(Included)'}
+                          </span>
+                          <span className="font-semibold text-ink">${rm.mealCost.toFixed(2)}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  {/* Curated Services & Add-Ons itemized */}
+                  {selectedServiceList.length > 0 && (
+                    <div className="space-y-1.5 text-xs font-jakarta pt-2">
+                      <div className="flex justify-between items-center text-ink font-semibold border-b border-skynest-hairline pb-1">
+                        <span>Curated Services & Add-Ons ({selectedServiceList.length} Selected)</span>
+                        <span>${totalServiceCost.toFixed(2)}</span>
+                      </div>
+                      {selectedServiceList.map((svc) => (
+                        <div key={svc.service_id} className="flex justify-between items-center text-ink/60 text-[11px] pl-3">
+                          <span>
+                            {svc.service_name} ({svc.quantity} × ${svc.base_price.toFixed(2)}
+                            {svc.date ? ` · Date: ${svc.date}` : ''}
+                            {svc.appointment_time ? ` @ ${svc.appointment_time}` : ''})
+                          </span>
+                          <span className="font-semibold text-ink">${(svc.base_price * svc.quantity).toFixed(2)}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Base Subtotal */}
+                  <div className="flex justify-between items-center text-ink font-bold text-xs pt-2 border-t border-skynest-hairline">
+                    <span>Base Subtotal (Net of Taxes)</span>
+                    <span>${baseAmount.toFixed(2)}</span>
+                  </div>
+
+                  {/* 4-Tier Tax Cascade itemized */}
+                  <div className="space-y-1 text-[11px] font-jakarta text-ink/60 pt-2 border-t border-skynest-hairline">
+                    <div className="flex justify-between items-center">
+                      <span>Service Charge (SC 10%)</span>
+                      <span>+${taxes.scTax.toFixed(2)}</span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span>Tourism Development Levy (TDL 1%)</span>
+                      <span>+${taxes.tdlTax.toFixed(2)}</span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span>Social Security Contribution Levy (SSCL 2.5%)</span>
+                      <span>+${taxes.sscTax.toFixed(2)}</span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span>Value Added Tax (VAT 18%)</span>
+                      <span>+${taxes.vatTax.toFixed(2)}</span>
+                    </div>
+                    <div className="flex justify-between items-center text-ink/80 font-medium pt-1 border-t border-dashed border-skynest-hairline">
+                      <span>Total Statutory Levies & Taxes</span>
+                      <span>+${taxes.totalTaxes.toFixed(2)}</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Grand Total Card and Submission Button (5 Cols) */}
+                <div className="lg:col-span-5 p-6 bg-[#FDFCFA] border border-skynest-hairline flex flex-col justify-between space-y-6">
+                  <div>
+                    <span className="text-[10px] font-jakarta uppercase tracking-wider text-ink/40 block mb-1">
+                      Estimated Grand Total
+                    </span>
+                    <div className="flex items-baseline justify-between">
+                      <span className="font-cinzel text-3xl font-normal text-skynest-accent">
+                        ${grandTotal.toFixed(2)}
+                      </span>
+                      <span className="text-[10px] font-jakarta text-ink/50 uppercase font-semibold">
+                        All Taxes Included
+                      </span>
+                    </div>
+                    <p className="text-[10px] font-jakarta text-ink/40 mt-2">
+                      Covers all accommodation for {rooms.length} room{rooms.length > 1 ? 's' : ''}, individual meal plans, and statutory levies (SC, TDL, SSCL, VAT).
+                    </p>
+                  </div>
+
+                  <button
+                    type="submit"
+                    disabled={loading}
+                    className="w-full py-4 rounded-none font-jakarta font-semibold text-xs tracking-wider uppercase transition-all duration-200 flex items-center justify-center gap-2 border border-ink bg-ink text-paper hover:bg-skynest-accent hover:border-skynest-accent cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
+                  >
+                    {loading ? 'Processing Reservation…' : paymentOption === 'DEPOSIT'
+                      ? `Confirm & Pay 20% Deposit ($${depositAmount.toFixed(2)})`
+                      : paymentOption === 'FULL'
+                      ? `Confirm & Pay Full Amount ($${grandTotal.toFixed(2)})`
+                      : `Submit Reservation ($0.00 today · Pay on Arrival)`}
+                  </button>
+                </div>
+              </div>
             </div>
 
           </form>
