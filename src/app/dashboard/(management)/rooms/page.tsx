@@ -22,14 +22,14 @@ interface RoomType {
 }
 
 interface Branch {
-  branch_id:   number;
+  branch_id:   string;
   branch_name: string;
   city:        string;
 }
 
 interface Room {
   room_id:      number;
-  branch_id:    number;
+  branch_id:    string;
   room_type_id: number;
   room_number:  string;
   floor:        number | null;
@@ -57,6 +57,8 @@ export default function RoomsPage() {
   const isAdminOrDba = user?.role === 'ADMINISTRATOR' || user?.role === 'DBA';
   const isManager = user?.role === 'MANAGER';
   const canMutate = user && ['ADMINISTRATOR', 'DBA', 'MANAGER'].includes(user.role);
+  // Room types and their rates apply to every branch, so a manager only views them.
+  const canEditRoomTypes = isAdminOrDba;
   const canToggleStatus = user && ['ADMINISTRATOR', 'DBA', 'MANAGER', 'RECEPTIONIST'].includes(user.role);
 
   // ── Core data state ──────────────────────────────────────────────────────────
@@ -74,19 +76,6 @@ export default function RoomsPage() {
 
   // Flash notifications
   const { flash, toasts } = useFlash();
-
-  // Pre-filter to manager's branch when logged in as Manager
-  useEffect(() => {
-    if (isManager && user?.branchId && branches.length > 0) {
-      const found = branches.find(
-        (b) => String(b.branch_id) === String(user.branchId) ||
-               (user.branchName && b.branch_name.toLowerCase().includes(user.branchName.toLowerCase()))
-      );
-      if (found) {
-        setFilterBranch(String(found.branch_id));
-      }
-    }
-  }, [isManager, user, branches]);
 
   // ── Room-type modal state ────────────────────────────────────────────────────
   const [rtModal,   setRtModal]   = useState<'create' | 'edit' | null>(null);
@@ -109,7 +98,10 @@ export default function RoomsPage() {
     try {
       const [rtRes, bRes, rRes, cRes] = await Promise.all([
         apiFetch<{ data: RoomType[] }>('/api/v1/room-types').catch(() => ({ data: [] })),
-        apiFetch<{ data: Branch[] }>('/api/v1/branches').catch(() => ({ data: [] })),
+        // Managers only see their own branch (the API scopes /rooms), so they need no property list.
+        isAdminOrDba
+          ? apiFetch<{ data: Branch[] }>('/api/v1/branches').catch(() => ({ data: [] }))
+          : Promise.resolve({ data: [] as Branch[] }),
         apiFetch<{ data: Room[] }>('/api/v1/rooms?is_active=true').catch(() => ({ data: [] })),
         apiFetch<{ data: Record<number, number> }>('/api/v1/rooms/stats/counts-by-type').catch(() => ({ data: {} })),
       ]);
@@ -246,7 +238,7 @@ export default function RoomsPage() {
     try {
       const body: Record<string, unknown> = {
         roomNumber: rmForm.roomNumber.trim(),
-        branchId:   Number(rmForm.branchId),
+        branchId:   rmForm.branchId,
         roomTypeId: Number(rmForm.roomTypeId),
         status:     rmForm.status,
       };
@@ -337,7 +329,7 @@ export default function RoomsPage() {
         }
         kpis={[
           { label: 'Room types',  value: String(roomTypes.length), sub: 'Categories on sale' },
-          { label: 'Rooms',       value: String(displayedRooms.length), sub: filterBranch === 'ALL' ? `Across ${branches.length} locations` : 'At this location' },
+          { label: 'Rooms',       value: String(displayedRooms.length), sub: isAdminOrDba && filterBranch === 'ALL' ? `Across ${branches.length} locations` : 'At this location' },
           { label: 'Available',   value: String(availableCount),   sub: 'Ready to sell', bar: (availableCount / (displayedRooms.length || 1)) * 100 },
           { label: 'Maintenance', value: String(maintenanceCount), sub: 'Out of action' },
         ]}
@@ -364,7 +356,7 @@ export default function RoomsPage() {
           ) : activeTab === 'categories' ? (
             /* ── Room types ─────────────────────────────────────────────────── */
             <div className="space-y-6">
-              {canMutate && (
+              {canEditRoomTypes && (
                 <Toolbar action={<Btn variant="primary" onClick={openCreateRt}><Plus className="w-4 h-4" /> Add room type</Btn>} />
               )}
 
@@ -379,7 +371,7 @@ export default function RoomsPage() {
                         <th className={tbl.th}>Rate / night</th>
                         <th className={tbl.th}>Capacity</th>
                         <th className={tbl.th}>Rooms</th>
-                        {canMutate && <th className={`${tbl.th} text-right`}><span className="sr-only">Actions</span></th>}
+                        {canEditRoomTypes && <th className={`${tbl.th} text-right`}><span className="sr-only">Actions</span></th>}
                       </tr>
                     </thead>
                     <tbody className={tbl.body}>
@@ -394,7 +386,7 @@ export default function RoomsPage() {
                             <td className={`${tbl.td} tabular-nums whitespace-nowrap`}>{fmtLKR(toNum(rt.base_daily_rate))}</td>
                             <td className={`${tbl.td} whitespace-nowrap`}>{rt.capacity} guest{rt.capacity === 1 ? '' : 's'}</td>
                             <td className={`${tbl.td} tabular-nums`}>{count}</td>
-                            {canMutate && (
+                            {canEditRoomTypes && (
                               <td className={`${tbl.td} pr-0`}>
                                 <div className="flex items-center justify-end gap-2">
                                   <IconBtn label={`Edit ${rt.type_name}`} onClick={() => openEditRt(rt)}><Pencil className="w-4 h-4" /></IconBtn>
@@ -416,12 +408,14 @@ export default function RoomsPage() {
               <Toolbar
                 action={canMutate && <Btn variant="primary" onClick={openCreateRm}><Plus className="w-4 h-4" /> Add room</Btn>}
               >
-                <FilterSelect label="Property" value={filterBranch} onChange={setFilterBranch}>
-                  <option value="ALL">All properties</option>
-                  {branches.map(b => (
-                    <option key={b.branch_id} value={String(b.branch_id)}>{b.branch_name}</option>
-                  ))}
-                </FilterSelect>
+                {isAdminOrDba && (
+                  <FilterSelect label="Property" value={filterBranch} onChange={setFilterBranch}>
+                    <option value="ALL">All properties</option>
+                    {branches.map(b => (
+                      <option key={b.branch_id} value={String(b.branch_id)}>{b.branch_name}</option>
+                    ))}
+                  </FilterSelect>
+                )}
                 <FilterSelect label="Room type" value={filterRoomType} onChange={setFilterRoomType}>
                   <option value="ALL">All room types</option>
                   {roomTypes.map(rt => (
@@ -444,7 +438,7 @@ export default function RoomsPage() {
                     <thead>
                       <tr className={tbl.headRow}>
                         <th className={tbl.th}>Room</th>
-                        <th className={tbl.th}>Property</th>
+                        {isAdminOrDba && <th className={tbl.th}>Property</th>}
                         <th className={tbl.th}>Room type</th>
                         <th className={tbl.th}>Floor</th>
                         <th className={tbl.th}>Status</th>
@@ -455,7 +449,7 @@ export default function RoomsPage() {
                       {filteredRooms.map(room => (
                         <tr key={room.room_id} className={tbl.row}>
                           <td className={tbl.td}><span className="font-cinzel text-[20px] text-ink">{room.room_number}</span></td>
-                          <td className={tbl.td}>{room.branch_name ?? '—'}</td>
+                          {isAdminOrDba && <td className={tbl.td}>{room.branch_name ?? '—'}</td>}
                           <td className={tbl.td}>{room.type_name ?? '—'}</td>
                           <td className={`${tbl.td} tabular-nums`}>{room.floor ?? '—'}</td>
                           <td className={tbl.td}><StatusDot status={room.status} label={STATUS_LABEL[room.status] ?? room.status} /></td>
@@ -514,7 +508,7 @@ export default function RoomsPage() {
           />
           <div className="grid grid-cols-2 gap-6">
             <Field
-              label="Rate (LKR / night)"
+              label="Rate ($ / night)"
               type="number"
               min="0"
               step="0.01"
@@ -575,17 +569,19 @@ export default function RoomsPage() {
               error={rmErrors.floor}
             />
           </div>
-          <SelectField
-            label="Property"
-            value={rmForm.branchId}
-            onChange={v => setRmForm(p => ({ ...p, branchId: v }))}
-            error={rmErrors.branchId}
-          >
-            <option value="">Select property…</option>
-            {branches.map(b => (
-              <option key={b.branch_id} value={String(b.branch_id)}>{b.branch_name} — {b.city}</option>
-            ))}
-          </SelectField>
+          {isAdminOrDba && (
+            <SelectField
+              label="Property"
+              value={rmForm.branchId}
+              onChange={v => setRmForm(p => ({ ...p, branchId: v }))}
+              error={rmErrors.branchId}
+            >
+              <option value="">Select property…</option>
+              {branches.map(b => (
+                <option key={b.branch_id} value={String(b.branch_id)}>{b.branch_name} — {b.city}</option>
+              ))}
+            </SelectField>
+          )}
           <SelectField
             label="Room type"
             value={rmForm.roomTypeId}

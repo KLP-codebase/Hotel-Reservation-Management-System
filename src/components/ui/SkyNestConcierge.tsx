@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import Link from "next/link";
-import { MessageSquare, X, Send, RotateCcw } from "lucide-react";
+import { X, Send, RotateCcw } from "lucide-react";
 import { apiFetch } from "@/lib/api-client";
 
 interface Message {
@@ -62,7 +62,7 @@ export function SkyNestConcierge() {
         }
     }, [messages, isOpen, isLoading]);
 
-    const handleSend = async (textToSend?: string) => {
+    const handleSend = useCallback(async (textToSend?: string) => {
         const prompt = (textToSend ?? input).trim();
         if (!prompt || isLoading) return;
 
@@ -110,7 +110,7 @@ export function SkyNestConcierge() {
         } finally {
             setIsLoading(false);
         }
-    };
+    }, [input, isLoading, messages]);
 
     const handleReset = () => {
         setMessages([
@@ -174,7 +174,7 @@ export function SkyNestConcierge() {
     };
 
     return (
-        <div className="fixed bottom-6 right-6 z-50 select-none">
+        <div className="fixed bottom-6 right-6 z-50 select-none print:hidden skynest-concierge" id="skynest-concierge-root">
             {/* ── 1. Floating Trigger Button ───────────────────────────── */}
             {!isOpen && (
                 <button

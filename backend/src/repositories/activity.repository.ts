@@ -1,9 +1,19 @@
 import { DbAdapter } from '../config/db';
 
+export interface ActivityService {
+  serviceName: string;
+  category: string;
+  quantity: number;
+  unitPrice: number;
+  totalPrice: number;
+  usedAt: string;
+}
+
 export interface ActivityStay {
   archiveId: string;
   bookingId: string;
   bookingRef: string;
+  branchId?: string;
   branchName: string;
   roomTypeName: string;
   roomNumber: string;
@@ -13,14 +23,7 @@ export interface ActivityStay {
   totalPaid: number;
   loyaltyPoints: number;
   status: string;
-  services: Array<{
-    serviceName: string;
-    category: string;
-    quantity: number;
-    unitPrice: number;
-    totalPrice: number;
-    usedAt: string;
-  }>;
+  services: ActivityService[];
   isArchived: boolean;
 }
 
@@ -50,16 +53,21 @@ export class ActivityRepository {
    * Tier 3: Provision guest record if not yet created
    */
   async resolveGuestId(userAccountId: string): Promise<{ guestId: string; firstName: string; lastName: string; email: string }> {
-    // 1. Direct link on user_accounts
+    // 1. Direct link on user_accounts (using LEFT JOIN so accounts without staff rows still resolve)
     const { rows: direct } = await this.db.query<{
       guest_id: string;
       first_name: string;
       last_name: string;
       email: string;
     }>(
-      `SELECT ua.guest_id, s.first_name, s.last_name, s.email
+      `SELECT 
+         ua.guest_id, 
+         COALESCE(s.first_name, g.first_name, ua.username, 'Guest') AS first_name, 
+         COALESCE(s.last_name, g.last_name, '') AS last_name, 
+         COALESCE(s.email, g.email, ua.username || '@guest.skynest.lk') AS email
        FROM user_accounts ua
-       JOIN staff s ON s.staff_id = ua.staff_id
+       LEFT JOIN staff s ON s.staff_id = ua.staff_id
+       LEFT JOIN guests g ON (g.id = ua.guest_id OR g.guest_id::text = ua.guest_id)
        WHERE ua.user_account_id = $1 AND ua.guest_id IS NOT NULL`,
       [userAccountId]
     );
@@ -79,9 +87,12 @@ export class ActivityRepository {
       last_name: string;
       email: string;
     }>(
-      `SELECT s.first_name, s.last_name, s.email
+      `SELECT 
+         COALESCE(s.first_name, ua.username, 'Guest') AS first_name, 
+         COALESCE(s.last_name, '') AS last_name, 
+         COALESCE(s.email, ua.username || '@guest.skynest.lk') AS email
        FROM user_accounts ua
-       JOIN staff s ON s.staff_id = ua.staff_id
+       LEFT JOIN staff s ON s.staff_id = ua.staff_id
        WHERE ua.user_account_id = $1`,
       [userAccountId]
     );
@@ -130,77 +141,141 @@ export class ActivityRepository {
     const guest = await this.resolveGuestId(userAccountId);
     const guestId = guest.guestId;
 
-    // 1. Fetch from compressed archive
-    const { rows: archivedRows } = await this.db.query<{
-      archive_id: string;
-      booking_id: string;
-      booking_ref: string;
-      branch_name: string;
-      room_type_name: string;
-      room_number: string;
-      check_in: Date;
-      check_out: Date;
-      nights: number;
-      total_paid: string;
-      loyalty_points: number;
-      status: string;
-      compressed_details: any;
-    }>(
-      `SELECT 
-         archive_id,
-         booking_id,
-         booking_ref,
-         branch_name,
-         room_type_name,
-         room_number,
-         check_in,
-         check_out,
-         nights,
-         total_paid,
-         loyalty_points,
-         status,
-         compressed_details
-       FROM guest_activity_archive
-       WHERE guest_id = $1
-       ORDER BY check_in DESC`,
-      [guestId]
-    );
+    // 1. Fetch from compressed archive (with graceful resilience if migration is pending)
+    let archivedRows: any[] = [];
+    try {
+      const archiveRes = await this.db.query<{
+        archive_id: string;
+        booking_id: string;
+        booking_ref: string;
+        branch_name: string;
+        room_type_name: string;
+        room_number: string;
+        check_in: Date;
+        check_out: Date;
+        nights: number;
+        total_paid: string;
+        loyalty_points: number;
+        status: string;
+        compressed_details: any;
+      }>(
+        `SELECT 
+           archive_id,
+           booking_id,
+           booking_ref,
+           branch_name,
+           room_type_name,
+           room_number,
+           check_in,
+           check_out,
+           nights,
+           total_paid,
+           loyalty_points,
+           status,
+           compressed_details
+         FROM guest_activity_archive
+         WHERE guest_id = $1
+         ORDER BY check_in DESC`,
+        [guestId]
+      );
+      archivedRows = archiveRes.rows;
+    } catch (err: any) {
+      console.warn('[ActivityRepository] guest_activity_archive query notice:', err.message);
+    }
 
-    // 2. Fetch any live/recent non-archived bookings for this guest
-    const { rows: liveRows } = await this.db.query<{
-      booking_id: string;
-      id: string;
-      branch_name: string;
-      room_type_name: string;
-      room_number: string;
-      check_in: Date;
-      check_out: Date;
-      status: string;
-      rate_at_booking: string;
-      invoice_total: string;
-    }>(
-      `SELECT 
-         b.booking_id,
-         b.id,
-         COALESCE(brh.branch_name, 'Sky Nest Sanctuary') AS branch_name,
-         COALESCE(rt.type_name, r.type::text, 'Luxury Suite') AS room_type_name,
-         COALESCE(r.room_number, r.number, 'Suite') AS room_number,
-         b.check_in,
-         b.check_out,
-         b.status,
-         br.rate_at_booking,
-         COALESCE(inv.total_amount, 0.00)::text AS invoice_total
-       FROM bookings b
-       LEFT JOIN branches brh ON brh.branch_id = b.branch_id
-       LEFT JOIN booking_rooms br ON br.booking_id = b.booking_id
-       LEFT JOIN rooms r ON r.id::text = br.room_id::text
-       LEFT JOIN room_types rt ON rt.room_type_id = COALESCE(br.room_type_id, r.room_type_id)
-       LEFT JOIN invoices inv ON inv.booking_room_id = br.booking_room_id
-       WHERE (b.booked_by_guest_id = $1 OR b.guest_id = $1)
-         AND b.booking_id NOT IN (SELECT booking_id FROM guest_activity_archive WHERE guest_id = $1)
-       ORDER BY b.check_in DESC`,
-      [guestId]
-    );
+    // 2. Fetch live/recent non-archived bookings for this guest
+    const archivedBookingIds = archivedRows.map(r => r.booking_id).filter(Boolean);
+    let liveRows: any[] = [];
+    try {
+      const liveRes = await this.db.query<{
+        booking_id: string;
+        id: string;
+        branch_name: string;
+        room_type_name: string;
+        room_number: string;
+        check_in: Date;
+        check_out: Date;
+        status: string;
+        rate_at_booking: string;
+        invoice_total: string;
+      }>(
+        `SELECT 
+           b.booking_id,
+           b.branch_id::text AS branch_id,
+           COALESCE(b.id, SUBSTRING(b.booking_id::text, 1, 8)) AS id,
+           COALESCE(brh.branch_name, 'Sky Nest Sanctuary') AS branch_name,
+           COALESCE(rt.type_name, to_jsonb(r)->>'type', 'Luxury Suite') AS room_type_name,
+           COALESCE(to_jsonb(r)->>'room_number', to_jsonb(r)->>'number', 'Suite') AS room_number,
+           COALESCE(b.check_in, br.check_in_date) AS check_in,
+           COALESCE(b.check_out, br.check_out_date) AS check_out,
+           b.status,
+           br.rate_at_booking,
+           COALESCE(inv.total_amount, 0.00)::text AS invoice_total
+         FROM bookings b
+         LEFT JOIN branches brh ON brh.branch_id = b.branch_id
+         LEFT JOIN booking_rooms br ON br.booking_id = b.booking_id
+         LEFT JOIN rooms r ON r.id::text = br.room_id::text
+         LEFT JOIN room_types rt ON rt.room_type_id = COALESCE(br.room_type_id, NULLIF(to_jsonb(r)->>'room_type_id', '')::int)
+         LEFT JOIN invoices inv ON inv.booking_room_id = br.booking_room_id
+         WHERE (b.booked_by_guest_id = $1 OR to_jsonb(b)->>'guest_id' = $1)
+           ${archivedBookingIds.length > 0 ? `AND b.booking_id NOT IN (${archivedBookingIds.map((_, i) => `$${i + 2}::uuid`).join(',')})` : ''}
+         ORDER BY COALESCE(b.check_in, br.check_in_date) DESC NULLS LAST`,
+        archivedBookingIds.length > 0 ? [guestId, ...archivedBookingIds] : [guestId]
+      );
+      liveRows = liveRes.rows;
+    } catch (err: any) {
+      console.warn('[ActivityRepository] Live bookings query notice:', err.message);
+    }
+
+
+    // 3. Fetch itemized services for live stays
+    const liveBookingIds = liveRows.map(r => r.booking_id).filter(Boolean);
+    const servicesByBookingId: Record<string, ActivityService[]> = {};
+
+    if (liveBookingIds.length > 0) {
+      try {
+        const servicesRes = await this.db.query<{
+          booking_id: string;
+          service_name: string;
+          category: string;
+          quantity: number;
+          unit_price: string;
+          total_price: string;
+          used_at: Date;
+        }>(
+          `SELECT 
+             br.booking_id,
+             COALESCE(sc.service_name, su.notes, 'Hotel Service') AS service_name,
+             COALESCE(sc.category, 'General') AS category,
+             COALESCE(su.quantity, 1) AS quantity,
+             COALESCE(su.price_at_usage, sc.base_price, 0)::text AS unit_price,
+             (COALESCE(su.quantity, 1) * COALESCE(su.price_at_usage, sc.base_price, 0))::text AS total_price,
+             su.used_at
+           FROM service_usage su
+           JOIN booking_rooms br ON br.booking_room_id = su.booking_room_id
+           LEFT JOIN service_catalogue sc ON sc.service_id::text = su.service_id::text
+           WHERE br.booking_id = ANY($1::uuid[])
+           ORDER BY su.used_at ASC`,
+          [liveBookingIds]
+        );
+
+        for (const row of servicesRes.rows) {
+          if (!servicesByBookingId[row.booking_id]) {
+            servicesByBookingId[row.booking_id] = [];
+          }
+          servicesByBookingId[row.booking_id].push({
+            serviceName: row.service_name,
+            category: row.category,
+            quantity: Number(row.quantity),
+            unitPrice: parseFloat(row.unit_price || '0'),
+            totalPrice: parseFloat(row.total_price || '0'),
+            usedAt: row.used_at ? new Date(row.used_at).toISOString() : new Date().toISOString(),
+          });
+        }
+      } catch (svcErr: any) {
+        console.warn('[ActivityRepository] Live services query notice:', svcErr.message);
+      }
+    }
 
     // Format archived stays
     const bookings: ActivityStay[] = archivedRows.map((r) => {
@@ -249,6 +324,7 @@ export class ActivityRepository {
         archiveId: l.booking_id,
         bookingId: l.booking_id,
         bookingRef: l.id || l.booking_id.substring(0, 8),
+        branchId: l.branch_id,
         branchName: l.branch_name,
         roomTypeName: l.room_type_name,
         roomNumber: l.room_number,
@@ -258,7 +334,7 @@ export class ActivityRepository {
         totalPaid,
         loyaltyPoints,
         status: l.status,
-        services: [],
+        services: servicesByBookingId[l.booking_id] || [],
         isArchived: false,
       });
     }

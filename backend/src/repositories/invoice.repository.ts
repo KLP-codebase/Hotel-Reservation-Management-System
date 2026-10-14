@@ -1,6 +1,6 @@
 import { PoolClient } from 'pg';
 import { DbAdapter } from '../config/db';
-import { AppError } from '../lib/errors';
+import { AppError, Errors } from '../lib/errors';
 
 export interface PaymentRecord {
   payment_id:       string;
@@ -55,11 +55,12 @@ export class InvoiceRepository {
    * Invoke statutory sp_generate_final_bill stored procedure.
    */
   async generateFinalBill(bookingRoomId: string): Promise<{ invoice_id: string }> {
-    const res = await this.db.query<{ sp_generate_final_bill: string }>(
+    const res = await this.db.query<{ invoice_id: string | null }>(
       `SELECT sp_generate_final_bill($1) AS invoice_id`,
       [bookingRoomId]
     );
-    const invoiceId = res.rows[0]?.sp_generate_final_bill || bookingRoomId;
+    const invoiceId = res.rows[0]?.invoice_id;
+    if (!invoiceId) throw Errors.notFound('Booking room');
     return { invoice_id: invoiceId };
   }
 
@@ -112,12 +113,14 @@ export class InvoiceRepository {
    * any of its invoices. With `settle` the remainder is paid off (split over the
    * invoices that still owe, oldest room first) and every invoice is marked
    * SETTLED. Without it, an outstanding balance aborts the check-out.
+   * An overpayment (early departure after prepaying) is refunded as negative
+   * payments on the invoices holding it, so the folio ends at exactly zero.
    */
   async settleBookingAtCheckout(
     client: PoolClient,
     bookingId: string,
     opts: { settle: boolean; paymentMethod: string },
-  ): Promise<{ total: number; previouslyPaid: number; settledNow: number }> {
+  ): Promise<{ total: number; previouslyPaid: number; settledNow: number; refundedNow: number }> {
     const { rows } = await client.query<{ invoice_id: string; total_amount: string; paid: string }>(
       `SELECT i.invoice_id, i.total_amount, COALESCE(p.paid, 0) AS paid
        FROM booking_rooms br
@@ -140,19 +143,35 @@ export class InvoiceRepository {
         `This stay has an outstanding balance of ${(remaining / 100).toFixed(2)}. Settle it before checking out.`);
     }
 
+    const ref = `${bookingId.slice(0, 8).toUpperCase()}`;
+    const record = (invoiceId: string, amountCents: number, reference: string) => client.query(
+      `INSERT INTO payments (invoice_id, amount, payment_date, payment_method, reference_number)
+       VALUES ($1, $2, CURRENT_TIMESTAMP, $3, $4)`,
+      [invoiceId, (amountCents / 100).toFixed(2), opts.paymentMethod, reference]
+    );
+
     let settledNow = 0;
     for (const r of rows) {
       if (remaining <= 0) break;
       const owed = cents(Number(r.total_amount)) - cents(Number(r.paid));
       if (owed <= 0) continue;
       const amount = Math.min(owed, remaining);
-      await client.query(
-        `INSERT INTO payments (invoice_id, amount, payment_date, payment_method, reference_number)
-         VALUES ($1, $2, CURRENT_TIMESTAMP, $3, $4)`,
-        [r.invoice_id, (amount / 100).toFixed(2), opts.paymentMethod, `CHECKOUT-${bookingId.slice(0, 8).toUpperCase()}`]
-      );
+      await record(r.invoice_id, amount, `CHECKOUT-${ref}`);
       remaining -= amount;
       settledNow += amount;
+    }
+
+    // Overpaid: refund from the invoices that hold more than they bill. Their
+    // excess always covers the booking-wide overpayment.
+    let refundedNow = 0;
+    for (const r of rows) {
+      if (remaining >= 0) break;
+      const excess = cents(Number(r.paid)) - cents(Number(r.total_amount));
+      if (excess <= 0) continue;
+      const amount = Math.min(excess, -remaining);
+      await record(r.invoice_id, -amount, `REFUND-${ref}`);
+      remaining += amount;
+      refundedNow += amount;
     }
 
     if (rows.length > 0) {
@@ -162,7 +181,7 @@ export class InvoiceRepository {
       );
     }
 
-    return { total: total / 100, previouslyPaid: paid / 100, settledNow: settledNow / 100 };
+    return { total: total / 100, previouslyPaid: paid / 100, settledNow: settledNow / 100, refundedNow: refundedNow / 100 };
   }
 
   /**

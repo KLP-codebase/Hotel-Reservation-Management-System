@@ -61,12 +61,12 @@ export function fmtStayRange(inVal?: string | null, outVal?: string | null): { f
 
 /** "LKR 25,000.00" */
 export function fmtLKR(n: number | string | null | undefined, decimals = 2): string {
-  return `LKR ${Number(n ?? 0).toLocaleString("en-US", { minimumFractionDigits: decimals, maximumFractionDigits: decimals })}`;
+  return `$${Number(n ?? 0).toLocaleString("en-US", { minimumFractionDigits: decimals, maximumFractionDigits: decimals })}`;
 }
 
 /** "LKR 1.2M" — for headline figures where the full amount would not fit. */
 export function fmtLKRCompact(n: number | string | null | undefined): string {
-  return `LKR ${new Intl.NumberFormat("en-US", { notation: "compact", maximumFractionDigits: 1 }).format(Number(n ?? 0))}`;
+  return `$${new Intl.NumberFormat("en-US", { notation: "compact", maximumFractionDigits: 1 }).format(Number(n ?? 0))}`;
 }
 
 export function fmtMoney(n: number | string | null | undefined, decimals = 0): string {
@@ -115,6 +115,7 @@ const STATUS_DOT: Record<string, string> = {
   SETTLED: "bg-emerald-500",
   PARTIALLY_PAID: "bg-amber-500",
   OPEN: "bg-red-500",
+  UNPAID: "bg-red-500",
   PAID: "bg-emerald-500",
   VERIFIED: "bg-emerald-500",
   UNVERIFIED: "bg-ink-faded",

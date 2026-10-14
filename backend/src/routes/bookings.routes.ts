@@ -1,9 +1,11 @@
+import { emailService } from '../services/email.service';
 import { Router, Request, Response } from 'express';
 import { z } from 'zod';
 import { db } from '../config/db';
 import { BookingRepository } from '../repositories/booking.repository';
 import { Errors } from '../lib/errors';
 import { isUuid } from '../lib/uuid';
+import { managerBranch, assertManagerOwns } from '../lib/branch-scope';
 import { authenticate } from '../middleware/auth.middleware';
 import { authorize } from '../middleware/rbac.middleware';
 
@@ -32,6 +34,26 @@ const RoomLineSchema = z.object({
 
 // Schema for creating a booking. `rooms` is optional: when present, the header
 // and all room lines are created atomically in one transaction.
+
+const BookingServiceItemSchema = z.object({
+    service_id: z.union([z.number().int().positive(), z.string().trim().min(1).max(100)]),
+    service_name: z.string().min(1),
+    category: z.string().optional(),
+    base_price: z.number().nonnegative(),
+    quantity: z.number().int().positive().optional().default(1),
+    date: z.string().optional(),
+    appointment_time: z.string().optional(),
+    notes: z.string().optional(),
+    room_index: z.number().int().nonnegative().optional().default(0),
+});
+
+const BookingPaymentInputSchema = z.object({
+    amount: z.number().positive(),
+    payment_method: z.string().min(1).default('CARD'),
+    is_deposit: z.boolean().optional().default(false),
+    reference_number: z.string().optional(),
+});
+
 const CreateBookingSchema = z.object({
     branch_id: z.string().uuid('branch_id must be a valid UUID'),
     booked_by_guest_id: z.string().min(1),
@@ -39,6 +61,8 @@ const CreateBookingSchema = z.object({
     adults: z.number().int().min(1).optional(),
     children: z.number().int().min(0).optional(),
     rooms: z.array(RoomLineSchema).optional(),
+    services: z.array(BookingServiceItemSchema).optional(),
+    payment: BookingPaymentInputSchema.optional(),
 });
 
 // Schema for updating status
@@ -101,25 +125,198 @@ router.post('/', async (req: Request, res: Response) => {
         }
     }
 
-    const booking = await repo.createBooking({ ...header, booked_by_guest_id: bookerId }, roomLines);
+    const { services = [], payment, ...bookingHeader } = header as any;
+
+    // Validate service quantity caps and scheduling rules:
+    // - Spa / Wellness: max = adults * nights, and max 20 bookings per hour slot
+    // - In-room Breakfast / Dining: max = (adults + children) * nights
+    // - Service dates cannot be outside stay dates
+    if (services.length > 0 && roomLines.length > 0) {
+        const firstLine = roomLines[0];
+        const checkInStr = firstLine.check_in_date;
+        const checkOutStr = firstLine.check_out_date;
+        const checkInTime = new Date(checkInStr).getTime();
+        const checkOutTime = new Date(checkOutStr).getTime();
+        const nights = Math.max(1, Math.round((checkOutTime - checkInTime) / (1000 * 60 * 60 * 24)));
+        const adults = Number(header.adults) || 1;
+        const children = Number(header.children) || 0;
+        const totalGuests = adults + children;
+
+        for (const s of services) {
+            const cat = (s.category || '').toLowerCase();
+            const name = (s.service_name || '').toLowerCase();
+            const qty = s.quantity ?? 1;
+
+            // Date boundary validation
+            if (s.date) {
+                if (s.date < checkInStr || s.date > checkOutStr) {
+                    return res.status(400).json({
+                        success: false,
+                        code: 'SERVICE_DATE_OUT_OF_RANGE',
+                        message: `Service date (${s.date}) cannot be outside your stay dates (${checkInStr} to ${checkOutStr}).`,
+                    });
+                }
+            }
+
+            if (cat === 'wellness' || name.includes('spa') || name.includes('massage') || name.includes('ayurvedic')) {
+                const maxSpa = Math.max(1, adults * nights);
+                if (qty > maxSpa) {
+                    return res.status(400).json({
+                        success: false,
+                        code: 'SERVICE_CAP_EXCEEDED',
+                        message: `Orders for "${s.service_name}" cannot exceed ${maxSpa} (${adults} adult(s) × ${nights} night(s)).`,
+                    });
+                }
+
+                // Check capacity for spa appointment time slot (max 20 per hour slot)
+                if (s.appointment_time && s.date) {
+                    const slotCountRes = await db.query<{ booked_count: string }>(
+                        `SELECT COALESCE(SUM(su.quantity), 0) AS booked_count
+                         FROM service_usage su
+                         JOIN booking_rooms br ON br.booking_room_id = su.booking_room_id
+                         JOIN bookings b       ON b.booking_id = br.booking_id
+                         WHERE b.branch_id = $1 AND su.appointment_time = $2 AND su.used_at::date = $3::date`,
+                        [header.branch_id, s.appointment_time, s.date]
+                    );
+                    const currentBooked = Number(slotCountRes.rows[0]?.booked_count || 0);
+                    if (currentBooked + qty > 20) {
+                        return res.status(409).json({
+                            success: false,
+                            code: 'SPA_SLOT_CAPACITY_EXCEEDED',
+                            message: `The Spa slot at ${s.appointment_time} on ${s.date} has reached capacity (20 guests max per hour). Currently booked: ${currentBooked}. Please select an alternative time.`,
+                        });
+                    }
+                }
+            }
+
+            if (name.includes('breakfast') || (cat === 'dining' && (name.includes('breakfast') || name.includes('dining')))) {
+                const maxBreakfast = Math.max(1, totalGuests * nights);
+                if (qty > maxBreakfast) {
+                    return res.status(400).json({
+                        success: false,
+                        code: 'SERVICE_CAP_EXCEEDED',
+                        message: `Orders for "${s.service_name}" cannot exceed ${maxBreakfast} (${totalGuests} guest(s) × ${nights} night(s)).`,
+                    });
+                }
+            }
+        }
+    }
+
+    const booking = await repo.createBooking({ ...bookingHeader, booked_by_guest_id: bookerId }, roomLines);
 
     // Release any temporary room holds upon successful booking creation
     if (roomIds.length > 0) {
         await db.query('DELETE FROM room_holds WHERE room_id = ANY($1::varchar[])', [roomIds]).catch(() => {});
     }
 
-    res.status(201).json({ success: true, data: booking });
+    // Process optional selected add-on services with scheduling details
+    if (services.length > 0 && booking.rooms.length > 0) {
+        for (const s of services) {
+            const targetRoom = booking.rooms[s.room_index ?? 0] || booking.rooms[0];
+            const serviceDate = s.date || roomLines[0]?.check_in_date || new Date().toISOString().split('T')[0];
+            const usedAt = s.appointment_time ? `${serviceDate} ${s.appointment_time}:00` : `${serviceDate} 12:00:00`;
+            await db.query(
+                `INSERT INTO service_usage (booking_room_id, service_id, quantity, price_at_usage, used_at, appointment_time, notes)
+                 VALUES ($1, $2, $3, $4, $5::timestamp, $6, $7)`,
+                [
+                    targetRoom.booking_room_id,
+                    s.service_id,
+                    s.quantity ?? 1,
+                    s.base_price,
+                    usedAt,
+                    s.appointment_time || null,
+                    s.notes || (s.appointment_time ? `Appointment: ${serviceDate} at ${s.appointment_time}` : null),
+                ]
+            ).catch(err => console.warn('[Bookings] Failed to insert service usage:', err.message));
+        }
+    }
+
+    // Ensure final bill/invoices are initialized for each room stay
+    for (const rm of booking.rooms) {
+        await db.query('SELECT sp_generate_final_bill($1::uuid)', [rm.booking_room_id]).catch(() => {});
+    }
+
+    // Process partial/full payment guarantee safely
+    let isConfirmed = false;
+    if (payment && booking.rooms.length > 0) {
+        try {
+            const primaryRoomId = booking.rooms[0].booking_room_id;
+            const invRes = await db.query<{ invoice_id: string }>(
+                'SELECT invoice_id FROM invoices WHERE booking_room_id = $1 LIMIT 1',
+                [primaryRoomId]
+            );
+            const invId = invRes.rows[0]?.invoice_id;
+            if (invId) {
+                await db.query(
+                    `INSERT INTO payments (invoice_id, amount, payment_method, reference_number)
+                     VALUES ($1, $2, $3, $4)`,
+                    [invId, payment.amount, payment.payment_method || 'CARD', payment.reference_number || `ONLINE-PAY-${Date.now()}`]
+                ).catch(err => console.warn('[Bookings] Failed to record payment:', err.message));
+
+                // Instant status confirmation upon payment settlement
+                await db.query("UPDATE bookings SET status = 'CONFIRMED' WHERE booking_id = $1", [booking.booking_id]).catch(() => {});
+                await db.query("UPDATE booking_rooms SET status = 'CONFIRMED' WHERE booking_id = $1", [booking.booking_id]).catch(() => {});
+                isConfirmed = true;
+
+                // Trigger instant confirmation email
+                repo.findById(booking.booking_id).then((detail: any) => {
+                    if (detail && detail.guest_email) {
+                        const room0 = detail.rooms[0];
+                        const paidAmt = payment?.amount ? `$${Number(payment.amount).toFixed(2)}` : undefined;
+                        const isDeposit = payment?.is_deposit === true;
+                        emailService.sendBookingConfirmationEmail({
+                            to: detail.guest_email,
+                            guestName: `${detail.guest_first_name || ''} ${detail.guest_last_name || ''}`.trim() || 'Valued Guest',
+                            branchName: detail.branch_name || 'Sky Nest Hotel',
+                            bookingRef: booking.booking_id,
+                            stayDates: room0 ? `${room0.check_in_date} to ${room0.check_out_date}` : 'Upcoming Stay',
+                            duration: `${detail.rooms.length} room(s)`,
+                            roomName: room0?.room_number ? `Room ${room0.room_number} (${room0.room_type_name || 'Standard'})` : (room0?.room_type_name || 'Standard Room'),
+                            roomRate: room0?.rate_at_booking ? `$${Number(room0.rate_at_booking).toFixed(2)} / night` : undefined,
+                            roomSubtotal: detail.total_amount ? `$${Number(detail.total_amount).toFixed(2)}` : undefined,
+                            grandTotal: detail.total_amount ? `$${Number(detail.total_amount).toFixed(2)}` : undefined,
+                            services: detail.services?.map((s: any) => ({
+                                service_name: s.service_name,
+                                category: s.category,
+                                quantity: Number(s.quantity) || 1,
+                                base_price: Number(s.price_at_usage || s.unit_price || 0),
+                                date: s.used_at ? new Date(s.used_at).toISOString().split('T')[0] : (s.service_date || undefined),
+                                appointment_time: s.appointment_time || undefined,
+                                notes: s.notes || undefined,
+                            })),
+                            amountPaid: paidAmt,
+                            paymentMode: paidAmt ? (isDeposit ? 'DEPOSIT' : 'FULL') : 'ARRIVAL',
+                        }).catch(err => console.warn('[Bookings] Payment confirmation email error:', err.message));
+                    }
+                }).catch(err => console.warn('[Bookings] Failed to query detail for payment email:', err.message));
+            }
+        } catch (paymentErr: any) {
+            console.warn('[Bookings] Payment settlement notice:', paymentErr.message);
+        }
+    }
+
+    res.status(201).json({
+        success: true,
+        data: {
+            ...booking,
+            status: isConfirmed ? 'CONFIRMED' : 'PENDING',
+            payment_recorded: Boolean(payment),
+        }
+    });
 });
 
 // GET /api/v1/bookings — list all bookings
-router.get('/', ...staffOnly, async (_req: Request, res: Response) => {
-    const bookings = await repo.findAll();
+router.get('/', ...staffOnly, async (req: Request, res: Response) => {
+    const bookings = await repo.findAll(managerBranch(req));
     res.json({ success: true, data: bookings });
 });
 
 // GET /api/v1/bookings/:id — single booking detail
 router.get('/:id', ...staffOnly, async (req: Request, res: Response) => {
     if (!isUuid(req.params.id)) throw Errors.notFound('Booking');
+    const header = await repo.findHeaderById(req.params.id);
+    if (!header) throw Errors.notFound('Booking');
+    assertManagerOwns(req, header.branch_id);
     const booking = await repo.findById(req.params.id);
     if (!booking) throw Errors.notFound('Booking');
     res.json({ success: true, data: booking });
@@ -134,6 +331,7 @@ router.post('/:id/rooms', ...staffOnly, async (req: Request, res: Response) => {
     if (!isUuid(bookingId)) throw Errors.notFound('Booking');
     const booking = await repo.findHeaderById(bookingId);
     if (!booking) throw Errors.notFound('Booking');
+    assertManagerOwns(req, booking.branch_id);
 
     // 2. Validate request body
     const parsed = RoomLineSchema.safeParse(req.body);
@@ -160,6 +358,7 @@ router.patch('/:id/status', ...staffOnly, async (req: Request, res: Response) =>
     if (!isUuid(bookingId)) throw Errors.notFound('Booking');
     const booking = await repo.findHeaderById(bookingId);
     if (!booking) throw Errors.notFound('Booking');
+    assertManagerOwns(req, booking.branch_id);
 
     const currentStatus = booking.status;
     const nextStatus = parsed.data.status;
@@ -194,6 +393,37 @@ router.patch('/:id/status', ...staffOnly, async (req: Request, res: Response) =>
         'UPDATE booking_rooms SET status = $1 WHERE booking_id = $2',
         [nextStatus, bookingId]
     ).catch(err => console.warn('[Bookings] Failed to cascade status to booking_rooms:', err));
+
+    // 6. If confirmed by receptionist, trigger confirmation email to guest
+    if (nextStatus === 'CONFIRMED') {
+        repo.findById(bookingId).then((detail: any) => {
+            if (detail && detail.guest_email) {
+                const room0 = detail.rooms[0];
+                emailService.sendBookingConfirmationEmail({
+                    to: detail.guest_email,
+                    guestName: `${detail.guest_first_name || ''} ${detail.guest_last_name || ''}`.trim() || 'Valued Guest',
+                    branchName: detail.branch_name || 'Sky Nest Hotel',
+                    bookingRef: bookingId,
+                    stayDates: room0 ? `${room0.check_in_date} to ${room0.check_out_date}` : 'Upcoming Stay',
+                    duration: `${detail.rooms.length} room(s)`,
+                    roomName: room0?.room_number ? `Room ${room0.room_number} (${room0.room_type_name || 'Standard'})` : (room0?.room_type_name || 'Standard Room'),
+                    roomRate: room0?.rate_at_booking ? `$${Number(room0.rate_at_booking).toFixed(2)} / night` : undefined,
+                    roomSubtotal: detail.total_amount ? `$${Number(detail.total_amount).toFixed(2)}` : undefined,
+                    grandTotal: detail.total_amount ? `$${Number(detail.total_amount).toFixed(2)}` : undefined,
+                    services: detail.services?.map((s: any) => ({
+                        service_name: s.service_name,
+                        category: s.category,
+                        quantity: Number(s.quantity) || 1,
+                        base_price: Number(s.price_at_usage || s.unit_price || 0),
+                        date: s.used_at ? new Date(s.used_at).toISOString().split('T')[0] : (s.service_date || undefined),
+                        appointment_time: s.appointment_time || undefined,
+                        notes: s.notes || undefined,
+                    })),
+                    paymentMode: 'ARRIVAL',
+                }).catch(err => console.warn('[Bookings] Confirmation email dispatch error:', err.message));
+            }
+        }).catch(err => console.warn('[Bookings] Failed to find booking for email:', err.message));
+    }
 
     res.json({ success: true, data: updated });
 });

@@ -41,7 +41,7 @@ export interface SpaSlot {
 
 export interface CatalogueServiceRecord {
   service_id:   number;
-  branch_id:    number;
+  branch_id:    string | null;   // null = chain-wide service
   branch_name?: string;
   service_name: string;
   category:     string;
@@ -50,7 +50,7 @@ export interface CatalogueServiceRecord {
 }
 
 export interface CreateCatalogueServiceDto {
-  branch_id:    number;
+  branch_id:    string;
   service_name: string;
   category:     string;
   base_price:   number;
@@ -58,7 +58,7 @@ export interface CreateCatalogueServiceDto {
 }
 
 export interface UpdateCatalogueServiceDto {
-  branch_id?:    number;
+  branch_id?:    string;
   service_name?: string;
   category?:     string;
   base_price?:   number;
@@ -88,44 +88,53 @@ export class ServiceRepository {
    */
   async findAllCatalogue(filters?: {
     branch_id?: number | string;
+    // With branch_id: also return chain-wide services (branch_id IS NULL).
+    include_shared?: boolean;
     category?: string;
     is_active?: boolean;
   }): Promise<CatalogueServiceRecord[]> {
-    const conditions: string[] = [];
-    const values: unknown[] = [];
-    let i = 1;
+    try {
+      const conditions: string[] = [];
+      const values: unknown[] = [];
+      let i = 1;
 
-    if (filters?.branch_id !== undefined && String(filters.branch_id) !== 'ALL' && String(filters.branch_id).trim() !== '') {
-      conditions.push(`sc.branch_id = $${i++}`);
-      values.push(filters.branch_id);
-    }
-    if (filters?.category !== undefined && filters.category !== 'ALL' && filters.category.trim() !== '') {
-      conditions.push(`sc.category = $${i++}`);
-      values.push(filters.category);
-    }
-    if (filters?.is_active !== undefined) {
-      conditions.push(`sc.is_active = $${i++}`);
-      values.push(filters.is_active);
-    }
+      if (filters?.branch_id !== undefined && String(filters.branch_id) !== 'ALL' && String(filters.branch_id).trim() !== '') {
+        conditions.push(filters.include_shared
+          ? `(sc.branch_id::text = $${i++}::text OR sc.branch_id IS NULL)`
+          : `sc.branch_id::text = $${i++}::text`);
+        values.push(String(filters.branch_id));
+      }
+      if (filters?.category !== undefined && filters.category !== 'ALL' && filters.category.trim() !== '') {
+        conditions.push(`sc.category = $${i++}`);
+        values.push(filters.category);
+      }
+      if (filters?.is_active !== undefined) {
+        conditions.push(`sc.is_active = $${i++}`);
+        values.push(filters.is_active);
+      }
 
-    const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
-    const sql = `
-      SELECT
-        sc.service_id,
-        sc.branch_id,
-        b.branch_name,
-        sc.service_name,
-        sc.category,
-        sc.base_price::float AS base_price,
-        sc.is_active
-      FROM service_catalogue sc
-      LEFT JOIN branches b ON b.branch_id = sc.branch_id
-      ${whereClause}
-      ORDER BY b.branch_name ASC NULLS LAST, sc.category ASC, sc.service_name ASC
-    `;
+      const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
+      const sql = `
+        SELECT
+          sc.service_id,
+          sc.branch_id,
+          COALESCE(b.branch_name, 'All Branches') AS branch_name,
+          sc.service_name,
+          sc.category,
+          sc.base_price::float AS base_price,
+          sc.is_active
+        FROM service_catalogue sc
+        LEFT JOIN branches b ON b.branch_id::text = sc.branch_id::text
+        ${whereClause}
+        ORDER BY b.branch_name ASC NULLS LAST, sc.category ASC, sc.service_name ASC
+      `;
 
-    const { rows } = await this.db.query<CatalogueServiceRecord>(sql, values);
-    return rows;
+      const { rows } = await this.db.query<CatalogueServiceRecord>(sql, values);
+      return rows;
+    } catch (err: unknown) {
+      console.warn('[ServiceRepository] findAllCatalogue query error:', (err as Error)?.message);
+      return [];
+    }
   }
 
   /**
@@ -243,7 +252,7 @@ export class ServiceRepository {
         su.used_at
       FROM service_usage su
       JOIN booking_rooms br ON br.booking_room_id = su.booking_room_id
-      JOIN service_catalogue sc ON sc.service_id = su.service_id
+      JOIN service_catalogue sc ON sc.service_id::text = su.service_id::text
       WHERE br.booking_id = $1 OR su.booking_room_id = $1
       ORDER BY su.used_at DESC
     `;

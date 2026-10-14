@@ -180,9 +180,16 @@ export default function DashboardPage() {
           apiFetch<{ success: boolean; data: RecentBooking[] }>(`/api/v1/dashboard/bookings${branchPrefix}limit=50`),
           apiFetch<{ success: boolean; data: RoomOccupancyStatus[] }>(`/api/v1/dashboard/rooms-status${branchQuery}`),
           apiFetch<{ success: boolean; data: StaffDutySchedule[] }>(`/api/v1/dashboard/staff-roster${branchQuery}`),
-          apiFetch<{ data: Branch[] }>("/api/v1/branches").catch(() => ({ data: [] })),
-          apiFetch<{ success: boolean; data: AuditLogEntry[] }>("/api/v1/audit-logs?limit=30").catch(() => ({ success: false, data: [] })),
-          apiFetch<{ success: boolean; data: ChangeLogEntry[] }>("/api/v1/audit-logs/changes?limit=30").catch(() => ({ success: false, data: [] })),
+          // The property picker and the chain-wide activity ledger are admin/DBA only.
+          isAdminOrDba
+            ? apiFetch<{ data: Branch[] }>("/api/v1/branches").catch(() => ({ data: [] }))
+            : Promise.resolve({ data: [] }),
+          isAdminOrDba
+            ? apiFetch<{ success: boolean; data: AuditLogEntry[] }>("/api/v1/audit-logs?limit=30").catch(() => ({ success: false, data: [] }))
+            : Promise.resolve({ success: false, data: [] }),
+          isAdminOrDba
+            ? apiFetch<{ success: boolean; data: ChangeLogEntry[] }>("/api/v1/audit-logs/changes?limit=30").catch(() => ({ success: false, data: [] }))
+            : Promise.resolve({ success: false, data: [] }),
         ];
 
       const [statsRes, bookingsRes, roomsRes, rosterRes, branchesRes, auditRes, changeRes] =
@@ -229,7 +236,7 @@ export default function DashboardPage() {
     } finally {
       setLoading(false);
     }
-  }, [isManager, selectedBranch]);
+  }, [isManager, isAdminOrDba, selectedBranch]);
 
   useEffect(() => {
     if (!authLoading) {

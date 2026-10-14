@@ -9,7 +9,7 @@ export type RoomStatus =
 
 export interface Room {
   room_id: number;
-  branch_id: number;
+  branch_id: string;
   room_type_id: number;
   room_number: string;
   floor: number | null;
@@ -20,7 +20,7 @@ export interface Room {
 }
 
 export interface CreateRoomDto {
-  branch_id: number;
+  branch_id: string;
   room_type_id: number;
   room_number: string;
   floor?: number;
@@ -28,7 +28,7 @@ export interface CreateRoomDto {
 }
 
 export interface UpdateRoomDto {
-  branch_id?: number;
+  branch_id?: string;
   room_type_id?: number;
   room_number?: string;
   floor?: number;
@@ -229,14 +229,15 @@ export class RoomRepository extends BaseRepository<
     return rows[0] ?? null;
   }
 
-  async getRoomCountsByRoomType(): Promise<Record<number, number>> {
+  // branchId limits the counts to one branch; omitted, it counts every branch.
+  async getRoomCountsByRoomType(branchId?: string): Promise<Record<number, number>> {
     const sql = `
       SELECT room_type_id, COUNT(*)::int AS count
       FROM rooms
-      WHERE is_active = true
+      WHERE is_active = true AND ($1::uuid IS NULL OR branch_id = $1::uuid)
       GROUP BY room_type_id
     `;
-    const { rows } = await this.db.query<{ room_type_id: number; count: number }>(sql);
+    const { rows } = await this.db.query<{ room_type_id: number; count: number }>(sql, [branchId ?? null]);
     const map: Record<number, number> = {};
     for (const r of rows) {
       map[r.room_type_id] = r.count;

@@ -1,11 +1,13 @@
 'use client';
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { DollarSign, Building2, TrendingUp, Download, ChevronDown, ChevronUp, Save, CheckCircle2, AlertCircle, Calendar, RefreshCw } from 'lucide-react';
+import { Download, ChevronDown, ChevronUp, Save, RefreshCw } from 'lucide-react';
+import { Btn, Empty, IconBtn, Loading, tbl } from '@/components/dashboard/ui';
+import { LabeledSelect, Notice, StatStrip, HideForManager } from './report-ui';
 import { apiFetch, toNum } from '@/lib/api-client';
 import { exportToCsv } from '@/lib/export-csv';
 
-// ── Person 1 Workspace: Report 4 — Monthly Revenue per Branch ─────────────────
+// ── Report 4 — Monthly Revenue per Branch ─────────────────────────────────────
 // Endpoint: GET /api/v1/reports/revenue/monthly?year=2026&branchId=...
 // Segregates room tariff vs ancillary service revenue and calculates the
 // 4-tier Sri Lankan statutory tax cascade (SC → TDL → SSCL → VAT).
@@ -28,13 +30,13 @@ interface Props {
 }
 
 /**
- * Formats a numeric value or string representation into standard Sri Lankan Rupee currency display.
+ * Formats a numeric value or numeric string as a currency amount.
  * @param v - Number or numeric string to format
- * @returns Formatted currency string (e.g. "LKR 125,450.00")
+ * @returns Formatted currency string (e.g. "$125,450.00")
  */
 function fmt(v: string | number): string {
   const n = typeof v === 'string' ? toNum(v) : v;
-  return 'LKR ' + n.toLocaleString('en-LK', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  return '$' + n.toLocaleString('en-LK', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
 /**
@@ -49,7 +51,7 @@ function pct(part: number, total: number): string {
 }
 
 const MONTH_OPTIONS = [
-  { value: "", label: "All Months (Full Year)" },
+  { value: "", label: "Full year" },
   { value: "1", label: "January" },
   { value: "2", label: "February" },
   { value: "3", label: "March" },
@@ -150,11 +152,11 @@ export function MonthlyRevenueReport({ selectedBranch: propBranch, year: propYea
       [
         { header: 'Month', accessor: r => r.month_label },
         { header: 'Branch Name', accessor: r => r.branch_name },
-        { header: 'Room Revenue (LKR)', accessor: r => toNum(r.total_room_revenue).toFixed(2) },
-        { header: 'Service Revenue (LKR)', accessor: r => toNum(r.total_service_revenue).toFixed(2) },
-        { header: 'Subtotal Base (LKR)', accessor: r => toNum(r.subtotal_base_revenue).toFixed(2) },
-        { header: 'Taxes Collected (LKR)', accessor: r => toNum(r.total_taxes_collected).toFixed(2) },
-        { header: 'Gross Revenue (LKR)', accessor: r => toNum(r.gross_revenue).toFixed(2) },
+        { header: 'Room Revenue ($)', accessor: r => toNum(r.total_room_revenue).toFixed(2) },
+        { header: 'Service Revenue ($)', accessor: r => toNum(r.total_service_revenue).toFixed(2) },
+        { header: 'Subtotal Base ($)', accessor: r => toNum(r.subtotal_base_revenue).toFixed(2) },
+        { header: 'Taxes Collected ($)', accessor: r => toNum(r.total_taxes_collected).toFixed(2) },
+        { header: 'Gross Revenue ($)', accessor: r => toNum(r.gross_revenue).toFixed(2) },
       ]
     );
   };
@@ -199,238 +201,169 @@ export function MonthlyRevenueReport({ selectedBranch: propBranch, year: propYea
   };
 
   const years = Array.from({ length: 5 }, (_, i) => currentYear - i);
+  const monthLabel = MONTH_OPTIONS.find(m => m.value === month)?.label;
+  const roomShare = totalRoom + totalService > 0 ? (totalRoom / (totalRoom + totalService)) * 100 : 0;
 
   return (
-    <div className="space-y-6">
-      {/* Filter bar */}
-      <div className="flex flex-wrap items-center justify-between gap-4 bg-stone-950/70 border border-white/10 p-4">
-        <div className="flex flex-wrap items-center gap-3">
-          {/* Branch Filter */}
-          <div className="flex items-center gap-2 bg-stone-900/80 border border-white/10 px-3 py-1.5 text-xs text-stone-300">
-            <Building2 size={14} className="text-amber-400 shrink-0" />
-            <select
-              value={selectedBranch}
-              onChange={e => setSelectedBranch(e.target.value)}
-              className="bg-transparent text-stone-200 focus:outline-none cursor-pointer"
-            >
-              <option value="" className="bg-stone-900 text-stone-200">All Branches (Global)</option>
+    <div className="space-y-8">
+      {/* Filters and actions */}
+      <div className="no-print flex flex-col lg:flex-row lg:items-center gap-6">
+        <div className="flex flex-wrap items-center gap-6">
+          <HideForManager>
+            <LabeledSelect label="Branch" value={selectedBranch} onChange={setSelectedBranch}>
+              <option value="">All branches</option>
               {branches.map(b => (
-                <option key={b.branch_id} value={b.branch_id} className="bg-stone-900 text-stone-200">
-                  {b.branch_name} ({b.city})
+                <option key={b.branch_id} value={b.branch_id}>
+                  {b.branch_name} · {b.city}
                 </option>
               ))}
-            </select>
-          </div>
+            </LabeledSelect>
+          </HideForManager>
 
-          {/* Fiscal Year Selector */}
-          <div className="flex items-center gap-2 bg-stone-900/80 border border-white/10 px-3 py-1.5 text-xs text-stone-300">
-            <Calendar size={14} className="text-amber-400 shrink-0" />
-            <span className="text-stone-500 font-mono text-[11px]">Fiscal Year:</span>
-            <select
-              value={year}
-              onChange={e => setYear(Number(e.target.value))}
-              className="bg-transparent text-amber-400 font-bold focus:outline-none cursor-pointer"
-            >
-              {years.map(y => (
-                <option key={y} value={y} className="bg-stone-900 text-stone-200">
-                  {y}
-                </option>
-              ))}
-            </select>
-          </div>
+          <LabeledSelect label="Year" value={String(year)} onChange={v => setYear(Number(v))}>
+            {years.map(y => (
+              <option key={y} value={y}>{y}</option>
+            ))}
+          </LabeledSelect>
 
-          {/* Month Selector */}
-          <div className="flex items-center gap-2 bg-stone-900/80 border border-white/10 px-3 py-1.5 text-xs text-stone-300">
-            <Calendar size={14} className="text-amber-400 shrink-0" />
-            <span className="text-stone-500 font-mono text-[11px]">Month:</span>
-            <select
-              value={month}
-              onChange={e => setMonth(e.target.value)}
-              className="bg-transparent text-amber-400 font-bold focus:outline-none cursor-pointer"
-            >
-              {MONTH_OPTIONS.map(m => (
-                <option key={m.value} value={m.value} className="bg-stone-900 text-stone-200">
-                  {m.label}
-                </option>
-              ))}
-            </select>
-          </div>
+          <LabeledSelect label="Month" value={month} onChange={setMonth}>
+            {MONTH_OPTIONS.map(m => (
+              <option key={m.value} value={m.value}>{m.label}</option>
+            ))}
+          </LabeledSelect>
 
-          {/* Refresh Button */}
-          <button
-            onClick={loadData}
-            disabled={loading}
-            className="flex items-center gap-1.5 px-3 py-1.5 bg-stone-900/80 hover:bg-stone-800 border border-white/10 text-stone-300 hover:text-white text-xs transition duration-150 disabled:opacity-50 cursor-pointer"
-            title="Reload Report Data"
-          >
-            <RefreshCw size={13} className={loading ? "animate-spin text-amber-400" : "text-stone-400"} />
-            <span>Refresh</span>
-          </button>
+          <IconBtn label="Refresh" variant="outline" onClick={loadData} disabled={loading}>
+            <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+          </IconBtn>
         </div>
 
-        <div className="flex items-center gap-2 ml-auto">
-          <button
-            onClick={handleExportCsv}
-            disabled={!rows.length || loading}
-            className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-600/20 hover:bg-amber-600/30 border border-amber-500/30 text-amber-300 text-xs font-medium transition disabled:opacity-50 cursor-pointer"
-          >
-            <Download size={13} />
-            <span>Export CSV</span>
-          </button>
-          <button
-            onClick={handleSaveSnapshot}
-            disabled={savingSnapshot || !rows.length || loading}
-            className="flex items-center gap-1.5 px-3 py-1.5 bg-stone-900 hover:bg-stone-800 border border-white/10 text-stone-200 text-xs transition disabled:opacity-50 cursor-pointer"
-          >
-            <Save size={13} className="text-amber-400" />
-            <span>{savingSnapshot ? 'Archiving...' : 'Archive Snapshot (B17)'}</span>
-          </button>
+        <div className="flex flex-wrap items-center gap-2 lg:ml-auto">
+          <Btn onClick={handleExportCsv} disabled={!rows.length || loading}>
+            <Download className="w-4 h-4" />
+            Export CSV
+          </Btn>
+          <Btn onClick={handleSaveSnapshot} disabled={savingSnapshot || !rows.length || loading} loading={savingSnapshot}>
+            {!savingSnapshot && <Save className="w-4 h-4" />}
+            Save snapshot
+          </Btn>
         </div>
       </div>
 
-      {/* Snapshot status notification */}
       {snapshotMsg && (
-        <div className="p-3 bg-stone-900 border border-amber-500/30 text-amber-300 text-xs flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <CheckCircle2 size={14} className="text-amber-400 shrink-0" />
-            <span>{snapshotMsg}</span>
-          </div>
-          <button onClick={() => setSnapshotMsg(null)} className="text-stone-400 hover:text-white">✕</button>
-        </div>
+        <Notice tone={snapshotMsg.startsWith('Failed') ? 'error' : 'success'} onDismiss={() => setSnapshotMsg(null)}>
+          {snapshotMsg}
+        </Notice>
       )}
+      {error && <Notice tone="error">{error}</Notice>}
 
-      {/* Error alert */}
-      {error && (
-        <div className="p-3 bg-rose-950/50 border border-rose-500/40 text-rose-300 text-xs flex items-center gap-2">
-          <AlertCircle size={14} className="shrink-0" />
-          <span>{error}</span>
-        </div>
-      )}
+      <StatStrip
+        stats={[
+          { label: month ? `${monthLabel} gross revenue` : 'Annual gross revenue', value: fmt(totalGross), sub: 'Including statutory taxes' },
+          { label: 'Room tariff', value: fmt(totalRoom), sub: `${pct(totalRoom, totalGross - totalTax || 1)} of base revenue` },
+          { label: 'Services', value: fmt(totalService), sub: `${pct(totalService, totalGross - totalTax || 1)} of base revenue` },
+          { label: 'Statutory taxes', value: fmt(totalTax), sub: 'SC → TDL → SSCL → VAT' },
+        ]}
+      />
 
-      {/* KPI Cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        {[
-          { label: month ? `${MONTH_OPTIONS.find(m => m.value === month)?.label} Gross Revenue` : 'Annual Gross Revenue', value: fmt(totalGross), icon: <DollarSign size={16} />, accent: true },
-          { label: 'Room Tariff Revenue', value: fmt(totalRoom), sub: `${pct(totalRoom, totalGross - totalTax || 1)} of base`, icon: <Building2 size={16} /> },
-          { label: 'Ancillary Service Revenue', value: fmt(totalService), sub: `${pct(totalService, totalGross - totalTax || 1)} of base`, icon: <TrendingUp size={16} /> },
-          { label: 'Statutory Taxes (4-Tier)', value: fmt(totalTax), sub: 'SC → TDL → SSCL → VAT', icon: <TrendingUp size={16} /> },
-        ].map(({ label, value, sub, icon, accent }) => (
-          <div
-            key={label}
-            className={`p-4 border ${accent ? 'border-amber-500/40 bg-amber-500/5' : 'border-white/10 bg-stone-950/70'}`}
-          >
-            <div className={`flex items-center gap-2 mb-2 ${accent ? 'text-amber-400' : 'text-stone-400'}`}>
-              {icon}
-              <span className="text-[11px] uppercase tracking-widest font-medium font-jakarta">{label}</span>
-            </div>
-            <div className="font-cinzel text-lg font-bold text-stone-100">{value}</div>
-            {sub && <div className="text-[11px] text-stone-400 mt-1 font-jakarta">{sub}</div>}
-          </div>
-        ))}
-      </div>
-
-      {/* Revenue Ratio Bar */}
+      {/* Room vs service split */}
       {totalGross > 0 && (
-        <div className="bg-stone-950/70 border border-white/10 p-4 space-y-2">
-          <div className="flex justify-between text-[11px] text-stone-400 uppercase tracking-widest font-jakarta">
-            <span>Room Tariff: {pct(totalRoom, totalRoom + totalService)}</span>
-            <span>Services: {pct(totalService, totalRoom + totalService)}</span>
+        <div className="space-y-2">
+          <div className="flex justify-between font-jakarta text-[11px] font-medium tracking-[0.12em] uppercase text-ink/70">
+            <span className="flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-ink" />
+              Room tariff {pct(totalRoom, totalRoom + totalService)}
+            </span>
+            <span className="flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-ink/30" />
+              Services {pct(totalService, totalRoom + totalService)}
+            </span>
           </div>
-          <div className="flex h-2.5 overflow-hidden border border-white/10 bg-stone-900">
-            <div
-              className="bg-stone-400 transition-all duration-500"
-              style={{ width: pct(totalRoom, totalRoom + totalService) }}
-              title="Room Tariff"
-            />
-            <div
-              className="bg-amber-500 transition-all duration-500"
-              style={{ width: pct(totalService, totalRoom + totalService) }}
-              title="Service Catalogue"
-            />
+          <div className="flex h-1 rounded-full overflow-hidden bg-ink/30">
+            <div className="bg-ink transition-[width] duration-300" style={{ width: `${roomShare}%` }} title="Room tariff" />
           </div>
         </div>
       )}
 
-      {/* Empty State */}
+      {loading && rows.length === 0 && <Loading label="Loading revenue" />}
+
       {!loading && rows.length === 0 && !error && (
-        <div className="py-16 text-center border border-white/10 bg-stone-950/50">
-          <DollarSign size={32} className="mx-auto mb-3 text-stone-600" />
-          <p className="font-cinzel italic text-stone-200 text-base">No revenue data for {month ? `${MONTH_OPTIONS.find(m => m.value === month)?.label} ${year}` : year}</p>
-          <p className="text-stone-400 text-xs mt-1">No settled invoices recorded for the selected period.</p>
-        </div>
+        <Empty>
+          No revenue for {month ? `${monthLabel} ${year}` : year}. No settled invoices were recorded in this period.
+        </Empty>
       )}
 
-      {/* Branch Breakdown Sections */}
+      {/* Branch breakdown */}
       {Object.entries(byBranch).map(([branchId, branchRows]) => {
         const branchGross = branchRows.reduce((s, r) => s + toNum(r.gross_revenue), 0);
         const branchName = branchRows[0]?.branch_name || 'Branch';
         const isOpen = !expanded.has(branchId); // default open
 
         return (
-          <div key={branchId} className="border border-white/10 bg-stone-950/70 overflow-hidden">
-            {/* Branch Header */}
+          <section key={branchId} className="space-y-4">
             <button
+              type="button"
               onClick={() => toggleBranch(branchId)}
-              className="w-full flex items-center justify-between px-4 py-3 bg-stone-900 hover:bg-stone-850 border-b border-white/10 transition cursor-pointer text-left"
+              aria-expanded={isOpen}
+              className="print-keep group w-full flex items-end justify-between gap-4 pb-4 border-b border-skynest-hairline text-left"
             >
-              <div className="flex items-center gap-3">
-                <Building2 size={16} className="text-amber-400" />
-                <span className="font-cinzel text-sm font-semibold text-stone-100">{branchName}</span>
-              </div>
-              <div className="flex items-center gap-4">
-                <span className="text-xs font-mono text-stone-300">{month ? 'Month Gross: ' : 'Annual Gross: '}{fmt(branchGross)}</span>
-                {isOpen ? <ChevronUp size={16} className="text-stone-400" /> : <ChevronDown size={16} className="text-stone-400" />}
-              </div>
+              <span className="font-cinzel text-[20px] md:text-[24px] leading-tight text-ink group-hover:text-skynest-accent transition-colors duration-300">
+                {branchName}
+              </span>
+              <span className="flex items-center gap-4 font-jakarta text-[13px] text-ink/70 tabular-nums">
+                <span>
+                  {month ? 'Month gross' : 'Annual gross'} <span className="text-ink font-medium">{fmt(branchGross)}</span>
+                </span>
+                {isOpen ? <ChevronUp className="w-4 h-4 print:hidden" /> : <ChevronDown className="w-4 h-4 print:hidden" />}
+              </span>
             </button>
 
-            {/* Table */}
             {isOpen && (
-              <div className="overflow-x-auto">
-                <table className="w-full text-left text-xs">
+              <div className={tbl.wrap}>
+                <table className={`${tbl.table} min-w-[720px]`}>
                   <thead>
-                    <tr className="border-b border-white/10 bg-stone-900/50 text-[10px] uppercase font-mono tracking-wider text-stone-400">
-                      <th className="p-3">Month</th>
-                      <th className="p-3">Room Tariff (LKR)</th>
-                      <th className="p-3">Services (LKR)</th>
-                      <th className="p-3">Subtotal Base</th>
-                      <th className="p-3">Taxes Collected</th>
-                      <th className="p-3">Gross Revenue</th>
+                    <tr className={tbl.headRow}>
+                      <th className={tbl.th}>Month</th>
+                      <th className={`${tbl.th} text-right`}>Room tariff</th>
+                      <th className={`${tbl.th} text-right`}>Services</th>
+                      <th className={`${tbl.th} text-right`}>Base</th>
+                      <th className={`${tbl.th} text-right`}>Taxes</th>
+                      <th className={`${tbl.th} text-right`}>Gross</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-white/5 font-mono">
+                  <tbody className={tbl.body}>
                     {branchRows.map(row => (
-                      <tr key={row.month_key} className="hover:bg-white/5 transition">
-                        <td className="p-3 font-semibold text-stone-200">{row.month_label}</td>
-                        <td className="p-3 text-stone-300">{fmt(row.total_room_revenue)}</td>
-                        <td className="p-3 text-amber-400">{fmt(row.total_service_revenue)}</td>
-                        <td className="p-3 text-stone-400">{fmt(row.subtotal_base_revenue)}</td>
-                        <td className="p-3 text-stone-400">{fmt(row.total_taxes_collected)}</td>
-                        <td className="p-3 font-bold text-stone-100">{fmt(row.gross_revenue)}</td>
+                      <tr key={row.month_key} className={tbl.row}>
+                        <td className={`${tbl.td} font-medium whitespace-nowrap`}>{row.month_label}</td>
+                        <td className={`${tbl.td} text-right tabular-nums`}>{fmt(row.total_room_revenue)}</td>
+                        <td className={`${tbl.td} text-right tabular-nums`}>{fmt(row.total_service_revenue)}</td>
+                        <td className={`${tbl.td} text-right tabular-nums text-ink/70`}>{fmt(row.subtotal_base_revenue)}</td>
+                        <td className={`${tbl.td} text-right tabular-nums text-ink/70`}>{fmt(row.total_taxes_collected)}</td>
+                        <td className={`${tbl.td} text-right tabular-nums font-medium`}>{fmt(row.gross_revenue)}</td>
                       </tr>
                     ))}
                   </tbody>
                   <tfoot>
-                    <tr className="border-t border-white/10 bg-stone-900/80 font-mono font-bold text-xs text-stone-200">
-                      <td className="p-3">{month ? 'Month Total' : 'Annual Total'}</td>
-                      <td className="p-3">
+                    <tr className="font-jakarta text-[13px] font-medium text-ink">
+                      <td className="pt-4 pr-6">{month ? 'Month total' : 'Annual total'}</td>
+                      <td className="pt-4 pr-6 text-right tabular-nums">
                         {fmt(branchRows.reduce((s, r) => s + toNum(r.total_room_revenue), 0))}
                       </td>
-                      <td className="p-3 text-amber-400">
+                      <td className="pt-4 pr-6 text-right tabular-nums">
                         {fmt(branchRows.reduce((s, r) => s + toNum(r.total_service_revenue), 0))}
                       </td>
-                      <td className="p-3 text-stone-400">
+                      <td className="pt-4 pr-6 text-right tabular-nums text-ink/70">
                         {fmt(branchRows.reduce((s, r) => s + toNum(r.subtotal_base_revenue), 0))}
                       </td>
-                      <td className="p-3 text-stone-400">
+                      <td className="pt-4 pr-6 text-right tabular-nums text-ink/70">
                         {fmt(branchRows.reduce((s, r) => s + toNum(r.total_taxes_collected), 0))}
                       </td>
-                      <td className="p-3 text-amber-400">{fmt(branchGross)}</td>
+                      <td className="pt-4 pr-6 text-right tabular-nums">{fmt(branchGross)}</td>
                     </tr>
                   </tfoot>
                 </table>
               </div>
             )}
-          </div>
+          </section>
         );
       })}
     </div>

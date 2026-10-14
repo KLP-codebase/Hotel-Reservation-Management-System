@@ -197,3 +197,90 @@ body::-webkit-scrollbar,
   0%, 100% { transform: translate3d(0, 0, 0) scale(0.98); }
   50% { transform: translate3d(-28px, 20px, 0) scale(1.03); }
 }
+/* ── Print / PDF Generation Styles (Executive Report Output) ──────────────── */
+@media print {
+  /* 1. Hide Virtual Concierge completely */
+  .skynest-concierge,
+  [aria-label="Open Sky Nest Virtual Concierge"],
+  [aria-label="Sky Nest Concierge Chat"],
+  #skynest-concierge-root {
+    display: none !important;
+    visibility: hidden !important;
+  }
+
+  /* 2. Hide app navigation, headers, footers, masthead, and action bars */
+  nav,
+  header,
+  footer,
+  aside,
+  .no-print,
+  .print\:hidden,
+  .dashboard-masthead,
+  .segmented-tabs,
+  button:not(.print-keep) {
+    display: none !important;
+  }
+
+  /* 3. White paper, full width. Colours come from the same token classes as on
+        screen; exact colour adjust keeps status dots, meters and red arrears. */
+  html, body, main {
+    background: white !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    width: 100% !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  /* 4. Page breaks: never split a row or a card */
+  tr, .print-card {
+    break-inside: avoid !important;
+  }
+  thead {
+    display: table-header-group; /* repeat column headings on every page */
+  }
+
+  /* 5. Wide tables: the screen wraps them in overflow-x-auto with a min-width,
+        which on paper clips every column past the page edge. Let them fit the
+        page instead, with compact rows. */
+  .overflow-x-auto {
+    overflow: visible !important;
+  }
+  table {
+    width: 100% !important;
+    min-width: 0 !important;
+    border-collapse: collapse !important;
+  }
+  th, td {
+    padding-top: 6px !important;
+    padding-bottom: 6px !important;
+    padding-right: 12px !important;
+  }
+
+  @page {
+    margin: 1.5cm;
+    size: auto;
+  }
+
+  /* 6. Reports print landscape on A4 so ten-column ledgers fit. The whole
+        document uses the named page: switching page types mid-document forces a
+        break, and the invisible elements after <main> would land on a blank page. */
+  html:has(.report-print),
+  html:has(.report-print) body,
+  .report-print {
+    page: report;
+  }
+  .report-print td,
+  .report-print td * {
+    font-size: 11px !important;
+    line-height: 1.35 !important;
+  }
+  .report-print th {
+    font-size: 9px !important;
+  }
+}
+
+@page report {
+  size: A4 landscape;
+  margin: 12mm;
+}

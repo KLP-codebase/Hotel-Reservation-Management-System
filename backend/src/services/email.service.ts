@@ -152,7 +152,34 @@ function bookingConfirmationHtml(params: {
   roomSubtotal: string;
   grandTotal: string;
   actionUrl: string;
+  /** Services booked with the reservation */
+  services?: Array<{
+    service_name: string;
+    category: string;
+    quantity: number;
+    base_price: number;
+    date?: string;
+    appointment_time?: string;
+    notes?: string;
+  }>;
+  /** Amount paid today (deposit or full prepayment) */
+  amountPaid?: string;
+  /** Payment mode for the booking */
+  paymentMode?: 'DEPOSIT' | 'FULL' | 'ARRIVAL';
 }): string {
+  // Compute dynamic statutory taxes and balances
+  const roomSubNum = parseFloat((params.roomSubtotal || '0').replace(/[^0-9.]/g, '')) || 0;
+  const svcTotal = (params.services || []).reduce((sum, s) => sum + (Number(s.base_price) || 0) * (Number(s.quantity) || 1), 0);
+  const baseNet = roomSubNum + svcTotal;
+  const scTax = baseNet * 0.10;
+  const tdlTax = (baseNet + scTax) * 0.01;
+  const sscTax = (baseNet + scTax + tdlTax) * 0.025;
+  const vatTax = (baseNet + scTax + tdlTax + sscTax) * 0.18;
+  const computedGrand = baseNet + scTax + tdlTax + sscTax + vatTax;
+  const paidNum = parseFloat((params.amountPaid || '0').replace(/[^0-9.]/g, '')) || 0;
+  const grandNum = parseFloat((params.grandTotal || `${computedGrand}`).replace(/[^0-9.]/g, '')) || computedGrand;
+  const balanceNum = Math.max(0, grandNum - paidNum);
+
   return `
     <!DOCTYPE html>
     <html>
@@ -221,35 +248,68 @@ function bookingConfirmationHtml(params: {
           </tr>
         </table>
 
+        ${params.services && params.services.length > 0 ? `
+        <div class="section-title">Booked Services &amp; Add-Ons</div>
+        <table width="100%" cellpadding="0" cellspacing="0" border="0" style="border-collapse: collapse; margin-bottom: 16px; font-size: 12px;">
+          <tr style="background: #F8F6F2;">
+            <th style="padding: 7px 10px; text-align: left; font-size: 10px; text-transform: uppercase; letter-spacing: 0.08em; color: rgba(11,37,64,0.6); border-bottom: 1px solid #EDE8E1; font-weight: 700;">Service</th>
+            <th style="padding: 7px 10px; text-align: left; font-size: 10px; text-transform: uppercase; letter-spacing: 0.08em; color: rgba(11,37,64,0.6); border-bottom: 1px solid #EDE8E1; font-weight: 700;">Category</th>
+            <th style="padding: 7px 10px; text-align: center; font-size: 10px; text-transform: uppercase; letter-spacing: 0.08em; color: rgba(11,37,64,0.6); border-bottom: 1px solid #EDE8E1; font-weight: 700;">Qty</th>
+            <th style="padding: 7px 10px; text-align: right; font-size: 10px; text-transform: uppercase; letter-spacing: 0.08em; color: rgba(11,37,64,0.6); border-bottom: 1px solid #EDE8E1; font-weight: 700;">Amount</th>
+          </tr>
+          ${params.services.map(svc => {
+            const isSpa = svc.category?.toUpperCase() === 'SPA';
+            let timingInfo = '';
+            if (svc.appointment_time) {
+              timingInfo = `Appointment: ${svc.appointment_time}${svc.date ? ` on ${svc.date}` : ''}`;
+            } else if (svc.date) {
+              timingInfo = isSpa ? `Spa Session Date: ${svc.date}` : `Booked Date: ${svc.date}`;
+            }
+            return `
+          <tr>
+            <td style="padding: 8px 10px; border-bottom: 1px dashed #EDE8E1; color: #0B2540; font-weight: 600;">
+              ${svc.service_name}
+              ${timingInfo ? `<br/><span style="font-size: 11px; color: #D9722C; font-weight: 500;">&#128197; ${timingInfo}</span>` : ''}
+              ${svc.notes ? `<br/><span style="font-size: 11px; color: rgba(11,37,64,0.5); font-style: italic;">${svc.notes}</span>` : ''}
+            </td>
+            <td style="padding: 8px 10px; border-bottom: 1px dashed #EDE8E1; color: rgba(11,37,64,0.65); font-size: 11px;">${svc.category}</td>
+            <td style="padding: 8px 10px; border-bottom: 1px dashed #EDE8E1; text-align: center; color: #0B2540; font-weight: 600;">${svc.quantity}</td>
+            <td style="padding: 8px 10px; border-bottom: 1px dashed #EDE8E1; text-align: right; color: #0B2540; font-weight: 700;">$${(svc.base_price * svc.quantity).toFixed(2)}</td>
+          </tr>`;
+          }).join('')}
+        </table>
+        ` : ''}
+
         <div class="section-title">Statutory Sri Lankan Tax Cascade</div>
         <table width="100%" cellpadding="0" cellspacing="0" border="0" style="border-collapse: collapse; margin-top: 8px; font-size: 12px;">
           <tr>
             <td style="padding: 6px 0; color: rgba(11, 37, 64, 0.75);">Total Accommodation</td>
-            <td style="padding: 6px 0; text-align: right; font-weight: 600; color: #0B2540;">${params.roomSubtotal}</td>
+            <td style="padding: 6px 0; text-align: right; font-weight: 600; color: #0B2540;">${params.roomSubtotal || '$0.00'}</td>
           </tr>
+          ${params.services && params.services.length > 0 ? `
           <tr>
-            <td style="padding: 6px 0; color: rgba(11, 37, 64, 0.75);">Total Meal Plans</td>
-            <td style="padding: 6px 0; text-align: right; font-weight: 600; color: #0B2540;">$0.00</td>
-          </tr>
+            <td style="padding: 6px 0; color: rgba(11, 37, 64, 0.75);">Booked Add-On Services (${params.services.length} items)</td>
+            <td style="padding: 6px 0; text-align: right; font-weight: 600; color: #0B2540;">$${svcTotal.toFixed(2)}</td>
+          </tr>` : ''}
           <tr>
             <td style="padding: 6px 0; color: #0B2540; font-weight: 700; border-top: 1px dashed #EDE8E1; border-bottom: 1px dashed #EDE8E1;">Base Subtotal (Net of Taxes)</td>
-            <td style="padding: 6px 0; text-align: right; font-weight: 700; color: #0B2540; border-top: 1px dashed #EDE8E1; border-bottom: 1px dashed #EDE8E1;">${params.roomSubtotal}</td>
+            <td style="padding: 6px 0; text-align: right; font-weight: 700; color: #0B2540; border-top: 1px dashed #EDE8E1; border-bottom: 1px dashed #EDE8E1;">$${baseNet.toFixed(2)}</td>
           </tr>
           <tr>
             <td style="padding: 6px 0; color: rgba(11, 37, 64, 0.75);">+ Service Charge (SC 10%)</td>
-            <td style="padding: 6px 0; text-align: right; font-weight: 600; color: #0B2540;">$24.00</td>
+            <td style="padding: 6px 0; text-align: right; font-weight: 600; color: #0B2540;">+$${scTax.toFixed(2)}</td>
           </tr>
           <tr>
             <td style="padding: 6px 0; color: rgba(11, 37, 64, 0.75);">+ Tourism Development Levy (TDL 1%)</td>
-            <td style="padding: 6px 0; text-align: right; font-weight: 600; color: #0B2540;">$2.64</td>
+            <td style="padding: 6px 0; text-align: right; font-weight: 600; color: #0B2540;">+$${tdlTax.toFixed(2)}</td>
           </tr>
           <tr>
             <td style="padding: 6px 0; color: rgba(11, 37, 64, 0.75);">+ Social Security Contribution Levy (SSCL 2.5%)</td>
-            <td style="padding: 6px 0; text-align: right; font-weight: 600; color: #0B2540;">$6.67</td>
+            <td style="padding: 6px 0; text-align: right; font-weight: 600; color: #0B2540;">+$${sscTax.toFixed(2)}</td>
           </tr>
           <tr>
             <td style="padding: 6px 0; color: rgba(11, 37, 64, 0.75);">+ Value Added Tax (VAT 18%)</td>
-            <td style="padding: 6px 0; text-align: right; font-weight: 600; color: #0B2540;">$49.20</td>
+            <td style="padding: 6px 0; text-align: right; font-weight: 600; color: #0B2540;">+$${vatTax.toFixed(2)}</td>
           </tr>
         </table>
 
@@ -260,19 +320,146 @@ function bookingConfirmationHtml(params: {
                 GRAND TOTAL (ALL-INCLUSIVE)
               </td>
               <td style="font-family: 'Cinzel', Georgia, serif; font-size: 24px; font-weight: 700; color: #D9722C; text-align: right; vertical-align: middle;">
-                ${params.grandTotal}
+                ${params.grandTotal || `$${computedGrand.toFixed(2)}`}
               </td>
             </tr>
             <tr>
               <td colspan="2" style="font-size: 11px; color: rgba(11, 37, 64, 0.6); padding-top: 6px;">
-                Includes all accommodation, selected meal plans, and statutory taxes.
+                Includes accommodation, selected add-on services, and all statutory Sri Lankan taxes.
+              </td>
+            </tr>
+          </table>
+        </div>
+
+        <div class="section-title">Settlement &amp; Balance Summary</div>
+        <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-top: 8px; font-size: 12px;">
+          ${params.amountPaid && params.paymentMode !== 'ARRIVAL' ? `
+          <tr>
+            <td style="padding: 6px 0; color: #0369a1; font-weight: 600;">${params.paymentMode === 'DEPOSIT' ? 'Deposit Paid Today (20%)' : 'Paid in Full Today'}</td>
+            <td style="padding: 6px 0; text-align: right; font-weight: 700; color: #0369a1;">&minus; ${params.amountPaid}</td>
+          </tr>` : `
+          <tr>
+            <td style="padding: 6px 0; color: rgba(11,37,64,0.7);">Amount Paid Today (Hold on Arrival)</td>
+            <td style="padding: 6px 0; text-align: right; font-weight: 600; color: #0B2540;">$0.00</td>
+          </tr>`}
+          <tr>
+            <td style="padding: 8px 0; font-weight: 700; color: #0B2540; border-top: 1px dashed #EDE8E1; font-size: 13px;">Balance Due on Arrival</td>
+            <td style="padding: 8px 0; text-align: right; font-weight: 700; color: ${balanceNum <= 0.01 ? '#15803d' : '#b45309'}; border-top: 1px dashed #EDE8E1; font-size: 13px;">${balanceNum <= 0.01 ? '$0.00 (Fully Settled)' : `$${balanceNum.toFixed(2)}`}</td>
+          </tr>
+        </table>
+
+        <div style="text-align: center; margin-top: 28px;">
+          <a href="${params.actionUrl}" class="btn" target="_blank">View Your Stay Activity</a>
+        </div>
+
+        <div class="footer">
+          <strong>Sky Nest Luxury Hotels &amp; Resorts</strong><br>
+          Web Portal: <a href="https://skynest.me/" style="color: #D9722C;">https://skynest.me/</a><br>
+          &copy; ${new Date().getFullYear()} Sky Nest Sri Lanka. All rights reserved.
+        </div>
+      </div>
+    </body>
+    </html>
+  `;
+}
+
+
+function invoiceUpdateHtml(params: {
+  guestName: string;
+  branchName: string;
+  bookingRef: string;
+  addedService: string;
+  serviceCategory: string;
+  serviceCost: string;
+  roomCharges: string;
+  serviceCharges: string;
+  taxTotal: string;
+  grandTotal: string;
+  actionUrl: string;
+}): string {
+  return `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <style>
+        body { font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #FDFCFA; color: #0B2540; margin: 0; padding: 30px 15px; }
+        .container { max-width: 620px; margin: 0 auto; background: #FFFFFF; border: 1px solid #E5E0D8; padding: 40px 32px; box-shadow: 0 4px 20px rgba(11,37,64,0.04); }
+        .logo { font-family: 'Cinzel', Georgia, serif; font-size: 24px; font-weight: 700; letter-spacing: 0.2em; color: #0B2540; text-transform: uppercase; margin-bottom: 20px; }
+        .accent-bar { width: 50px; height: 2px; background-color: #D9722C; margin-bottom: 24px; }
+        .status-badge { display: inline-block; background-color: #EFF6FF; border: 1px solid #BFDBFE; color: #1E40AF; font-size: 11px; font-weight: 600; letter-spacing: 0.15em; text-transform: uppercase; padding: 6px 14px; margin-bottom: 24px; }
+        h1 { font-family: 'Cinzel', Georgia, serif; font-size: 22px; font-weight: 600; letter-spacing: 0.05em; color: #0B2540; margin: 0 0 8px 0; }
+        p { font-size: 13px; line-height: 1.6; color: rgba(11, 37, 64, 0.8); margin: 8px 0; }
+        .section-title { font-family: 'Cinzel', Georgia, serif; font-size: 13px; font-weight: 700; letter-spacing: 0.12em; color: #0B2540; text-transform: uppercase; margin: 24px 0 12px 0; border-bottom: 1px solid #E5E0D8; padding-bottom: 6px; }
+        .ref-box { background: #F8F6F2; border: 1px solid #E5E0D8; padding: 18px 20px; margin: 16px 0; }
+        .ref-label { font-size: 10px; font-weight: 600; letter-spacing: 0.18em; text-transform: uppercase; color: rgba(11, 37, 64, 0.6); margin-bottom: 4px; }
+        .ref-val { font-family: monospace; font-size: 15px; font-weight: 700; color: #0B2540; letter-spacing: 0.08em; word-break: break-all; }
+        .btn { display: inline-block; background-color: #0B2540; color: #FFFFFF !important; text-decoration: none; padding: 14px 32px; font-size: 12px; font-weight: 600; letter-spacing: 0.18em; text-transform: uppercase; margin: 18px 0; }
+        .footer { border-top: 1px solid #E5E0D8; margin-top: 32px; padding-top: 20px; font-size: 11px; color: rgba(11, 37, 64, 0.5); text-align: center; line-height: 1.6; }
+      </style>
+    </head>
+    <body>
+      <div class="container">
+        <div class="logo">SKY NEST</div>
+        <div class="accent-bar"></div>
+        <div class="status-badge">&#10003; Stay Folio Updated &bull; Service Added</div>
+        <h1>Guest Folio Statement Update</h1>
+        <p>Dear ${params.guestName},</p>
+        <p>A new guest service has been added to your stay folio at <strong>${params.branchName}</strong> by front desk concierge. Below is your updated itemized account.</p>
+
+        <div class="ref-box">
+          <div class="ref-label">Booking Reference</div>
+          <div class="ref-val">${params.bookingRef}</div>
+        </div>
+
+        <div class="section-title">Newly Added Service Charge</div>
+        <table width="100%" cellpadding="0" cellspacing="0" border="0" style="border-collapse: collapse; margin-bottom: 16px;">
+          <tr>
+            <td style="font-size: 13px; color: rgba(11, 37, 64, 0.7); padding: 8px 0; border-bottom: 1px dashed #EDE8E1;">Service Item</td>
+            <td style="font-size: 13px; font-weight: 600; color: #0B2540; text-align: right; padding: 8px 0; border-bottom: 1px dashed #EDE8E1;">${params.addedService}</td>
+          </tr>
+          <tr>
+            <td style="font-size: 13px; color: rgba(11, 37, 64, 0.7); padding: 8px 0; border-bottom: 1px dashed #EDE8E1;">Category</td>
+            <td style="font-size: 13px; font-weight: 600; color: #0B2540; text-align: right; padding: 8px 0; border-bottom: 1px dashed #EDE8E1;">${params.serviceCategory}</td>
+          </tr>
+          <tr>
+            <td style="font-size: 13px; color: rgba(11, 37, 64, 0.7); padding: 8px 0;">Charge Amount</td>
+            <td style="font-size: 13px; font-weight: 600; color: #0B2540; text-align: right; padding: 8px 0;">${params.serviceCost}</td>
+          </tr>
+        </table>
+
+        <div class="section-title">Updated Folio Summary (Including Sri Lankan Tax Cascade)</div>
+        <table width="100%" cellpadding="0" cellspacing="0" border="0" style="border-collapse: collapse; margin-top: 8px; font-size: 12px;">
+          <tr>
+            <td style="padding: 6px 0; color: rgba(11, 37, 64, 0.75);">Accommodation Charges</td>
+            <td style="padding: 6px 0; text-align: right; font-weight: 600; color: #0B2540;">${params.roomCharges}</td>
+          </tr>
+          <tr>
+            <td style="padding: 6px 0; color: rgba(11, 37, 64, 0.75);">Total Ancillary Services</td>
+            <td style="padding: 6px 0; text-align: right; font-weight: 600; color: #0B2540;">${params.serviceCharges}</td>
+          </tr>
+          <tr>
+            <td style="padding: 6px 0; color: rgba(11, 37, 64, 0.75);">Statutory Taxes (SC, TDL, SSCL, VAT)</td>
+            <td style="padding: 6px 0; text-align: right; font-weight: 600; color: #0B2540;">${params.taxTotal}</td>
+          </tr>
+        </table>
+
+        <div style="background: #F8F6F2; border: 1px solid #E5E0D8; padding: 18px 20px; margin-top: 20px;">
+          <table width="100%" cellpadding="0" cellspacing="0" border="0">
+            <tr>
+              <td style="font-size: 11px; font-weight: 700; letter-spacing: 0.15em; text-transform: uppercase; color: #0B2540; vertical-align: middle;">
+                UPDATED INVOICE TOTAL
+              </td>
+              <td style="font-family: 'Cinzel', Georgia, serif; font-size: 24px; font-weight: 700; color: #D9722C; text-align: right; vertical-align: middle;">
+                ${params.grandTotal}
               </td>
             </tr>
           </table>
         </div>
 
         <div style="text-align: center; margin-top: 28px;">
-          <a href="${params.actionUrl}" class="btn" target="_blank">View Your Stay Activity</a>
+          <a href="${params.actionUrl}" class="btn" target="_blank">View Updated Stay Folio</a>
         </div>
 
         <div class="footer">
@@ -713,6 +900,17 @@ export class EmailService {
     roomRate?: string;
     roomSubtotal?: string;
     grandTotal?: string;
+    services?: Array<{
+      service_name: string;
+      category: string;
+      quantity: number;
+      base_price: number;
+      date?: string;
+      appointment_time?: string;
+      notes?: string;
+    }>;
+    amountPaid?: string;
+    paymentMode?: 'DEPOSIT' | 'FULL' | 'ARRIVAL';
   }): Promise<boolean> {
     const actionUrl = `${env.APP_URL}/dashboard/activity`;
     try {
@@ -731,10 +929,47 @@ export class EmailService {
           roomSubtotal: params.roomSubtotal || '$240.00',
           grandTotal: params.grandTotal || '$322.51',
           actionUrl,
+          services: params.services,
+          amountPaid: params.amountPaid,
+          paymentMode: params.paymentMode,
         }),
       });
     } catch (err: any) {
       console.warn('[EmailService] Failed to send booking confirmation:', err.message);
+      return false;
+    }
+  }
+
+
+  async sendInvoiceUpdateEmail(params: {
+    to: string;
+    guestName: string;
+    branchName: string;
+    bookingRef: string;
+    addedService: string;
+    serviceCategory: string;
+    serviceCost: string;
+    roomCharges: string;
+    serviceCharges: string;
+    taxTotal: string;
+    grandTotal: string;
+  }): Promise<boolean> {
+    const actionUrl = `${env.APP_URL}/dashboard/activity`;
+    if (env.NODE_ENV !== 'production') {
+      console.log(`[SKY NEST EMAIL] Updated Invoice dispatched to ${params.to} for booking ${params.bookingRef} (+${params.addedService}: ${params.serviceCost}, Total: ${params.grandTotal})`);
+    }
+    try {
+      return await this.provider.send({
+        from: env.EMAIL_FROM,
+        to: params.to,
+        subject: `Updated Folio Statement: ${params.branchName} (Ref: ${params.bookingRef.substring(0, 8)})`,
+        html: invoiceUpdateHtml({
+          ...params,
+          actionUrl,
+        }),
+      });
+    } catch (err: any) {
+      console.warn('[EmailService] Failed to send invoice update email:', err.message);
       return false;
     }
   }
@@ -801,4 +1036,3 @@ export class EmailService {
 }
 
 export const emailService = new EmailService();
-

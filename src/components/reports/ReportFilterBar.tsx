@@ -2,7 +2,9 @@
 
 import React, { useEffect, useState, useMemo } from 'react';
 import { apiFetch } from '@/lib/api-client';
-import { Building2, Calendar, RefreshCw, Download, Printer, AlertTriangle } from 'lucide-react';
+import { RefreshCw, Download, Printer } from 'lucide-react';
+import { Btn, IconBtn } from '@/components/dashboard/ui';
+import { DateFilter, LabeledSelect, Notice, HideForManager } from './report-ui';
 
 export interface BranchOption {
   branch_id: string;
@@ -21,6 +23,8 @@ interface ReportFilterBarProps {
   onExportCsv?: () => void;
   onPrint?: () => void;
   isLoading?: boolean;
+  /** Extra buttons placed after Export (e.g. Save snapshot). */
+  actions?: React.ReactNode;
 }
 
 export function ReportFilterBar({
@@ -34,6 +38,7 @@ export function ReportFilterBar({
   onExportCsv,
   onPrint,
   isLoading = false,
+  actions,
 }: ReportFilterBarProps) {
   const [branches, setBranches] = useState<BranchOption[]>([]);
 
@@ -97,103 +102,73 @@ export function ReportFilterBar({
   const isFutureDate = Boolean((startDate && startDate > today) || (endDate && endDate > today));
 
   return (
-    <div className="space-y-2">
-      <div className="bg-stone-950/70 border border-white/10 p-4 rounded-none backdrop-blur-md flex flex-wrap items-center justify-between gap-4">
-        <div className="flex flex-wrap items-center gap-3">
-          {/* Branch Filter */}
-          <div className="flex items-center gap-2 bg-stone-900/80 border border-white/10 px-3 py-1.5 text-xs text-stone-300">
-            <Building2 size={14} className="text-amber-400 shrink-0" />
-            <select
-              value={selectedBranch}
-              onChange={(e) => onBranchChange(e.target.value)}
-              className="bg-transparent text-stone-200 focus:outline-none cursor-pointer"
-            >
-              <option value="" className="bg-stone-900 text-stone-200">All Branches (Global)</option>
+    <div className="no-print space-y-4">
+      <div className="flex flex-col lg:flex-row lg:items-center gap-6">
+        <div className="flex flex-wrap items-center gap-6">
+          <HideForManager>
+            <LabeledSelect label="Branch" value={selectedBranch} onChange={onBranchChange}>
+              <option value="">All branches</option>
               {branches.map(b => (
-                <option key={b.branch_id} value={b.branch_id} className="bg-stone-900 text-stone-200">
-                  {b.branch_name} ({b.city})
+                <option key={b.branch_id} value={b.branch_id}>
+                  {b.branch_name} · {b.city}
                 </option>
               ))}
-            </select>
-          </div>
+            </LabeledSelect>
+          </HideForManager>
 
-          {/* Start Date: capped at today and capped at endDate */}
-          <div className="flex items-center gap-2 bg-stone-900/80 border border-white/10 px-3 py-1.5 text-xs text-stone-300">
-            <Calendar size={14} className="text-amber-400 shrink-0" />
-            <span className="text-stone-500 text-[11px] font-mono">From:</span>
-            <input
-              type="date"
-              value={startDate}
-              max={endDate && endDate <= today ? endDate : today}
-              onChange={(e) => handleStartChange(e.target.value)}
-              className="bg-transparent text-stone-200 focus:outline-none cursor-pointer text-xs font-mono"
-              title="Start date (cannot be in the future)"
-            />
-          </div>
+          {/* Start date: capped at today and at endDate */}
+          <DateFilter
+            label="From"
+            value={startDate}
+            max={endDate && endDate <= today ? endDate : today}
+            onChange={handleStartChange}
+            title="Start date (cannot be in the future)"
+          />
 
-          {/* End Date: min is startDate, max is today */}
-          <div className="flex items-center gap-2 bg-stone-900/80 border border-white/10 px-3 py-1.5 text-xs text-stone-300">
-            <Calendar size={14} className="text-amber-400 shrink-0" />
-            <span className="text-stone-500 text-[11px] font-mono">To:</span>
-            <input
-              type="date"
-              value={endDate}
-              min={startDate || undefined}
-              max={today}
-              onChange={(e) => handleEndChange(e.target.value)}
-              className="bg-transparent text-stone-200 focus:outline-none cursor-pointer text-xs font-mono"
-              title="End date (must be between start date and today)"
-            />
-          </div>
+          {/* End date: min is startDate, max is today */}
+          <DateFilter
+            label="To"
+            value={endDate}
+            min={startDate || undefined}
+            max={today}
+            onChange={handleEndChange}
+            title="End date (must be between start date and today)"
+          />
 
-          {/* Refresh Button */}
-          <button
+          <IconBtn
+            label="Refresh"
+            variant="outline"
             onClick={onRefresh}
             disabled={isLoading || isInvalidRange || isFutureDate}
-            className="flex items-center gap-1.5 px-3 py-1.5 bg-stone-900/80 hover:bg-stone-800 border border-white/10 text-stone-300 hover:text-white text-xs transition duration-150 disabled:opacity-50 cursor-pointer"
-            title="Reload Report Data"
           >
-            <RefreshCw size={13} className={isLoading ? 'animate-spin text-amber-400' : 'text-stone-400'} />
-            <span>Refresh</span>
-          </button>
+            <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
+          </IconBtn>
         </div>
 
-        {/* Export & Print actions */}
-        <div className="flex items-center gap-2 ml-auto">
+        <div className="flex flex-wrap items-center gap-2 lg:ml-auto">
           {onExportCsv && (
-            <button
-              onClick={onExportCsv}
-              disabled={isInvalidRange || isFutureDate}
-              className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-600/20 hover:bg-amber-600/30 border border-amber-500/30 text-amber-300 hover:text-amber-200 text-xs font-medium transition disabled:opacity-50 cursor-pointer"
-            >
-              <Download size={13} />
-              <span>Export CSV</span>
-            </button>
+            <Btn onClick={onExportCsv} disabled={isInvalidRange || isFutureDate}>
+              <Download className="w-4 h-4" />
+              Export CSV
+            </Btn>
           )}
-
           {onPrint && (
-            <button
-              onClick={onPrint}
-              disabled={isInvalidRange || isFutureDate}
-              className="flex items-center gap-1.5 px-3 py-1.5 bg-stone-900/80 hover:bg-white/10 border border-white/10 text-stone-300 hover:text-white text-xs transition disabled:opacity-50 cursor-pointer"
-            >
-              <Printer size={13} />
-              <span>Print Report</span>
-            </button>
+            <Btn onClick={onPrint} disabled={isInvalidRange || isFutureDate}>
+              <Printer className="w-4 h-4" />
+              Print
+            </Btn>
           )}
+          {actions}
         </div>
       </div>
 
       {/* Validation warning if an illegal range is selected */}
       {(isInvalidRange || isFutureDate) && (
-        <div className="flex items-center gap-2 px-3 py-2 bg-amber-500/10 border border-amber-500/30 text-amber-300 text-xs">
-          <AlertTriangle size={14} className="shrink-0" />
-          <span>
-            {isFutureDate
-              ? 'Future dates are not permitted. Please select dates up to today.'
-              : 'End date cannot be earlier than the start date. Please choose a valid date range.'}
-          </span>
-        </div>
+        <Notice tone="warning">
+          {isFutureDate
+            ? 'Future dates are not permitted. Please select dates up to today.'
+            : 'End date cannot be earlier than the start date. Please choose a valid date range.'}
+        </Notice>
       )}
     </div>
   );

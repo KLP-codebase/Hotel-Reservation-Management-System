@@ -40,20 +40,37 @@ export interface AddAccompanyingGuestInput {
 }
 
 
+// A failed statement aborts the whole Postgres transaction (25P02 for every later
+// statement), so a "try X, fall back to Y" inside a transaction must isolate X in a
+// savepoint. Without it the fallback can only ever fail with 25P02.
+async function withSavepoint<T>(client: PoolClient, fn: () => Promise<T>): Promise<T> {
+    await client.query('SAVEPOINT fallback_attempt');
+    try {
+        const result = await fn();
+        await client.query('RELEASE SAVEPOINT fallback_attempt');
+        return result;
+    } catch (err) {
+        await client.query('ROLLBACK TO SAVEPOINT fallback_attempt');
+        throw err;
+    }
+}
+
+const isIdentityMismatch = (err: any) => err?.code === '23503' || err?.code === '22P02';
+
 export class BookingRepository {
     constructor(private db: DbAdapter) { }
 
     // Accepts either guests.id or guests.guest_id and returns guests.id
     // (the value the bookings tables actually reference), or null if no such guest.
     async resolveGuestLegacyId(identifier: string): Promise<string | null> {
-        const result = await this.db.query<{ id: string }>(`
-            SELECT id
+        const result = await this.db.query<{ id: string; guest_id: string }>(`
+            SELECT COALESCE(to_jsonb(guests)->>'id', guest_id::text) AS id, guest_id::text
             FROM guests
-            WHERE id = $1 OR guest_id::text = $1
+            WHERE (to_jsonb(guests)->>'id' = $1) OR (guest_id::text = $1)
             LIMIT 1
         `, [identifier]);
 
-        return result.rows[0]?.id ?? null;
+        return result.rows[0]?.id ?? result.rows[0]?.guest_id ?? null;
     }
 
     // Creates the booking header and (optionally) its room lines in ONE transaction.
@@ -64,11 +81,41 @@ export class BookingRepository {
         rooms: RoomLineInput[] = [],
     ): Promise<{ booking_id: string; rooms: AddedRoomLine[] }> {
         return this.db.transaction(async (client) => {
-            const header = await client.query<{ booking_id: string; branch_id: string }>(`
-                INSERT INTO bookings (branch_id, booked_by_guest_id, guest_id, notes, special_requests, adults, children)
-                VALUES ($1, $2, $2, $3, $3, $4, $5)
-                RETURNING booking_id, branch_id
-            `, [input.branch_id, input.booked_by_guest_id, input.notes ?? null, input.adults ?? null, input.children ?? null]);
+            const guestQuery = await client.query<{ id: string; guest_id: string }>(`
+                SELECT id, guest_id FROM guests WHERE id = $1 OR guest_id::text = $1 LIMIT 1
+            `, [input.booked_by_guest_id]);
+            const resolvedBooker = guestQuery.rows[0];
+            const bookerIdVal = resolvedBooker?.id ?? input.booked_by_guest_id;
+            const bookerUuidVal = resolvedBooker?.guest_id ?? null;
+
+            // The bookings identity columns differ between databases (guests.id vs guests.guest_id,
+            // FK vs no FK), so try each plausible (booked_by_guest_id, guest_id) pair in turn.
+            const pairs: Array<[string, string]> = [
+                [bookerIdVal, bookerUuidVal ?? bookerIdVal],
+                [bookerIdVal, bookerIdVal],
+                ...(bookerUuidVal ? [[bookerUuidVal, bookerUuidVal] as [string, string]] : []),
+            ];
+            const seen = new Set<string>();
+            let header: { rows: Array<{ booking_id: string; branch_id: string }> } | undefined;
+            let firstError: any;
+            for (const [bookedBy, guestCol] of pairs) {
+                const key = `${bookedBy}|${guestCol}`;
+                if (seen.has(key)) continue;
+                seen.add(key);
+                try {
+                    header = await withSavepoint(client, () => client.query<{ booking_id: string; branch_id: string }>(`
+                        INSERT INTO bookings (branch_id, booked_by_guest_id, guest_id, notes, special_requests, adults, children)
+                        VALUES ($1, $2, $3, $4, $4, $5, $6)
+                        RETURNING booking_id, branch_id
+                    `, [input.branch_id, bookedBy, guestCol, input.notes ?? null, input.adults ?? null, input.children ?? null]));
+                    break;
+                } catch (err: any) {
+                    firstError ??= err;
+                    console.error('[createBooking] bookings insert failed:', err.code, err.message, err.constraint ?? '');
+                    if (!isIdentityMismatch(err)) throw err;
+                }
+            }
+            if (!header) throw firstError;
 
             const created = header.rows[0];
             if (!created) throw Errors.internal();
@@ -94,12 +141,13 @@ export class BookingRepository {
         branchId: string,
         line: RoomLineInput,
     ): Promise<AddedRoomLine> {
-        // 1. Lock the room row. Two requests booking the same room now queue up
-        //    here, so the overlap check below cannot race.
+        // 1. Lock the room row resiliently across column variations (type vs room_type_id).
         const roomResult = await client.query<{
-            id: string; number: string | null; branch_id: string; price_per_night: string; room_type_id: number | null;
+            id: string; number: string | null; branch_id: string; price_per_night: string; type: string | null; room_type_id: number | null;
         }>(`
-            SELECT id, number, branch_id, price_per_night, room_type_id
+            SELECT id, number, branch_id, price_per_night,
+                   to_jsonb(rooms)->>'type' AS type,
+                   (to_jsonb(rooms)->>'room_type_id')::int AS room_type_id
             FROM rooms
             WHERE id = $1
             FOR UPDATE
@@ -111,8 +159,19 @@ export class BookingRepository {
             throw Errors.badRequest('Room does not belong to this booking\'s branch');
         }
 
+        // Map room type name to room_type_id if integer FK was not directly present
+        let roomTypeId = line.room_type_id ?? room.room_type_id ?? null;
+        if (!roomTypeId && room.type) {
+            const typeMap: Record<string, number> = {
+                STANDARD: 1,
+                DELUXE: 2,
+                SUITE: 3,
+                PRESIDENTIAL: 4,
+            };
+            roomTypeId = typeMap[room.type.toUpperCase()] ?? null;
+        }
+
         // 2. Overlap check — current room lines, plus legacy single-room bookings
-        //    (older code paths still write bookings.room_id / check_in / check_out).
         const clash = await client.query(`
             SELECT 1 FROM booking_rooms
             WHERE room_id = $1
@@ -132,34 +191,49 @@ export class BookingRepository {
             throw new AppError(409, 'ROOM_UNAVAILABLE', 'Room is already booked for the selected dates');
         }
 
-        // 3. Insert. rate_at_booking is the room's CURRENT nightly price, taken
-        //    server-side (never trusted from the client) and frozen from here on.
-        try {
-            const inserted = await client.query<{ booking_room_id: string; rate_at_booking: string }>(`
-                INSERT INTO booking_rooms
-                    (booking_id, primary_guest_id, room_type_id, room_id, plan_id,
-                     check_in_date, check_out_date, rate_at_booking)
-                VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-                RETURNING booking_room_id, rate_at_booking
-            `, [
-                bookingId, line.primary_guest_id, line.room_type_id ?? room.room_type_id ?? null,
-                room.id, line.plan_id ?? 1, line.check_in_date,
-                line.check_out_date, room.price_per_night,
-            ]);
+        // Resolve line guest identity for both VARCHAR(36) and UUID schema variations
+        const guestQuery = await client.query<{ id: string; guest_id: string }>(`
+            SELECT id, guest_id FROM guests WHERE id = $1 OR guest_id::text = $1 LIMIT 1
+        `, [line.primary_guest_id]);
+        const resolvedLineGuest = guestQuery.rows[0];
+        const primaryGuestIdVal = resolvedLineGuest?.id ?? line.primary_guest_id;
+        const primaryGuestUuidVal = resolvedLineGuest?.guest_id ?? line.primary_guest_id;
 
-            return {
-                booking_room_id: inserted.rows[0].booking_room_id,
-                room_id: room.id,
-                room_number: room.number,
-                rate_at_booking: inserted.rows[0].rate_at_booking,
-            };
-        } catch (err: any) {
-            // 23P01 = exclusion_violation from the no_double_booking constraint (DB backstop)
-            if (err?.code === '23P01') {
-                throw new AppError(409, 'ROOM_UNAVAILABLE', 'Room is already booked for the selected dates');
+        // 3. Insert into booking_rooms; primary_guest_id may need guests.id or guests.guest_id
+        // depending on the database, so retry with the other identity (in a savepoint).
+        const guestCandidates = [...new Set([primaryGuestIdVal, primaryGuestUuidVal])];
+        let firstError: any;
+        for (const guestVal of guestCandidates) {
+            try {
+                const inserted = await withSavepoint(client, () => client.query<{ booking_room_id: string; rate_at_booking: string }>(`
+                    INSERT INTO booking_rooms
+                        (booking_id, primary_guest_id, room_type_id, room_id, plan_id,
+                         check_in_date, check_out_date, rate_at_booking)
+                    VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+                    RETURNING booking_room_id, rate_at_booking
+                `, [
+                    bookingId, guestVal, roomTypeId,
+                    room.id, line.plan_id ?? 1, line.check_in_date,
+                    line.check_out_date, room.price_per_night,
+                ]));
+
+                return {
+                    booking_room_id: inserted.rows[0].booking_room_id,
+                    room_id: room.id,
+                    room_number: room.number,
+                    rate_at_booking: inserted.rows[0].rate_at_booking,
+                };
+            } catch (err: any) {
+                // 23P01 = exclusion_violation from the no_double_booking constraint (DB backstop)
+                if (err?.code === '23P01') {
+                    throw new AppError(409, 'ROOM_UNAVAILABLE', 'Room is already booked for the selected dates');
+                }
+                firstError ??= err;
+                console.error('[insertRoomLine] Insert failed:', err.message, err.code, err.constraint ?? '');
+                if (!isIdentityMismatch(err)) throw err;
             }
-            throw err;
         }
+        throw firstError;
     }
 
     async findHeaderById(bookingId: string) {
@@ -182,6 +256,9 @@ export class BookingRepository {
                 b.notes,
                 b.created_at,
                 br.branch_name,
+                g.email AS guest_email,
+                g.first_name AS guest_first_name,
+                g.last_name AS guest_last_name,
                 COALESCE(
                     g.first_name || ' ' || g.last_name,
                     s.first_name || ' ' || s.last_name,
@@ -189,7 +266,7 @@ export class BookingRepository {
                 ) AS booker_name
             FROM bookings b
             LEFT JOIN branches br ON br.branch_id = b.branch_id
-            LEFT JOIN guests g ON g.id = b.booked_by_guest_id
+            LEFT JOIN guests g ON (g.id::text = b.booked_by_guest_id::text OR g.guest_id::text = b.booked_by_guest_id::text)
             LEFT JOIN staff s ON s.staff_id = b.booked_by_staff_id
             WHERE b.booking_id = $1
         `, [bookingId]);
@@ -203,7 +280,7 @@ export class BookingRepository {
                 br.booking_room_id,
                 br.status,
                 r.number AS room_number,
-                COALESCE(rt.type_name, r.type::text) AS room_type_name,
+                COALESCE(rt.type_name, MAX(to_jsonb(r)->>'type')) AS room_type_name,
                 mp.plan_name AS meal_plan_name,
                 br.check_in_date::text AS check_in_date,
                 br.check_out_date::text AS check_out_date,
@@ -222,29 +299,63 @@ export class BookingRepository {
                     '[]'
                 ) AS accompanying_guests
             FROM booking_rooms br
-            LEFT JOIN rooms r ON r.id = br.room_id
+            LEFT JOIN rooms r ON r.id::text = br.room_id::text
             LEFT JOIN room_types rt ON rt.room_type_id = br.room_type_id
             LEFT JOIN meal_plans mp ON mp.plan_id = br.plan_id
             LEFT JOIN accompanying_guests ag ON ag.booking_room_id = br.booking_room_id
             WHERE br.booking_id = $1
-            GROUP BY br.booking_room_id, br.status, r.number, r.type, rt.type_name, mp.plan_name,
+            GROUP BY br.booking_room_id, br.status, r.number, rt.type_name, mp.plan_name,
                      br.check_in_date, br.check_out_date, br.rate_at_booking
         `, [bookingId]);
 
-        // rate_at_booking is a PER-NIGHT rate (billing uses nights × rate too),
-        // so each line's room charge is nights × rate.
-        const total_amount = roomsResult.rows.reduce(
+        // Fetch itemized add-on services for the stay
+        const servicesResult = await this.db.query(`
+            SELECT
+                su.usage_id,
+                su.booking_room_id,
+                COALESCE(sc.service_name, su.notes, 'Hotel Service') AS service_name,
+                COALESCE(sc.category, 'General') AS category,
+                COALESCE(su.quantity, 1)::int AS quantity,
+                COALESCE(su.price_at_usage, sc.base_price, 0)::numeric AS price_at_usage,
+                (COALESCE(su.quantity, 1) * COALESCE(su.price_at_usage, sc.base_price, 0))::numeric AS total_price,
+                su.used_at,
+                su.appointment_time,
+                su.notes
+            FROM service_usage su
+            JOIN booking_rooms br ON br.booking_room_id = su.booking_room_id
+            LEFT JOIN service_catalogue sc ON sc.service_id::text = su.service_id::text
+            WHERE br.booking_id = $1
+            ORDER BY su.used_at ASC
+        `, [bookingId]);
+
+        // Rate total calculation
+        const roomTotal = roomsResult.rows.reduce(
             (sum: number, row: any) => sum + Number(row.nights || 0) * parseFloat(row.rate_at_booking || 0), 0
         );
+        const serviceTotal = servicesResult.rows.reduce(
+            (sum: number, row: any) => sum + parseFloat(row.total_price || 0), 0
+        );
+
+        // Fetch invoice total if present
+        const invRes = await this.db.query<{ total_amount: string }>(`
+            SELECT SUM(COALESCE(total_amount, 0)) AS total_amount
+            FROM invoices inv
+            JOIN booking_rooms br ON br.booking_room_id = inv.booking_room_id
+            WHERE br.booking_id = $1
+        `, [bookingId]);
+        const invoiceTotal = parseFloat(invRes.rows[0]?.total_amount || '0');
+        const finalTotal = invoiceTotal > 0 ? invoiceTotal : (roomTotal + serviceTotal);
 
         return {
             ...header,
-            total_amount,
+            total_amount: finalTotal,
             rooms: roomsResult.rows,
+            services: servicesResult.rows,
         };
     }
 
-    async findAll() {
+    // branchId limits the list to one branch; omitted, it lists every branch.
+    async findAll(branchId?: string) {
         const result = await this.db.query(`
 SELECT
   b.booking_id,
@@ -267,9 +378,10 @@ LEFT JOIN LATERAL (
   FROM booking_rooms
   WHERE booking_rooms.booking_id = b.booking_id
 ) agg ON true
+WHERE ($1::uuid IS NULL OR b.branch_id = $1::uuid)
 ORDER BY b.created_at DESC
 
-        `, []);
+        `, [branchId ?? null]);
 
         return result.rows;
     }
@@ -291,12 +403,15 @@ ORDER BY b.created_at DESC
     //   CHECKED_OUT → rooms.status = MAINTENANCE, and the
     //                 room's invoice is (re)generated     (fn_auto_bill_on_checkout)
     //   CANCELLED   → the dates are freed for new bookings (no_double_booking ignores CANCELLED)
+    // Check-in is refused outside the stay window (see assertCheckInOpen).
     async transitionStatus(
         client: PoolClient,
         bookingId: string,
         fromStatus: string,
         toStatus: string,
     ): Promise<{ booking_id: string; status: string } | null> {
+        if (toStatus === 'CHECKED_IN') await this.assertCheckInOpen(client, bookingId);
+
         const result = await client.query<{ booking_id: string; status: string }>(`
             UPDATE bookings
             SET status = $1, updated_at = CURRENT_TIMESTAMP
@@ -315,6 +430,28 @@ ORDER BY b.created_at DESC
         }
 
         return result.rows[0];
+    }
+
+    // Check-in is allowed from the arrival day until the day before check-out,
+    // on the hotel's calendar (Sri Lanka), not the server's UTC clock: never
+    // early; a late arrival still checks in (and pays the full booked stay).
+    async assertCheckInOpen(client: PoolClient, bookingId: string): Promise<void> {
+        const { rows: [stay] } = await client.query<{ opens: string | null; ends: string | null; too_early: boolean; ended: boolean }>(`
+            SELECT to_char(MIN(check_in_date), 'DD Mon YYYY')  AS opens,
+                   to_char(MAX(check_out_date), 'DD Mon YYYY') AS ends,
+                   MIN(check_in_date)  >  (now() AT TIME ZONE 'Asia/Colombo')::date AS too_early,
+                   MAX(check_out_date) <= (now() AT TIME ZONE 'Asia/Colombo')::date AS ended
+            FROM booking_rooms
+            WHERE booking_id = $1 AND status <> 'CANCELLED'
+        `, [bookingId]);
+
+        if (!stay?.opens) throw Errors.badRequest('This booking has no room to check in to');
+        if (stay.too_early) {
+            throw new AppError(409, 'CHECK_IN_NOT_OPEN', `Check-in opens on ${stay.opens}, the booking's arrival day.`);
+        }
+        if (stay.ended) {
+            throw new AppError(409, 'STAY_ENDED', `This stay ended on ${stay.ends}, so the guest can no longer be checked in.`);
+        }
     }
 
     // Reads the booking header and locks it until the transaction ends, so a

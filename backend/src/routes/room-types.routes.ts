@@ -61,7 +61,7 @@ router.post(
   '/',
   validate(CreateRoomTypeSchema),
   authenticate,
-  authorize('ADMINISTRATOR', 'DBA', 'MANAGER'),
+  authorize('ADMINISTRATOR', 'DBA'),
   async (req: Request, res: Response) => {
     const typeName = (req.body.typeName ?? req.body.type_name)!;
     const baseDailyRate = (req.body.baseDailyRate ?? req.body.base_daily_rate)!;
@@ -84,7 +84,7 @@ router.patch(
   '/:id',
   validate(UpdateRoomTypeSchema),
   authenticate,
-  authorize('ADMINISTRATOR', 'DBA', 'MANAGER'),
+  authorize('ADMINISTRATOR', 'DBA'),
   async (req: Request, res: Response) => {
     const existing = await repo.findById(req.params.id);
 
@@ -112,7 +112,7 @@ router.patch(
 router.delete(
   '/:id',
   authenticate,
-  authorize('ADMINISTRATOR', 'DBA', 'MANAGER'),
+  authorize('ADMINISTRATOR', 'DBA'),
   async (req: Request, res: Response) => {
     const existing = await repo.findById(req.params.id);
 

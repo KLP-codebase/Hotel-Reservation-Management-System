@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { authenticate } from '../middleware/auth.middleware';
 import { authorize } from '../middleware/rbac.middleware';
+import { lockManagerBranchQuery } from '../lib/branch-scope';
 
 import occupancyRoutes from './reports/occupancy-reports.routes';
 import trendsRoutes from './reports/trends-reports.routes';
@@ -15,6 +16,8 @@ const router = Router();
 // Access is restricted to ADMINISTRATOR, MANAGER, and DBA roles.
 router.use(authenticate);
 router.use(authorize('ADMINISTRATOR', 'MANAGER', 'DBA'));
+// A manager's reports always cover their own branch, whatever ?branchId= says.
+router.use(lockManagerBranchQuery);
 
 // ── Sub-router mounts (Isolated domain delegation) ─────────────────────────────
 // Person 3: Operations, Capacity & Preference Analytics
