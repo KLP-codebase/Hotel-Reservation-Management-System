@@ -9,6 +9,7 @@ import { BillingSummaryReport } from '@/components/reports/BillingSummaryReport'
 import { ServiceUsageReport } from '@/components/reports/ServiceUsageReport';
 import { SnapshotHistoryTab } from '@/components/reports/SnapshotHistoryTab';
 import {
+  Btn,
   DashboardMasthead,
   SectionHeader,
   Segmented,
@@ -44,70 +45,43 @@ export default function ReportsManagementPage() {
           eyebrow="Executive Intelligence · Operations & Analytics"
           title="Reports & Analytics"
           imageKey="Colombo"
-          kpis={[
-            { label: 'Module Focus', value: 'Person 3', sub: 'Occupancy & Trends' },
-            { label: 'Snapshot Ledger', value: 'Rule B17', sub: 'Audited Datasets' },
-            { label: 'Multi-Branch', value: 'Live', sub: 'PostgreSQL 18' },
-            { label: 'Statutory Taxes', value: '4 Tiers', sub: 'SC, TDL, SSCL, VAT' },
-          ]}
         />
       </div>
 
-      <main className="max-w-[1440px] mx-auto px-6 md:px-12 py-8 md:py-12 space-y-8">
-        {/* ── Official Print Header (Visible ONLY on Print / PDF Export) ──── */}
-        <div className="hidden print:block mb-8 pb-4 border-b-2 border-stone-800 text-stone-900 font-jakarta">
+      <main className="max-w-[1440px] mx-auto px-6 md:px-12 py-12 md:py-16">
+        {/* Letterhead, shown only when printing / saving as PDF */}
+        <div className="hidden print:block mb-8 pb-4 border-b border-ink font-jakarta text-ink">
           <div className="flex justify-between items-start">
             <div>
-              <h1 className="font-cinzel text-2xl font-bold tracking-wider text-ink uppercase">
-                Sky Nest Hotels & Resorts
-              </h1>
-              <p className="text-xs uppercase tracking-widest text-ink/70 font-semibold mt-0.5">
-                Executive Operations & Financial Intelligence Ledger
+              <h1 className="font-cinzel text-[24px] tracking-[0.08em] uppercase">Sky Nest Hotels &amp; Resorts</h1>
+              <p className="mt-1 text-[11px] font-medium tracking-[0.12em] uppercase text-ink/70">
+                Operations &amp; Financial Reports
               </p>
             </div>
             <div className="text-right text-[11px] text-ink/70">
-              <p className="font-semibold text-ink">CONFIDENTIAL</p>
-              <p>Generated: {new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })}</p>
-              <p className="font-mono text-[10px]">Rule B17 Audited</p>
+              <p className="font-medium text-ink">Confidential</p>
+              <p>Generated {new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}</p>
             </div>
           </div>
-          <div className="mt-4 pt-3 border-t border-stone-300 flex justify-between items-center text-xs font-semibold">
-            <span className="font-cinzel text-sm uppercase text-skynest-accent">
-              {tabTitles[activeTab].title}
-            </span>
-            <span className="text-[11px] text-ink/60 font-mono">
-              Category: {tabTitles[activeTab].index}
-            </span>
+          <div className="mt-4 pt-4 border-t border-skynest-hairline flex justify-between items-center">
+            <span className="font-cinzel text-[16px]">{tabTitles[activeTab].title}</span>
+            <span className="text-[11px] text-ink/70">{tabTitles[activeTab].index}</span>
           </div>
         </div>
 
-        <section className="space-y-6">
-          <div className="no-print">
-            <SectionHeader
-              index={tabTitles[activeTab].index}
-              title={tabTitles[activeTab].title}
-            >
-              <div className="flex flex-col md:flex-row md:items-center gap-3 w-full md:w-auto">
-                <button
-                  type="button"
-                  onClick={() => window.print()}
-                  className="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 text-xs font-jakarta font-semibold uppercase tracking-wider border border-skynest-hairline bg-white text-ink hover:bg-skynest-accent hover:text-white hover:border-skynest-accent transition-colors shadow-xs cursor-pointer"
-                  title="Print currently viewed report category directly to PDF"
-                >
-                  <Printer className="w-3.5 h-3.5" />
-                  <span>Print / PDF</span>
-                </button>
-                <Segmented
-                  value={activeTab}
-                  onChange={setActiveTab}
-                  options={REPORT_TABS}
-                />
-              </div>
+        <section className="space-y-8">
+          <div className="no-print space-y-6">
+            <SectionHeader index={tabTitles[activeTab].index} title={tabTitles[activeTab].title}>
+              <Btn onClick={() => window.print()} title="Print this report or save it as a PDF">
+                <Printer className="w-4 h-4" />
+                Print / PDF
+              </Btn>
             </SectionHeader>
+            <Segmented value={activeTab} onChange={setActiveTab} options={REPORT_TABS} />
           </div>
 
-          {/* Report Tab Container (Prints only the active tab) */}
-          <div className="bg-ink p-6 md:p-8 border border-white/10 text-stone-100 shadow-xl space-y-6 print:p-0 print:border-none print:shadow-none print:bg-white">
+          {/* Active report (prints only this tab) */}
+          <div>
             {activeTab === 'occupancy' && <OccupancyReport />}
             {activeTab === 'trends'    && <ServiceTrendsReport />}
             {activeTab === 'revenue'   && <MonthlyRevenueReport />}

@@ -2,7 +2,9 @@
 
 import React, { useState, useEffect } from 'react';
 import { apiFetch } from '@/lib/api-client';
-import { Eye, RefreshCw, X } from 'lucide-react';
+import { Eye, RefreshCw } from 'lucide-react';
+import { Btn, Empty, IconBtn, Loading, Modal, fmtDay, tbl, titleCase } from '@/components/dashboard/ui';
+import { ReportPanel } from './report-ui';
 
 interface SnapshotRecord {
   snapshot_id: string;
@@ -54,112 +56,71 @@ export function SnapshotHistoryTab() {
   }, []);
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between bg-stone-950/70 border border-white/10 p-4">
-        <div>
-          <h2 className="font-cinzel text-lg font-bold text-stone-100">Archived Audit Snapshots (Rule B17)</h2>
-          <p className="text-xs text-stone-400">Cryptographically frozen audit snapshots stored in PostgreSQL JSONB</p>
-        </div>
-        <button
-          onClick={fetchSnapshots}
-          disabled={loading}
-          className="flex items-center gap-1.5 px-3 py-1.5 bg-stone-900 border border-white/10 text-stone-300 text-xs hover:text-white"
-        >
-          <RefreshCw size={13} className={loading ? 'animate-spin' : ''} />
-          <span>Refresh</span>
-        </button>
-      </div>
-
-      <div className="bg-stone-950/70 border border-white/10 overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs">
-            <thead className="bg-stone-900/90 text-stone-400 border-b border-white/10 uppercase tracking-wider font-jakarta text-[11px]">
-              <tr>
-                <th className="py-3 px-4">Snapshot ID</th>
-                <th className="py-3 px-4">Report Type</th>
-                <th className="py-3 px-4">Period</th>
-                <th className="py-3 px-4">Branch</th>
-                <th className="py-3 px-4">Generated At</th>
-                <th className="py-3 px-4 text-right">Payload</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-white/5 font-jakarta">
-              {loading ? (
-                <tr>
-                  <td colSpan={6} className="py-6 text-center text-stone-500">Loading audit snapshots...</td>
+    <div className="space-y-8">
+      <ReportPanel
+        title="Archived snapshots"
+        sub="Frozen copies of report data, saved with Save snapshot on each report"
+        aside={
+          <IconBtn label="Refresh" variant="outline" onClick={fetchSnapshots} disabled={loading}>
+            <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+          </IconBtn>
+        }
+      >
+        {loading ? (
+          <Loading label="Loading snapshots" />
+        ) : snapshots.length === 0 ? (
+          <Empty>No report snapshots archived yet.</Empty>
+        ) : (
+          <div className={tbl.wrap}>
+            <table className={`${tbl.table} min-w-[880px]`}>
+              <thead>
+                <tr className={tbl.headRow}>
+                  <th className={tbl.th}>Report</th>
+                  <th className={tbl.th}>Period</th>
+                  <th className={tbl.th}>Branch</th>
+                  <th className={tbl.th}>Saved</th>
+                  <th className={tbl.th}>Snapshot</th>
+                  <th className={tbl.th}><span className="sr-only">Actions</span></th>
                 </tr>
-              ) : snapshots.length === 0 ? (
-                <tr>
-                  <td colSpan={6} className="py-8 text-center text-stone-500">No report snapshots archived yet.</td>
-                </tr>
-              ) : (
-                snapshots.map((s) => (
-                  <tr key={s.snapshot_id} className="hover:bg-white/[0.02] transition">
-                    <td className="py-3 px-4 font-mono text-stone-400 text-[11px]">
-                      {s.snapshot_id.substring(0, 13)}...
+              </thead>
+              <tbody className={tbl.body}>
+                {snapshots.map((s) => (
+                  <tr key={s.snapshot_id} className={tbl.row}>
+                    <td className={`${tbl.td} font-medium whitespace-nowrap`}>{titleCase(s.report_type)}</td>
+                    <td className={`${tbl.td} whitespace-nowrap tabular-nums`}>
+                      {fmtDay(s.report_period_start)} → {fmtDay(s.report_period_end)}
                     </td>
-                    <td className="py-3 px-4">
-                      <span className="px-2 py-0.5 text-[10px] font-semibold uppercase bg-amber-500/10 text-amber-300 border border-amber-500/30">
-                        {s.report_type}
-                      </span>
+                    <td className={tbl.td}>{s.branch_name || 'All branches'}</td>
+                    <td className={`${tbl.td} whitespace-nowrap tabular-nums text-ink/70`}>
+                      {new Date(s.generated_at).toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short' })}
                     </td>
-                    <td className="py-3 px-4 font-mono text-stone-300">
-                      {s.report_period_start.split('T')[0]} → {s.report_period_end.split('T')[0]}
-                    </td>
-                    <td className="py-3 px-4 text-stone-300">
-                      {s.branch_name || 'All Branches (Global)'}
-                    </td>
-                    <td className="py-3 px-4 font-mono text-stone-400 text-[11px]">
-                      {new Date(s.generated_at).toLocaleString()}
-                    </td>
-                    <td className="py-3 px-4 text-right">
-                      <button
-                        onClick={() => setSelectedSnapshot(s)}
-                        className="inline-flex items-center gap-1 px-2.5 py-1 bg-stone-900 hover:bg-stone-800 border border-white/10 text-stone-300 text-xs"
-                      >
-                        <Eye size={12} className="text-amber-400" />
-                        <span>View JSON</span>
-                      </button>
+                    <td className={`${tbl.td} tabular-nums text-ink/70`}>{s.snapshot_id.substring(0, 8)}</td>
+                    <td className={`${tbl.td} text-right`}>
+                      <Btn variant="ghost" onClick={() => setSelectedSnapshot(s)}>
+                        <Eye className="w-4 h-4" />
+                        View data
+                      </Btn>
                     </td>
                   </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      {/* JSON Viewer Modal */}
-      {selectedSnapshot && (
-        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-stone-950 border border-white/20 max-w-2xl w-full p-6 space-y-4 max-h-[85vh] flex flex-col">
-            <div className="flex items-center justify-between border-b border-white/10 pb-3">
-              <div>
-                <h3 className="font-cinzel text-base font-bold text-stone-100">
-                  Snapshot Payload: {selectedSnapshot.report_type}
-                </h3>
-                <p className="text-xs text-stone-400 font-mono mt-0.5">{selectedSnapshot.snapshot_id}</p>
-              </div>
-              <button
-                onClick={() => setSelectedSnapshot(null)}
-                className="text-stone-400 hover:text-white p-1"
-              >
-                <X size={18} />
-              </button>
-            </div>
-            <pre className="flex-1 overflow-auto bg-stone-900/90 p-4 font-mono text-xs text-amber-300/90 border border-white/5 rounded-none">
-              {JSON.stringify(selectedSnapshot.report_data, null, 2)}
-            </pre>
-            <div className="flex justify-end pt-2 border-t border-white/10">
-              <button
-                onClick={() => setSelectedSnapshot(null)}
-                className="px-4 py-1.5 bg-stone-900 hover:bg-stone-800 border border-white/10 text-stone-200 text-xs"
-              >
-                Close
-              </button>
-            </div>
+                ))}
+              </tbody>
+            </table>
           </div>
-        </div>
+        )}
+      </ReportPanel>
+
+      {selectedSnapshot && (
+        <Modal
+          eyebrow={`Snapshot ${selectedSnapshot.snapshot_id.substring(0, 8)}`}
+          title={titleCase(selectedSnapshot.report_type)}
+          onClose={() => setSelectedSnapshot(null)}
+          size="lg"
+          footer={<Btn onClick={() => setSelectedSnapshot(null)}>Close</Btn>}
+        >
+          <pre className="max-h-[60vh] overflow-auto p-4 rounded-[4px] bg-ink/[0.03] border border-skynest-hairline text-[12px] leading-relaxed text-ink">
+            {JSON.stringify(selectedSnapshot.report_data, null, 2)}
+          </pre>
+        </Modal>
       )}
     </div>
   );

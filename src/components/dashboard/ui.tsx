@@ -115,6 +115,7 @@ const STATUS_DOT: Record<string, string> = {
   SETTLED: "bg-emerald-500",
   PARTIALLY_PAID: "bg-amber-500",
   OPEN: "bg-red-500",
+  UNPAID: "bg-red-500",
   PAID: "bg-emerald-500",
   VERIFIED: "bg-emerald-500",
   UNVERIFIED: "bg-ink-faded",
