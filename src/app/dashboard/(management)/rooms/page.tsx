@@ -70,6 +70,8 @@ export default function RoomsPage() {
 
   // ── Tab & filter state ───────────────────────────────────────────────────────
   const [activeTab,      setActiveTab]      = useState<Tab>('categories');
+  // The Inventory tab is hidden for managers, receptionists and administrators.
+  const showInventory = !['MANAGER', 'RECEPTIONIST', 'ADMINISTRATOR'].includes(user?.role ?? '');
   const [filterBranch,   setFilterBranch]   = useState('ALL');
   const [filterStatus,   setFilterStatus]   = useState('ALL');
   const [filterRoomType, setFilterRoomType] = useState('ALL');
@@ -341,14 +343,16 @@ export default function RoomsPage() {
             index={activeTab === 'categories' ? `${roomTypes.length} categories` : `${filteredRooms.length} of ${rooms.length} rooms`}
             title={activeTab === 'categories' ? 'Room Types' : 'Room Inventory'}
           >
-            <Segmented
-              value={activeTab}
-              onChange={setActiveTab}
-              options={[
-                { value: 'categories', label: 'Room types', count: roomTypes.length },
-                { value: 'inventory',  label: 'Inventory',  count: rooms.length },
-              ]}
-            />
+            {showInventory && (
+              <Segmented
+                value={activeTab}
+                onChange={setActiveTab}
+                options={[
+                  { value: 'categories', label: 'Room types', count: roomTypes.length },
+                  { value: 'inventory',  label: 'Inventory',  count: rooms.length },
+                ]}
+              />
+            )}
           </SectionHeader>
 
           {loading ? (

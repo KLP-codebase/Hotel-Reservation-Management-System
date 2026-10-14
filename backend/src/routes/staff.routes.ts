@@ -6,17 +6,21 @@ import { authorize } from '../middleware/rbac.middleware';
 import { db } from '../config/db';
 import { StaffRepository } from '../repositories/staff.repository';
 import { StaffService } from '../services/staff.service';
-import { managerBranch, assertManagerOwns } from '../lib/branch-scope';
+import { ownBranch, assertOwnBranch } from '../lib/branch-scope';
+import { Errors } from '../lib/errors';
+
+// Roles a manager may hire into their own branch; everything else needs an administrator.
+const MANAGER_HIRABLE_ROLES = ['RECEPTIONIST', 'SERVICE_STAFF'];
 
 const router  = Router();
 const repo    = new StaffRepository(db);
 const service = new StaffService(repo);
 
-// A manager may only look at or invite staff of their own branch.
-async function assertManagerOwnsStaff(req: Request, staffId: string): Promise<void> {
-  if (!managerBranch(req)) return;
+// Single-branch staff may only look at or invite staff of their own branch.
+async function assertOwnsStaff(req: Request, staffId: string): Promise<void> {
+  if (!ownBranch(req)) return;
   const staff = await repo.findById(staffId);
-  if (staff) assertManagerOwns(req, staff.branch_id);
+  if (staff) assertOwnBranch(req, staff.branch_id);
 }
 
 // ── Zod schemas ───────────────────────────────────────────────────────────────
@@ -45,7 +49,7 @@ router.get(
   authenticate,
   authorize('MANAGER', 'ADMINISTRATOR', 'DBA'),
   async (req: Request, res: Response) => {
-    const result = await service.list(managerBranch(req));
+    const result = await service.list(ownBranch(req));
     res.status(200).json(result);
   },
 );
@@ -55,7 +59,7 @@ router.get(
   authenticate,
   authorize('MANAGER', 'ADMINISTRATOR', 'DBA'),
   async (req: Request, res: Response) => {
-    await assertManagerOwnsStaff(req, req.params.id);
+    await assertOwnsStaff(req, req.params.id);
     const result = await service.getById(req.params.id);
     res.status(200).json(result);
   },
@@ -65,10 +69,15 @@ router.post(
   '/',
   validate(CreateStaffSchema),
   authenticate,
-  authorize('ADMINISTRATOR', 'DBA'),
+  authorize('ADMINISTRATOR', 'DBA', 'MANAGER'),
   async (req: Request, res: Response) => {
+    // A manager adds front desk and service staff to their own branch only.
+    const own = ownBranch(req);
+    if (own && !MANAGER_HIRABLE_ROLES.includes(req.body.role)) {
+      throw Errors.forbidden('Managers can only add receptionists and service staff');
+    }
     const result = await service.create(
-      { branch_id: (req.body.branchId || undefined), first_name: req.body.firstName, last_name: req.body.lastName,
+      { branch_id: own ?? (req.body.branchId || undefined), first_name: req.body.firstName, last_name: req.body.lastName,
         email: req.body.email, phone: req.body.phone, role: req.body.role },
       req.user?.sub,
     );
@@ -107,7 +116,7 @@ router.post(
   authenticate,
   authorize("ADMINISTRATOR", "MANAGER", "DBA"),
   async (req: Request, res: Response) => {
-    await assertManagerOwnsStaff(req, req.params.id);
+    await assertOwnsStaff(req, req.params.id);
     const result = await service.invite(req.params.id, req.user?.sub);
     res.status(200).json(result);
   },
