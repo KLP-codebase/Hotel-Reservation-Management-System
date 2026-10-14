@@ -8,6 +8,7 @@ import {
   DashboardMasthead, MastheadRefresh, SectionHeader, Segmented, Toolbar, FilterSelect,
   Btn, IconBtn, Field, SelectField, Modal, Loading, Empty, StatusDot, tbl, fmtLKR, fmtDay, useFlash,
 } from '@/components/dashboard/ui';
+import { formatLKR } from '@/lib/currency';
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -600,7 +601,7 @@ export default function CataloguePage() {
               ))}
             </SelectField>
             <Field
-              label="Price ($)"
+              label="Price (Rs)"
               type="number"
               min="0"
               step="0.01"
@@ -712,7 +713,7 @@ export default function CataloguePage() {
           >
             {services.map(s => (
               <option key={s.service_id} value={String(s.service_id)}>
-                {s.service_name} ({s.category}) — ${toNum(s.base_price).toLocaleString()}
+                {s.service_name} ({s.category}) — {formatLKR(toNum(s.base_price), 0)}
               </option>
             ))}
           </SelectField>
@@ -770,10 +771,10 @@ export default function CataloguePage() {
             <div className="bg-stone-50 border border-skynest-hairline p-4 flex items-center justify-between">
               <div>
                 <span className="font-jakarta text-[11px] uppercase tracking-wider text-ink/60 font-semibold block">Total Estimated Charge</span>
-                <span className="font-jakarta text-xs text-ink/80">{bookQuantity} &times; ${toNum(bookTarget.base_price).toLocaleString()}</span>
+                <span className="font-jakarta text-xs text-ink/80">{bookQuantity} &times; {formatLKR(toNum(bookTarget.base_price), 0)}</span>
               </div>
               <span className="font-cinzel text-xl font-bold text-skynest-accent">
-                ${(toNum(bookTarget.base_price) * bookQuantity).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                {formatLKR((toNum(bookTarget.base_price) * bookQuantity))}
               </span>
             </div>
           )}

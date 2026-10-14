@@ -26,7 +26,7 @@ export interface PrintableInvoiceData {
   total_paid: number;
   balance_due: number;
   status: 'SETTLED' | 'PARTIALLY_PAID' | 'OPEN';
-  /** Currency symbol, defaults to '$' */
+  /** Currency symbol, defaults to 'Rs' */
   currency?: string;
   line_items?: Array<{
     description: string;
@@ -53,7 +53,7 @@ export function printTaxInvoice(inv: PrintableInvoiceData): void {
   const todayDate = new Date().toLocaleDateString('en-GB');
 
   const fmt = (n: number) => Number(n).toLocaleString('en-LK', { minimumFractionDigits: 2 });
-  const curr = inv.currency || '$';
+  const curr = inv.currency || 'Rs';
 
   // Build line items HTML (services, rooms, meals all show Qty + Unit Rate + Amount)
   const lineItemsHtml = inv.line_items && inv.line_items.length > 0

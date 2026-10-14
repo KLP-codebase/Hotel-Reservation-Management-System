@@ -1,6 +1,7 @@
 import { PoolClient } from 'pg';
 import { DbAdapter } from '../config/db';
 import { AppError, Errors } from '../lib/errors';
+import { formatLKR } from '../lib/currency';
 
 export interface PaymentRecord {
   payment_id:       string;
@@ -140,7 +141,7 @@ export class InvoiceRepository {
 
     if (remaining > 0 && !opts.settle) {
       throw new AppError(409, 'OUTSTANDING_BALANCE',
-        `This stay has an outstanding balance of ${(remaining / 100).toFixed(2)}. Settle it before checking out.`);
+        `This stay has an outstanding balance of ${formatLKR(remaining / 100)}. Settle it before checking out.`);
     }
 
     const ref = `${bookingId.slice(0, 8).toUpperCase()}`;

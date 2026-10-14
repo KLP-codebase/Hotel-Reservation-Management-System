@@ -26,6 +26,7 @@ import {
 import { useAuth } from '@/context/auth-context';
 import { initials } from '@/components/dashboard/ui';
 import SkyNestFooter from '@/components/marketing/SkyNestFooter';
+import { formatLKR } from '@/lib/currency';
 
 // ── Motion Guard ──────────────────────────────────────────────────────────────
 
@@ -70,7 +71,7 @@ interface RoomTier {
   id: string;
   name: string;
   tagline: string;
-  usdRate: number;
+  rate: number; // LKR per night
   capacity: number;
   sizeM2: number;
   sizeSqFt: number;
@@ -84,7 +85,7 @@ const ROOM_TIERS: RoomTier[] = [
     id: 'STANDARD',
     name: 'Standard Room',
     tagline: 'Refined serenity with handcrafted Ceylon teak accents',
-    usdRate: 120,
+    rate: 37200,
     capacity: 2,
     sizeM2: 38,
     sizeSqFt: 410,
@@ -101,7 +102,7 @@ const ROOM_TIERS: RoomTier[] = [
     id: 'DELUXE',
     name: 'Deluxe Room',
     tagline: 'Generous light, private veranda, and horizon sea breeze',
-    usdRate: 180,
+    rate: 55800,
     capacity: 3,
     sizeM2: 52,
     sizeSqFt: 560,
@@ -118,7 +119,7 @@ const ROOM_TIERS: RoomTier[] = [
     id: 'SUITE',
     name: 'Executive Suite',
     tagline: 'Dual-chamber sanctuary with private heated plunge pool',
-    usdRate: 280,
+    rate: 86800,
     capacity: 4,
     sizeM2: 85,
     sizeSqFt: 915,
@@ -135,7 +136,7 @@ const ROOM_TIERS: RoomTier[] = [
     id: 'PRESIDENTIAL',
     name: 'Presidential Suite',
     tagline: 'The pinnacle of island hospitality with dedicated 24/7 butler',
-    usdRate: 500,
+    rate: 155000,
     capacity: 6,
     sizeM2: 160,
     sizeSqFt: 1720,
@@ -156,7 +157,7 @@ interface MealPlan {
   id: string;
   name: string;
   code: string;
-  usdRate: number;
+  rate: number; // LKR per guest per night
   tagline: string;
   description: string;
   inclusions: { label: string; active: boolean }[];
@@ -168,7 +169,7 @@ const MEAL_PLANS: MealPlan[] = [
     id: 'RO',
     name: 'Room Only',
     code: 'European Plan',
-    usdRate: 0,
+    rate: 0,
     tagline: 'Complete culinary freedom across our sanctuaries',
     description: 'Residency only. Dine at your own unhurried pace across our oceanfront pavilions, terrace bars, or local coastal fish markets.',
     inclusions: [
@@ -184,7 +185,7 @@ const MEAL_PLANS: MealPlan[] = [
     id: 'BB',
     name: 'Bed & Breakfast',
     code: 'Artisanal Morning Feast',
-    usdRate: 25,
+    rate: 7800,
     tagline: 'Awaken to the finest tropical morning harvest',
     description: 'Daily artisanal table-service and buffet breakfast. Fresh king coconut water, Ceylon silver-tip tea ceremony, egg hoppers, tropical fruits, and French bakery.',
     inclusions: [
@@ -200,7 +201,7 @@ const MEAL_PLANS: MealPlan[] = [
     id: 'HB',
     name: 'Half Board',
     code: 'Breakfast & 4-Course Dinner',
-    usdRate: 55,
+    rate: 17100,
     tagline: 'Morning energy and an evening candlelight degustation',
     description: 'Daily breakfast followed by an unhurried 4-course dinner experience featuring fresh coastal lobster, claypot curries, and Ceylon vanilla bean creations.',
     inclusions: [
@@ -216,7 +217,7 @@ const MEAL_PLANS: MealPlan[] = [
     id: 'FB',
     name: 'Full Board',
     code: 'Complete Island Epicurean',
-    usdRate: 80,
+    rate: 24800,
     tagline: 'An uncompromising, all-inclusive Ceylonese culinary odyssey',
     description: 'Comprehensive culinary journey covering breakfast, multi-course veranda lunch, afternoon tea ceremony with savouries, and 4-course dinner.',
     inclusions: [
@@ -230,7 +231,6 @@ const MEAL_PLANS: MealPlan[] = [
   },
 ];
 
-const USD_TO_LKR = 310;
 
 // ── Navigation Bar (White with thin hairline & blur when scroll) ──────────────
 
@@ -427,19 +427,11 @@ export default function RatesPage() {
   const reducedMotion = usePrefersReducedMotion();
 
   // State
-  const [currency, setCurrency] = useState<'USD' | 'LKR'>('USD');
   const [selectedBranch, setSelectedBranch] = useState<string>('ALL');
   const [selectedRoomId, setSelectedRoomId] = useState<string>('DELUXE');
   const [selectedPlanId, setSelectedPlanId] = useState<string>('HB');
 
-  // Currency Converter helper
-  const formatPrice = (usd: number) => {
-    if (currency === 'USD') {
-      return `$${usd.toLocaleString()}`;
-    }
-    const lkr = Math.round(usd * USD_TO_LKR);
-    return `LKR ${lkr.toLocaleString()}`;
-  };
+  const formatPrice = (lkr: number) => formatLKR(lkr, 0);
 
   // Filtered Rooms
   const filteredRooms = useMemo(() => {
@@ -451,14 +443,14 @@ export default function RatesPage() {
   const currentRoom = ROOM_TIERS.find((r) => r.id === selectedRoomId) || ROOM_TIERS[1];
   const currentPlan = MEAL_PLANS.find((p) => p.id === selectedPlanId) || MEAL_PLANS[2];
 
-  const subtotalUsd = currentRoom.usdRate + currentPlan.usdRate;
+  const subtotalLkr = currentRoom.rate + currentPlan.rate;
   // Sri Lankan Tax Cascade (Rule B13, ARCHITECTURE.md §5.1): SC, TDL and SSCL on the
   // subtotal; VAT on subtotal + TDL + SSCL (service charge is VAT-exempt)
-  const serviceChargeUsd = subtotalUsd * 0.10;
-  const tdlUsd = subtotalUsd * 0.01;
-  const ssclUsd = subtotalUsd * 0.025;
-  const vatUsd = (subtotalUsd + tdlUsd + ssclUsd) * 0.18;
-  const totalWithTaxesUsd = subtotalUsd + serviceChargeUsd + tdlUsd + ssclUsd + vatUsd;
+  const serviceChargeLkr = subtotalLkr * 0.10;
+  const tdlLkr = subtotalLkr * 0.01;
+  const ssclLkr = subtotalLkr * 0.025;
+  const vatLkr = (subtotalLkr + tdlLkr + ssclLkr) * 0.18;
+  const totalWithTaxesLkr = subtotalLkr + serviceChargeLkr + tdlLkr + ssclLkr + vatLkr;
 
   // Staggered reveal for cards
   useEffect(() => {
@@ -540,32 +532,6 @@ export default function RatesPage() {
               ))}
             </div>
 
-            {/* Currency Toggle */}
-            <div className="flex items-center gap-2 self-end sm:self-auto">
-              <span className="text-[11px] font-semibold uppercase tracking-wider text-ink/50">
-                Currency:
-              </span>
-              <div className="flex border border-skynest-hairline bg-stone-100 p-0.5">
-                <button
-                  type="button"
-                  onClick={() => setCurrency('USD')}
-                  className={`px-3 py-1 text-xs font-semibold transition-colors ${
-                    currency === 'USD' ? 'bg-white text-ink shadow-sm' : 'text-ink/60 hover:text-ink'
-                  }`}
-                >
-                  USD ($)
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setCurrency('LKR')}
-                  className={`px-3 py-1 text-xs font-semibold transition-colors ${
-                    currency === 'LKR' ? 'bg-white text-ink shadow-sm' : 'text-ink/60 hover:text-ink'
-                  }`}
-                >
-                  LKR (Rs)
-                </button>
-              </div>
-            </div>
           </div>
 
           {/* ── 01 · Hotel Rooms Grid ── */}
@@ -600,7 +566,7 @@ export default function RatesPage() {
                         {room.properties.join(' · ')}
                       </span>
                       <span className="px-2.5 py-1 bg-skynest-accent text-white font-cinzel text-xs font-bold tracking-wider">
-                        {formatPrice(room.usdRate)} / NIGHT
+                        {formatPrice(room.rate)} / NIGHT
                       </span>
                     </div>
 
@@ -654,7 +620,7 @@ export default function RatesPage() {
                       <div>
                         <div className="text-[10px] font-jakarta uppercase tracking-wider text-ink/40">From</div>
                         <div className="font-cinzel text-xl font-bold text-ink">
-                          {formatPrice(room.usdRate)}{' '}
+                          {formatPrice(room.rate)}{' '}
                           <span className="text-xs font-sans font-normal text-ink/50">/ night</span>
                         </div>
                       </div>
@@ -756,10 +722,10 @@ export default function RatesPage() {
 
                     <div className="py-3 border-y border-skynest-hairline">
                       <div className="font-cinzel text-2xl font-bold text-ink">
-                        {plan.usdRate === 0 ? 'Included' : `+${formatPrice(plan.usdRate)}`}
+                        {plan.rate === 0 ? 'Included' : `+${formatPrice(plan.rate)}`}
                       </div>
                       <div className="text-[10px] font-jakarta text-ink/50 uppercase tracking-wider mt-0.5">
-                        {plan.usdRate === 0 ? 'Base stay inclusion' : 'Per guest / night'}
+                        {plan.rate === 0 ? 'Base stay inclusion' : 'Per guest / night'}
                       </div>
                     </div>
 
@@ -842,7 +808,7 @@ export default function RatesPage() {
                       >
                         <div className="font-cinzel text-sm font-bold text-ink">{r.name}</div>
                         <div className="text-xs font-jakarta text-skynest-accent font-semibold mt-0.5">
-                          {formatPrice(r.usdRate)} / night
+                          {formatPrice(r.rate)} / night
                         </div>
                       </button>
                     ))}
@@ -867,7 +833,7 @@ export default function RatesPage() {
                       >
                         <div className="font-cinzel text-sm font-bold text-ink">{p.name}</div>
                         <div className="text-xs font-jakarta text-skynest-accent font-semibold mt-0.5">
-                          {p.usdRate === 0 ? 'Included' : `+${formatPrice(p.usdRate)}`}
+                          {p.rate === 0 ? 'Included' : `+${formatPrice(p.rate)}`}
                         </div>
                       </button>
                     ))}
@@ -884,36 +850,36 @@ export default function RatesPage() {
                 <div className="space-y-2 text-xs font-jakarta">
                   <div className="flex items-center justify-between text-ink/80">
                     <span>{currentRoom.name} Base Rate</span>
-                    <span className="font-semibold text-ink">{formatPrice(currentRoom.usdRate)}</span>
+                    <span className="font-semibold text-ink">{formatPrice(currentRoom.rate)}</span>
                   </div>
                   <div className="flex items-center justify-between text-ink/80">
                     <span>{currentPlan.name} ({currentPlan.code})</span>
                     <span className="font-semibold text-ink">
-                      {currentPlan.usdRate === 0 ? 'Included' : `+${formatPrice(currentPlan.usdRate)}`}
+                      {currentPlan.rate === 0 ? 'Included' : `+${formatPrice(currentPlan.rate)}`}
                     </span>
                   </div>
                   <div className="flex items-center justify-between text-ink/60 pt-2 border-t border-skynest-hairline">
                     <span>Subtotal Before Taxes</span>
-                    <span className="font-semibold text-ink">{formatPrice(subtotalUsd)}</span>
+                    <span className="font-semibold text-ink">{formatPrice(subtotalLkr)}</span>
                   </div>
 
                   {/* Statutory Taxes */}
                   <div className="pt-2 border-t border-skynest-hairline/80 space-y-1 text-[11px] text-ink/60">
                     <div className="flex items-center justify-between">
                       <span>Service Charge (10.0%)</span>
-                      <span>{formatPrice(Math.round(serviceChargeUsd))}</span>
+                      <span>{formatPrice(Math.round(serviceChargeLkr))}</span>
                     </div>
                     <div className="flex items-center justify-between">
                       <span>Tourism Dev Levy (TDL 1.0%)</span>
-                      <span>{formatPrice(Math.round(tdlUsd))}</span>
+                      <span>{formatPrice(Math.round(tdlLkr))}</span>
                     </div>
                     <div className="flex items-center justify-between">
                       <span>SSCL (2.5%)</span>
-                      <span>{formatPrice(Math.round(ssclUsd))}</span>
+                      <span>{formatPrice(Math.round(ssclLkr))}</span>
                     </div>
                     <div className="flex items-center justify-between">
                       <span>VAT (18.0%)</span>
-                      <span>{formatPrice(Math.round(vatUsd))}</span>
+                      <span>{formatPrice(Math.round(vatLkr))}</span>
                     </div>
                   </div>
                 </div>
@@ -926,7 +892,7 @@ export default function RatesPage() {
                   </div>
                   <div className="text-right">
                     <div className="font-cinzel text-2xl font-bold text-skynest-accent">
-                      {formatPrice(Math.round(totalWithTaxesUsd))}
+                      {formatPrice(Math.round(totalWithTaxesLkr))}
                     </div>
                     <div className="text-[10px] text-ink/50">Per Night &bull; Standard Occupancy</div>
                   </div>

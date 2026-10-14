@@ -2,6 +2,7 @@ import { Resend } from 'resend';
 import nodemailer from 'nodemailer';
 import type { Transporter } from 'nodemailer';
 import { env } from '../config/env';
+import { formatLKR } from '../lib/currency';
 
 // ── Email Templates ─────────────────────────────────────────────────
 // Shared HTML templates used by all providers.
@@ -274,7 +275,7 @@ function bookingConfirmationHtml(params: {
             </td>
             <td style="padding: 8px 10px; border-bottom: 1px dashed #EDE8E1; color: rgba(11,37,64,0.65); font-size: 11px;">${svc.category}</td>
             <td style="padding: 8px 10px; border-bottom: 1px dashed #EDE8E1; text-align: center; color: #0B2540; font-weight: 600;">${svc.quantity}</td>
-            <td style="padding: 8px 10px; border-bottom: 1px dashed #EDE8E1; text-align: right; color: #0B2540; font-weight: 700;">$${(svc.base_price * svc.quantity).toFixed(2)}</td>
+            <td style="padding: 8px 10px; border-bottom: 1px dashed #EDE8E1; text-align: right; color: #0B2540; font-weight: 700;">${formatLKR((svc.base_price * svc.quantity))}</td>
           </tr>`;
           }).join('')}
         </table>
@@ -284,32 +285,32 @@ function bookingConfirmationHtml(params: {
         <table width="100%" cellpadding="0" cellspacing="0" border="0" style="border-collapse: collapse; margin-top: 8px; font-size: 12px;">
           <tr>
             <td style="padding: 6px 0; color: rgba(11, 37, 64, 0.75);">Total Accommodation</td>
-            <td style="padding: 6px 0; text-align: right; font-weight: 600; color: #0B2540;">${params.roomSubtotal || '$0.00'}</td>
+            <td style="padding: 6px 0; text-align: right; font-weight: 600; color: #0B2540;">${params.roomSubtotal || 'Rs 0.00'}</td>
           </tr>
           ${params.services && params.services.length > 0 ? `
           <tr>
             <td style="padding: 6px 0; color: rgba(11, 37, 64, 0.75);">Booked Add-On Services (${params.services.length} items)</td>
-            <td style="padding: 6px 0; text-align: right; font-weight: 600; color: #0B2540;">$${svcTotal.toFixed(2)}</td>
+            <td style="padding: 6px 0; text-align: right; font-weight: 600; color: #0B2540;">${formatLKR(svcTotal)}</td>
           </tr>` : ''}
           <tr>
             <td style="padding: 6px 0; color: #0B2540; font-weight: 700; border-top: 1px dashed #EDE8E1; border-bottom: 1px dashed #EDE8E1;">Base Subtotal (Net of Taxes)</td>
-            <td style="padding: 6px 0; text-align: right; font-weight: 700; color: #0B2540; border-top: 1px dashed #EDE8E1; border-bottom: 1px dashed #EDE8E1;">$${baseNet.toFixed(2)}</td>
+            <td style="padding: 6px 0; text-align: right; font-weight: 700; color: #0B2540; border-top: 1px dashed #EDE8E1; border-bottom: 1px dashed #EDE8E1;">${formatLKR(baseNet)}</td>
           </tr>
           <tr>
             <td style="padding: 6px 0; color: rgba(11, 37, 64, 0.75);">+ Service Charge (SC 10%)</td>
-            <td style="padding: 6px 0; text-align: right; font-weight: 600; color: #0B2540;">+$${scTax.toFixed(2)}</td>
+            <td style="padding: 6px 0; text-align: right; font-weight: 600; color: #0B2540;">+${formatLKR(scTax)}</td>
           </tr>
           <tr>
             <td style="padding: 6px 0; color: rgba(11, 37, 64, 0.75);">+ Tourism Development Levy (TDL 1%)</td>
-            <td style="padding: 6px 0; text-align: right; font-weight: 600; color: #0B2540;">+$${tdlTax.toFixed(2)}</td>
+            <td style="padding: 6px 0; text-align: right; font-weight: 600; color: #0B2540;">+${formatLKR(tdlTax)}</td>
           </tr>
           <tr>
             <td style="padding: 6px 0; color: rgba(11, 37, 64, 0.75);">+ Social Security Contribution Levy (SSCL 2.5%)</td>
-            <td style="padding: 6px 0; text-align: right; font-weight: 600; color: #0B2540;">+$${sscTax.toFixed(2)}</td>
+            <td style="padding: 6px 0; text-align: right; font-weight: 600; color: #0B2540;">+${formatLKR(sscTax)}</td>
           </tr>
           <tr>
             <td style="padding: 6px 0; color: rgba(11, 37, 64, 0.75);">+ Value Added Tax (VAT 18%)</td>
-            <td style="padding: 6px 0; text-align: right; font-weight: 600; color: #0B2540;">+$${vatTax.toFixed(2)}</td>
+            <td style="padding: 6px 0; text-align: right; font-weight: 600; color: #0B2540;">+${formatLKR(vatTax)}</td>
           </tr>
         </table>
 
@@ -320,7 +321,7 @@ function bookingConfirmationHtml(params: {
                 GRAND TOTAL (ALL-INCLUSIVE)
               </td>
               <td style="font-family: 'Cinzel', Georgia, serif; font-size: 24px; font-weight: 700; color: #D9722C; text-align: right; vertical-align: middle;">
-                ${params.grandTotal || `$${computedGrand.toFixed(2)}`}
+                ${params.grandTotal || `${formatLKR(computedGrand)}`}
               </td>
             </tr>
             <tr>
@@ -340,11 +341,11 @@ function bookingConfirmationHtml(params: {
           </tr>` : `
           <tr>
             <td style="padding: 6px 0; color: rgba(11,37,64,0.7);">Amount Paid Today (Hold on Arrival)</td>
-            <td style="padding: 6px 0; text-align: right; font-weight: 600; color: #0B2540;">$0.00</td>
+            <td style="padding: 6px 0; text-align: right; font-weight: 600; color: #0B2540;">Rs 0.00</td>
           </tr>`}
           <tr>
             <td style="padding: 8px 0; font-weight: 700; color: #0B2540; border-top: 1px dashed #EDE8E1; font-size: 13px;">Balance Due on Arrival</td>
-            <td style="padding: 8px 0; text-align: right; font-weight: 700; color: ${balanceNum <= 0.01 ? '#15803d' : '#b45309'}; border-top: 1px dashed #EDE8E1; font-size: 13px;">${balanceNum <= 0.01 ? '$0.00 (Fully Settled)' : `$${balanceNum.toFixed(2)}`}</td>
+            <td style="padding: 8px 0; text-align: right; font-weight: 700; color: ${balanceNum <= 0.01 ? '#15803d' : '#b45309'}; border-top: 1px dashed #EDE8E1; font-size: 13px;">${balanceNum <= 0.01 ? 'Rs 0.00 (Fully Settled)' : `${formatLKR(balanceNum)}`}</td>
           </tr>
         </table>
 
@@ -925,9 +926,9 @@ export class EmailService {
           stayDates: params.stayDates,
           duration: params.duration,
           roomName: params.roomName || 'Room 101 (Standard Room)',
-          roomRate: params.roomRate || '$120.00 / night',
-          roomSubtotal: params.roomSubtotal || '$240.00',
-          grandTotal: params.grandTotal || '$322.51',
+          roomRate: params.roomRate || 'Rs 37,200.00 / night',
+          roomSubtotal: params.roomSubtotal || 'Rs 74,400.00',
+          grandTotal: params.grandTotal || 'Rs 99,978.10',
           actionUrl,
           services: params.services,
           amountPaid: params.amountPaid,

@@ -203,7 +203,7 @@ export async function buildDbInvoice(bookingIdOrRoomId: string, specificBookingR
   // Calculate per-room statistics
   const roomSummaries: RoomSummaryItem[] = rows.map((r: any) => {
     const nights = Math.max(1, Number(r.nights) || 1);
-    const baseRate = Number(r.rate_at_booking) || 150;
+    const baseRate = Number(r.rate_at_booking) || 46500;
     // v_booking_details names it meal_plan_price; the fallback query meal_price_per_night
     const mealRate = Number(r.meal_price_per_night ?? r.meal_plan_price) || 0;
     const roomTariff = Math.round(nights * baseRate * 100) / 100;
@@ -455,7 +455,7 @@ router.get('/', lockManagerBranchQuery, async (req: Request, res: Response) => {
     const { rows } = await db.query(query, params);
     const invoices = rows.map((r: any) => {
       const nights = Math.max(1, Number(r.nights) || 1);
-      const rateAtBooking = Number(r.rate_at_booking) || (Number(r.booking_total) / nights) || 150;
+      const rateAtBooking = Number(r.rate_at_booking) || (Number(r.booking_total) / nights) || 46500;
       const baseAmount = Number(r.subtotal) || Number(r.booking_total) || (nights * rateAtBooking);
       // Stored invoice amounts win; the cascade only fills in a room not invoiced yet
       const est = computeTaxCascade(baseAmount);

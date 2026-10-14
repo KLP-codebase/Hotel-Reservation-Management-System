@@ -40,7 +40,7 @@ const CATEGORIES = [
 
 function fmt(v: string | number): string {
   const n = typeof v === 'string' ? toNum(v) : v;
-  return '$' + n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  return 'Rs ' + n.toLocaleString('en-LK', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
 export function ServiceUsageReport() {
@@ -176,8 +176,8 @@ export function ServiceUsageReport() {
         { header: 'Branch', accessor: (r) => r.branch_name },
         { header: 'Orders Count', accessor: (r) => r.orders_count },
         { header: 'Total Quantity', accessor: (r) => r.total_quantity },
-        { header: 'Avg Unit Price ($)', accessor: (r) => Number(r.avg_unit_price).toFixed(2) },
-        { header: 'Total Revenue ($)', accessor: (r) => Number(r.total_service_revenue).toFixed(2) },
+        { header: 'Avg Unit Price (Rs)', accessor: (r) => Number(r.avg_unit_price).toFixed(2) },
+        { header: 'Total Revenue (Rs)', accessor: (r) => Number(r.total_service_revenue).toFixed(2) },
         { header: 'First Used', accessor: (r) => r.first_used ? new Date(r.first_used).toLocaleDateString() : '' },
         { header: 'Last Used', accessor: (r) => r.last_used ? new Date(r.last_used).toLocaleDateString() : '' },
       ]

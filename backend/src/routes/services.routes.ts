@@ -10,6 +10,7 @@ import { syncAliveBookingDates } from '../services/alive-dates.service';
 import { ServiceRepository } from '../repositories/service.repository';
 import { AppError, Errors } from '../lib/errors';
 import { isUuid } from '../lib/uuid';
+import { formatLKR } from '../lib/currency';
 
 const router = Router();
 const serviceRepo = new ServiceRepository(db);
@@ -47,7 +48,7 @@ router.get('/menus', async (_req: Request, res: Response) => {
         name:        'Sri Lankan Traditional Hopper Fiesta',
         category:    'Dining' as const,
         meal_time:   'BREAKFAST' as const,
-        price:       18.00,
+        price:       5600.00,
         description: 'Crispy egg & plain hoppers with seeni sambal, lunu miris and warm coconut milk gravy',
         prep_time:   '20 mins',
         popular:     true,
@@ -57,7 +58,7 @@ router.get('/menus', async (_req: Request, res: Response) => {
         name:        'Luxury Ceylon Champagne Breakfast',
         category:    'Dining' as const,
         meal_time:   'BREAKFAST' as const,
-        price:       30.00,
+        price:       9300.00,
         description: 'Poached eggs on toasted brioche with smoked salmon, fresh tropical fruit platter and glass of champagne',
         prep_time:   '25 mins',
         popular:     true,
@@ -67,7 +68,7 @@ router.get('/menus', async (_req: Request, res: Response) => {
         name:        'Artisan Baker’s Morning Basket',
         category:    'Dining' as const,
         meal_time:   'BREAKFAST' as const,
-        price:       14.00,
+        price:       4300.00,
         description: 'Freshly baked croissants, kithul treacle danishes, and crusty sourdough with highland butter',
         prep_time:   '15 mins',
       },
@@ -78,7 +79,7 @@ router.get('/menus', async (_req: Request, res: Response) => {
         name:        'Ceylon Royal Black Pork Curry with Fragrant Samba Rice',
         category:    'Dining' as const,
         meal_time:   'LUNCH' as const,
-        price:       24.00,
+        price:       7400.00,
         description: 'Tender slow-simmered pork in roasted black spices, dhal curry, gotu kola sambol and papadums',
         prep_time:   '35 mins',
         popular:     true,
@@ -88,7 +89,7 @@ router.get('/menus', async (_req: Request, res: Response) => {
         name:        'Grilled Yellowfin Tuna Steak',
         category:    'Dining' as const,
         meal_time:   'LUNCH' as const,
-        price:       28.00,
+        price:       8700.00,
         description: 'Local ocean tuna seared with lemon herb crust, roasted sweet potato wedges and avocado salsa',
         prep_time:   '30 mins',
       },
@@ -97,7 +98,7 @@ router.get('/menus', async (_req: Request, res: Response) => {
         name:        'Coconut Cashew Nut & Vegetable Biryani',
         category:    'Dining' as const,
         meal_time:   'LUNCH' as const,
-        price:       20.00,
+        price:       6200.00,
         description: 'Fragrant basmati rice infused with whole cardamom, toasted cashews and mint raita',
         prep_time:   '25 mins',
       },
@@ -108,7 +109,7 @@ router.get('/menus', async (_req: Request, res: Response) => {
         name:        'Jumbo Negombo Lagoon Prawn Thermidor',
         category:    'Dining' as const,
         meal_time:   'DINNER' as const,
-        price:       36.00,
+        price:       11200.00,
         description: 'Butter-poached lagoon king prawns gratinated with dijon cream, gruyère and fragrant pilaf',
         prep_time:   '30 mins',
         popular:     true,
@@ -118,7 +119,7 @@ router.get('/menus', async (_req: Request, res: Response) => {
         name:        'Highland Spiced Lamb Rack',
         category:    'Dining' as const,
         meal_time:   'DINNER' as const,
-        price:       38.00,
+        price:       11800.00,
         description: 'Herb-crusted tender lamb cutlets with roasted root vegetables and rosemary port reduction',
         prep_time:   '40 mins',
         popular:     true,
@@ -128,7 +129,7 @@ router.get('/menus', async (_req: Request, res: Response) => {
         name:        'Premium Suite Minibar Gourmet Platter',
         category:    'Dining' as const,
         meal_time:   'DINNER' as const,
-        price:       50.00,
+        price:       15500.00,
         description: 'Selection of artisanal cheeses, cured meats, nuts, dried figs, and imported chocolates',
         prep_time:   '15 mins',
       },
@@ -554,11 +555,11 @@ router.post('/folio/:bookingId', async (req: Request, res: Response) => {
         bookingRef: info.booking_id,
         addedService: input.service_name,
         serviceCategory: input.category || 'Ancillary Service',
-        serviceCost: `$${(Number(input.price_at_usage) * input.quantity).toFixed(2)}`,
-        roomCharges: `$${Number(info.room_charges || 0).toFixed(2)}`,
-        serviceCharges: `$${Number(info.service_charges || 0).toFixed(2)}`,
-        taxTotal: `$${taxSum}`,
-        grandTotal: `$${Number(info.total_amount || 0).toFixed(2)}`,
+        serviceCost: `${formatLKR((Number(input.price_at_usage) * input.quantity))}`,
+        roomCharges: `${formatLKR(Number(info.room_charges || 0))}`,
+        serviceCharges: `${formatLKR(Number(info.service_charges || 0))}`,
+        taxTotal: `${formatLKR(taxSum)}`,
+        grandTotal: `${formatLKR(Number(info.total_amount || 0))}`,
       }).catch(err => console.warn('[Services] Failed to dispatch invoice update email:', err.message));
     }
 

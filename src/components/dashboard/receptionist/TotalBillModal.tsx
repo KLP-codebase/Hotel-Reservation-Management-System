@@ -8,6 +8,7 @@ import {
   Hotel, FileText, Clock, Phone, Mail, Layers
 } from "lucide-react";
 import { apiFetch, toNum } from "@/lib/api-client";
+import { formatLKR } from '@/lib/currency';
 
 interface PaymentRecord {
   payment_id: string;
@@ -235,7 +236,7 @@ export function TotalBillModal({ isOpen, onClose, booking, onPaymentSaved, initi
         }),
       });
 
-      setStatusMsg({ type: "success", text: `Payment of $${toNum(amountNum).toFixed(2)} recorded successfully!` });
+      setStatusMsg({ type: "success", text: `Payment of ${formatLKR(toNum(amountNum))} recorded successfully!` });
       await fetchInvoice(selectedScope);
       onPaymentSaved();
     } catch (err: any) {
@@ -315,7 +316,7 @@ export function TotalBillModal({ isOpen, onClose, booking, onPaymentSaved, initi
           date: formatDateClean(invoice.check_in_date),
           category: "Accommodation",
           description: `Room Accommodation — Room ${rm.room_number} (${rm.room_type_name})`,
-          details: `${rm.nights} Night${rm.nights === 1 ? "" : "s"} (${formatDateClean(invoice.check_in_date)} to ${formatDateClean(invoice.check_out_date)}) @ $${rm.rate_at_booking}/nt`,
+          details: `${rm.nights} Night${rm.nights === 1 ? "" : "s"} (${formatDateClean(invoice.check_in_date)} to ${formatDateClean(invoice.check_out_date)}) @ ${formatLKR(rm.rate_at_booking, 0)}/nt`,
           unitPrice: rm.rate_at_booking,
           quantity: rm.nights,
           totalPrice: rm.room_tariff,
@@ -328,7 +329,7 @@ export function TotalBillModal({ isOpen, onClose, booking, onPaymentSaved, initi
             date: formatDateClean(invoice.check_in_date),
             category: "Dining",
             description: `Meal Plan: ${rm.meal_plan} — Room ${rm.room_number}`,
-            details: `${rm.nights} Night${rm.nights === 1 ? "" : "s"} @ $${rm.meal_price_per_night}/nt`,
+            details: `${rm.nights} Night${rm.nights === 1 ? "" : "s"} @ ${formatLKR(rm.meal_price_per_night, 0)}/nt`,
             unitPrice: rm.meal_price_per_night,
             quantity: rm.nights,
             totalPrice: rm.meal_charges,
@@ -343,7 +344,7 @@ export function TotalBillModal({ isOpen, onClose, booking, onPaymentSaved, initi
         date: formatDateClean(invoice.check_in_date),
         category: "Accommodation",
         description: `Room Accommodation — ${invoice.room_type_name} (Room ${invoice.room_number})`,
-        details: `${invoice.nights} Night${invoice.nights === 1 ? "" : "s"} (${formatDateClean(invoice.check_in_date)} to ${formatDateClean(invoice.check_out_date)}) @ $${invoice.rate_at_booking}/nt`,
+        details: `${invoice.nights} Night${invoice.nights === 1 ? "" : "s"} (${formatDateClean(invoice.check_in_date)} to ${formatDateClean(invoice.check_out_date)}) @ ${formatLKR(invoice.rate_at_booking, 0)}/nt`,
         unitPrice: invoice.rate_at_booking,
         quantity: invoice.nights,
         totalPrice: b.room_charges,
@@ -356,7 +357,7 @@ export function TotalBillModal({ isOpen, onClose, booking, onPaymentSaved, initi
           date: formatDateClean(invoice.check_in_date),
           category: "Dining",
           description: `Meal Plan: ${invoice.meal_plan} (Room ${invoice.room_number})`,
-          details: `${invoice.nights} Night${invoice.nights === 1 ? "" : "s"} @ $${invoice.meal_price_per_night}/nt`,
+          details: `${invoice.nights} Night${invoice.nights === 1 ? "" : "s"} @ ${formatLKR(invoice.meal_price_per_night, 0)}/nt`,
           unitPrice: invoice.meal_price_per_night ?? 0,
           quantity: invoice.nights,
           totalPrice: (invoice.meal_price_per_night ?? 0) * invoice.nights,
@@ -432,11 +433,11 @@ export function TotalBillModal({ isOpen, onClose, booking, onPaymentSaved, initi
 
           <div className="flex items-center gap-3">
             <span className="text-xs font-jakarta text-ink/60">
-              Total Invoiced: <strong className="font-mono text-ink">${toNum(b.total_amount).toFixed(2)}</strong>
+              Total Invoiced: <strong className="font-mono text-ink">{formatLKR(toNum(b.total_amount))}</strong>
             </span>
             <span className={`text-xs font-jakarta font-semibold px-2 py-0.5 rounded ${b.balance_due > 0 ? "bg-amber-100 text-amber-900 border border-amber-200" : "bg-emerald-100 text-emerald-900 border border-emerald-200"
               }`}>
-              Balance Due: ${toNum(b.balance_due).toFixed(2)}
+              Balance Due: {formatLKR(toNum(b.balance_due))}
             </span>
           </div>
         </div>
@@ -454,7 +455,7 @@ export function TotalBillModal({ isOpen, onClose, booking, onPaymentSaved, initi
           <div>
             <div className="flex items-center justify-between mb-1">
               <label className="text-[11px] font-jakarta font-semibold text-ink/60 uppercase tracking-wider">
-                Amount ($ USD)
+                Amount (Rs)
               </label>
               {b.balance_due > 0 && (
                 <button
@@ -723,13 +724,13 @@ export function TotalBillModal({ isOpen, onClose, booking, onPaymentSaved, initi
                     )}
                   </td>
                   <td className="py-2.5 px-3 text-right font-mono text-ink/70">
-                    ${toNum(item.unitPrice).toFixed(2)}
+                    {formatLKR(toNum(item.unitPrice))}
                   </td>
                   <td className="py-2.5 px-3 text-center font-mono">
                     {item.quantity}
                   </td>
                   <td className="py-2.5 px-3 text-right font-mono font-semibold text-ink">
-                    ${toNum(item.totalPrice).toFixed(2)}
+                    {formatLKR(toNum(item.totalPrice))}
                   </td>
                 </tr>
               ))}
@@ -743,44 +744,44 @@ export function TotalBillModal({ isOpen, onClose, booking, onPaymentSaved, initi
         <div className="w-full sm:w-80 space-y-2 text-xs font-jakarta bg-ink/[0.015] p-4 rounded border border-skynest-hairline">
           <div className="flex items-center justify-between pb-1.5 border-b border-skynest-hairline">
             <span className="text-ink/60">Base Subtotal (Room & Services):</span>
-            <span className="font-mono font-semibold text-ink">${toNum(b.base_amount).toFixed(2)}</span>
+            <span className="font-mono font-semibold text-ink">{formatLKR(toNum(b.base_amount))}</span>
           </div>
 
           <div className="flex items-center justify-between text-ink/70">
             <span>Service Charge (10%):</span>
-            <span className="font-mono">+${toNum(b.service_charge_tax).toFixed(2)}</span>
+            <span className="font-mono">+{formatLKR(toNum(b.service_charge_tax))}</span>
           </div>
 
           <div className="flex items-center justify-between text-ink/70">
             <span>Tourism Dev. Levy (TDL 1%):</span>
-            <span className="font-mono">+${toNum(b.tdl_amount).toFixed(2)}</span>
+            <span className="font-mono">+{formatLKR(toNum(b.tdl_amount))}</span>
           </div>
 
           <div className="flex items-center justify-between text-ink/70">
             <span>SSCL (2.5%):</span>
-            <span className="font-mono">+${toNum(b.ssc_amount).toFixed(2)}</span>
+            <span className="font-mono">+{formatLKR(toNum(b.ssc_amount))}</span>
           </div>
 
           <div className="flex items-center justify-between text-ink/70 pb-2 border-b border-skynest-hairline">
             <span>VAT (18%):</span>
-            <span className="font-mono">+${toNum(b.vat_amount).toFixed(2)}</span>
+            <span className="font-mono">+{formatLKR(toNum(b.vat_amount))}</span>
           </div>
 
           <div className="flex items-center justify-between pt-1 font-bold text-sm text-ink">
             <span className="font-cinzel">Total Invoice:</span>
-            <span className="font-mono text-base text-ink">${toNum(b.total_amount).toFixed(2)}</span>
+            <span className="font-mono text-base text-ink">{formatLKR(toNum(b.total_amount))}</span>
           </div>
 
           {b.total_paid > 0 && (
             <div className="flex items-center justify-between text-sky-700 font-semibold text-xs mt-2 pt-1 border-t border-skynest-hairline">
               <span>Amount Paid{b.status === 'PARTIALLY_PAID' ? ' (Deposit)' : ''}:</span>
-              <span className="font-mono">&#8722; ${toNum(b.total_paid).toFixed(2)}</span>
+              <span className="font-mono">&#8722; {formatLKR(toNum(b.total_paid))}</span>
             </div>
           )}
 
           <div className={`flex items-center justify-between text-xs mt-1 font-semibold ${b.balance_due > 0.01 ? 'text-rose-700' : 'text-emerald-700'}`}>
             <span>Balance Due:</span>
-            <span className="font-mono">${toNum(b.balance_due).toFixed(2)}</span>
+            <span className="font-mono">{formatLKR(toNum(b.balance_due))}</span>
           </div>
         </div>
       </div>
@@ -820,7 +821,7 @@ export function TotalBillModal({ isOpen, onClose, booking, onPaymentSaved, initi
                       {p.payment_method.replace(/_/g, " ")}
                     </td>
                     <td className="py-2 px-3 text-right font-mono font-semibold text-emerald-700">
-                      ${toNum(p.amount).toFixed(2)}
+                      {formatLKR(toNum(p.amount))}
                     </td>
                   </tr>
                 ))}
@@ -833,7 +834,7 @@ export function TotalBillModal({ isOpen, onClose, booking, onPaymentSaved, initi
       {/* Cashier Sign-off */}
       <div className="mt-8 pt-6 border-t border-skynest-hairline flex flex-col sm:flex-row items-end justify-between gap-6">
         <div className="text-xs text-ink/60 space-y-1">
-          <p>Payment Currency: USD ($)</p>
+          <p>Payment Currency: LKR (Rs)</p>
           <p>Thank you for choosing Sky Nest Hotels & Resorts.</p>
         </div>
 
