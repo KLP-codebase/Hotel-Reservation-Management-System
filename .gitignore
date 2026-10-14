@@ -66,3 +66,8 @@ MY_MODULE.md
 AZURE_DEPLOY_PROGRESS.md
 
 .next_dev/
+
+# Local database dumps and scratch scripts (dumps contain password hashes)
+skynest_backup.sql
+*.dump
+backend/scratch-*.js
