@@ -81,17 +81,17 @@ export class TrendsReportRepository {
     // 3. Room Category Preferences & Stay Length
     const roomPrefsSql = `
       SELECT
-        COALESCE(rt.type_name, rm.type::text, 'Standard Room') AS room_type_name,
+        COALESCE(rt.type_name, to_jsonb(rm)->>'type', 'Standard Room') AS room_type_name,
         COUNT(*)::int AS bookings_count,
         ROUND(AVG(GREATEST(1, bkr.check_out_date - bkr.check_in_date)), 1)::float AS avg_nights,
         ROUND(SUM(bkr.rate_at_booking * GREATEST(1, bkr.check_out_date - bkr.check_in_date)), 2)::float AS total_tariff_revenue
       FROM booking_rooms bkr
       JOIN rooms rm ON (rm.id::text = bkr.room_id::text OR rm.room_id::text = bkr.room_id::text)
-      LEFT JOIN room_types rt ON (rt.type_name = rm.type::text OR rt.room_type_id::text = to_jsonb(bkr)->>'room_type_id')
+      LEFT JOIN room_types rt ON (rt.type_name = to_jsonb(rm)->>'type' OR rt.room_type_id::text = to_jsonb(bkr)->>'room_type_id' OR rt.room_type_id::text = to_jsonb(rm)->>'room_type_id')
       WHERE ($1::text IS NULL OR $1 = '' OR rm.branch_id::text = $1::text)
         AND ($2::date IS NULL OR bkr.created_at::date >= $2::date)
         AND ($3::date IS NULL OR bkr.created_at::date <= $3::date)
-      GROUP BY COALESCE(rt.type_name, rm.type::text, 'Standard Room')
+      GROUP BY COALESCE(rt.type_name, to_jsonb(rm)->>'type', 'Standard Room')
       ORDER BY bookings_count DESC;
     `;
 

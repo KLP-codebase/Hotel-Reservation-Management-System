@@ -181,7 +181,7 @@ export class RevenueReportRepository {
         g.email                                                                        AS guest_email,
         g.phone                                                                        AS guest_phone,
         br.branch_name,
-        STRING_AGG(DISTINCT COALESCE(to_jsonb(rm)->>'number', rm.room_number), ', ')                                           AS room_numbers,
+        STRING_AGG(DISTINCT COALESCE(to_jsonb(rm)->>'number', to_jsonb(rm)->>'room_number', 'N/A'), ', ')                                           AS room_numbers,
         (COALESCE(i.room_charges, 0) + COALESCE(i.service_charges, 0) - COALESCE(i.discount_amount, 0))::text AS base_amount,
         COALESCE(i.service_charge_tax, 0)::text                                        AS service_charge_tax,
         COALESCE(i.tdl_amount, 0)::text                                                AS tdl_amount,

@@ -1,4 +1,5 @@
 "use client";
+import { printTaxInvoice } from '@/lib/invoice-print';
 
 import { useState, useEffect } from "react";
 import {
@@ -245,182 +246,48 @@ export function TotalBillModal({ isOpen, onClose, booking, onPaymentSaved, initi
   };
 
 
-  const handleSavePdf = () => {
-    if (!invoice) return;
-    setActiveTab("invoice");
-
-    const originalTitle = document.title;
-    const invCode = `INV-${invoice.booking_id.replace(/[^a-zA-Z0-9]/g, "").slice(-6).toUpperCase()}${invoice.is_consolidated ? "-ALL" : `-${invoice.room_number}`}`;
-    const guestSlug = (invoice.guest_name || "Guest").replace(/\s+/g, "_");
-    document.title = `SkyNest_Tax_Invoice_${invCode}_${guestSlug}`;
-
-    setTimeout(() => {
-      window.print();
-      setTimeout(() => {
-        document.title = originalTitle;
-      }, 1000);
-    }, 150);
-  };
-
   const handlePrint = () => {
-    handleSavePdf();
+    if (!invoice || !b) return;
+
+    const isConsolidated = invoice.is_consolidated || invoice.view_mode === "consolidated";
+    const roomNumber = isConsolidated
+      ? (invoice.rooms && invoice.rooms.length > 0 ? invoice.rooms.map(r => r.room_number).join(', ') : invoice.room_number)
+      : invoice.room_number;
+    const roomType = isConsolidated ? 'Consolidated Stay' : invoice.room_type_name;
+
+    printTaxInvoice({
+      invoice_id: invoice.invoice_id,
+      booking_id: invoice.booking_id,
+      booking_room_id: invoice.booking_room_id,
+      guest_name: invoice.guest_name,
+      guest_email: invoice.guest_email || 'guest@skynest.lk',
+      guest_phone: invoice.guest_phone,
+      room_number: roomNumber,
+      room_type_name: roomType,
+      branch_name: booking?.branch_name || 'Sky Nest Hotel & Luxury Residences',
+      check_in_date: invoice.check_in_date,
+      check_out_date: invoice.check_out_date,
+      nights: invoice.nights,
+      base_amount: b.base_amount,
+      sc_amount: b.service_charge_tax,
+      tdl_amount: b.tdl_amount,
+      sscl_amount: b.ssc_amount,
+      vat_amount: b.vat_amount,
+      total_amount: b.total_amount,
+      total_paid: b.total_paid,
+      balance_due: b.balance_due,
+      status: b.status,
+      line_items: orderedLineItems.length > 0 ? orderedLineItems.map(item => ({
+        description: item.description,
+        details: item.details,
+        category: item.category,
+        amount: item.totalPrice,
+      })) : undefined,
+    });
   };
 
-  const handlePrintPopupLegacy = () => {
-    if (!invoice || !b) return;
-    const printWindow = window.open('', '_blank', 'width=850,height=950');
-    if (!printWindow) return;
-
-    const isSettled = b.status === 'SETTLED' || b.balance_due <= 0;
-    const formattedCheckIn = formatDateClean(invoice.check_in_date);
-    const formattedCheckOut = formatDateClean(invoice.check_out_date);
-    const todayDate = new Date().toLocaleDateString('en-GB');
-
-    const lineRowsHtml = orderedLineItems.map(item => `
-      <tr>
-        <td><strong>${item.description}</strong>${item.details ? `<br/><span style="font-size: 11px; color: #64748b;">${item.details}</span>` : ''}</td>
-        <td class="text-right">${item.category}</td>
-        <td class="text-right">${Number(item.totalPrice).toLocaleString('en-LK', { minimumFractionDigits: 2 })}</td>
-      </tr>
-    `).join('');
-
-    const html = `
-<!DOCTYPE html>
-<html>
-<head>
-  <title>Sky Nest Tax Invoice - ${invoice.invoice_id}</title>
-  <style>
-    @page { size: A4; margin: 15mm; }
-    body { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #1e293b; margin: 0; padding: 24px; font-size: 13px; line-height: 1.5; }
-    .header { display: flex; justify-content: space-between; border-bottom: 2px solid #D9722C; padding-bottom: 16px; margin-bottom: 24px; }
-    .brand { font-size: 26px; font-weight: 700; color: #0B2540; letter-spacing: 1px; }
-    .brand-sub { font-size: 11px; text-transform: uppercase; color: #D9722C; font-weight: 600; letter-spacing: 2px; }
-    .inv-title { text-align: right; }
-    .inv-title h2 { margin: 0; font-size: 20px; color: #0B2540; text-transform: uppercase; }
-    .inv-meta { font-size: 12px; color: #64748b; margin-top: 4px; }
-    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-bottom: 24px; }
-    .card { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 14px; }
-    .card h3 { margin: 0 0 8px 0; font-size: 11px; text-transform: uppercase; color: #64748b; letter-spacing: 1px; }
-    .table { width: 100%; border-collapse: collapse; margin-bottom: 24px; }
-    .table th { background: #0B2540; color: #ffffff; text-align: left; padding: 10px 12px; font-size: 12px; text-transform: uppercase; }
-    .table td { padding: 10px 12px; border-bottom: 1px solid #e2e8f0; }
-    .table tr:last-child td { border-bottom: 2px solid #0B2540; }
-    .text-right { text-align: right; }
-    .totals { width: 320px; margin-left: auto; margin-bottom: 24px; }
-    .totals-row { display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px solid #f1f5f9; font-size: 13px; }
-    .totals-row.grand { border-top: 2px solid #0B2540; border-bottom: 2px solid #0B2540; font-weight: 700; font-size: 16px; color: #0B2540; padding: 10px 0; }
-    .stamp { display: inline-block; padding: 8px 16px; border: 2px solid ${isSettled ? '#15803d' : '#d97706'}; color: ${isSettled ? '#15803d' : '#d97706'}; font-weight: 800; text-transform: uppercase; letter-spacing: 2px; border-radius: 4px; transform: rotate(-5deg); margin-top: 10px; }
-    .footer { margin-top: 40px; padding-top: 16px; border-top: 1px solid #e2e8f0; font-size: 11px; color: #94a3b8; text-align: center; }
-  </style>
-</head>
-<body>
-  <div class="header">
-    <div>
-      <div class="brand">SKY NEST</div>
-      <div class="brand-sub">Luxury Hotels & Resorts</div>
-      <div style="margin-top: 6px; font-size: 12px; color: #64748b;">
-        ${booking?.branch_name || 'Sky Nest Colombo'} • Sri Lanka<br/>
-        VAT Registration No: 104588920-7000 • TIN: 98120455
-      </div>
-    </div>
-    <div class="inv-title">
-      <h2>OFFICIAL TAX INVOICE</h2>
-      <div class="inv-meta">
-        <strong>Invoice #:</strong> ${invoice.invoice_id}<br/>
-        <strong>Booking ID:</strong> ${invoice.booking_id.substring(0, 8)}...<br/>
-        <strong>Issue Date:</strong> ${todayDate}
-      </div>
-      <div>
-        <span class="stamp">${isSettled ? 'PAID IN FULL' : 'PAYMENT OPEN'}</span>
-      </div>
-    </div>
-  </div>
-
-  <div class="grid">
-    <div class="card">
-      <h3>Billed To (Resident Guest)</h3>
-      <strong style="font-size: 14px; color: #0B2540;">${invoice.guest_name}</strong><br/>
-      Email: ${invoice.guest_email || 'guest@skynest.lk'}<br/>
-      Phone: ${invoice.guest_phone || 'N/A'}<br/>
-      Allocated: <strong>Room ${invoice.room_number}</strong> (${invoice.room_type_name})
-    </div>
-    <div class="card">
-      <h3>Stay Particulars</h3>
-      <strong>Check-In:</strong> ${formattedCheckIn}<br/>
-      <strong>Check-Out:</strong> ${formattedCheckOut}<br/>
-      <strong>Total Stay:</strong> ${invoice.nights} Night(s)
-    </div>
-  </div>
-
-  <table class="table">
-    <thead>
-      <tr>
-        <th>Description</th>
-        <th class="text-right">Category</th>
-        <th class="text-right">Amount ($)</th>
-      </tr>
-    </thead>
-    <tbody>
-      ${lineRowsHtml}
-      <tr>
-        <td><strong>Statutory Service Charge (SC 10%)</strong><br/><span style="font-size: 11px; color: #64748b;">Hospitality employee service charge</span></td>
-        <td class="text-right">Tax Cascade</td>
-        <td class="text-right">${Number(b.service_charge_tax).toLocaleString('en-LK', { minimumFractionDigits: 2 })}</td>
-      </tr>
-      <tr>
-        <td><strong>Tourism Development Levy (TDL 1%)</strong><br/><span style="font-size: 11px; color: #64748b;">Sri Lanka Tourism Act turnover levy</span></td>
-        <td class="text-right">Tax Cascade</td>
-        <td class="text-right">${Number(b.tdl_amount).toLocaleString('en-LK', { minimumFractionDigits: 2 })}</td>
-      </tr>
-      <tr>
-        <td><strong>Social Security Contribution Levy (SSCL 2.5%)</strong><br/><span style="font-size: 11px; color: #64748b;">Act No. 25 of 2022</span></td>
-        <td class="text-right">Tax Cascade</td>
-        <td class="text-right">${Number(b.ssc_amount).toLocaleString('en-LK', { minimumFractionDigits: 2 })}</td>
-      </tr>
-      <tr>
-        <td><strong>Value Added Tax (VAT 18%)</strong><br/><span style="font-size: 11px; color: #64748b;">Inland Revenue Department</span></td>
-        <td class="text-right">Tax Cascade</td>
-        <td class="text-right">${Number(b.vat_amount).toLocaleString('en-LK', { minimumFractionDigits: 2 })}</td>
-      </tr>
-    </tbody>
-  </table>
-
-  <div class="totals">
-    <div class="totals-row">
-      <span>Base Subtotal (Room & Services)</span>
-      <span>${Number(b.base_amount).toLocaleString('en-LK', { minimumFractionDigits: 2 })}</span>
-    </div>
-    <div class="totals-row grand">
-      <span>Total Invoiced</span>
-      <span>${Number(b.total_amount).toLocaleString('en-LK', { minimumFractionDigits: 2 })}</span>
-    </div>
-    <div class="totals-row">
-      <span>Total Paid</span>
-      <span>${Number(b.total_paid).toLocaleString('en-LK', { minimumFractionDigits: 2 })}</span>
-    </div>
-    <div class="totals-row" style="color: ${b.balance_due > 0 ? '#b91c1c' : '#15803d'}; font-weight: 600;">
-      <span>Balance Due</span>
-      <span>${Number(b.balance_due).toLocaleString('en-LK', { minimumFractionDigits: 2 })}</span>
-    </div>
-  </div>
-
-  <div class="footer">
-    Thank you for staying at Sky Nest Hotel. We look forward to welcoming you again.<br/>
-    This is an authentic computer-generated fiscal tax invoice issued under Inland Revenue Department guidelines.
-  </div>
-
-  <script>
-    window.onload = function() {
-      window.print();
-    };
-  </script>
-</body>
-</html>
-    `;
-
-    printWindow.document.open();
-    printWindow.document.write(html);
-    printWindow.document.close();
+  const handleSavePdf = () => {
+    handlePrint();
   };
 
 
@@ -973,40 +840,7 @@ export function TotalBillModal({ isOpen, onClose, booking, onPaymentSaved, initi
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-ink/60 backdrop-blur-sm animate-in fade-in duration-200 overflow-y-auto">
-      {/* Print Specific CSS for Browser 'Save as PDF' & Direct Printing */}
-      <style>{`
-        @media print {
-          @page {
-            size: A4 portrait;
-            margin: 8mm;
-          }
-          body {
-            visibility: hidden !important;
-            background: #ffffff !important;
-          }
-          #printable-invoice-container, #printable-invoice-container * {
-            visibility: visible !important;
-          }
-          #printable-invoice-container {
-            position: fixed !important;
-            left: 0 !important;
-            top: 0 !important;
-            width: 100% !important;
-            margin: 0 !important;
-            padding: 16px !important;
-            background: #ffffff !important;
-            color: #0b2540 !important;
-            border: none !important;
-            box-shadow: none !important;
-            z-index: 999999 !important;
-            -webkit-print-color-adjust: exact !important;
-            print-color-adjust: exact !important;
-          }
-          .print-hidden-element {
-            display: none !important;
-          }
-        }
-      `}</style>
+      
 
       <div className="bg-paper border border-skynest-hairline rounded-[4px] shadow-2xl w-full max-w-4xl max-h-[96vh] flex flex-col overflow-hidden my-auto">
         {/* Modal Top Control Bar */}
