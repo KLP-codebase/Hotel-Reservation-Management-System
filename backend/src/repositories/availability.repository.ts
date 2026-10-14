@@ -37,7 +37,14 @@ export class AvailabilityRepository {
             FROM rooms r
             WHERE r.branch_id = $1::uuid
               ${typeCondition}
-              AND r.status    = 'AVAILABLE'
+              -- A room's status describes it today (who is in it, housekeeping after
+              -- check-out), so OCCUPIED and MAINTENANCE only block a stay starting
+              -- today; later dates are decided by the booking overlap checks below.
+              -- OUT_OF_SERVICE has no end date, so it blocks every date.
+              AND r.is_active = true
+              AND r.status <> 'OUT_OF_SERVICE'
+              AND NOT (r.status IN ('OCCUPIED', 'MAINTENANCE')
+                       AND $2::date <= (now() AT TIME ZONE 'Asia/Colombo')::date)
               -- Real reservations live in booking_rooms (one row per room line)
               AND NOT EXISTS (
                 SELECT 1 FROM booking_rooms br
