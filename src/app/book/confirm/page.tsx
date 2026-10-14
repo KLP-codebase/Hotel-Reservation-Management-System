@@ -1,7 +1,8 @@
 'use client';
 
 import { Suspense, useEffect, useRef, useState, useMemo, useCallback } from 'react';
-import { Sparkles } from 'lucide-react';
+import { Sparkles, Printer } from 'lucide-react';
+import { printTaxInvoice, PrintableInvoiceData } from '@/lib/invoice-print';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import gsap from 'gsap';
@@ -113,6 +114,7 @@ interface ConfirmedBookingDetails {
   grandTotal: number;
   guestName: string;
   guestEmail: string;
+  guestPhone?: string;
   totalAdults: number;
   totalChildren: number;
   allChildAges?: number[];
@@ -130,6 +132,23 @@ interface ConfirmedBookingDetails {
     mealCost: number;
     subtotal: number;
   }[];
+  /** Services booked alongside the reservation */
+  bookedServices?: {
+    service_id: number;
+    service_name: string;
+    category: string;
+    base_price: number;
+    quantity: number;
+    date: string;
+    appointment_time?: string;
+    notes?: string;
+  }[];
+  /** Total amount paid today (deposit or full) */
+  amountPaid?: number;
+  /** Payment mode chosen: DEPOSIT | FULL | ARRIVAL */
+  paymentMode?: 'DEPOSIT' | 'FULL' | 'ARRIVAL';
+  /** Service cost subtotal */
+  serviceCost?: number;
 }
 
 // ── Helper: Synchronously build initial room configurations ──────────────────
@@ -567,6 +586,88 @@ function BookingConfirmContent() {
     }
   };
 
+  const handlePrintOfficialBill = () => {
+    if (!confirmed) return;
+    const isSettled = (confirmed.amountPaid ?? 0) >= confirmed.grandTotal - 0.01;
+    const isDeposit = !isSettled && (confirmed.amountPaid ?? 0) > 0;
+
+    const line_items: NonNullable<PrintableInvoiceData['line_items']> = [];
+
+    // 1. Rooms accommodation
+    confirmed.rooms.forEach((r) => {
+      line_items.push({
+        description: `Room Accommodation — Room ${r.roomNumber} (${r.roomTypeName})`,
+        details: `${confirmed.nights} Night(s) (${confirmed.checkIn} to ${confirmed.checkOut}) @ $${r.baseRate.toFixed(2)}/nt`,
+        category: 'Accommodation',
+        quantity: confirmed.nights,
+        unitRate: r.baseRate,
+        amount: r.baseRate * confirmed.nights,
+      });
+
+      if (r.mealCost > 0) {
+        line_items.push({
+          description: `Meal Plan: ${r.planName} — Room ${r.roomNumber}`,
+          details: `${r.adults} Guest(s) × ${confirmed.nights} nt @ $${r.planPrice.toFixed(2)}/nt`,
+          category: 'Dining',
+          quantity: confirmed.nights,
+          unitRate: r.planPrice,
+          amount: r.mealCost,
+        });
+      }
+    });
+
+    // 2. Add-on services with scheduling details
+    if (confirmed.bookedServices && confirmed.bookedServices.length > 0) {
+      confirmed.bookedServices.forEach((svc) => {
+        const isSpa = svc.category?.toUpperCase() === 'SPA';
+        let details = '';
+        if (svc.appointment_time) {
+          details = `Appointment: ${svc.appointment_time}${svc.date ? ` on ${svc.date}` : ''}`;
+        } else if (isSpa && svc.date) {
+          details = `Booked Spa Date: ${svc.date}`;
+        } else if (svc.date) {
+          details = `Booked Date: ${svc.date}`;
+        }
+        if (svc.notes) {
+          details = details ? `${details} | ${svc.notes}` : svc.notes;
+        }
+
+        line_items.push({
+          description: svc.service_name,
+          details: details || undefined,
+          category: svc.category,
+          quantity: svc.quantity,
+          unitRate: svc.base_price,
+          amount: svc.base_price * svc.quantity,
+        });
+      });
+    }
+
+    printTaxInvoice({
+      invoice_id: `INV-${confirmed.bookingId.replace(/[^A-Za-z0-9]/g, '').slice(-8)}`,
+      booking_id: confirmed.bookingId,
+      guest_name: confirmed.guestName,
+      guest_email: confirmed.guestEmail,
+      guest_phone: confirmed.guestPhone,
+      room_number: confirmed.rooms.map(r => `Room ${r.roomNumber}`).join(', '),
+      room_type_name: Array.from(new Set(confirmed.rooms.map(r => r.roomTypeName))).join(' & '),
+      branch_name: confirmed.branchName,
+      check_in_date: confirmed.checkIn,
+      check_out_date: confirmed.checkOut,
+      nights: confirmed.nights,
+      base_amount: confirmed.baseAmount,
+      sc_amount: confirmed.taxes.scTax,
+      tdl_amount: confirmed.taxes.tdlTax,
+      sscl_amount: confirmed.taxes.sscTax,
+      vat_amount: confirmed.taxes.vatTax,
+      total_amount: confirmed.grandTotal,
+      total_paid: confirmed.amountPaid ?? 0,
+      balance_due: Math.max(0, confirmed.grandTotal - (confirmed.amountPaid ?? 0)),
+      status: isSettled ? 'SETTLED' : isDeposit ? 'PARTIALLY_PAID' : 'OPEN',
+      line_items,
+    });
+  };
+
   // Date and Duration Calculations
   const nights = (checkIn && checkOut)
     ? Math.max(1, Math.round((new Date(checkOut).getTime() - new Date(checkIn).getTime()) / (1000 * 60 * 60 * 24)))
@@ -865,6 +966,7 @@ function BookingConfirmContent() {
         grandTotal,
         guestName: `${firstName.trim()} ${lastName.trim()}`,
         guestEmail: email.trim(),
+        guestPhone: phone.trim() || undefined,
         totalAdults,
         totalChildren,
         allChildAges: allChildrenAgesList,
@@ -882,6 +984,10 @@ function BookingConfirmContent() {
           mealCost: rc.mealCost,
           subtotal: rc.roomSubtotal,
         })),
+        bookedServices: selectedServiceList.length > 0 ? selectedServiceList : undefined,
+        amountPaid: paymentOption === 'ARRIVAL' ? 0 : Number((paymentOption === 'DEPOSIT' ? depositAmount : grandTotal).toFixed(2)),
+        paymentMode: paymentOption,
+        serviceCost: totalServiceCost,
       });
 
       window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -1005,6 +1111,40 @@ function BookingConfirmContent() {
               </div>
             </div>
 
+            {/* Ancillary Services */}
+            {confirmed.bookedServices && confirmed.bookedServices.length > 0 && (
+              <div className="space-y-2 pt-2 border-t border-skynest-hairline/60">
+                <div className="flex justify-between items-center text-ink/80 font-semibold">
+                  <span className="font-cinzel text-xs uppercase tracking-wider">Booked Services &amp; Add-Ons ({confirmed.bookedServices.length})</span>
+                  <span className="font-mono text-ink">${(confirmed.serviceCost ?? 0).toFixed(2)}</span>
+                </div>
+                {confirmed.bookedServices.map((svc) => {
+                  const isSpa = svc.category?.toUpperCase() === 'SPA';
+                  return (
+                    <div key={svc.service_id} className="p-3 bg-[#FDFCFA] border border-skynest-hairline flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs">
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <span className="font-semibold text-ink">{svc.service_name}</span>
+                          <span className="text-[9px] uppercase px-1.5 py-0.2 bg-ink/5 border border-skynest-hairline text-ink/60 font-mono">
+                            {svc.category}
+                          </span>
+                        </div>
+                        <div className="text-[11px] text-ink/60 mt-1 space-x-2">
+                          <span>Quantity: <strong className="text-ink">{svc.quantity}</strong> × ${svc.base_price.toFixed(2)}</span>
+                          {svc.date && <span className="text-skynest-accent font-medium">· {isSpa ? 'Spa Session Date' : 'Date'}: {svc.date}</span>}
+                          {svc.appointment_time && <span className="font-medium text-ink">· Slot: {svc.appointment_time}</span>}
+                          {svc.notes && <span className="italic text-ink/40">({svc.notes})</span>}
+                        </div>
+                      </div>
+                      <div className="text-right sm:border-l sm:pl-3 border-skynest-hairline">
+                        <span className="font-mono font-bold text-ink">${(svc.base_price * svc.quantity).toFixed(2)}</span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
             {/* Complete Statutory Tax Cascade Breakdown */}
             <div className="py-4 border-b border-skynest-hairline space-y-2 text-xs font-jakarta">
               <div className="flex justify-between items-center text-ink/70">
@@ -1015,6 +1155,12 @@ function BookingConfirmContent() {
                 <span>Total Meal Plans</span>
                 <span className="font-medium text-ink">${confirmed.rooms.reduce((s, r) => s + r.mealCost, 0).toFixed(2)}</span>
               </div>
+              {confirmed.bookedServices && confirmed.bookedServices.length > 0 && (
+                <div className="flex justify-between items-center text-ink/70">
+                  <span>Total Booked Services ({confirmed.bookedServices.length} items)</span>
+                  <span className="font-medium text-ink">${(confirmed.serviceCost ?? 0).toFixed(2)}</span>
+                </div>
+              )}
               <div className="flex justify-between items-center text-ink font-semibold pt-1 border-t border-skynest-hairline">
                 <span>Base Subtotal (Net of Taxes)</span>
                 <span>${confirmed.baseAmount.toFixed(2)}</span>
@@ -1047,11 +1193,60 @@ function BookingConfirmContent() {
                 <span className="font-cinzel text-xs uppercase tracking-wider text-ink/60 block">
                   Grand Total ({confirmed.rooms.length} Room{confirmed.rooms.length > 1 ? 's' : ''} • All-Inclusive)
                 </span>
-                <p className="text-[10px] font-jakarta text-ink/40">Includes all accommodation, selected meal plans, and statutory taxes</p>
+                <p className="text-[10px] font-jakarta text-ink/40">Includes all accommodation, selected meal plans, services &amp; statutory taxes</p>
               </div>
               <span className="font-cinzel text-2xl md:text-3xl font-normal text-skynest-accent">
                 ${confirmed.grandTotal.toFixed(2)}
               </span>
+            </div>
+
+            {/* Payment Summary & Folio Settlement */}
+            <div className="p-5 bg-[#FDFCFA] border border-skynest-hairline space-y-3 text-xs font-jakarta">
+              <div className="flex items-center justify-between pb-3 border-b border-skynest-hairline">
+                <span className="font-cinzel text-xs uppercase tracking-wider text-ink font-bold">
+                  Payment Status &amp; Settlement
+                </span>
+                <span className={`px-2.5 py-0.5 text-[10px] font-bold tracking-wider uppercase border ${
+                  confirmed.paymentMode === 'FULL' || (confirmed.amountPaid ?? 0) >= confirmed.grandTotal - 0.01
+                    ? 'border-emerald-600/40 bg-emerald-50 text-emerald-700'
+                    : confirmed.paymentMode === 'DEPOSIT'
+                    ? 'border-sky-600/40 bg-sky-50 text-sky-700'
+                    : 'border-amber-600/40 bg-amber-50 text-amber-700'
+                }`}>
+                  {confirmed.paymentMode === 'FULL' || (confirmed.amountPaid ?? 0) >= confirmed.grandTotal - 0.01
+                    ? '✓ PAID IN FULL'
+                    : confirmed.paymentMode === 'DEPOSIT'
+                    ? '✓ 20% DEPOSIT PAID'
+                    : '○ PAYMENT ON ARRIVAL'}
+                </span>
+              </div>
+
+              {confirmed.amountPaid !== undefined && confirmed.amountPaid > 0 ? (
+                <div className="flex justify-between items-center text-sky-700 font-semibold pt-1">
+                  <span>
+                    {confirmed.paymentMode === 'DEPOSIT'
+                      ? 'Deposit Paid Online (20%)'
+                      : 'Amount Paid Online (Full Prepayment)'}
+                  </span>
+                  <span className="font-mono text-sm">&#8722; ${confirmed.amountPaid.toFixed(2)}</span>
+                </div>
+              ) : (
+                <div className="flex justify-between items-center text-ink/60 pt-1">
+                  <span>Amount Paid Online (Hold Reservation)</span>
+                  <span className="font-mono">$0.00</span>
+                </div>
+              )}
+
+              <div className={`flex justify-between items-center font-bold text-sm pt-2 border-t border-dashed border-skynest-hairline ${
+                Math.max(0, confirmed.grandTotal - (confirmed.amountPaid ?? 0)) > 0.01
+                  ? 'text-amber-800'
+                  : 'text-emerald-700'
+              }`}>
+                <span>Balance Due on Arrival:</span>
+                <span className="font-mono">
+                  ${Math.max(0, confirmed.grandTotal - (confirmed.amountPaid ?? 0)).toFixed(2)}
+                </span>
+              </div>
             </div>
 
             <div data-html2canvas-ignore="true" className="flex flex-col sm:flex-row gap-3 mt-6 pt-6 border-t border-skynest-hairline">
@@ -1062,12 +1257,22 @@ function BookingConfirmContent() {
                 Return to Home
               </Link>
 
-              {/* NEW DOWNLOAD BUTTON ADDED HERE */}
+              {/* 1-PAGE OFFICIAL FISCAL TAX INVOICE */}
+              <button
+                type="button"
+                onClick={handlePrintOfficialBill}
+                className="flex-1 py-3.5 text-center font-jakarta font-semibold text-xs tracking-wider uppercase border border-skynest-accent bg-skynest-accent text-white hover:bg-skynest-accent/90 transition-all flex items-center justify-center gap-2 cursor-pointer shadow-sm"
+              >
+                <Printer className="w-4 h-4" />
+                <span>Print Official Tax Invoice</span>
+              </button>
+
+              {/* DOWNLOAD PDF RECEIPT */}
               <button
                 type="button"
                 onClick={handleDownloadPdf}
                 disabled={isDownloading}
-                className="flex-1 py-3.5 text-center font-jakarta font-semibold text-xs tracking-wider uppercase border border-skynest-accent bg-skynest-accent text-white hover:bg-skynest-accent/90 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+                className="flex-1 py-3.5 text-center font-jakarta font-semibold text-xs tracking-wider uppercase border border-ink text-ink hover:bg-ink hover:text-paper transition-all disabled:opacity-50 flex items-center justify-center gap-2 cursor-pointer"
               >
                 {isDownloading ? (
                   'Generating PDF...'
@@ -1083,7 +1288,7 @@ function BookingConfirmContent() {
 
               <Link
                 href="/book"
-                className="flex-1 py-3.5 text-center font-jakarta font-semibold text-xs tracking-wider uppercase border border-ink text-ink hover:bg-ink hover:text-paper transition-all"
+                className="flex-1 py-3.5 text-center font-jakarta font-semibold text-xs tracking-wider uppercase border border-skynest-hairline text-ink/70 hover:border-ink hover:text-ink transition-all"
               >
                 Book More Rooms
               </Link>
@@ -1918,16 +2123,28 @@ function BookingConfirmContent() {
                         <span>Curated Services & Add-Ons ({selectedServiceList.length} Selected)</span>
                         <span>${totalServiceCost.toFixed(2)}</span>
                       </div>
-                      {selectedServiceList.map((svc) => (
-                        <div key={svc.service_id} className="flex justify-between items-center text-ink/60 text-[11px] pl-3">
-                          <span>
-                            {svc.service_name} ({svc.quantity} × ${svc.base_price.toFixed(2)}
-                            {svc.date ? ` · Date: ${svc.date}` : ''}
-                            {svc.appointment_time ? ` @ ${svc.appointment_time}` : ''})
-                          </span>
-                          <span className="font-semibold text-ink">${(svc.base_price * svc.quantity).toFixed(2)}</span>
-                        </div>
-                      ))}
+                      {selectedServiceList.map((svc) => {
+                        const isSpa = svc.category?.toUpperCase() === 'SPA';
+                        return (
+                          <div key={svc.service_id} className="flex justify-between items-start text-ink/70 text-[11px] pl-3 py-1 bg-[#FDFCFA] border border-skynest-hairline/40 my-0.5">
+                            <div>
+                              <div className="flex items-center gap-1.5">
+                                <span className="font-medium text-ink">{svc.service_name}</span>
+                                <span className="text-[9px] uppercase px-1 py-0.2 bg-ink/5 border border-skynest-hairline text-ink/50 font-mono">
+                                  {svc.category}
+                                </span>
+                              </div>
+                              <div className="text-[10px] text-ink/50 mt-0.5 space-x-1.5">
+                                <span>Quantity: <strong className="text-ink">{svc.quantity}</strong> × ${svc.base_price.toFixed(2)}</span>
+                                {svc.date && <span className="text-skynest-accent font-medium">· {isSpa ? 'Spa Session Date' : 'Date'}: {svc.date}</span>}
+                                {svc.appointment_time && <span className="font-medium text-ink">· Slot: {svc.appointment_time}</span>}
+                                {svc.notes && <span className="italic text-ink/40">({svc.notes})</span>}
+                              </div>
+                            </div>
+                            <span className="font-semibold text-ink font-mono">${(svc.base_price * svc.quantity).toFixed(2)}</span>
+                          </div>
+                        );
+                      })}
                     </div>
                   )}
 
@@ -1964,21 +2181,63 @@ function BookingConfirmContent() {
 
                 {/* Grand Total Card and Submission Button (5 Cols) */}
                 <div className="lg:col-span-5 p-6 bg-[#FDFCFA] border border-skynest-hairline flex flex-col justify-between space-y-6">
-                  <div>
-                    <span className="text-[10px] font-jakarta uppercase tracking-wider text-ink/40 block mb-1">
-                      Estimated Grand Total
-                    </span>
-                    <div className="flex items-baseline justify-between">
-                      <span className="font-cinzel text-3xl font-normal text-skynest-accent">
-                        ${grandTotal.toFixed(2)}
+                  <div className="space-y-4">
+                    <div>
+                      <span className="text-[10px] font-jakarta uppercase tracking-wider text-ink/40 block mb-1">
+                        Estimated Grand Total
                       </span>
-                      <span className="text-[10px] font-jakarta text-ink/50 uppercase font-semibold">
-                        All Taxes Included
-                      </span>
+                      <div className="flex items-baseline justify-between">
+                        <span className="font-cinzel text-3xl font-normal text-skynest-accent">
+                          ${grandTotal.toFixed(2)}
+                        </span>
+                        <span className="text-[10px] font-jakarta text-ink/50 uppercase font-semibold">
+                          All Taxes Included
+                        </span>
+                      </div>
+                      <p className="text-[10px] font-jakarta text-ink/40 mt-1">
+                        Covers all accommodation for {rooms.length} room{rooms.length > 1 ? 's' : ''}, individual meal plans, curated add-ons, and statutory levies (SC, TDL, SSCL, VAT).
+                      </p>
                     </div>
-                    <p className="text-[10px] font-jakarta text-ink/40 mt-2">
-                      Covers all accommodation for {rooms.length} room{rooms.length > 1 ? 's' : ''}, individual meal plans, and statutory levies (SC, TDL, SSCL, VAT).
-                    </p>
+
+                    {/* Settlement Breakdown based on Tile 04 Payment Selection */}
+                    <div className="pt-3 border-t border-skynest-hairline space-y-2 text-xs font-jakarta">
+                      <div className="flex justify-between items-center text-ink/60 text-[11px]">
+                        <span>Selected Payment Mode</span>
+                        <span className="font-semibold text-ink uppercase text-[10px] px-2 py-0.5 bg-ink/5 border border-skynest-hairline">
+                          {paymentOption === 'DEPOSIT' ? '20% Guarantee Deposit' : paymentOption === 'FULL' ? 'Full Prepayment' : 'Pay on Arrival'}
+                        </span>
+                      </div>
+                      <div className="flex justify-between items-center text-sky-700 font-semibold bg-sky-50/70 p-2.5 border border-sky-100">
+                        <span>
+                          {paymentOption === 'DEPOSIT'
+                            ? 'Deposit Due Today (20%)'
+                            : paymentOption === 'FULL'
+                            ? 'Amount Due Today (Full)'
+                            : 'Amount Due Today'}
+                        </span>
+                        <span className="font-mono text-sm">
+                          {paymentOption === 'DEPOSIT'
+                            ? `$${depositAmount.toFixed(2)}`
+                            : paymentOption === 'FULL'
+                            ? `$${grandTotal.toFixed(2)}`
+                            : '$0.00'}
+                        </span>
+                      </div>
+                      <div className={`flex justify-between items-center font-semibold p-2.5 border ${
+                        paymentOption === 'FULL'
+                          ? 'text-emerald-700 bg-emerald-50/70 border-emerald-100'
+                          : 'text-amber-800 bg-amber-50/70 border-amber-100'
+                      }`}>
+                        <span>Balance Due on Arrival:</span>
+                        <span className="font-mono text-sm">
+                          {paymentOption === 'DEPOSIT'
+                            ? `$${(grandTotal - depositAmount).toFixed(2)}`
+                            : paymentOption === 'FULL'
+                            ? '$0.00 (Fully Settled)'
+                            : `$${grandTotal.toFixed(2)}`}
+                        </span>
+                      </div>
+                    </div>
                   </div>
 
                   <button

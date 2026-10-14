@@ -262,6 +262,8 @@ router.post('/', async (req: Request, res: Response) => {
                 repo.findById(booking.booking_id).then((detail: any) => {
                     if (detail && detail.guest_email) {
                         const room0 = detail.rooms[0];
+                        const paidAmt = payment?.amount ? `$${Number(payment.amount).toFixed(2)}` : undefined;
+                        const isDeposit = payment?.is_deposit === true;
                         emailService.sendBookingConfirmationEmail({
                             to: detail.guest_email,
                             guestName: `${detail.guest_first_name || ''} ${detail.guest_last_name || ''}`.trim() || 'Valued Guest',
@@ -273,6 +275,17 @@ router.post('/', async (req: Request, res: Response) => {
                             roomRate: room0?.rate_at_booking ? `$${Number(room0.rate_at_booking).toFixed(2)} / night` : undefined,
                             roomSubtotal: detail.total_amount ? `$${Number(detail.total_amount).toFixed(2)}` : undefined,
                             grandTotal: detail.total_amount ? `$${Number(detail.total_amount).toFixed(2)}` : undefined,
+                            services: detail.services?.map((s: any) => ({
+                                service_name: s.service_name,
+                                category: s.category,
+                                quantity: Number(s.quantity) || 1,
+                                base_price: Number(s.price_at_usage || s.unit_price || 0),
+                                date: s.used_at ? new Date(s.used_at).toISOString().split('T')[0] : (s.service_date || undefined),
+                                appointment_time: s.appointment_time || undefined,
+                                notes: s.notes || undefined,
+                            })),
+                            amountPaid: paidAmt,
+                            paymentMode: paidAmt ? (isDeposit ? 'DEPOSIT' : 'FULL') : 'ARRIVAL',
                         }).catch(err => console.warn('[Bookings] Payment confirmation email error:', err.message));
                     }
                 }).catch(err => console.warn('[Bookings] Failed to query detail for payment email:', err.message));
@@ -397,6 +410,16 @@ router.patch('/:id/status', ...staffOnly, async (req: Request, res: Response) =>
                     roomRate: room0?.rate_at_booking ? `$${Number(room0.rate_at_booking).toFixed(2)} / night` : undefined,
                     roomSubtotal: detail.total_amount ? `$${Number(detail.total_amount).toFixed(2)}` : undefined,
                     grandTotal: detail.total_amount ? `$${Number(detail.total_amount).toFixed(2)}` : undefined,
+                    services: detail.services?.map((s: any) => ({
+                        service_name: s.service_name,
+                        category: s.category,
+                        quantity: Number(s.quantity) || 1,
+                        base_price: Number(s.price_at_usage || s.unit_price || 0),
+                        date: s.used_at ? new Date(s.used_at).toISOString().split('T')[0] : (s.service_date || undefined),
+                        appointment_time: s.appointment_time || undefined,
+                        notes: s.notes || undefined,
+                    })),
+                    paymentMode: 'ARRIVAL',
                 }).catch(err => console.warn('[Bookings] Confirmation email dispatch error:', err.message));
             }
         }).catch(err => console.warn('[Bookings] Failed to find booking for email:', err.message));

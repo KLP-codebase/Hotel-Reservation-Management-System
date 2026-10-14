@@ -282,6 +282,8 @@ export function TotalBillModal({ isOpen, onClose, booking, onPaymentSaved, initi
         details: item.details,
         category: item.category,
         amount: item.totalPrice,
+        quantity: item.quantity,
+        unitRate: item.unitPrice,
       })) : undefined,
     });
   };
@@ -365,10 +367,16 @@ export function TotalBillModal({ isOpen, onClose, booking, onPaymentSaved, initi
     // 2. Ancillary services line items
     invoice.services.forEach((s) => {
       let details = "";
+      const isSpa = s.category?.toUpperCase() === "SPA";
+      const dateFormatted = formatDateClean(s.used_at);
       if (s.appointment_time) {
-        details = `Appointment Slot: ${s.appointment_time}`;
+        details = `Appointment: ${s.appointment_time}${dateFormatted && dateFormatted !== "—" ? ` on ${dateFormatted}` : ""}`;
+      } else if (isSpa && dateFormatted && dateFormatted !== "—") {
+        details = `Booked Spa Date: ${dateFormatted}`;
       } else if (s.meal_time) {
-        details = `Meal Service: ${s.meal_time}`;
+        details = `Meal Service: ${s.meal_time}${dateFormatted && dateFormatted !== "—" ? ` (${dateFormatted})` : ""}`;
+      } else if (dateFormatted && dateFormatted !== "—") {
+        details = `Service Date: ${dateFormatted}`;
       }
       if (s.notes) {
         details = details ? `${details} | ${s.notes}` : s.notes;
@@ -761,6 +769,18 @@ export function TotalBillModal({ isOpen, onClose, booking, onPaymentSaved, initi
           <div className="flex items-center justify-between pt-1 font-bold text-sm text-ink">
             <span className="font-cinzel">Total Invoice:</span>
             <span className="font-mono text-base text-ink">${toNum(b.total_amount).toFixed(2)}</span>
+          </div>
+
+          {b.total_paid > 0 && (
+            <div className="flex items-center justify-between text-sky-700 font-semibold text-xs mt-2 pt-1 border-t border-skynest-hairline">
+              <span>Amount Paid{b.status === 'PARTIALLY_PAID' ? ' (Deposit)' : ''}:</span>
+              <span className="font-mono">&#8722; ${toNum(b.total_paid).toFixed(2)}</span>
+            </div>
+          )}
+
+          <div className={`flex items-center justify-between text-xs mt-1 font-semibold ${b.balance_due > 0.01 ? 'text-rose-700' : 'text-emerald-700'}`}>
+            <span>Balance Due:</span>
+            <span className="font-mono">${toNum(b.balance_due).toFixed(2)}</span>
           </div>
         </div>
       </div>
