@@ -265,142 +265,144 @@ export default function BookingDetailPage() {
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-12">
 
-          {/* ── Rooms ───────────────────────────────────────────────────── */}
-          <section className="lg:col-span-2 space-y-6">
-            <div className="pb-6 border-b border-skynest-hairline">
-              <p className="font-jakarta text-[11px] font-medium tracking-[0.16em] uppercase text-ink/70">
-                {booking.rooms?.length ?? 0} {(booking.rooms?.length ?? 0) === 1 ? 'room' : 'rooms'}
-              </p>
-              <h2 className="mt-2 font-cinzel text-[28px] md:text-[32px] leading-[1.1] text-ink">Rooms</h2>
-            </div>
-
-            {(!booking.rooms || booking.rooms.length === 0) ? (
-              <Empty>No rooms assigned to this booking yet.</Empty>
-            ) : (
-              <ul className="divide-y divide-skynest-hairline">
-                {booking.rooms.map((room) => {
-                  const range  = fmtStayRange(room.check_in_date, room.check_out_date);
-                  const nights = toNum(room.nights);
-                  const rate   = toNum(room.rate_at_booking);
-                  return (
-                    <li key={room.booking_room_id} className="py-6 first:pt-0 space-y-4">
-                      <div className="flex items-start justify-between gap-6">
-                        <div className="flex items-baseline gap-4">
-                          <span className="font-cinzel text-[32px] leading-none text-ink">{room.room_number}</span>
-                          <div className="font-jakarta">
-                            <p className="text-[15px] text-ink">{titleCase(room.room_type_name)}</p>
-                            {room.meal_plan_name && <p className="mt-1 text-[12px] text-ink/70">{room.meal_plan_name}</p>}
-                          </div>
-                        </div>
-                        <div className="text-right font-jakarta">
-                          <p className="text-[15px] text-ink tabular-nums">{fmtMoney(nights * rate, 2)}</p>
-                          <p className="mt-1 text-[12px] text-ink/70 tabular-nums">{fmtMoney(rate, 2)} × {nights} night{nights === 1 ? '' : 's'}</p>
-                        </div>
-                      </div>
-
-                      <p className="font-jakarta text-[13px] text-ink tabular-nums">
-                        {range.from} <span className="text-ink/50" aria-hidden>→</span> {range.to}
-                      </p>
-
-                      {room.accompanying_guests && room.accompanying_guests.length > 0 && (
-                        <div className="pt-4 border-t border-skynest-hairline space-y-2">
-                          <p className="font-jakarta text-[11px] font-medium tracking-[0.12em] uppercase text-ink/70">Guests</p>
-                          {room.accompanying_guests.map((ag) => (
-                            <div key={ag.verification_id} className="flex items-center justify-between gap-4 font-jakarta text-[13px]">
-                              <span className="text-ink">
-                                {ag.first_name} {ag.last_name}
-                                <span className="ml-2 text-ink/70 tabular-nums">{ag.id_passport_no}</span>
-                              </span>
-                              <StatusDot status={ag.is_verified ? 'VERIFIED' : 'UNVERIFIED'} label={ag.is_verified ? 'Verified' : 'Unverified'} />
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </li>
-                  );
-                })}
-              </ul>
-            )}
-          </section>
-
-          {/* ── SECTION: Billable Folio Services (Rules B9 & B10) ───────────── */}
-          <section className="space-y-6 pt-6 border-t border-skynest-hairline">
-            <div className="flex items-center justify-between pb-4 border-b border-skynest-hairline">
-              <div>
+          {/* ── Left Column (Rooms + Folio Services) ───────────────────── */}
+          <div className="lg:col-span-2 space-y-12">
+            {/* ── Rooms ───────────────────────────────────────────────────── */}
+            <section className="space-y-6">
+              <div className="pb-6 border-b border-skynest-hairline">
                 <p className="font-jakarta text-[11px] font-medium tracking-[0.16em] uppercase text-ink/70">
-                  Guest Folio Services ({folioServices.length})
+                  {booking.rooms?.length ?? 0} {(booking.rooms?.length ?? 0) === 1 ? 'room' : 'rooms'}
                 </p>
-                <p className="font-jakarta text-[12px] text-ink/50 mt-0.5">
-                  Ancillary dining, wellness & housekeeping charges billed to this stay.
-                </p>
+                <h2 className="mt-2 font-cinzel text-[28px] md:text-[32px] leading-[1.1] text-ink">Rooms</h2>
               </div>
-              <button
-                type="button"
-                onClick={() => {
-                  if (booking?.rooms && booking.rooms.length > 0) {
-                    setTargetRoomId(booking.rooms[0].booking_room_id);
-                  }
-                  setShowAddModal(true);
-                }}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-[4px] bg-ink text-white font-jakarta text-[11px] font-medium tracking-[0.08em] uppercase hover:bg-skynest-accent transition-colors duration-200"
-              >
-                <Plus className="w-3.5 h-3.5" />
-                Add Service
-              </button>
-            </div>
 
-            {folioServices.length === 0 ? (
-              <div className="p-8 border border-dashed border-skynest-hairline text-center bg-[#FDFCFA]">
-                <Sparkles className="w-6 h-6 text-ink/30 mx-auto mb-2" />
-                <p className="font-jakarta text-[13px] text-ink/60">No additional services logged for this reservation yet.</p>
-                <p className="font-jakarta text-[11px] text-ink/40 mt-1">Use the button above to add in-room dining, spa, or transport.</p>
-              </div>
-            ) : (
-              <div className="border border-skynest-hairline overflow-hidden">
-                <table className="w-full text-left font-jakarta text-[13px]">
-                  <thead className="bg-[#F8F6F2] border-b border-skynest-hairline text-[10px] uppercase font-bold tracking-wider text-ink/60">
-                    <tr>
-                      <th className="py-2.5 px-4">Service Item</th>
-                      <th className="py-2.5 px-4">Category</th>
-                      <th className="py-2.5 px-4 text-center">Qty</th>
-                      <th className="py-2.5 px-4 text-right">Frozen Rate</th>
-                      <th className="py-2.5 px-4 text-right">Subtotal</th>
-                      <th className="py-2.5 px-4 text-right">Logged At</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-skynest-hairline bg-white">
-                    {folioServices.map((s) => (
-                      <tr key={s.usage_id} className="hover:bg-[#FDFCFA] transition-colors">
-                        <td className="py-3 px-4 font-medium text-ink">
-                          <div className="flex items-center gap-2">
-                            <span>{s.service_name}</span>
-                            {s.appointment_time && (
-                              <span className="text-[9px] uppercase tracking-wider font-semibold px-1.5 py-0.5 border border-skynest-accent/40 bg-skynest-accent/10 text-skynest-accent">
-                                Slot: {s.appointment_time}
-                              </span>
-                            )}
+              {(!booking.rooms || booking.rooms.length === 0) ? (
+                <Empty>No rooms assigned to this booking yet.</Empty>
+              ) : (
+                <ul className="divide-y divide-skynest-hairline">
+                  {booking.rooms.map((room) => {
+                    const range  = fmtStayRange(room.check_in_date, room.check_out_date);
+                    const nights = toNum(room.nights);
+                    const rate   = toNum(room.rate_at_booking);
+                    return (
+                      <li key={room.booking_room_id} className="py-6 first:pt-0 space-y-4">
+                        <div className="flex items-start justify-between gap-6">
+                          <div className="flex items-baseline gap-4">
+                            <span className="font-cinzel text-[32px] leading-none text-ink">{room.room_number}</span>
+                            <div className="font-jakarta">
+                              <p className="text-[15px] text-ink">{titleCase(room.room_type_name)}</p>
+                              {room.meal_plan_name && <p className="mt-1 text-[12px] text-ink/70">{room.meal_plan_name}</p>}
+                            </div>
                           </div>
-                          {s.notes && <p className="text-[11px] text-ink/50 font-normal mt-0.5">{s.notes}</p>}
-                        </td>
-                        <td className="py-3 px-4 text-ink/70">
-                          <span className="inline-block px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider rounded bg-stone-100 text-stone-700">
-                            {s.category}
-                          </span>
-                        </td>
-                        <td className="py-3 px-4 text-center tabular-nums text-ink">{s.quantity}</td>
-                        <td className="py-3 px-4 text-right tabular-nums text-ink/70">{fmtMoney(toNum(s.price_at_usage))}</td>
-                        <td className="py-3 px-4 text-right tabular-nums font-semibold text-ink">{fmtMoney(toNum(s.total_price))}</td>
-                        <td className="py-3 px-4 text-right text-[11px] text-ink/50 tabular-nums">
-                          {new Date(s.used_at).toLocaleDateString()}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </section>
+                          <div className="text-right font-jakarta">
+                            <p className="text-[15px] text-ink tabular-nums">{fmtMoney(nights * rate, 2)}</p>
+                            <p className="mt-1 text-[12px] text-ink/70 tabular-nums">{fmtMoney(rate, 2)} × {nights} night{nights === 1 ? '' : 's'}</p>
+                          </div>
+                        </div>
 
+                        <p className="font-jakarta text-[13px] text-ink tabular-nums">
+                          {range.from} <span className="text-ink/50" aria-hidden>→</span> {range.to}
+                        </p>
+
+                        {room.accompanying_guests && room.accompanying_guests.length > 0 && (
+                          <div className="pt-4 border-t border-skynest-hairline space-y-2">
+                            <p className="font-jakarta text-[11px] font-medium tracking-[0.12em] uppercase text-ink/70">Guests</p>
+                            {room.accompanying_guests.map((ag) => (
+                              <div key={ag.verification_id} className="flex items-center justify-between gap-4 font-jakarta text-[13px]">
+                                <span className="text-ink">
+                                  {ag.first_name} {ag.last_name}
+                                  <span className="ml-2 text-ink/70 tabular-nums">{ag.id_passport_no}</span>
+                                </span>
+                                <StatusDot status={ag.is_verified ? 'VERIFIED' : 'UNVERIFIED'} label={ag.is_verified ? 'Verified' : 'Unverified'} />
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
+            </section>
+
+            {/* ── SECTION: Billable Folio Services (Rules B9 & B10) ───────────── */}
+            <section className="space-y-6 pt-6 border-t border-skynest-hairline">
+              <div className="flex items-center justify-between pb-4 border-b border-skynest-hairline">
+                <div>
+                  <p className="font-jakarta text-[11px] font-medium tracking-[0.16em] uppercase text-ink/70">
+                    Guest Folio Services ({folioServices.length})
+                  </p>
+                  <p className="font-jakarta text-[12px] text-ink/50 mt-0.5">
+                    Ancillary dining, wellness & housekeeping charges billed to this stay.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (booking?.rooms && booking.rooms.length > 0) {
+                      setTargetRoomId(booking.rooms[0].booking_room_id);
+                    }
+                    setShowAddModal(true);
+                  }}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-[4px] bg-ink text-white font-jakarta text-[11px] font-medium tracking-[0.08em] uppercase hover:bg-skynest-accent transition-colors duration-200"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  Add Service
+                </button>
+              </div>
+
+              {folioServices.length === 0 ? (
+                <div className="p-8 border border-dashed border-skynest-hairline text-center bg-[#FDFCFA]">
+                  <Sparkles className="w-6 h-6 text-ink/30 mx-auto mb-2" />
+                  <p className="font-jakarta text-[13px] text-ink/60">No additional services logged for this reservation yet.</p>
+                  <p className="font-jakarta text-[11px] text-ink/40 mt-1">Use the button above to add in-room dining, spa, or transport.</p>
+                </div>
+              ) : (
+                <div className="border border-skynest-hairline overflow-x-auto">
+                  <table className="w-full text-left font-jakarta text-[13px] min-w-[560px]">
+                    <thead className="bg-[#F8F6F2] border-b border-skynest-hairline text-[10px] uppercase font-bold tracking-wider text-ink/60">
+                      <tr>
+                        <th className="py-2.5 px-4">Service Item</th>
+                        <th className="py-2.5 px-4">Category</th>
+                        <th className="py-2.5 px-4 text-center">Qty</th>
+                        <th className="py-2.5 px-4 text-right">Frozen Rate</th>
+                        <th className="py-2.5 px-4 text-right">Subtotal</th>
+                        <th className="py-2.5 px-4 text-right">Logged At</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-skynest-hairline bg-white">
+                      {folioServices.map((s) => (
+                        <tr key={s.usage_id} className="hover:bg-[#FDFCFA] transition-colors">
+                          <td className="py-3 px-4 font-medium text-ink">
+                            <div className="flex items-center gap-2">
+                              <span>{s.service_name}</span>
+                              {s.appointment_time && (
+                                <span className="text-[9px] uppercase tracking-wider font-semibold px-1.5 py-0.5 border border-skynest-accent/40 bg-skynest-accent/10 text-skynest-accent">
+                                  Slot: {s.appointment_time}
+                                </span>
+                              )}
+                            </div>
+                            {s.notes && <p className="text-[11px] text-ink/50 font-normal mt-0.5">{s.notes}</p>}
+                          </td>
+                          <td className="py-3 px-4 text-ink/70">
+                            <span className="inline-block px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider rounded bg-stone-100 text-stone-700">
+                              {s.category}
+                            </span>
+                          </td>
+                          <td className="py-3 px-4 text-center tabular-nums text-ink">{s.quantity}</td>
+                          <td className="py-3 px-4 text-right tabular-nums text-ink/70">{fmtMoney(toNum(s.price_at_usage))}</td>
+                          <td className="py-3 px-4 text-right tabular-nums font-semibold text-ink">{fmtMoney(toNum(s.total_price))}</td>
+                          <td className="py-3 px-4 text-right text-[11px] text-ink/50 tabular-nums">
+                            {new Date(s.used_at).toLocaleDateString()}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </section>
+          </div>
 
           {/* ── Sidebar ─────────────────────────────────────────────────── */}
           <aside className="space-y-12">
