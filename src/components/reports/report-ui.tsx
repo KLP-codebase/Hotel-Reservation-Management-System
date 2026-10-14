@@ -6,9 +6,20 @@
  * hairline dividers, underline fields.
  */
 
+import type { ReactNode } from 'react';
 import { AlertCircle, AlertTriangle, CheckCircle2, ChevronDown, X } from 'lucide-react';
+import { useAuth } from '@/context/auth-context';
 
 const LABEL = 'font-jakarta text-[11px] font-medium tracking-[0.12em] uppercase text-ink/70';
+
+/**
+ * Hides a branch picker from managers: they run one branch and the API already
+ * limits their reports to it.
+ */
+export function HideForManager({ children }: { children: ReactNode }) {
+  const { user } = useAuth();
+  return user?.role === 'MANAGER' ? null : <>{children}</>;
+}
 
 // ── Stat strip ────────────────────────────────────────────────────────────────
 

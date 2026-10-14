@@ -54,7 +54,7 @@ router.post(
   '/',
   validate(CreateBranchSchema),
   authenticate,
-  authorize('ADMINISTRATOR', 'DBA', 'MANAGER'),
+  authorize('ADMINISTRATOR', 'DBA'),
   async (req: Request, res: Response) => {
     const branchName = (req.body.branchName ?? req.body.branch_name)!;
     const branch = await repo.create({
@@ -72,7 +72,7 @@ router.patch(
   '/:id',
   validate(UpdateBranchSchema),
   authenticate,
-  authorize('ADMINISTRATOR', 'DBA', 'MANAGER'),
+  authorize('ADMINISTRATOR', 'DBA'),
   async (req: Request, res: Response) => {
     const existing = await repo.findById(req.params.id);
     if (!existing) throw Errors.notFound('Branch');
@@ -95,7 +95,7 @@ router.patch(
 router.delete(
   '/:id',
   authenticate,
-  authorize('ADMINISTRATOR', 'DBA', 'MANAGER'),
+  authorize('ADMINISTRATOR', 'DBA'),
   async (req: Request, res: Response) => {
     const existing = await repo.findById(req.params.id);
     if (!existing) throw Errors.notFound('Branch');

@@ -5,7 +5,7 @@ import { Download, Save, RefreshCw } from 'lucide-react';
 import {
   Btn, Empty, IconBtn, Loading, SearchField, Segmented, StatusDot, fmtDay, tbl, titleCase,
 } from '@/components/dashboard/ui';
-import { LabeledSelect, Notice, StatStrip } from './report-ui';
+import { LabeledSelect, Notice, StatStrip, HideForManager } from './report-ui';
 import { apiFetch, toNum } from '@/lib/api-client';
 import { exportToCsv } from '@/lib/export-csv';
 
@@ -185,14 +185,16 @@ export function BillingSummaryReport({ selectedBranch: propBranch }: Props = {})
       <div className="no-print space-y-6">
         <div className="flex flex-col lg:flex-row lg:items-center gap-6">
           <div className="flex flex-wrap items-center gap-6">
-            <LabeledSelect label="Branch" value={branchId} onChange={setBranchId}>
-              <option value="">All branches</option>
-              {branches.map(b => (
-                <option key={b.branch_id} value={b.branch_id}>
-                  {b.branch_name} · {b.city}
-                </option>
-              ))}
-            </LabeledSelect>
+            <HideForManager>
+              <LabeledSelect label="Branch" value={branchId} onChange={setBranchId}>
+                <option value="">All branches</option>
+                {branches.map(b => (
+                  <option key={b.branch_id} value={b.branch_id}>
+                    {b.branch_name} · {b.city}
+                  </option>
+                ))}
+              </LabeledSelect>
+            </HideForManager>
 
             <LabeledSelect label="Status" value={status} onChange={setStatus}>
               {STATUS_OPTIONS.map(o => (

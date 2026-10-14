@@ -62,7 +62,7 @@ router.get('/:id', async (req: Request, res: Response) => {
 // POST /api/v1/taxes - Schedule future tax rate
 router.post(
   '/',
-  authorize('ADMINISTRATOR', 'DBA', 'MANAGER'),
+  authorize('ADMINISTRATOR', 'DBA'),
   async (req: Request, res: Response) => {
     const parsed = CreateTaxSchema.parse(req.body);
     const taxName = (parsed.taxName ?? parsed.tax_name)!;
@@ -86,7 +86,7 @@ router.post(
 // PATCH /api/v1/taxes/:id - Update rate or validity
 router.patch(
   '/:id',
-  authorize('ADMINISTRATOR', 'DBA', 'MANAGER'),
+  authorize('ADMINISTRATOR', 'DBA'),
   async (req: Request, res: Response) => {
     const id = parseInt(req.params.id, 10);
     if (isNaN(id)) throw Errors.badRequest('Invalid tax ID');

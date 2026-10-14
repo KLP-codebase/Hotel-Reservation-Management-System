@@ -46,12 +46,23 @@ export class StaffRepository extends BaseRepository<Staff, CreateStaffDto, Updat
   // Queries use v_staff_details (Facade view) — no JOIN needed in TypeScript.
 
   protected getFindAllSql(): string {
+    return StaffRepository.listSql('');
+  }
+
+  // The staff list, optionally narrowed by an extra WHERE condition.
+  private static listSql(andWhere: string): string {
     return `SELECT s.*, st.invite_token, st.invite_token_expires_at, ua.user_account_id, ua.username
             FROM v_staff_details s
             JOIN staff st ON s.staff_id = st.staff_id
             LEFT JOIN user_accounts ua ON ua.staff_id = s.staff_id
-            WHERE s.is_active = true AND s.role <> 'GUEST'
+            WHERE s.is_active = true AND s.role <> 'GUEST' ${andWhere}
             ORDER BY s.last_name, s.first_name`;
+  }
+
+  // Same rows as findAll(), for one branch only.
+  async findAllInBranch(branchId: string): Promise<Staff[]> {
+    const { rows } = await this.db.query<Staff>(StaffRepository.listSql('AND s.branch_id = $1'), [branchId]);
+    return rows;
   }
 
   protected getFindByIdSql(): string {

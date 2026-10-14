@@ -11,7 +11,7 @@ const NAV_ITEMS = [
   { href: "/dashboard", label: "Overview", roles: ["RECEPTIONIST", "SERVICE_STAFF", "MANAGER", "ADMINISTRATOR", "DBA"] },
   { href: "/dashboard/activity", label: "My Activity", roles: ["GUEST"] },
   { href: "/dashboard/staff", label: "Staff", roles: ["MANAGER", "ADMINISTRATOR", "DBA"] },
-  { href: "/dashboard/branches", label: "Branches", roles: ["MANAGER", "ADMINISTRATOR", "DBA"] },
+  { href: "/dashboard/branches", label: "Branches", roles: ["ADMINISTRATOR", "DBA"] },
   { href: "/dashboard/rooms", label: "Rooms", roles: ["RECEPTIONIST", "MANAGER", "ADMINISTRATOR", "DBA"] },
   { href: "/dashboard/catalogue", label: "Catalogue", roles: ["RECEPTIONIST", "MANAGER", "ADMINISTRATOR", "DBA"] },
   { href: "/dashboard/bookings", label: "Bookings", roles: ["RECEPTIONIST", "MANAGER", "ADMINISTRATOR", "DBA"] },

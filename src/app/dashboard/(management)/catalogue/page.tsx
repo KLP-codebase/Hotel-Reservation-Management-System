@@ -12,14 +12,14 @@ import {
 // ── Types ──────────────────────────────────────────────────────────────────────
 
 interface Branch {
-  branch_id:   number;
+  branch_id:   string;
   branch_name: string;
   city:        string;
 }
 
 interface CatalogueService {
   service_id:   number;
-  branch_id:    number;
+  branch_id:    string | null;   // null = chain-wide service
   branch_name?: string;
   service_name: string;
   category:     string;
@@ -47,6 +47,11 @@ export default function CataloguePage() {
   const isAdminOrDba = user?.role === 'ADMINISTRATOR' || user?.role === 'DBA';
   const isManager = user?.role === 'MANAGER';
   const canMutate = user && ['ADMINISTRATOR', 'DBA', 'MANAGER'].includes(user.role);
+  // A manager runs one branch: they edit its services but only view chain-wide
+  // records (shared services, tax rates). The API enforces the same rule.
+  const canEditService = (s: CatalogueService) =>
+    isAdminOrDba || (isManager && !!user?.branchId && String(s.branch_id) === String(user.branchId));
+  const canEditTaxes = isAdminOrDba;
 
   // Data states
   const [services, setServices] = useState<CatalogueService[]>([]);
@@ -62,19 +67,6 @@ export default function CataloguePage() {
 
   // Flash notifications
   const { flash, toasts } = useFlash();
-
-  // Pre-filter to manager's branch when logged in as Manager
-  useEffect(() => {
-    if (isManager && user?.branchId && branches.length > 0) {
-      const found = branches.find(
-        (b) => String(b.branch_id) === String(user.branchId) ||
-               (user.branchName && b.branch_name.toLowerCase().includes(user.branchName.toLowerCase()))
-      );
-      if (found) {
-        setFilterBranch(String(found.branch_id));
-      }
-    }
-  }, [isManager, user, branches]);
 
   // ── Service modal state ──────────────────────────────────────────────────────
   const [svcModal,   setSvcModal]   = useState<'create' | 'edit' | null>(null);
@@ -108,7 +100,10 @@ export default function CataloguePage() {
       const [svcRes, taxRes, bRes] = await Promise.all([
         apiFetch<{ data: CatalogueService[] }>('/api/v1/services/catalogue').catch(() => ({ data: [] })),
         apiFetch<{ data: TaxConfig[] }>('/api/v1/taxes').catch(() => ({ data: [] })),
-        apiFetch<{ data: Branch[] }>('/api/v1/branches').catch(() => ({ data: [] })),
+        // Managers only see their own branch, so they need no property list.
+        isAdminOrDba
+          ? apiFetch<{ data: Branch[] }>('/api/v1/branches').catch(() => ({ data: [] }))
+          : Promise.resolve({ data: [] as Branch[] }),
       ]);
       setServices(svcRes.data);
       setTaxes(taxRes.data);
@@ -116,7 +111,7 @@ export default function CataloguePage() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [isAdminOrDba]);
 
   useEffect(() => { fetchAll(); }, [fetchAll]);
 
@@ -152,7 +147,7 @@ export default function CataloguePage() {
       serviceName: s.service_name,
       category: s.category,
       basePrice: String(s.base_price),
-      branchId: String(s.branch_id),
+      branchId: s.branch_id ?? '',
       isActive: s.is_active,
     });
     setSvcErrors({});
@@ -178,7 +173,7 @@ export default function CataloguePage() {
       const body = {
         service_name: svcForm.serviceName.trim(),
         category:     svcForm.category,
-        branch_id:    Number(svcForm.branchId),
+        branch_id:    svcForm.branchId || undefined,
         base_price:   Number(svcForm.basePrice),
         is_active:    svcForm.isActive,
       };
@@ -393,7 +388,9 @@ export default function CataloguePage() {
         kpis={[
           { label: 'Services',   value: String(displayedServices.length), sub: `${activeServices} active`, bar: (activeServices / (displayedServices.length || 1)) * 100 },
           { label: 'Categories', value: String(categoriesUsed),  sub: 'In use' },
-          { label: 'Properties', value: String(branches.length), sub: 'Offering services' },
+          isAdminOrDba
+            ? { label: 'Properties', value: String(branches.length), sub: 'Offering services' }
+            : { label: 'Inactive', value: String(displayedServices.length - activeServices), sub: 'Hidden from guests' },
           { label: 'Tax rates',  value: String(activeTaxes),     sub: `of ${taxes.length} configured` },
         ]}
       />
@@ -433,12 +430,14 @@ export default function CataloguePage() {
                   </div>
                 }
               >
-                <FilterSelect label="Property" value={filterBranch} onChange={setFilterBranch}>
-                  <option value="ALL">All properties</option>
-                  {branches.map(b => (
-                    <option key={b.branch_id} value={String(b.branch_id)}>{b.branch_name}</option>
-                  ))}
-                </FilterSelect>
+                {isAdminOrDba && (
+                  <FilterSelect label="Property" value={filterBranch} onChange={setFilterBranch}>
+                    <option value="ALL">All properties</option>
+                    {branches.map(b => (
+                      <option key={b.branch_id} value={String(b.branch_id)}>{b.branch_name}</option>
+                    ))}
+                  </FilterSelect>
+                )}
                 <FilterSelect label="Category" value={filterCategory} onChange={setFilterCategory}>
                   <option value="ALL">All categories</option>
                   {SERVICE_CATEGORIES.map(cat => (
@@ -461,7 +460,7 @@ export default function CataloguePage() {
                       <tr className={tbl.headRow}>
                         <th className={tbl.th}>Service</th>
                         <th className={tbl.th}>Category</th>
-                        <th className={tbl.th}>Property</th>
+                        {isAdminOrDba && <th className={tbl.th}>Property</th>}
                         <th className={tbl.th}>Price</th>
                         <th className={tbl.th}>Status</th>
                         <th className={`${tbl.th} text-right`}><span className="sr-only">Actions</span></th>
@@ -470,12 +469,17 @@ export default function CataloguePage() {
                     <tbody className={tbl.body}>
                       {filteredServices.map(s => (
                         <tr key={s.service_id} className={tbl.row}>
-                          <td className={`${tbl.td} text-[15px]`}>{s.service_name}</td>
+                          <td className={`${tbl.td} text-[15px]`}>
+                            {s.service_name}
+                            {!isAdminOrDba && s.branch_id == null && (
+                              <span className="block font-jakarta text-[11px] tracking-[0.12em] uppercase text-ink-faded">Chain-wide · view only</span>
+                            )}
+                          </td>
                           <td className={tbl.td}>{s.category}</td>
-                          <td className={tbl.td}>{s.branch_name ?? 'All properties'}</td>
+                          {isAdminOrDba && <td className={tbl.td}>{s.branch_name ?? 'All properties'}</td>}
                           <td className={`${tbl.td} tabular-nums whitespace-nowrap`}>{fmtLKR(toNum(s.base_price))}</td>
                           <td className={tbl.td}>
-                            {canMutate ? (
+                            {canEditService(s) ? (
                               <button
                                 type="button"
                                 onClick={() => toggleServiceStatus(s)}
@@ -493,7 +497,7 @@ export default function CataloguePage() {
                               <IconBtn label={`Book ${s.service_name} for guest`} onClick={() => openBookModal(s)}>
                                 <CalendarCheck className="w-4 h-4 text-skynest-accent" />
                               </IconBtn>
-                              {canMutate && (
+                              {canEditService(s) && (
                                 <>
                                   <IconBtn label={`Edit ${s.service_name}`} onClick={() => openEditSvc(s)}><Pencil className="w-4 h-4" /></IconBtn>
                                   <IconBtn label={`Deactivate ${s.service_name}`} variant="danger" onClick={() => deleteService(s)}><Trash2 className="w-4 h-4" /></IconBtn>
@@ -512,7 +516,7 @@ export default function CataloguePage() {
             /* ── Tax rates ──────────────────────────────────────────────────── */
             <div className="space-y-6">
               <Toolbar
-                action={canMutate && <Btn variant="primary" onClick={openCreateTax}><Plus className="w-4 h-4" /> Schedule rate</Btn>}
+                action={canEditTaxes && <Btn variant="primary" onClick={openCreateTax}><Plus className="w-4 h-4" /> Schedule rate</Btn>}
               >
                 <p className="font-jakarta text-[13px] text-ink/70 max-w-xl">
                   Rate changes apply only to invoices issued after the effective date. Existing invoices keep their original amounts.
@@ -531,7 +535,7 @@ export default function CataloguePage() {
                         <th className={tbl.th}>Effective from</th>
                         <th className={tbl.th}>Until</th>
                         <th className={tbl.th}>Status</th>
-                        {canMutate && <th className={`${tbl.th} text-right`}><span className="sr-only">Actions</span></th>}
+                        {canEditTaxes && <th className={`${tbl.th} text-right`}><span className="sr-only">Actions</span></th>}
                       </tr>
                     </thead>
                     <tbody className={tbl.body}>
@@ -544,7 +548,7 @@ export default function CataloguePage() {
                           <td className={tbl.td}>
                             <StatusDot status={t.is_active ? 'ACTIVE' : 'SUPERSEDED'} label={t.is_active ? 'Active' : 'Superseded'} />
                           </td>
-                          {canMutate && (
+                          {canEditTaxes && (
                             <td className={`${tbl.td} pr-0`}>
                               <div className="flex items-center justify-end">
                                 <IconBtn label={`Edit ${t.tax_name}`} onClick={() => openEditTax(t)}><Pencil className="w-4 h-4" /></IconBtn>
@@ -606,17 +610,19 @@ export default function CataloguePage() {
               error={svcErrors.basePrice}
             />
           </div>
-          <SelectField
-            label="Property"
-            value={svcForm.branchId}
-            onChange={v => setSvcForm(p => ({ ...p, branchId: v }))}
-            error={svcErrors.branchId}
-          >
-            <option value="">Select property…</option>
-            {branches.map(b => (
-              <option key={b.branch_id} value={String(b.branch_id)}>{b.branch_name} ({b.city})</option>
-            ))}
-          </SelectField>
+          {isAdminOrDba && (
+            <SelectField
+              label="Property"
+              value={svcForm.branchId}
+              onChange={v => setSvcForm(p => ({ ...p, branchId: v }))}
+              error={svcErrors.branchId}
+            >
+              <option value="">Select property…</option>
+              {branches.map(b => (
+                <option key={b.branch_id} value={String(b.branch_id)}>{b.branch_name} ({b.city})</option>
+              ))}
+            </SelectField>
+          )}
           <label className="flex items-center gap-4 font-jakarta text-[13px] text-ink cursor-pointer">
             <input
               type="checkbox"

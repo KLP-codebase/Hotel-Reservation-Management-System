@@ -354,7 +354,8 @@ export class BookingRepository {
         };
     }
 
-    async findAll() {
+    // branchId limits the list to one branch; omitted, it lists every branch.
+    async findAll(branchId?: string) {
         const result = await this.db.query(`
 SELECT
   b.booking_id,
@@ -377,9 +378,10 @@ LEFT JOIN LATERAL (
   FROM booking_rooms
   WHERE booking_rooms.booking_id = b.booking_id
 ) agg ON true
+WHERE ($1::uuid IS NULL OR b.branch_id = $1::uuid)
 ORDER BY b.created_at DESC
 
-        `, []);
+        `, [branchId ?? null]);
 
         return result.rows;
     }

@@ -1767,9 +1767,6 @@ function BookingConfirmContent() {
                     <span className="text-[11px] font-jakarta font-bold uppercase tracking-wider text-ink/70">
                       Payment Card Details (Encrypted SSL Transaction)
                     </span>
-                    <span className="text-[10px] font-jakarta text-emerald-700 bg-emerald-50 px-2 py-0.5 border border-emerald-200 uppercase font-semibold">
-                      Instant Confirmation · Test Card Accepted
-                    </span>
                   </div>
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -1830,10 +1827,6 @@ function BookingConfirmContent() {
                       />
                     </div>
                   </div>
-
-                  <p className="text-[10px] font-jakarta text-ink/50 leading-relaxed pt-1">
-                    Demo Mode Notice: External payment gateway (PayHere) is not connected. Real credit/debit card details are not required — any standard test card (e.g. 4242 4242 4242 4242) will confirm your booking.
-                  </p>
                 </div>
               )}
             </div>

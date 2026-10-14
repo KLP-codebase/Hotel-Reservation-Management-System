@@ -41,7 +41,7 @@ export interface SpaSlot {
 
 export interface CatalogueServiceRecord {
   service_id:   number;
-  branch_id:    number;
+  branch_id:    string | null;   // null = chain-wide service
   branch_name?: string;
   service_name: string;
   category:     string;
@@ -50,7 +50,7 @@ export interface CatalogueServiceRecord {
 }
 
 export interface CreateCatalogueServiceDto {
-  branch_id:    number;
+  branch_id:    string;
   service_name: string;
   category:     string;
   base_price:   number;
@@ -58,7 +58,7 @@ export interface CreateCatalogueServiceDto {
 }
 
 export interface UpdateCatalogueServiceDto {
-  branch_id?:    number;
+  branch_id?:    string;
   service_name?: string;
   category?:     string;
   base_price?:   number;
@@ -88,6 +88,8 @@ export class ServiceRepository {
    */
   async findAllCatalogue(filters?: {
     branch_id?: number | string;
+    // With branch_id: also return chain-wide services (branch_id IS NULL).
+    include_shared?: boolean;
     category?: string;
     is_active?: boolean;
   }): Promise<CatalogueServiceRecord[]> {
@@ -97,7 +99,9 @@ export class ServiceRepository {
       let i = 1;
 
       if (filters?.branch_id !== undefined && String(filters.branch_id) !== 'ALL' && String(filters.branch_id).trim() !== '') {
-        conditions.push(`sc.branch_id::text = $${i++}::text`);
+        conditions.push(filters.include_shared
+          ? `(sc.branch_id::text = $${i++}::text OR sc.branch_id IS NULL)`
+          : `sc.branch_id::text = $${i++}::text`);
         values.push(String(filters.branch_id));
       }
       if (filters?.category !== undefined && filters.category !== 'ALL' && filters.category.trim() !== '') {
