@@ -5,7 +5,7 @@ import { db } from '../config/db';
 import { BookingRepository } from '../repositories/booking.repository';
 import { Errors } from '../lib/errors';
 import { isUuid } from '../lib/uuid';
-import { managerBranch, assertManagerOwns } from '../lib/branch-scope';
+import { ownBranch, assertOwnBranch } from '../lib/branch-scope';
 import { authenticate } from '../middleware/auth.middleware';
 import { authorize } from '../middleware/rbac.middleware';
 import { formatLKR } from '../lib/currency';
@@ -308,7 +308,7 @@ router.post('/', async (req: Request, res: Response) => {
 
 // GET /api/v1/bookings — list all bookings
 router.get('/', ...staffOnly, async (req: Request, res: Response) => {
-    const bookings = await repo.findAll(managerBranch(req));
+    const bookings = await repo.findAll(ownBranch(req));
     res.json({ success: true, data: bookings });
 });
 
@@ -317,7 +317,7 @@ router.get('/:id', ...staffOnly, async (req: Request, res: Response) => {
     if (!isUuid(req.params.id)) throw Errors.notFound('Booking');
     const header = await repo.findHeaderById(req.params.id);
     if (!header) throw Errors.notFound('Booking');
-    assertManagerOwns(req, header.branch_id);
+    assertOwnBranch(req, header.branch_id);
     const booking = await repo.findById(req.params.id);
     if (!booking) throw Errors.notFound('Booking');
     res.json({ success: true, data: booking });
@@ -332,7 +332,7 @@ router.post('/:id/rooms', ...staffOnly, async (req: Request, res: Response) => {
     if (!isUuid(bookingId)) throw Errors.notFound('Booking');
     const booking = await repo.findHeaderById(bookingId);
     if (!booking) throw Errors.notFound('Booking');
-    assertManagerOwns(req, booking.branch_id);
+    assertOwnBranch(req, booking.branch_id);
 
     // 2. Validate request body
     const parsed = RoomLineSchema.safeParse(req.body);
@@ -359,7 +359,7 @@ router.patch('/:id/status', ...staffOnly, async (req: Request, res: Response) =>
     if (!isUuid(bookingId)) throw Errors.notFound('Booking');
     const booking = await repo.findHeaderById(bookingId);
     if (!booking) throw Errors.notFound('Booking');
-    assertManagerOwns(req, booking.branch_id);
+    assertOwnBranch(req, booking.branch_id);
 
     const currentStatus = booking.status;
     const nextStatus = parsed.data.status;

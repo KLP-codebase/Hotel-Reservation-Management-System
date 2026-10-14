@@ -2,7 +2,7 @@ import { Router, Request, Response } from 'express';
 import { db } from '../../config/db';
 import { SnapshotReportRepository } from '../../repositories/reports/snapshot-report.repository';
 import { Errors } from '../../lib/errors';
-import { managerBranch, assertManagerOwns } from '../../lib/branch-scope';
+import { ownBranch, assertOwnBranch } from '../../lib/branch-scope';
 
 const router = Router();
 const repo = new SnapshotReportRepository(db);
@@ -39,7 +39,7 @@ router.get('/:id', async (req: Request, res: Response) => {
   if (!snapshot) {
     throw Errors.notFound('Snapshot not found');
   }
-  assertManagerOwns(req, snapshot.branch_id);
+  assertOwnBranch(req, snapshot.branch_id);
 
   res.json({
     success: true,
@@ -67,7 +67,7 @@ router.post('/', async (req: Request, res: Response) => {
     reportType,
     reportPeriodStart,
     reportPeriodEnd,
-    branchId: managerBranch(req) ?? (branchId || null),
+    branchId: ownBranch(req) ?? (branchId || null),
     reportData,
   });
 

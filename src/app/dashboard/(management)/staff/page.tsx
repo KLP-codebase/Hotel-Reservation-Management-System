@@ -51,6 +51,8 @@ const staffSchema = z.object({
 type StaffForm = z.infer<typeof staffSchema>;
 
 const canMutate = (role?: string) => role === 'ADMINISTRATOR' || role === 'DBA';
+// Roles a manager may add to their own branch (matches backend/src/routes/staff.routes.ts).
+const MANAGER_HIRABLE_ROLES: readonly string[] = ['RECEPTIONIST', 'SERVICE_STAFF'];
 
 const ROLE_BADGE: Record<string, { label: string; style: string }> = {
   ADMINISTRATOR: { label: 'Administrator', style: 'text-amber-800 bg-amber-500/10 border-amber-500/30' },
@@ -282,7 +284,7 @@ export default function StaffPage() {
 
           <Toolbar
             action={
-              canMutate(user?.role) && (
+              (canMutate(user?.role) || isManager) && (
                 <Btn variant="primary" onClick={openCreate}>
                   <Plus className="w-4 h-4" /> Add staff member
                 </Btn>
@@ -471,27 +473,29 @@ export default function StaffPage() {
                 error={errors.role?.message}
                 onChange={(v) => setValue('role', v as typeof ROLES[number])}
               >
-                {ROLES.filter((r) => r !== 'ADMINISTRATOR' || isAdminOrDba).map((r) => (
+                {ROLES.filter((r) => isManager ? MANAGER_HIRABLE_ROLES.includes(r) : (r !== 'ADMINISTRATOR' || isAdminOrDba)).map((r) => (
                   <option key={r} value={r}>
                     {r.replace('_', ' ')}
                   </option>
                 ))}
               </SelectField>
 
-              <SelectField
-                label="Assigned Branch"
-                value={selectedFormBranch ?? ''}
-                disabled={isManager && !!user?.branchId}
-                error={errors.branchId?.message}
-                onChange={(v) => setValue('branchId', v)}
-              >
-                <option value="">— None (Corporate) —</option>
-                {branches.map((b) => (
-                  <option key={b.branch_id} value={b.branch_id}>
-                    {b.branch_name}
-                  </option>
-                ))}
-              </SelectField>
+              {/* A manager always hires into their own branch (the API enforces it). */}
+              {!isManager && (
+                <SelectField
+                  label="Assigned Branch"
+                  value={selectedFormBranch ?? ''}
+                  error={errors.branchId?.message}
+                  onChange={(v) => setValue('branchId', v)}
+                >
+                  <option value="">— None (Corporate) —</option>
+                  {branches.map((b) => (
+                    <option key={b.branch_id} value={b.branch_id}>
+                      {b.branch_name}
+                    </option>
+                  ))}
+                </SelectField>
+              )}
             </div>
 
             {modalError && (

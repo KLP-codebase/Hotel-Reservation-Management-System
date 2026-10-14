@@ -5,7 +5,7 @@ import { z } from 'zod';
 import { authenticate, optionalAuthenticate } from '../middleware/auth.middleware';
 import { authorize } from '../middleware/rbac.middleware';
 import { db } from '../config/db';
-import { managerBranch, assertManagerOwns } from '../lib/branch-scope';
+import { ownBranch, assertOwnBranch, assertOwnsBooking } from '../lib/branch-scope';
 import { syncAliveBookingDates } from '../services/alive-dates.service';
 import { ServiceRepository } from '../repositories/service.repository';
 import { AppError, Errors } from '../lib/errors';
@@ -18,10 +18,10 @@ const serviceRepo = new ServiceRepository(db);
 /**
  * GET /api/v1/services/catalogue
  * Returns all catalogue services with branch join and optional filtering.
- * Public; a signed-in manager sees only their branch plus chain-wide services.
+ * Public; signed-in single-branch staff see only their branch plus chain-wide services.
  */
 router.get('/catalogue', optionalAuthenticate, async (req: Request, res: Response) => {
-  const own = managerBranch(req);
+  const own = ownBranch(req);
   const branchId = own ?? (typeof req.query.branch_id === 'string' && req.query.branch_id !== 'ALL' && req.query.branch_id.trim() !== ''
     ? req.query.branch_id
     : undefined);
@@ -264,12 +264,12 @@ const UpdateCatalogueSchema = z.object({
 
 
 
-// A manager may only change services of their own branch (404 when it does not exist).
-async function assertManagerOwnsService(req: Request, serviceId: number): Promise<void> {
-  if (!managerBranch(req)) return;
+// Single-branch staff may only change services of their own branch (404 when it does not exist).
+async function assertOwnsService(req: Request, serviceId: number): Promise<void> {
+  if (!ownBranch(req)) return;
   const existing = await serviceRepo.findCatalogueById(serviceId);
   if (!existing) throw Errors.notFound('Service');
-  assertManagerOwns(req, existing.branch_id);
+  assertOwnBranch(req, existing.branch_id);
 }
 
 /**
@@ -282,7 +282,7 @@ router.post('/catalogue', authorize('MANAGER', 'ADMINISTRATOR', 'DBA'), async (r
   const serviceName = (parsed.serviceName ?? parsed.service_name)!;
   const basePrice = (parsed.basePrice ?? parsed.base_price)!;
   const isActive = parsed.isActive ?? parsed.is_active ?? true;
-  assertManagerOwns(req, branchId);
+  assertOwnBranch(req, branchId);
 
   const service = await serviceRepo.createCatalogue({
     branch_id: branchId,
@@ -305,8 +305,8 @@ router.patch('/catalogue/:id', authorize('MANAGER', 'ADMINISTRATOR', 'DBA'), asy
   }
   const parsed = UpdateCatalogueSchema.parse(req.body);
   const branchId = parsed.branchId ?? parsed.branch_id;
-  await assertManagerOwnsService(req, serviceId);
-  if (branchId !== undefined) assertManagerOwns(req, branchId);
+  await assertOwnsService(req, serviceId);
+  if (branchId !== undefined) assertOwnBranch(req, branchId);
   const serviceName = parsed.serviceName ?? parsed.service_name;
   const basePrice = parsed.basePrice ?? parsed.base_price;
   const isActive = parsed.isActive ?? parsed.is_active;
@@ -334,7 +334,7 @@ router.delete('/catalogue/:id', authorize('MANAGER', 'ADMINISTRATOR', 'DBA'), as
   if (isNaN(serviceId)) {
     return res.status(400).json({ success: false, message: 'Invalid service ID' });
   }
-  await assertManagerOwnsService(req, serviceId);
+  await assertOwnsService(req, serviceId);
   const ok = await serviceRepo.deleteCatalogue(serviceId);
   if (!ok) {
     return res.status(404).json({ success: false, message: 'Service not found' });
@@ -363,6 +363,7 @@ const AddFolioServiceSchema = z.object({
 router.get('/folio/:bookingId', async (req: Request, res: Response) => {
   const { bookingId } = req.params;
   if (!isUuid(bookingId)) throw Errors.notFound('Booking');
+  await assertOwnsBooking(req, bookingId);
 
   const servicesRes = await db.query(
     `SELECT su.usage_id, su.booking_room_id, br.booking_id, sc.service_name, sc.category,
@@ -438,6 +439,7 @@ router.post('/folio/:bookingId', async (req: Request, res: Response) => {
     );
     const line = lineRes.rows[0];
     if (!line) throw Errors.notFound('Room on this booking');
+    assertOwnBranch(req, line.branch_id);
 
     // 2. Resolve service from service_catalogue (the booking's own branch first)
     const svcRes = await client.query<{ service_id: number }>(
@@ -594,6 +596,10 @@ router.delete('/folio/:usageId', authorize('RECEPTIONIST', 'MANAGER', 'ADMINISTR
   const { usageId } = req.params;
   const reason = (req.body?.reason || req.query.reason || 'Guest cancellation') as string;
   if (!isUuid(usageId)) throw Errors.notFound('Service usage record');
+
+  const { rows: [usage] } = await db.query<{ booking_room_id: string }>(
+    `SELECT booking_room_id::text FROM service_usage WHERE usage_id = $1`, [usageId]);
+  if (usage) await assertOwnsBooking(req, usage.booking_room_id);
 
   const removed = await db.transaction(async (client) => {
     const delRes = await client.query<{ booking_room_id: string }>(
