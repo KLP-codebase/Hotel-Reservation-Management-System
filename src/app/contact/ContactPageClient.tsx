@@ -7,7 +7,7 @@ import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import { ArrowUpRight, ChevronDown, Clock, Mail, MapPin, Phone } from 'lucide-react';
 import SkyNestFooter from '@/components/marketing/SkyNestFooter';
 import SkyNestNav from '@/components/marketing/SkyNestNav';
-import { apiFetch } from '@/lib/api-client';
+import { apiFetch, ApiError } from '@/lib/api-client';
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -81,6 +81,17 @@ const ENQUIRY_DEPARTMENTS = [
   { id: 'events', label: 'Weddings & Private Retreats' },
   { id: 'press', label: 'Media & Corporate Relations' },
 ];
+
+// Matches the API's contact schema field names (backend/src/routes/contact.routes.ts).
+const FIELD_LABELS: Record<string, string> = {
+  firstName: 'first name',
+  lastName: 'last name',
+  email: 'a valid email address',
+  phone: 'phone number',
+  department: 'enquiry type',
+  sanctuary: 'sanctuary',
+  message: 'your enquiry (at least 5 characters)',
+};
 
 const EMPTY_FORM = {
   firstName: '',
@@ -156,10 +167,14 @@ export default function ContactPageClient() {
       await apiFetch('/contact', { method: 'POST', body: JSON.stringify(form) });
       setSubmitted(true);
     } catch (err) {
+      // A 422 lists the rejected fields; name them instead of a bare "Validation failed".
+      const fields = err instanceof ApiError && err.errors ? Object.keys(err.errors) : [];
       setError(
-        err instanceof Error && err.message
-          ? err.message
-          : 'We could not send your enquiry. Please try again shortly.',
+        fields.length > 0
+          ? `Please check: ${fields.map((f) => FIELD_LABELS[f] ?? f).join(', ')}.`
+          : err instanceof Error && err.message
+            ? err.message
+            : 'We could not send your enquiry. Please try again shortly.',
       );
     } finally {
       setLoading(false);
@@ -346,6 +361,9 @@ export default function ContactPageClient() {
                         id="email"
                         type="email"
                         required
+                        maxLength={200}
+                        pattern="[^@ ]+@[^@ ]+[.][^@ ]+"
+                        title="Enter an email address like you@example.com"
                         value={form.email}
                         onChange={(e) => setForm({ ...form, email: e.target.value })}
                         placeholder="you@example.com"
@@ -418,6 +436,8 @@ export default function ContactPageClient() {
                     <textarea
                       id="message"
                       required
+                      minLength={5}
+                      maxLength={4000}
                       rows={4}
                       value={form.message}
                       onChange={(e) => setForm({ ...form, message: e.target.value })}
