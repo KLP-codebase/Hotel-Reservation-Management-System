@@ -11,10 +11,28 @@ import { apiFetch } from '@/lib/api-client';
 
 gsap.registerPlugin(ScrollTrigger);
 
-const SANCTUARIES = [
+interface SanctuaryInfo {
+  id: string;
+  name: string;
+  cardTitle: React.ReactNode;
+  region: string;
+  tagline: string;
+  image: string;
+  address: string;
+  phone: string;
+  email: string;
+  hours: string;
+}
+
+const SANCTUARIES: SanctuaryInfo[] = [
   {
     id: 'colombo',
     name: 'Colombo Sky Tower',
+    cardTitle: (
+      <>
+        Colombo Sky<br />Tower
+      </>
+    ),
     region: 'Western Province',
     tagline: 'Marine promenade, rooftop horizon',
     image: '/Colombo.webp',
@@ -26,6 +44,11 @@ const SANCTUARIES = [
   {
     id: 'kandy',
     name: 'Kandy Misty Peak',
+    cardTitle: (
+      <>
+        Kandy Misty<br />Peak
+      </>
+    ),
     region: 'Central Highlands',
     tagline: 'Tea valleys, mountain stillness',
     image: '/Kandy_hotel.webp',
@@ -37,6 +60,11 @@ const SANCTUARIES = [
   {
     id: 'galle',
     name: 'Galle Coastal Villa',
+    cardTitle: (
+      <>
+        Galle Coastal<br />Villa
+      </>
+    ),
     region: 'Southern Coast',
     tagline: 'Historic ramparts, open ocean',
     image: '/Galle.webp',
@@ -187,8 +215,8 @@ export default function ContactPageClient() {
                 </div>
 
                 <div className="flex flex-1 flex-col p-8">
-                  <h3 className="font-cinzel italic text-[clamp(1.5rem,2.5vw,2rem)] leading-[1.2] text-ink">
-                    {s.name}
+                  <h3 className="font-cinzel italic text-[clamp(1.5rem,2.5vw,2rem)] leading-[1.2] text-ink min-h-[2.4em]">
+                    {s.cardTitle}
                   </h3>
                   <p className="mt-2 text-sm text-ink/50">{s.tagline}</p>
 
