@@ -1,23 +1,6 @@
--- ═══════════════════════════════════════════════════════════════════════════════
--- sp_generate_final_bill (PL/pgSQL Function / Procedure)
--- ═══════════════════════════════════════════════════════════════════════════════
--- Reconciled for SkyNest HRGSMS 17-table IEEE SRS compliant schema.
+
+-- sp_generate_final_bill
 -- Calculates the final invoice for a room stay (booking_rooms line item).
--- Enforces:
---   1. Frozen room rate (rate_at_booking × nights)
---   2. Frozen service usage prices (quantity × price_at_usage)
---   3. Versioned statutory Sri Lankan 4-tax cascade:
---        - Service Charge (10%)
---        - Tourism Development Levy (TDL) (1%)
---        - Social Security Contribution Levy (SSCL) (2.5%)
---        - Value Added Tax (VAT) (18%) on (Base + TDL + SSCL)
---   4. Atomic upsert into the 1:1 invoices table (status: 'OPEN')
---
--- Parameters:
---   p_booking_room_id UUID - The specific room stay reservation
--- Returns:
---   UUID - The generated/updated invoice_id
--- ═══════════════════════════════════════════════════════════════════════════════
 
 CREATE OR REPLACE FUNCTION sp_generate_final_bill(p_booking_room_id UUID)
 RETURNS UUID
@@ -108,7 +91,9 @@ BEGIN
     v_sc_amt, v_tdl_amt, v_sscl_amt, v_vat_amt,
     v_total, 'OPEN', CURRENT_TIMESTAMP
   )
-  ON CONFLICT (booking_room_id) DO UPDATE SET
+
+  -- If an invoice already exists for this room booking, update that invoice with the newly calculated charges instead of inserting a duplicate invoice.
+  ON CONFLICT (booking_room_id) DO UPDATE SET 
     room_charges       = EXCLUDED.room_charges,
     service_charges    = EXCLUDED.service_charges,
     service_charge_tax = EXCLUDED.service_charge_tax,
