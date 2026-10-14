@@ -1,6 +1,6 @@
 import { PoolClient } from 'pg';
 import { DbAdapter } from '../config/db';
-import { AppError } from '../lib/errors';
+import { AppError, Errors } from '../lib/errors';
 
 export interface PaymentRecord {
   payment_id:       string;
@@ -55,11 +55,12 @@ export class InvoiceRepository {
    * Invoke statutory sp_generate_final_bill stored procedure.
    */
   async generateFinalBill(bookingRoomId: string): Promise<{ invoice_id: string }> {
-    const res = await this.db.query<{ sp_generate_final_bill: string }>(
+    const res = await this.db.query<{ invoice_id: string | null }>(
       `SELECT sp_generate_final_bill($1) AS invoice_id`,
       [bookingRoomId]
     );
-    const invoiceId = res.rows[0]?.sp_generate_final_bill || bookingRoomId;
+    const invoiceId = res.rows[0]?.invoice_id;
+    if (!invoiceId) throw Errors.notFound('Booking room');
     return { invoice_id: invoiceId };
   }
 
