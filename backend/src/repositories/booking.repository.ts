@@ -266,7 +266,7 @@ export class BookingRepository {
                 ) AS booker_name
             FROM bookings b
             LEFT JOIN branches br ON br.branch_id = b.branch_id
-            LEFT JOIN guests g ON (g.id = b.booked_by_guest_id OR g.guest_id::text = b.booked_by_guest_id)
+            LEFT JOIN guests g ON (g.id::text = b.booked_by_guest_id::text OR g.guest_id::text = b.booked_by_guest_id::text)
             LEFT JOIN staff s ON s.staff_id = b.booked_by_staff_id
             WHERE b.booking_id = $1
         `, [bookingId]);
@@ -280,7 +280,7 @@ export class BookingRepository {
                 br.booking_room_id,
                 br.status,
                 r.number AS room_number,
-                COALESCE(rt.type_name, r.type::text) AS room_type_name,
+                COALESCE(rt.type_name, MAX(to_jsonb(r)->>'type')) AS room_type_name,
                 mp.plan_name AS meal_plan_name,
                 br.check_in_date::text AS check_in_date,
                 br.check_out_date::text AS check_out_date,
@@ -299,12 +299,12 @@ export class BookingRepository {
                     '[]'
                 ) AS accompanying_guests
             FROM booking_rooms br
-            LEFT JOIN rooms r ON r.id = br.room_id
+            LEFT JOIN rooms r ON r.id::text = br.room_id::text
             LEFT JOIN room_types rt ON rt.room_type_id = br.room_type_id
             LEFT JOIN meal_plans mp ON mp.plan_id = br.plan_id
             LEFT JOIN accompanying_guests ag ON ag.booking_room_id = br.booking_room_id
             WHERE br.booking_id = $1
-            GROUP BY br.booking_room_id, br.status, r.number, r.type, rt.type_name, mp.plan_name,
+            GROUP BY br.booking_room_id, br.status, r.number, rt.type_name, mp.plan_name,
                      br.check_in_date, br.check_out_date, br.rate_at_booking
         `, [bookingId]);
 
@@ -323,7 +323,7 @@ export class BookingRepository {
                 su.notes
             FROM service_usage su
             JOIN booking_rooms br ON br.booking_room_id = su.booking_room_id
-            LEFT JOIN service_catalogue sc ON sc.service_id::text = su.service_id
+            LEFT JOIN service_catalogue sc ON sc.service_id::text = su.service_id::text
             WHERE br.booking_id = $1
             ORDER BY su.used_at ASC
         `, [bookingId]);
