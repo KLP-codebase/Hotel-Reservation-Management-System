@@ -125,10 +125,10 @@ const ROOM_TIERS: RoomTier[] = [
     properties: ['Colombo', 'Galle', 'Kandy'],
     image: '/about_suite.jpg',
     highlights: [
-      'Separate living salon and private master bedchamber',
+      'Separate living salon, private heated jacuzzi & soaking bathtub',
       'Private outdoor heated plunge pool with ocean views',
-      'Dedicated butler station & complimentary daily pressing',
-      'Curated artisanal bar with single-estate Ceylon teas',
+      'Dual vanity bathroom, walk-in dressing room & plush bathrobes',
+      'Curated artisanal bar with single-estate Ceylon teas & wine chiller',
     ],
   },
   {
@@ -142,10 +142,10 @@ const ROOM_TIERS: RoomTier[] = [
     properties: ['Colombo', 'Galle', 'Kandy'],
     image: '/pillar_architecture.jpg',
     highlights: [
-      'Panoramic penthouse wrap-around terrace & sunset deck',
-      'Private chef\'s dining room for bespoke degustations',
-      '24/7 dedicated personal butler and concierge service',
-      'Complimentary private airport chauffeur transfer',
+      'Two full luxury bathrooms, private heated jacuzzi & marble bathtub',
+      'Panoramic oceanfront wrap-around terrace & private sunset sundeck',
+      '24/7 dedicated personal butler, executive dining & living salon',
+      'Complimentary private airport chauffeur transfer & wine cellar',
     ],
   },
 ];

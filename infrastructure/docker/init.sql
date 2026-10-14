@@ -176,7 +176,7 @@ CREATE TABLE IF NOT EXISTS rooms (
     floor           INT DEFAULT 1,
     price_per_night DECIMAL(10,2) DEFAULT 120.00,
     max_guests      INT DEFAULT 2,
-    amenities       TEXT[] DEFAULT ARRAY['WiFi', 'AC', 'TV'],
+    amenities       TEXT[] DEFAULT ARRAY['High-Speed WiFi', 'Climate Control AC', 'Smart HD TV', 'Rain Shower', 'Mini Fridge & Tea Station'],
     description     TEXT,
     status          VARCHAR(50) NOT NULL DEFAULT 'AVAILABLE',
     is_active       BOOLEAN NOT NULL DEFAULT TRUE,
@@ -1071,30 +1071,30 @@ ON CONFLICT (branch_id, service_name) DO UPDATE SET
 
 INSERT INTO rooms (branch_id, room_type_id, room_number, number, type, floor, status, price_per_night, max_guests, amenities, description) VALUES
     -- Colombo (b1111111-...)
-    ('b1111111-1111-1111-1111-111111111111', 1, '101', '101', 'STANDARD',     1, 'AVAILABLE', 120.00, 2, ARRAY['WiFi', 'AC', 'TV', 'Mini Fridge'], 'Standard Room with Colombo city views'),
-    ('b1111111-1111-1111-1111-111111111111', 1, '102', '102', 'STANDARD',     1, 'AVAILABLE', 120.00, 2, ARRAY['WiFi', 'AC', 'TV', 'Mini Fridge'], 'Standard Room with garden views'),
-    ('b1111111-1111-1111-1111-111111111111', 1, '103', '103', 'STANDARD',     1, 'MAINTENANCE', 120.00, 2, ARRAY['WiFi', 'AC', 'TV'], 'Standard Room under regular maintenance'),
-    ('b1111111-1111-1111-1111-111111111111', 2, '201', '201', 'DELUXE',       2, 'AVAILABLE', 180.00, 3, ARRAY['WiFi', 'AC', 'TV', 'Mini Bar', 'Bathtub'], 'Deluxe Room with ocean view'),
-    ('b1111111-1111-1111-1111-111111111111', 2, '202', '202', 'DELUXE',       2, 'OCCUPIED',   180.00, 3, ARRAY['WiFi', 'AC', 'TV', 'Mini Bar', 'Bathtub'], 'Deluxe Room with ocean balcony'),
-    ('b1111111-1111-1111-1111-111111111111', 3, '301', '301', 'SUITE',        3, 'AVAILABLE', 280.00, 4, ARRAY['WiFi', 'AC', 'Smart TV', 'Mini Bar', 'Jacuzzi'], 'Executive Suite with lounge'),
-    ('b1111111-1111-1111-1111-111111111111', 3, '302', '302', 'SUITE',        3, 'OCCUPIED',   280.00, 4, ARRAY['WiFi', 'AC', 'Smart TV', 'Mini Bar', 'Jacuzzi'], 'Executive Suite with terrace'),
-    ('b1111111-1111-1111-1111-111111111111', 4, '401', '401', 'PRESIDENTIAL', 4, 'AVAILABLE', 500.00, 6, ARRAY['WiFi', 'AC', 'Smart TV', 'Full Bar', 'Butler Service'], 'Presidential Suite with private rooftop'),
+    ('b1111111-1111-1111-1111-111111111111', 1, '101', '101', 'STANDARD',     1, 'AVAILABLE', 120.00, 2, ARRAY['High-Speed WiFi', 'Climate Control AC', 'Smart HD TV', 'Rain Shower', 'Mini Fridge & Tea Station'], 'Standard Room with Colombo city views'),
+    ('b1111111-1111-1111-1111-111111111111', 1, '102', '102', 'STANDARD',     1, 'AVAILABLE', 120.00, 2, ARRAY['High-Speed WiFi', 'Climate Control AC', 'Smart HD TV', 'Rain Shower', 'Mini Fridge & Tea Station'], 'Standard Room with garden views'),
+    ('b1111111-1111-1111-1111-111111111111', 1, '103', '103', 'STANDARD',     1, 'MAINTENANCE', 120.00, 2, ARRAY['High-Speed WiFi', 'Climate Control AC', 'Smart HD TV', 'Rain Shower', 'Mini Fridge & Tea Station'], 'Standard Room under regular maintenance'),
+    ('b1111111-1111-1111-1111-111111111111', 2, '201', '201', 'DELUXE',       2, 'AVAILABLE', 180.00, 3, ARRAY['High-Speed WiFi', 'Climate Control AC', 'Smart HD TV', 'Rain Shower', 'Deep Soaking Bathtub', 'Private Balcony', 'Mini Bar & Espresso Machine', 'Plush Bathrobes & Slippers'], 'Deluxe Room with ocean view'),
+    ('b1111111-1111-1111-1111-111111111111', 2, '202', '202', 'DELUXE',       2, 'OCCUPIED',   180.00, 3, ARRAY['High-Speed WiFi', 'Climate Control AC', 'Smart HD TV', 'Rain Shower', 'Deep Soaking Bathtub', 'Private Balcony', 'Mini Bar & Espresso Machine', 'Plush Bathrobes & Slippers'], 'Deluxe Room with ocean balcony'),
+    ('b1111111-1111-1111-1111-111111111111', 3, '301', '301', 'SUITE',        3, 'AVAILABLE', 280.00, 4, ARRAY['High-Speed WiFi', 'Climate Control AC', '55-inch 4K Smart TV', 'Rain Shower', 'Deep Soaking Bathtub', 'Private Heated Jacuzzi', 'Dual Vanity Bathroom', 'Separate Living Lounge', 'Panoramic Balcony & Daybed', 'Mini Bar & Wine Chiller', 'Plush Bathrobes & Slippers'], 'Executive Suite with lounge'),
+    ('b1111111-1111-1111-1111-111111111111', 3, '302', '302', 'SUITE',        3, 'OCCUPIED',   280.00, 4, ARRAY['High-Speed WiFi', 'Climate Control AC', '55-inch 4K Smart TV', 'Rain Shower', 'Deep Soaking Bathtub', 'Private Heated Jacuzzi', 'Dual Vanity Bathroom', 'Separate Living Lounge', 'Panoramic Balcony & Daybed', 'Mini Bar & Wine Chiller', 'Plush Bathrobes & Slippers'], 'Executive Suite with terrace'),
+    ('b1111111-1111-1111-1111-111111111111', 4, '401', '401', 'PRESIDENTIAL', 4, 'AVAILABLE', 500.00, 6, ARRAY['High-Speed WiFi', 'Climate Control AC', '65-inch 4K OLED Cinema Display', 'Two Bathrooms', 'Private Heated Jacuzzi', 'Deep Soaking Marble Bathtub', 'Dual Rain Showers & Spa Bench', 'Private Oceanfront Terrace & Sundeck', '24/7 Dedicated Butler Service', 'Separate Dining & Executive Living Hall', 'Full Premium Bar & Wine Cellar', 'Chef''s Prep Pantry & Nespresso', 'Walk-in Master Wardrobe', 'Luxury Aromatherapy Toiletries', 'Plush Silk-Cotton Robes & Slippers'], 'Presidential Suite with private rooftop'),
 
     -- Galle (b2222222-...)
-    ('b2222222-2222-2222-2222-222222222222', 1, '101', '101', 'STANDARD',     1, 'AVAILABLE', 120.00, 2, ARRAY['WiFi', 'AC', 'TV', 'Mini Fridge'], 'Galle Fort view standard room'),
-    ('b2222222-2222-2222-2222-222222222222', 1, '102', '102', 'STANDARD',     1, 'AVAILABLE', 120.00, 2, ARRAY['WiFi', 'AC', 'TV', 'Mini Fridge'], 'Colonial courtyard standard room'),
-    ('b2222222-2222-2222-2222-222222222222', 2, '201', '201', 'DELUXE',       2, 'AVAILABLE', 180.00, 3, ARRAY['WiFi', 'AC', 'TV', 'Mini Bar', 'Bathtub'], 'Heritage deluxe room'),
-    ('b2222222-2222-2222-2222-222222222222', 2, '202', '202', 'DELUXE',       2, 'AVAILABLE', 180.00, 3, ARRAY['WiFi', 'AC', 'TV', 'Mini Bar', 'Bathtub'], 'Heritage ocean deluxe room'),
-    ('b2222222-2222-2222-2222-222222222222', 3, '301', '301', 'SUITE',        3, 'AVAILABLE', 280.00, 4, ARRAY['WiFi', 'AC', 'Smart TV', 'Mini Bar', 'Jacuzzi'], 'Lighthouse view suite'),
-    ('b2222222-2222-2222-2222-222222222222', 4, '401', '401', 'PRESIDENTIAL', 4, 'AVAILABLE', 500.00, 6, ARRAY['WiFi', 'AC', 'Smart TV', 'Full Bar', 'Butler Service'], 'Presidential Ocean Pavilion'),
+    ('b2222222-2222-2222-2222-222222222222', 1, '101', '101', 'STANDARD',     1, 'AVAILABLE', 120.00, 2, ARRAY['High-Speed WiFi', 'Climate Control AC', 'Smart HD TV', 'Rain Shower', 'Mini Fridge & Tea Station'], 'Galle Fort view standard room'),
+    ('b2222222-2222-2222-2222-222222222222', 1, '102', '102', 'STANDARD',     1, 'AVAILABLE', 120.00, 2, ARRAY['High-Speed WiFi', 'Climate Control AC', 'Smart HD TV', 'Rain Shower', 'Mini Fridge & Tea Station'], 'Colonial courtyard standard room'),
+    ('b2222222-2222-2222-2222-222222222222', 2, '201', '201', 'DELUXE',       2, 'AVAILABLE', 180.00, 3, ARRAY['High-Speed WiFi', 'Climate Control AC', 'Smart HD TV', 'Rain Shower', 'Deep Soaking Bathtub', 'Private Balcony', 'Mini Bar & Espresso Machine', 'Plush Bathrobes & Slippers'], 'Heritage deluxe room'),
+    ('b2222222-2222-2222-2222-222222222222', 2, '202', '202', 'DELUXE',       2, 'AVAILABLE', 180.00, 3, ARRAY['High-Speed WiFi', 'Climate Control AC', 'Smart HD TV', 'Rain Shower', 'Deep Soaking Bathtub', 'Private Balcony', 'Mini Bar & Espresso Machine', 'Plush Bathrobes & Slippers'], 'Heritage ocean deluxe room'),
+    ('b2222222-2222-2222-2222-222222222222', 3, '301', '301', 'SUITE',        3, 'AVAILABLE', 280.00, 4, ARRAY['High-Speed WiFi', 'Climate Control AC', '55-inch 4K Smart TV', 'Rain Shower', 'Deep Soaking Bathtub', 'Private Heated Jacuzzi', 'Dual Vanity Bathroom', 'Separate Living Lounge', 'Panoramic Balcony & Daybed', 'Mini Bar & Wine Chiller', 'Plush Bathrobes & Slippers'], 'Lighthouse view suite'),
+    ('b2222222-2222-2222-2222-222222222222', 4, '401', '401', 'PRESIDENTIAL', 4, 'AVAILABLE', 500.00, 6, ARRAY['High-Speed WiFi', 'Climate Control AC', '65-inch 4K OLED Cinema Display', 'Two Bathrooms', 'Private Heated Jacuzzi', 'Deep Soaking Marble Bathtub', 'Dual Rain Showers & Spa Bench', 'Private Oceanfront Terrace & Sundeck', '24/7 Dedicated Butler Service', 'Separate Dining & Executive Living Hall', 'Full Premium Bar & Wine Cellar', 'Chef''s Prep Pantry & Nespresso', 'Walk-in Master Wardrobe', 'Luxury Aromatherapy Toiletries', 'Plush Silk-Cotton Robes & Slippers'], 'Presidential Ocean Pavilion'),
 
     -- Kandy (b3333333-...)
-    ('b3333333-3333-3333-3333-333333333333', 1, '101', '101', 'STANDARD',     1, 'AVAILABLE', 120.00, 2, ARRAY['WiFi', 'AC', 'TV', 'Mini Fridge'], 'Kandy mountain standard room'),
-    ('b3333333-3333-3333-3333-333333333333', 1, '102', '102', 'STANDARD',     1, 'AVAILABLE', 120.00, 2, ARRAY['WiFi', 'AC', 'TV', 'Mini Fridge'], 'Lake view standard room'),
-    ('b3333333-3333-3333-3333-333333333333', 2, '201', '201', 'DELUXE',       2, 'AVAILABLE', 180.00, 3, ARRAY['WiFi', 'AC', 'TV', 'Mini Bar', 'Bathtub'], 'Hilltop deluxe room'),
-    ('b3333333-3333-3333-3333-333333333333', 2, '202', '202', 'DELUXE',       2, 'AVAILABLE', 180.00, 3, ARRAY['WiFi', 'AC', 'TV', 'Mini Bar', 'Bathtub'], 'Pine forest deluxe room'),
-    ('b3333333-3333-3333-3333-333333333333', 3, '301', '301', 'SUITE',        3, 'AVAILABLE', 280.00, 4, ARRAY['WiFi', 'AC', 'Smart TV', 'Mini Bar', 'Jacuzzi'], 'Mist Valley luxury suite'),
-    ('b3333333-3333-3333-3333-333333333333', 4, '401', '401', 'PRESIDENTIAL', 4, 'AVAILABLE', 500.00, 6, ARRAY['WiFi', 'AC', 'Smart TV', 'Full Bar', 'Butler Service'], 'Presidential Mountain Villa')
+    ('b3333333-3333-3333-3333-333333333333', 1, '101', '101', 'STANDARD',     1, 'AVAILABLE', 120.00, 2, ARRAY['High-Speed WiFi', 'Climate Control AC', 'Smart HD TV', 'Rain Shower', 'Mini Fridge & Tea Station'], 'Kandy mountain standard room'),
+    ('b3333333-3333-3333-3333-333333333333', 1, '102', '102', 'STANDARD',     1, 'AVAILABLE', 120.00, 2, ARRAY['High-Speed WiFi', 'Climate Control AC', 'Smart HD TV', 'Rain Shower', 'Mini Fridge & Tea Station'], 'Lake view standard room'),
+    ('b3333333-3333-3333-3333-333333333333', 2, '201', '201', 'DELUXE',       2, 'AVAILABLE', 180.00, 3, ARRAY['High-Speed WiFi', 'Climate Control AC', 'Smart HD TV', 'Rain Shower', 'Deep Soaking Bathtub', 'Private Balcony', 'Mini Bar & Espresso Machine', 'Plush Bathrobes & Slippers'], 'Hilltop deluxe room'),
+    ('b3333333-3333-3333-3333-333333333333', 2, '202', '202', 'DELUXE',       2, 'AVAILABLE', 180.00, 3, ARRAY['High-Speed WiFi', 'Climate Control AC', 'Smart HD TV', 'Rain Shower', 'Deep Soaking Bathtub', 'Private Balcony', 'Mini Bar & Espresso Machine', 'Plush Bathrobes & Slippers'], 'Pine forest deluxe room'),
+    ('b3333333-3333-3333-3333-333333333333', 3, '301', '301', 'SUITE',        3, 'AVAILABLE', 280.00, 4, ARRAY['High-Speed WiFi', 'Climate Control AC', '55-inch 4K Smart TV', 'Rain Shower', 'Deep Soaking Bathtub', 'Private Heated Jacuzzi', 'Dual Vanity Bathroom', 'Separate Living Lounge', 'Panoramic Balcony & Daybed', 'Mini Bar & Wine Chiller', 'Plush Bathrobes & Slippers'], 'Mist Valley luxury suite'),
+    ('b3333333-3333-3333-3333-333333333333', 4, '401', '401', 'PRESIDENTIAL', 4, 'AVAILABLE', 500.00, 6, ARRAY['High-Speed WiFi', 'Climate Control AC', '65-inch 4K OLED Cinema Display', 'Two Bathrooms', 'Private Heated Jacuzzi', 'Deep Soaking Marble Bathtub', 'Dual Rain Showers & Spa Bench', 'Private Oceanfront Terrace & Sundeck', '24/7 Dedicated Butler Service', 'Separate Dining & Executive Living Hall', 'Full Premium Bar & Wine Cellar', 'Chef''s Prep Pantry & Nespresso', 'Walk-in Master Wardrobe', 'Luxury Aromatherapy Toiletries', 'Plush Silk-Cotton Robes & Slippers'], 'Presidential Mountain Villa')
 ON CONFLICT (branch_id, room_number) DO NOTHING;
 
 -- ══════════════════════════════════════════════════════════════════════════════

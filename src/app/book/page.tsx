@@ -515,6 +515,7 @@ export default function BookPage() {
     const roomTypes = selectedRooms.map(r => r.type).join(',');
     const roomRates = selectedRooms.map(r => r.price_per_night).join(',');
     const roomCapacities = selectedRooms.map(r => r.max_guests || 2).join(',');
+    const roomAmenities = selectedRooms.map(r => (r.amenities || []).join(';')).join('|');
 
     // ── Competitive Room Hold Verification ──
     const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000';
@@ -557,6 +558,7 @@ export default function BookPage() {
       room_types: roomTypes,
       room_rates: roomRates,
       room_capacities: roomCapacities,
+      room_amenities: roomAmenities,
       room_id: selectedRooms[0]?.id || '',
       room_type: selectedRooms[0]?.type || 'STANDARD',
       branch_id: params.branch_id,
@@ -1179,6 +1181,40 @@ export default function BookPage() {
                             </p>
                           )}
                         </div>
+
+                        {/* Curated Room Amenities */}
+                        {room.amenities && room.amenities.length > 0 && (
+                          <div className="pt-3 pb-3 border-t border-skynest-hairline">
+                            <div className="flex items-center justify-between mb-2">
+                              <span className="font-jakarta text-[10px] font-bold tracking-[0.2em] uppercase text-ink/60">
+                                Curated Amenities ({room.amenities.length})
+                              </span>
+                              <span className="font-jakarta text-[9px] uppercase tracking-wider text-skynest-accent font-semibold">
+                                Included with Room
+                              </span>
+                            </div>
+                            <div className="flex flex-wrap gap-1.5">
+                              {room.amenities.map((item, idx) => {
+                                const isSignature = /jacuzzi|bath|two bathroom|butler|terrace|lounge|wine/i.test(item);
+                                return (
+                                  <span
+                                    key={idx}
+                                    className={`inline-flex items-center gap-1.5 px-2.5 py-1 text-[11px] font-jakarta tracking-wide border rounded-none transition-colors ${
+                                      isSignature
+                                        ? 'bg-skynest-accent/10 text-skynest-accent border-skynest-accent/40 font-semibold'
+                                        : 'bg-[#FDFCFA] text-ink/80 border-skynest-hairline'
+                                    }`}
+                                  >
+                                    {isSignature && (
+                                      <span className="w-1.5 h-1.5 rounded-full bg-skynest-accent shrink-0" />
+                                    )}
+                                    {item}
+                                  </span>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        )}
                       </div>
 
                       {/* Interactive Selection Toggle Button */}
