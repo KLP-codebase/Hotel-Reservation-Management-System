@@ -158,22 +158,7 @@ router.post('/check-in', validate(CheckInSchema), async (req: Request, res: Resp
   const updated = await db.transaction(async (client) => {
     await lockForTransition(client, req, bookingId, 'CONFIRMED', 'checked in');
 
-    const { rows: [stay] } = await client.query<{ opens: string | null; ends: string | null; too_early: boolean; ended: boolean }>(`
-      SELECT to_char(MIN(check_in_date), 'DD Mon YYYY')  AS opens,
-             to_char(MAX(check_out_date), 'DD Mon YYYY') AS ends,
-             MIN(check_in_date)  >  ${HOTEL_TODAY}       AS too_early,
-             MAX(check_out_date) <= ${HOTEL_TODAY}       AS ended
-      FROM booking_rooms
-      WHERE booking_id = $1 AND status <> 'CANCELLED'
-    `, [bookingId]);
-    if (!stay?.opens) throw Errors.badRequest('This booking has no room to check in to');
-    if (stay.too_early) {
-      throw new AppError(409, 'CHECK_IN_NOT_OPEN', `Check-in opens on ${stay.opens}, the booking's arrival day.`);
-    }
-    if (stay.ended) {
-      throw new AppError(409, 'STAY_ENDED', `This stay ended on ${stay.ends}, so the guest can no longer be checked in.`);
-    }
-
+    // Refuses an early or expired check-in (BookingRepository.assertCheckInOpen).
     const result = await bookingRepo.transitionStatus(client, bookingId, 'CONFIRMED', 'CHECKED_IN');
     if (!result) throw Errors.conflict('Booking status was changed by someone else. Reload and try again.');
 
