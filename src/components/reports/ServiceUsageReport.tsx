@@ -1,10 +1,11 @@
 'use client';
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { 
-  Sparkles, Download, Save, RefreshCw, Search, Building2, 
-  Calendar, Layers, DollarSign, Bed, FileText, Printer, CheckCircle2, AlertCircle
-} from 'lucide-react';
+import { Download, Save, RefreshCw, FileText } from 'lucide-react';
+import {
+  Btn, Empty, IconBtn, Loading, SearchField, Segmented, fmtDay, tbl,
+} from '@/components/dashboard/ui';
+import { DateFilter, LabeledSelect, Notice, ReportPanel, StatStrip, Tag } from './report-ui';
 import { apiFetch, toNum } from '@/lib/api-client';
 import { exportToCsv } from '@/lib/export-csv';
 import { exportToWord } from '@/lib/export-doc';
@@ -267,341 +268,161 @@ export function ServiceUsageReport() {
   };
 
   return (
-    <div className="space-y-6">
-      {/* ── Filter & Command Toolbar (Hidden on Print) ────────────────────── */}
-      <div className="no-print space-y-4 bg-stone-950/80 p-5 border border-white/10 text-stone-100">
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-          <div className="flex flex-wrap items-center gap-3">
-            {/* Branch Selector */}
-            <div className="flex items-center gap-2 bg-stone-900 border border-white/10 px-3 py-1.5 text-xs">
-              <Building2 size={14} className="text-amber-400" />
-              <select
-                value={branchId}
-                onChange={(e) => setBranchId(e.target.value)}
-                className="bg-transparent text-stone-200 focus:outline-none cursor-pointer"
-              >
-                <option value="" className="bg-stone-900 text-stone-200">All Branches</option>
-                {branches.map((b) => (
-                  <option key={b.branch_id} value={b.branch_id} className="bg-stone-900 text-stone-200">
-                    {b.branch_name}
-                  </option>
-                ))}
-              </select>
-            </div>
+    <div className="space-y-8">
+      {/* Filters and actions (hidden on print) */}
+      <div className="no-print space-y-6">
+        <div className="flex flex-col lg:flex-row lg:items-center gap-6">
+          <div className="flex flex-wrap items-center gap-6">
+            <LabeledSelect label="Branch" value={branchId} onChange={setBranchId}>
+              <option value="">All branches</option>
+              {branches.map((b) => (
+                <option key={b.branch_id} value={b.branch_id}>
+                  {b.branch_name}
+                </option>
+              ))}
+            </LabeledSelect>
 
-            {/* Category Selector */}
-            <div className="flex items-center gap-2 bg-stone-900 border border-white/10 px-3 py-1.5 text-xs">
-              <Layers size={14} className="text-amber-400" />
-              <select
-                value={category}
-                onChange={(e) => setCategory(e.target.value)}
-                className="bg-transparent text-stone-200 focus:outline-none cursor-pointer"
-              >
-                {CATEGORIES.map((cat) => (
-                  <option key={cat} value={cat} className="bg-stone-900 text-stone-200">
-                    {cat === 'ALL' ? 'All Categories' : cat}
-                  </option>
-                ))}
-              </select>
-            </div>
+            <LabeledSelect label="Category" value={category} onChange={setCategory}>
+              {CATEGORIES.map((cat) => (
+                <option key={cat} value={cat}>
+                  {cat === 'ALL' ? 'All categories' : cat}
+                </option>
+              ))}
+            </LabeledSelect>
 
-            {/* Date Range Inputs */}
-            <div className="flex items-center gap-2 bg-stone-900 border border-white/10 px-3 py-1.5 text-xs">
-              <Calendar size={14} className="text-amber-400" />
-              <input
-                type="date"
-                value={startDate}
-                onChange={(e) => setStartDate(e.target.value)}
-                className="bg-transparent text-stone-200 focus:outline-none text-xs"
-              />
-              <span className="text-stone-500">→</span>
-              <input
-                type="date"
-                value={endDate}
-                onChange={(e) => setEndDate(e.target.value)}
-                className="bg-transparent text-stone-200 focus:outline-none text-xs"
-              />
-            </div>
+            <DateFilter label="From" value={startDate} onChange={setStartDate} max={endDate || undefined} />
+            <DateFilter label="To" value={endDate} onChange={setEndDate} min={startDate || undefined} />
 
-            {/* Room Filter Search */}
-            <div className="flex items-center gap-2 bg-stone-900 border border-white/10 px-3 py-1.5 text-xs">
-              <Search size={14} className="text-stone-400" />
-              <input
-                type="text"
-                placeholder="Search Room / Service..."
-                value={roomFilter}
-                onChange={(e) => setRoomFilter(e.target.value)}
-                className="bg-transparent text-stone-200 focus:outline-none text-xs placeholder:text-stone-500 w-36"
-              />
-            </div>
-
-            {/* Refresh */}
-            <button
-              type="button"
-              onClick={loadData}
-              disabled={loading}
-              className="p-2 bg-stone-900 border border-white/10 hover:border-amber-500/50 text-stone-300 hover:text-white transition-colors"
-              title="Refresh Data"
-            >
-              <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
-            </button>
+            <IconBtn label="Refresh" variant="outline" onClick={loadData} disabled={loading}>
+              <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+            </IconBtn>
           </div>
 
-          {/* Action Export Buttons */}
-          <div className="flex items-center gap-2 flex-wrap">
-            {/* View Mode Toggle */}
-            <div className="flex border border-white/10 text-xs">
-              <button
-                type="button"
-                onClick={() => setViewMode('LEDGER')}
-                className={`px-2.5 py-1.5 transition-colors ${
-                  viewMode === 'LEDGER' ? 'bg-amber-500 text-stone-950 font-semibold' : 'bg-stone-900 text-stone-300 hover:text-white'
-                }`}
-              >
-                Ledger Table
-              </button>
-              <button
-                type="button"
-                onClick={() => setViewMode('BY_ROOM')}
-                className={`px-2.5 py-1.5 transition-colors ${
-                  viewMode === 'BY_ROOM' ? 'bg-amber-500 text-stone-950 font-semibold' : 'bg-stone-900 text-stone-300 hover:text-white'
-                }`}
-              >
-                By Room
-              </button>
-            </div>
-
-            <button
-              type="button"
-              onClick={() => window.print()}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs bg-stone-900 hover:bg-stone-800 border border-white/20 text-stone-200 hover:text-white font-medium transition-colors"
-              title="Print cleanly to paper or PDF"
-            >
-              <Printer size={13} className="text-amber-400" />
-              Print / PDF
-            </button>
-
-            <button
-              type="button"
-              onClick={handleExportWord}
-              disabled={filteredRows.length === 0}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs bg-stone-900 hover:bg-stone-800 border border-white/20 text-stone-200 hover:text-white font-medium transition-colors disabled:opacity-40"
-              title="Download Microsoft Word .doc file"
-            >
-              <FileText size={13} className="text-blue-400" />
-              Word (.doc)
-            </button>
-
-            <button
-              type="button"
-              onClick={handleExportCsv}
-              disabled={filteredRows.length === 0}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs bg-stone-900 hover:bg-stone-800 border border-white/20 text-stone-200 hover:text-white font-medium transition-colors disabled:opacity-40"
-              title="Download RFC 4180 CSV"
-            >
-              <Download size={13} className="text-emerald-400" />
+          <div className="flex flex-wrap items-center gap-2 lg:ml-auto">
+            <Btn onClick={handleExportWord} disabled={filteredRows.length === 0} title="Download a Word (.doc) file">
+              <FileText className="w-4 h-4" />
+              Word
+            </Btn>
+            <Btn onClick={handleExportCsv} disabled={filteredRows.length === 0} title="Download a CSV file">
+              <Download className="w-4 h-4" />
               CSV
-            </button>
-
-            <button
-              type="button"
-              onClick={handleSaveSnapshot}
-              disabled={savingSnapshot || filteredRows.length === 0}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 text-amber-300 font-medium transition-colors disabled:opacity-40"
-              title="Save snapshot to audit ledger"
-            >
-              <Save size={13} />
-              {savingSnapshot ? 'Archiving...' : 'Save Snapshot'}
-            </button>
+            </Btn>
+            <Btn onClick={handleSaveSnapshot} disabled={savingSnapshot || filteredRows.length === 0} loading={savingSnapshot}>
+              {!savingSnapshot && <Save className="w-4 h-4" />}
+              Save snapshot
+            </Btn>
           </div>
+        </div>
+
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+          <Segmented
+            value={viewMode}
+            onChange={setViewMode}
+            options={[
+              { value: 'LEDGER', label: 'Ledger' },
+              { value: 'BY_ROOM', label: 'By room' },
+            ]}
+          />
+          <SearchField value={roomFilter} onChange={setRoomFilter} placeholder="Search room or service" />
         </div>
 
         {snapshotMsg && (
-          <div className="flex items-center gap-2 p-3 bg-amber-500/10 border border-amber-500/20 text-amber-200 text-xs">
-            <CheckCircle2 size={14} className="text-amber-400 shrink-0" />
-            <span>{snapshotMsg}</span>
-          </div>
+          <Notice tone={snapshotMsg.startsWith('Failed') ? 'error' : 'success'} onDismiss={() => setSnapshotMsg(null)}>
+            {snapshotMsg}
+          </Notice>
         )}
       </div>
 
-      {/* ── KPI Metric Cards ──────────────────────────────────────────────── */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 print-card">
-        <div className="bg-stone-950/70 border border-white/10 p-4">
-          <div className="flex items-center justify-between text-stone-400 text-xs mb-1">
-            <span>Total Ancillary Revenue</span>
-            <DollarSign size={14} className="text-amber-400" />
-          </div>
-          <div className="font-cinzel text-xl md:text-2xl font-bold text-amber-400">
-            {fmt(totals.totalRevenue)}
-          </div>
-          <span className="text-[10px] text-stone-500 uppercase tracking-wider block mt-1">
-            Net Ancillary Folio Total
-          </span>
-        </div>
-
-        <div className="bg-stone-950/70 border border-white/10 p-4">
-          <div className="flex items-center justify-between text-stone-400 text-xs mb-1">
-            <span>Total Orders Placed</span>
-            <Sparkles size={14} className="text-amber-400" />
-          </div>
-          <div className="font-cinzel text-xl md:text-2xl font-bold text-stone-200">
-            {totals.totalOrders.toLocaleString()}
-          </div>
-          <span className="text-[10px] text-stone-500 uppercase tracking-wider block mt-1">
-            Avg Order: {fmt(totals.avgOrderValue)}
-          </span>
-        </div>
-
-        <div className="bg-stone-950/70 border border-white/10 p-4">
-          <div className="flex items-center justify-between text-stone-400 text-xs mb-1">
-            <span>Total Units Consumed</span>
-            <Layers size={14} className="text-amber-400" />
-          </div>
-          <div className="font-cinzel text-xl md:text-2xl font-bold text-stone-200">
-            {totals.totalQuantity.toLocaleString()}
-          </div>
-          <span className="text-[10px] text-stone-500 uppercase tracking-wider block mt-1">
-            Items & Treatments Delivered
-          </span>
-        </div>
-
-        <div className="bg-stone-950/70 border border-white/10 p-4">
-          <div className="flex items-center justify-between text-stone-400 text-xs mb-1">
-            <span>Serviced Guest Rooms</span>
-            <Bed size={14} className="text-amber-400" />
-          </div>
-          <div className="font-cinzel text-xl md:text-2xl font-bold text-stone-200">
-            {totals.roomCount}
-          </div>
-          <span className="text-[10px] text-stone-500 uppercase tracking-wider block mt-1">
-            Distinct Rooms with Folio Activity
-          </span>
-        </div>
+      <div>
+        <StatStrip
+          stats={[
+            { label: 'Service revenue', value: fmt(totals.totalRevenue), sub: 'Ancillary folio total' },
+            { label: 'Orders', value: totals.totalOrders.toLocaleString(), sub: `Average ${fmt(totals.avgOrderValue)}` },
+            { label: 'Units delivered', value: totals.totalQuantity.toLocaleString(), sub: 'Items and treatments' },
+            { label: 'Rooms served', value: String(totals.roomCount), sub: 'Rooms with folio activity' },
+          ]}
+        />
       </div>
 
-      {/* ── Content View ──────────────────────────────────────────────────── */}
-      {error && (
-        <div className="p-4 bg-rose-500/10 border border-rose-500/20 text-rose-300 text-xs flex items-center gap-2">
-          <AlertCircle size={16} />
-          <span>{error}</span>
-        </div>
-      )}
+      {error && <Notice tone="error">{error}</Notice>}
 
       {loading ? (
-        <div className="py-16 text-center text-stone-400 text-xs flex flex-col items-center gap-3">
-          <RefreshCw size={24} className="animate-spin text-amber-400" />
-          <span>Calculating granular service consumption across rooms...</span>
-        </div>
+        <Loading label="Calculating service usage" />
       ) : filteredRows.length === 0 ? (
-        <div className="py-16 text-center text-stone-500 text-xs bg-stone-950/40 border border-white/5">
-          <p className="font-cinzel text-base text-stone-400 mb-1">No Service Usage Recorded</p>
-          <p>No ancillary folio charges match the specified branch, date range, and category criteria.</p>
-        </div>
+        <Empty>No service charges match this branch, date range and category.</Empty>
       ) : viewMode === 'BY_ROOM' ? (
-        /* ── Grouped By Room View ────────────────────────────────────────── */
-        <div className="space-y-4">
+        /* Grouped by room */
+        <div className="space-y-12">
           {rowsByRoom.map((group) => (
-            <div key={group.roomNumber} className="bg-stone-950/70 border border-white/10 p-4 print-card">
-              <div className="flex items-center justify-between pb-3 border-b border-white/10">
-                <div className="flex items-center gap-3">
-                  <div className="px-3 py-1 bg-amber-500/10 border border-amber-500/30 text-amber-400 font-mono text-sm font-bold">
-                    Room {group.roomNumber}
-                  </div>
-                  <div className="text-xs text-stone-400">
-                    {group.branchName} · {group.items.length} service item{group.items.length === 1 ? '' : 's'}
-                  </div>
-                </div>
-                <div className="text-right">
-                  <div className="font-cinzel text-base font-bold text-amber-400">
-                    {fmt(group.totalRevenue)}
-                  </div>
-                  <span className="text-[9px] text-stone-500 uppercase tracking-wider">Room Total</span>
-                </div>
-              </div>
-
-              <div className="overflow-x-auto mt-3">
-                <table className="w-full text-left text-xs text-stone-300">
-                  <thead className="bg-stone-900/60 text-[10px] uppercase tracking-wider text-stone-400">
-                    <tr>
-                      <th className="py-2 px-3">Service Name</th>
-                      <th className="py-2 px-3">Category</th>
-                      <th className="py-2 px-3 text-center">Orders</th>
-                      <th className="py-2 px-3 text-center">Qty</th>
-                      <th className="py-2 px-3 text-right">Avg Unit Rate</th>
-                      <th className="py-2 px-3 text-right">Subtotal</th>
+            <ReportPanel
+              key={group.roomNumber}
+              title={`Room ${group.roomNumber}`}
+              sub={`${group.branchName} · ${group.items.length} service item${group.items.length === 1 ? '' : 's'}`}
+              aside={
+                <p className="font-jakarta text-[13px] text-ink/70 tabular-nums">
+                  Room total <span className="font-cinzel text-[20px] text-ink">{fmt(group.totalRevenue)}</span>
+                </p>
+              }
+            >
+              <div className={tbl.wrap}>
+                <table className={`${tbl.table} min-w-[640px]`}>
+                  <thead>
+                    <tr className={tbl.headRow}>
+                      <th className={tbl.th}>Service</th>
+                      <th className={tbl.th}>Category</th>
+                      <th className={`${tbl.th} text-right`}>Orders</th>
+                      <th className={`${tbl.th} text-right`}>Qty</th>
+                      <th className={`${tbl.th} text-right`}>Avg rate</th>
+                      <th className={`${tbl.th} text-right`}>Subtotal</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-white/5">
+                  <tbody className={tbl.body}>
                     {group.items.map((item, idx) => (
-                      <tr key={idx} className="hover:bg-white/[0.02]">
-                        <td className="py-2.5 px-3 font-medium text-stone-200">{item.service_name}</td>
-                        <td className="py-2.5 px-3">
-                          <span className="px-2 py-0.5 text-[9px] font-semibold uppercase tracking-wider bg-stone-900 border border-white/10 rounded text-stone-300">
-                            {item.category}
-                          </span>
-                        </td>
-                        <td className="py-2.5 px-3 text-center tabular-nums">{item.orders_count}</td>
-                        <td className="py-2.5 px-3 text-center tabular-nums">{item.total_quantity}</td>
-                        <td className="py-2.5 px-3 text-right tabular-nums">{fmt(item.avg_unit_price)}</td>
-                        <td className="py-2.5 px-3 text-right tabular-nums font-semibold text-amber-400">
-                          {fmt(item.total_service_revenue)}
-                        </td>
+                      <tr key={idx} className={tbl.row}>
+                        <td className={`${tbl.td} font-medium`}>{item.service_name}</td>
+                        <td className={tbl.td}><Tag>{item.category}</Tag></td>
+                        <td className={`${tbl.td} text-right tabular-nums`}>{item.orders_count}</td>
+                        <td className={`${tbl.td} text-right tabular-nums`}>{item.total_quantity}</td>
+                        <td className={`${tbl.td} text-right tabular-nums text-ink/70`}>{fmt(item.avg_unit_price)}</td>
+                        <td className={`${tbl.td} text-right tabular-nums font-medium`}>{fmt(item.total_service_revenue)}</td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
               </div>
-            </div>
+            </ReportPanel>
           ))}
         </div>
       ) : (
-        /* ── Full Ledger Table View ───────────────────────────────────────── */
-        <div className="overflow-x-auto border border-white/10 bg-stone-950/60 print-card">
-          <table className="w-full text-left text-xs text-stone-300">
-            <thead className="bg-stone-900/80 text-[10px] uppercase tracking-wider text-stone-400 border-b border-white/10">
-              <tr>
-                <th className="py-3 px-4">Room</th>
-                <th className="py-3 px-4">Service Item</th>
-                <th className="py-3 px-4">Category</th>
-                <th className="py-3 px-4">Sanctuary Branch</th>
-                <th className="py-3 px-4 text-center">Orders</th>
-                <th className="py-3 px-4 text-center">Qty</th>
-                <th className="py-3 px-4 text-right">Avg Price</th>
-                <th className="py-3 px-4 text-right">Total Revenue</th>
-                <th className="py-3 px-4 text-right">Last Logged</th>
+        /* Full ledger */
+        <div className={tbl.wrap}>
+          <table className={`${tbl.table} min-w-[960px]`}>
+            <thead>
+              <tr className={tbl.headRow}>
+                <th className={tbl.th}>Room</th>
+                <th className={tbl.th}>Service</th>
+                <th className={tbl.th}>Category</th>
+                <th className={tbl.th}>Branch</th>
+                <th className={`${tbl.th} text-right`}>Orders</th>
+                <th className={`${tbl.th} text-right`}>Qty</th>
+                <th className={`${tbl.th} text-right`}>Avg price</th>
+                <th className={`${tbl.th} text-right`}>Revenue</th>
+                <th className={`${tbl.th} text-right`}>Last used</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-white/5">
+            <tbody className={tbl.body}>
               {filteredRows.map((row, idx) => (
-                <tr key={idx} className="hover:bg-white/[0.02] transition-colors">
-                  <td className="py-3 px-4 font-mono font-bold text-amber-400">
-                    Rm {row.room_number}
-                  </td>
-                  <td className="py-3 px-4 font-medium text-stone-200">
-                    {row.service_name}
-                  </td>
-                  <td className="py-3 px-4">
-                    <span className="px-2 py-0.5 text-[9px] font-semibold uppercase tracking-wider bg-stone-900 border border-white/10 rounded text-stone-300">
-                      {row.category}
-                    </span>
-                  </td>
-                  <td className="py-3 px-4 text-stone-400">
-                    {row.branch_name}
-                  </td>
-                  <td className="py-3 px-4 text-center tabular-nums">
-                    {row.orders_count}
-                  </td>
-                  <td className="py-3 px-4 text-center tabular-nums">
-                    {row.total_quantity}
-                  </td>
-                  <td className="py-3 px-4 text-right tabular-nums text-stone-400">
-                    {fmt(row.avg_unit_price)}
-                  </td>
-                  <td className="py-3 px-4 text-right tabular-nums font-semibold text-stone-100">
-                    {fmt(row.total_service_revenue)}
-                  </td>
-                  <td className="py-3 px-4 text-right text-[11px] text-stone-500 tabular-nums">
-                    {row.last_used ? new Date(row.last_used).toLocaleDateString() : '—'}
+                <tr key={idx} className={tbl.row}>
+                  <td className={`${tbl.td} font-cinzel text-[18px] tabular-nums whitespace-nowrap`}>{row.room_number}</td>
+                  <td className={`${tbl.td} font-medium`}>{row.service_name}</td>
+                  <td className={tbl.td}><Tag>{row.category}</Tag></td>
+                  <td className={`${tbl.td} text-ink/70`}>{row.branch_name}</td>
+                  <td className={`${tbl.td} text-right tabular-nums`}>{row.orders_count}</td>
+                  <td className={`${tbl.td} text-right tabular-nums`}>{row.total_quantity}</td>
+                  <td className={`${tbl.td} text-right tabular-nums text-ink/70`}>{fmt(row.avg_unit_price)}</td>
+                  <td className={`${tbl.td} text-right tabular-nums font-medium`}>{fmt(row.total_service_revenue)}</td>
+                  <td className={`${tbl.td} text-right tabular-nums whitespace-nowrap text-ink/70`}>
+                    {row.last_used ? fmtDay(String(row.last_used)) : '—'}
                   </td>
                 </tr>
               ))}

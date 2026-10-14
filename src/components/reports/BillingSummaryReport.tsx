@@ -1,11 +1,15 @@
 'use client';
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { Receipt, AlertTriangle, CheckCircle2, Clock, Search, Download, Save, AlertCircle, Building2, RefreshCw } from 'lucide-react';
+import { Download, Save, RefreshCw } from 'lucide-react';
+import {
+  Btn, Empty, IconBtn, Loading, SearchField, Segmented, StatusDot, fmtDay, tbl, titleCase,
+} from '@/components/dashboard/ui';
+import { LabeledSelect, Notice, StatStrip } from './report-ui';
 import { apiFetch, toNum } from '@/lib/api-client';
 import { exportToCsv } from '@/lib/export-csv';
 
-// ── Person 1 Workspace: Report 2 — Guest Billing Summary & Unpaid Balances ───
+// ── Report 2 — Guest Billing Summary & Unpaid Balances ───────────────────────
 // Endpoint: GET /api/v1/reports/revenue/billing-summary?status=...&agingDays=...&search=...&branchId=...
 // Highlights debtor aging (>30d, >60d, >90d), unpaid and partially paid balances.
 
@@ -40,40 +44,18 @@ function fmt(v: string | number): string {
 }
 
 const STATUS_OPTIONS = [
-  { value: 'ALL', label: 'All Invoices' },
+  { value: 'ALL', label: 'All invoices' },
   { value: 'UNPAID', label: 'Unpaid' },
-  { value: 'PARTIALLY_PAID', label: 'Partially Paid' },
+  { value: 'PARTIALLY_PAID', label: 'Partially paid' },
   { value: 'SETTLED', label: 'Settled' },
 ] as const;
 
 const AGING_OPTIONS = [
-  { value: null, label: 'All Ages' },
-  { value: 30, label: '>30 Days' },
-  { value: 60, label: '>60 Days' },
-  { value: 90, label: '>90 Days' },
+  { value: null, label: 'All' },
+  { value: 30, label: 'Over 30 days' },
+  { value: 60, label: 'Over 60 days' },
+  { value: 90, label: 'Over 90 days' },
 ] as const;
-
-/**
- * StatusBadge Component
- * 
- * Renders a color-coded status badge with an accompanying icon:
- * - SETTLED: Emerald badge for fully settled invoices
- * - PARTIALLY_PAID: Amber badge for invoices with recorded partial payments
- * - UNPAID: Rose badge for folios with zero customer payments recorded
- */
-function StatusBadge({ status }: { status: BillingSummaryRow['computed_status'] }) {
-  const cfg = {
-    SETTLED: { cls: 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20', icon: <CheckCircle2 size={12} />, label: 'Settled' },
-    PARTIALLY_PAID: { cls: 'text-amber-400 bg-amber-500/10 border-amber-500/20', icon: <Clock size={12} />, label: 'Partially Paid' },
-    UNPAID: { cls: 'text-rose-400 bg-rose-500/10 border-rose-500/20', icon: <AlertTriangle size={12} />, label: 'Unpaid' },
-  }[status];
-
-  return (
-    <span className={`inline-flex items-center gap-1 px-2 py-0.5 text-[10px] font-mono uppercase tracking-wider border ${cfg.cls}`}>
-      {cfg.icon} {cfg.label}
-    </span>
-  );
-}
 
 export function BillingSummaryReport({ selectedBranch: propBranch }: Props = {}) {
   const [branchId, setBranchId] = useState<string>(propBranch || '');
@@ -195,224 +177,148 @@ export function BillingSummaryReport({ selectedBranch: propBranch }: Props = {})
     }
   };
 
+  const agingValue = agingDays === null ? 'ALL' : String(agingDays);
+
   return (
-    <div className="space-y-6">
-      {/* Filter and control bar */}
-      <div className="space-y-3 bg-stone-950/70 border border-white/10 p-4">
-        <div className="flex flex-wrap items-center justify-between gap-4">
-          <div className="flex flex-wrap items-center gap-3">
-            {/* Branch Filter */}
-            <div className="flex items-center gap-2 bg-stone-900/80 border border-white/10 px-3 py-1.5 text-xs text-stone-300">
-              <Building2 size={14} className="text-amber-400 shrink-0" />
-              <select
-                value={branchId}
-                onChange={e => setBranchId(e.target.value)}
-                className="bg-transparent text-stone-200 focus:outline-none cursor-pointer"
-              >
-                <option value="" className="bg-stone-900 text-stone-200">All Branches (Global)</option>
-                {branches.map(b => (
-                  <option key={b.branch_id} value={b.branch_id} className="bg-stone-900 text-stone-200">
-                    {b.branch_name} ({b.city})
-                  </option>
-                ))}
-              </select>
-            </div>
+    <div className="space-y-8">
+      {/* Filters and actions */}
+      <div className="no-print space-y-6">
+        <div className="flex flex-col lg:flex-row lg:items-center gap-6">
+          <div className="flex flex-wrap items-center gap-6">
+            <LabeledSelect label="Branch" value={branchId} onChange={setBranchId}>
+              <option value="">All branches</option>
+              {branches.map(b => (
+                <option key={b.branch_id} value={b.branch_id}>
+                  {b.branch_name} · {b.city}
+                </option>
+              ))}
+            </LabeledSelect>
 
-            {/* Status dropdown */}
-            <div className="flex items-center gap-2 bg-stone-900/80 border border-white/10 px-3 py-1.5 text-xs text-stone-300">
-              <Receipt size={14} className="text-amber-400 shrink-0" />
-              <select
-                value={status}
-                onChange={e => setStatus(e.target.value)}
-                className="bg-transparent text-stone-200 focus:outline-none cursor-pointer"
-              >
-                {STATUS_OPTIONS.map(o => (
-                  <option key={o.value} value={o.value} className="bg-stone-900 text-stone-200">
-                    {o.label}
-                  </option>
-                ))}
-              </select>
-            </div>
+            <LabeledSelect label="Status" value={status} onChange={setStatus}>
+              {STATUS_OPTIONS.map(o => (
+                <option key={o.value} value={o.value}>{o.label}</option>
+              ))}
+            </LabeledSelect>
 
-            {/* Refresh Button */}
-            <button
-              onClick={loadData}
-              disabled={loading}
-              className="flex items-center gap-1.5 px-3 py-1.5 bg-stone-900/80 hover:bg-stone-800 border border-white/10 text-stone-300 hover:text-white text-xs transition duration-150 disabled:opacity-50 cursor-pointer"
-              title="Reload Report Data"
-            >
-              <RefreshCw size={13} className={loading ? "animate-spin text-amber-400" : "text-stone-400"} />
-              <span>Refresh</span>
-            </button>
+            <IconBtn label="Refresh" variant="outline" onClick={loadData} disabled={loading}>
+              <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+            </IconBtn>
           </div>
 
-          <div className="flex items-center gap-2 ml-auto">
-            <button
-              onClick={handleExportCsv}
-              disabled={!rows.length || loading}
-              className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-600/20 hover:bg-amber-600/30 border border-amber-500/30 text-amber-300 text-xs font-medium transition disabled:opacity-50 cursor-pointer"
-            >
-              <Download size={13} />
-              <span>Export CSV</span>
-            </button>
-            <button
-              onClick={handleSaveSnapshot}
-              disabled={savingSnapshot || !rows.length || loading}
-              className="flex items-center gap-1.5 px-3 py-1.5 bg-stone-900 hover:bg-stone-800 border border-white/10 text-stone-200 text-xs transition disabled:opacity-50 cursor-pointer"
-            >
-              <Save size={13} className="text-amber-400" />
-              <span>{savingSnapshot ? 'Archiving...' : 'Archive Snapshot (B17)'}</span>
-            </button>
+          <div className="flex flex-wrap items-center gap-2 lg:ml-auto">
+            <Btn onClick={handleExportCsv} disabled={!rows.length || loading}>
+              <Download className="w-4 h-4" />
+              Export CSV
+            </Btn>
+            <Btn onClick={handleSaveSnapshot} disabled={savingSnapshot || !rows.length || loading} loading={savingSnapshot}>
+              {!savingSnapshot && <Save className="w-4 h-4" />}
+              Save snapshot
+            </Btn>
           </div>
         </div>
 
-        {/* Debtor Aging filter chips & search */}
-        <div className="flex flex-wrap items-center justify-between gap-4 pt-2 border-t border-white/5">
-          <div className="flex items-center gap-2">
-            <span className="text-[11px] font-mono text-stone-400 uppercase">Debtor Aging:</span>
-            <div className="flex items-center gap-1">
-              {AGING_OPTIONS.map(o => (
-                <button
-                  key={String(o.value)}
-                  onClick={() => setAgingDays(o.value)}
-                  className={`px-2.5 py-1 text-[11px] font-mono border transition ${
-                    agingDays === o.value
-                      ? 'border-amber-400 bg-amber-500/10 text-amber-300 font-semibold'
-                      : 'border-white/10 text-stone-400 hover:border-white/20 hover:text-stone-200'
-                  }`}
-                >
-                  {o.label}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <div className="flex items-center gap-2 bg-stone-900/80 border border-white/10 px-3 py-1 w-full max-w-xs">
-            <Search size={13} className="text-stone-400 shrink-0" />
-            <input
-              type="text"
-              placeholder="Search guest, booking ref, room..."
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-              onKeyDown={e => e.key === 'Enter' && loadData()}
-              className="bg-transparent text-stone-200 text-xs w-full focus:outline-none placeholder:text-stone-500 font-mono"
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+          <div className="flex items-center gap-6">
+            <span className="font-jakarta text-[11px] font-medium tracking-[0.12em] uppercase text-ink/70 whitespace-nowrap">
+              Debtor aging
+            </span>
+            <Segmented
+              value={agingValue}
+              onChange={v => setAgingDays(v === 'ALL' ? null : Number(v))}
+              options={AGING_OPTIONS.map(o => ({ value: o.value === null ? 'ALL' : String(o.value), label: o.label }))}
             />
           </div>
+          <div onKeyDown={e => e.key === 'Enter' && loadData()}>
+            <SearchField value={search} onChange={setSearch} placeholder="Search guest, booking or room" />
+          </div>
         </div>
       </div>
 
-      {/* Snapshot status notification */}
       {snapshotMsg && (
-        <div className="p-3 bg-stone-900 border border-amber-500/30 text-amber-300 text-xs flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <CheckCircle2 size={14} className="text-amber-400 shrink-0" />
-            <span>{snapshotMsg}</span>
-          </div>
-          <button onClick={() => setSnapshotMsg(null)} className="text-stone-400 hover:text-white">✕</button>
-        </div>
+        <Notice tone={snapshotMsg.startsWith('Failed') ? 'error' : 'success'} onDismiss={() => setSnapshotMsg(null)}>
+          {snapshotMsg}
+        </Notice>
       )}
+      {error && <Notice tone="error">{error}</Notice>}
 
-      {/* Error alert */}
-      {error && (
-        <div className="p-3 bg-rose-950/50 border border-rose-500/40 text-rose-300 text-xs flex items-center gap-2">
-          <AlertCircle size={14} className="shrink-0" />
-          <span>{error}</span>
-        </div>
-      )}
-
-      {/* KPI Cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        {[
-          { label: 'Total Invoiced ($)', value: fmt(totalInvoiced), accent: false },
-          { label: 'Settled Payments ($)', value: fmt(totalCollected), accent: false },
-          { label: 'Outstanding Arrears ($)', value: fmt(totalOutstanding), accent: totalOutstanding > 0 },
+      <StatStrip
+        stats={[
+          { label: 'Total invoiced', value: fmt(totalInvoiced) },
+          { label: 'Collected', value: fmt(totalCollected) },
+          { label: 'Outstanding', value: fmt(totalOutstanding), tone: totalOutstanding > 0 ? 'alert' : 'default' },
           {
-            label: 'Debtor Aging Status',
-            value: `${aging30} >30d · ${aging60} >60d · ${aging90} >90d`,
-            accent: aging90 > 0,
-            small: true,
+            label: 'Overdue invoices',
+            value: String(aging30),
+            sub: `${aging60} over 60 days · ${aging90} over 90 days`,
+            tone: aging90 > 0 ? 'alert' : 'default',
           },
-        ].map(({ label, value, accent, small }) => (
-          <div
-            key={label}
-            className={`p-4 border ${accent ? 'border-rose-500/40 bg-rose-950/30' : 'border-white/10 bg-stone-950/70'}`}
-          >
-            <div className="text-[11px] uppercase tracking-widest font-mono text-stone-400 mb-2">{label}</div>
-            <div className={`font-cinzel font-bold text-stone-100 ${small ? 'text-sm' : 'text-lg'}`}>{value}</div>
-          </div>
-        ))}
-      </div>
+        ]}
+      />
 
-      {/* Empty State */}
+      {loading && rows.length === 0 && <Loading label="Loading invoices" />}
+
       {!loading && rows.length === 0 && !error && (
-        <div className="py-16 text-center border border-white/10 bg-stone-950/50">
-          <Receipt size={32} className="mx-auto mb-3 text-stone-600" />
-          <p className="font-cinzel italic text-stone-200 text-base">No matching invoices found</p>
-          <p className="text-stone-400 text-xs mt-1">Try adjusting the status or debtor aging filters.</p>
-        </div>
+        <Empty>No matching invoices. Try a different status or aging filter.</Empty>
       )}
 
-      {/* Data Table */}
       {rows.length > 0 && (
-        <div className="border border-white/10 bg-stone-950/70 overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs">
+        <div className="space-y-4">
+          <div className={tbl.wrap}>
+            <table className={`${tbl.table} min-w-[1024px]`}>
               <thead>
-                <tr className="border-b border-white/10 bg-stone-900/50 text-[10px] uppercase font-mono tracking-wider text-stone-400">
-                  <th className="p-3">Status</th>
-                  <th className="p-3">Booking Ref</th>
-                  <th className="p-3">Guest</th>
-                  <th className="p-3">Branch / Rooms</th>
-                  <th className="p-3">Base</th>
-                  <th className="p-3">Total Invoiced</th>
-                  <th className="p-3">Paid</th>
-                  <th className="p-3">Balance Due</th>
-                  <th className="p-3">Date</th>
-                  <th className="p-3">Aging</th>
+                <tr className={tbl.headRow}>
+                  <th className={tbl.th}>Status</th>
+                  <th className={tbl.th}>Booking</th>
+                  <th className={tbl.th}>Guest</th>
+                  <th className={tbl.th}>Branch</th>
+                  <th className={`${tbl.th} text-right`}>Base</th>
+                  <th className={`${tbl.th} text-right`}>Invoiced</th>
+                  <th className={`${tbl.th} text-right`}>Paid</th>
+                  <th className={`${tbl.th} text-right`}>Balance</th>
+                  <th className={tbl.th}>Date</th>
+                  <th className={`${tbl.th} text-right`}>Age</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-white/5 font-mono">
-                {rows.map(row => (
-                  <tr key={row.invoice_id} className="hover:bg-white/5 transition">
-                    <td className="p-3 whitespace-nowrap">
-                      <StatusBadge status={row.computed_status} />
-                    </td>
-                    <td className="p-3 text-amber-300 font-semibold whitespace-nowrap">
-                      {row.booking_reference}
-                    </td>
-                    <td className="p-3 whitespace-nowrap">
-                      <div className="font-semibold text-stone-200">{row.guest_name.trim() || '—'}</div>
-                      {row.guest_email && <div className="text-[10px] text-stone-400">{row.guest_email}</div>}
-                    </td>
-                    <td className="p-3 whitespace-nowrap">
-                      <div className="text-stone-300">{row.branch_name}</div>
-                      {row.room_numbers && <div className="text-[10px] text-stone-500">Rooms: {row.room_numbers}</div>}
-                    </td>
-                    <td className="p-3 text-stone-400 whitespace-nowrap">{fmt(row.base_amount)}</td>
-                    <td className="p-3 font-semibold text-stone-200 whitespace-nowrap">{fmt(row.total_amount)}</td>
-                    <td className="p-3 text-emerald-400 whitespace-nowrap">{fmt(row.total_paid)}</td>
-                    <td className={`p-3 font-bold whitespace-nowrap ${toNum(row.balance_due) > 0 ? 'text-rose-400' : 'text-emerald-400'}`}>
-                      {toNum(row.balance_due) > 0 ? fmt(row.balance_due) : '—'}
-                    </td>
-                    <td className="p-3 text-stone-400 whitespace-nowrap">
-                      {row.invoice_date?.split('T')[0] || '—'}
-                    </td>
-                    <td className={`p-3 font-bold whitespace-nowrap ${
-                      row.aging_days > 90 ? 'text-rose-400'
-                      : row.aging_days > 60 ? 'text-orange-400'
-                      : row.aging_days > 30 ? 'text-amber-400'
-                      : 'text-stone-400'
-                    }`}>
-                      {row.aging_days}d
-                    </td>
-                  </tr>
-                ))}
+              <tbody className={tbl.body}>
+                {rows.map(row => {
+                  const balance = toNum(row.balance_due);
+                  return (
+                    <tr key={row.invoice_id} className={tbl.row}>
+                      <td className={tbl.td}>
+                        <StatusDot status={row.computed_status} label={titleCase(row.computed_status)} />
+                      </td>
+                      <td className={`${tbl.td} font-medium whitespace-nowrap tabular-nums`}>{row.booking_reference}</td>
+                      <td className={`${tbl.td} max-w-[240px]`}>
+                        <p className="truncate">{row.guest_name.trim() || '—'}</p>
+                        {row.guest_email && <p className={`${tbl.sub} truncate`}>{row.guest_email}</p>}
+                      </td>
+                      <td className={`${tbl.td} whitespace-nowrap`}>
+                        {row.branch_name}
+                        {row.room_numbers && <p className={tbl.sub}>Rooms {row.room_numbers}</p>}
+                      </td>
+                      <td className={`${tbl.td} text-right tabular-nums whitespace-nowrap text-ink/70`}>{fmt(row.base_amount)}</td>
+                      <td className={`${tbl.td} text-right tabular-nums whitespace-nowrap`}>{fmt(row.total_amount)}</td>
+                      <td className={`${tbl.td} text-right tabular-nums whitespace-nowrap`}>{fmt(row.total_paid)}</td>
+                      <td className={`${tbl.td} text-right tabular-nums whitespace-nowrap font-medium ${balance > 0 ? 'text-red-700' : 'text-ink/50'}`}>
+                        {balance > 0 ? fmt(row.balance_due) : '—'}
+                      </td>
+                      <td className={`${tbl.td} whitespace-nowrap tabular-nums`}>{fmtDay(row.invoice_date)}</td>
+                      <td
+                        className={`${tbl.td} text-right tabular-nums whitespace-nowrap ${
+                          row.aging_days > 90 ? 'text-red-700 font-medium' : row.aging_days > 30 ? 'font-medium' : 'text-ink/70'
+                        }`}
+                      >
+                        {row.aging_days}d
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
-          <div className="p-3 bg-stone-900/60 border-t border-white/5 flex items-center justify-between text-xs text-stone-400 font-mono">
-            <span>Displaying {rows.length} invoice record{rows.length !== 1 ? 's' : ''}</span>
-            <span>Total Outstanding: {fmt(totalOutstanding)}</span>
+          <div className="flex items-center justify-between font-jakarta text-[12px] text-ink/70 tabular-nums">
+            <span>{rows.length} invoice{rows.length !== 1 ? 's' : ''}</span>
+            <span>Outstanding {fmt(totalOutstanding)}</span>
           </div>
         </div>
       )}

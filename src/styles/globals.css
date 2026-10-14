@@ -221,10 +221,10 @@ body::-webkit-scrollbar,
     display: none !important;
   }
 
-  /* 3. Force background to white and text to dark ink */
+  /* 3. White paper, full width. Colours come from the same token classes as on
+        screen; exact colour adjust keeps status dots, meters and red arrears. */
   html, body, main {
-    background: #ffffff !important;
-    color: #0b2540 !important;
+    background: white !important;
     margin: 0 !important;
     padding: 0 !important;
     width: 100% !important;
@@ -232,50 +232,55 @@ body::-webkit-scrollbar,
     print-color-adjust: exact !important;
   }
 
-  /* 4. Convert dark report containers to crisp executive paper format */
-  .bg-ink, [class*="bg-stone-950"], [class*="bg-stone-900"], [class*="bg-paper"] {
-    background: #ffffff !important;
-    color: #0b2540 !important;
-    border-color: #d1cdc7 !important;
-    box-shadow: none !important;
-  }
-
-  /* 5. Ensure all text colors have strong contrast for reading/printing */
-  .text-stone-100, .text-stone-200, .text-stone-300, .text-stone-400, .text-stone-500,
-  .text-white, .text-ink-faded {
-    color: #0b2540 !important;
-  }
-
-  .text-skynest-accent, .text-amber-400, .text-amber-500 {
-    color: #b85d1e !important;
-  }
-
-  /* 6. Clean table layout and page-break rules */
-  tr, .print-card, [class*="grid"] > div {
-    page-break-inside: avoid !important;
+  /* 4. Page breaks: never split a row or a card */
+  tr, .print-card {
     break-inside: avoid !important;
   }
+  thead {
+    display: table-header-group; /* repeat column headings on every page */
+  }
 
+  /* 5. Wide tables: the screen wraps them in overflow-x-auto with a min-width,
+        which on paper clips every column past the page edge. Let them fit the
+        page instead, with compact rows. */
+  .overflow-x-auto {
+    overflow: visible !important;
+  }
   table {
     width: 100% !important;
+    min-width: 0 !important;
     border-collapse: collapse !important;
   }
-
-  th {
-    background-color: #0b2540 !important;
-    color: #ffffff !important;
-    border: 1px solid #0b2540 !important;
-    -webkit-print-color-adjust: exact !important;
-    print-color-adjust: exact !important;
-  }
-
-  td {
-    border-bottom: 1px solid #e2ded7 !important;
-    color: #0b2540 !important;
+  th, td {
+    padding-top: 6px !important;
+    padding-bottom: 6px !important;
+    padding-right: 12px !important;
   }
 
   @page {
     margin: 1.5cm;
     size: auto;
   }
+
+  /* 6. Reports print landscape on A4 so ten-column ledgers fit. The whole
+        document uses the named page: switching page types mid-document forces a
+        break, and the invisible elements after <main> would land on a blank page. */
+  html:has(.report-print),
+  html:has(.report-print) body,
+  .report-print {
+    page: report;
+  }
+  .report-print td,
+  .report-print td * {
+    font-size: 11px !important;
+    line-height: 1.35 !important;
+  }
+  .report-print th {
+    font-size: 9px !important;
+  }
+}
+
+@page report {
+  size: A4 landscape;
+  margin: 12mm;
 }

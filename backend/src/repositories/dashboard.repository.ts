@@ -135,7 +135,7 @@ export class DashboardRepository {
       bookingParams,
     );
 
-    // Revenue today (resilient to schema variations between issued_at/created_at)
+    // Revenue today: invoices hang off booking_rooms (1:1), not bookings
     let revenueToday = 0;
     try {
       const revenueFilter = branchId
@@ -144,10 +144,11 @@ export class DashboardRepository {
       const revenueParams: unknown[] = branchId ? [String(branchId)] : [];
 
       const revenueResult = await this.db.query<{ revenue_today: string }>(
-        `SELECT COALESCE(SUM(COALESCE(i.total_amount, i.net_amount, 0)), 0) AS revenue_today
+        `SELECT COALESCE(SUM(i.total_amount), 0) AS revenue_today
          FROM invoices i
-         LEFT JOIN bookings bk ON (bk.booking_id::text = i.booking_id::text OR bk.booking_id::text = i.booking_room_id::text)
-         ${revenueFilter} COALESCE(i.issued_at, i.created_at)::date = CURRENT_DATE`,
+         JOIN booking_rooms br ON br.booking_room_id = i.booking_room_id
+         JOIN bookings bk      ON bk.booking_id = br.booking_id
+         ${revenueFilter} i.generated_at::date = CURRENT_DATE`,
         revenueParams,
       );
       revenueToday = parseFloat(revenueResult.rows[0]?.revenue_today ?? '0');
