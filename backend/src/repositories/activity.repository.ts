@@ -318,7 +318,7 @@ export class ActivityRepository {
       const rate = parseFloat(l.rate_at_booking || '150');
       const invoiceTot = parseFloat(l.invoice_total || '0');
       const totalPaid = invoiceTot > 0 ? invoiceTot : nights * rate;
-      const loyaltyPoints = l.status === 'CHECKED_OUT' ? Math.floor(totalPaid / 10) : 0;
+      const loyaltyPoints = l.status === 'CHECKED_OUT' ? Math.floor(totalPaid / 3100) : 0;
 
       bookings.push({
         archiveId: l.booking_id,

@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { X, Utensils, Coffee, Sun, Moon, Clock, Plus, Minus, CheckCircle2, AlertCircle } from "lucide-react";
 import { apiFetch, toNum } from "@/lib/api-client";
+import { formatLKR } from '@/lib/currency';
 
 interface MenuItem {
   id:          string;
@@ -216,7 +217,7 @@ export function InRoomDiningModal({ isOpen, onClose, booking, onOrderPlaced }: I
                             {item.name}
                           </h4>
                           <span className="font-cinzel font-bold text-skynest-accent text-sm whitespace-nowrap">
-                            ${toNum(item.price).toFixed(2)}
+                            {formatLKR(toNum(item.price))}
                           </span>
                         </div>
                         <p className="font-jakarta text-xs text-ink/60 mt-1.5 line-clamp-2 leading-relaxed">
@@ -290,11 +291,11 @@ export function InRoomDiningModal({ isOpen, onClose, booking, onOrderPlaced }: I
                       <div className="flex-1 pr-2">
                         <p className="font-jakarta font-medium text-ink truncate">{item.name}</p>
                         <p className="text-[11px] text-ink/40 font-jakarta">
-                          ${toNum(item.price).toFixed(2)} × {quantity}
+                          {formatLKR(toNum(item.price))} × {quantity}
                         </p>
                       </div>
                       <span className="font-cinzel font-semibold text-ink">
-                        ${(toNum(item.price) * quantity).toFixed(2)}
+                        {formatLKR((toNum(item.price) * quantity))}
                       </span>
                     </div>
                   ))}
@@ -304,7 +305,7 @@ export function InRoomDiningModal({ isOpen, onClose, booking, onOrderPlaced }: I
                       Subtotal
                     </span>
                     <span className="font-cinzel text-base font-bold text-skynest-accent">
-                      ${traySubtotal.toFixed(2)}
+                      {formatLKR(traySubtotal)}
                     </span>
                   </div>
                 </div>

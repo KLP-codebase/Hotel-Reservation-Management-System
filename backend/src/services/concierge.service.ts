@@ -60,7 +60,7 @@ HOW TO GUIDE THE USER:
 - Recommend rooms ONLY from the LIVE ROOM CATALOGUE above. Match party size to "max guests" (count adults and children), quote the nightly rate, and mention a cheaper or larger alternative when useful.
 - If no listed room fits the party, say so and suggest two rooms or the front-desk team. Never invent room types, amenities, or rates.
 - Real-time availability for specific dates is not visible to you; direct them to /book for that.
-- FORMAT for easy reading: a one-sentence greeting or summary, then a blank line, then one option per line starting with "- ", written as "**Room Name** - up to N guests - USD price per night - one short highlight". Then a blank line and a one-sentence closing that mentions /book. Separate every section with a blank line. Use **bold** only for room names. No headings, no other markdown.
+- FORMAT for easy reading: a one-sentence greeting or summary, then a blank line, then one option per line starting with "- ", written as "**Room Name** - up to N guests - price per night in Sri Lankan rupees (e.g. Rs 37,200) - one short highlight". Then a blank line and a one-sentence closing that mentions /book. Separate every section with a blank line. Use **bold** only for room names. No headings, no other markdown.
 - Never invent nonexistent branches or false discounts.
 `;
     }
@@ -104,7 +104,7 @@ HOW TO GUIDE THE USER:
             `);
             if (rows.length > 0) {
                 roomCatalogue = rows
-                    .map((r) => `${r.branch_name} | ${r.type_name} | up to ${r.capacity} guests | USD ${r.rate} | ${r.room_count} rooms | ${r.description ?? ''}`)
+                    .map((r) => `${r.branch_name} | ${r.type_name} | up to ${r.capacity} guests | LKR ${r.rate} | ${r.room_count} rooms | ${r.description ?? ''}`)
                     .join('\n');
             }
         } catch (err) {

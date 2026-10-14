@@ -32,11 +32,11 @@ interface Props {
 /**
  * Formats a numeric value or numeric string as a currency amount.
  * @param v - Number or numeric string to format
- * @returns Formatted currency string (e.g. "$125,450.00")
+ * @returns Formatted currency string (e.g. "Rs 125,450.00")
  */
 function fmt(v: string | number): string {
   const n = typeof v === 'string' ? toNum(v) : v;
-  return '$' + n.toLocaleString('en-LK', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  return 'Rs ' + n.toLocaleString('en-LK', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
 /**
@@ -152,11 +152,11 @@ export function MonthlyRevenueReport({ selectedBranch: propBranch, year: propYea
       [
         { header: 'Month', accessor: r => r.month_label },
         { header: 'Branch Name', accessor: r => r.branch_name },
-        { header: 'Room Revenue ($)', accessor: r => toNum(r.total_room_revenue).toFixed(2) },
-        { header: 'Service Revenue ($)', accessor: r => toNum(r.total_service_revenue).toFixed(2) },
-        { header: 'Subtotal Base ($)', accessor: r => toNum(r.subtotal_base_revenue).toFixed(2) },
-        { header: 'Taxes Collected ($)', accessor: r => toNum(r.total_taxes_collected).toFixed(2) },
-        { header: 'Gross Revenue ($)', accessor: r => toNum(r.gross_revenue).toFixed(2) },
+        { header: 'Room Revenue (Rs)', accessor: r => toNum(r.total_room_revenue).toFixed(2) },
+        { header: 'Service Revenue (Rs)', accessor: r => toNum(r.total_service_revenue).toFixed(2) },
+        { header: 'Subtotal Base (Rs)', accessor: r => toNum(r.subtotal_base_revenue).toFixed(2) },
+        { header: 'Taxes Collected (Rs)', accessor: r => toNum(r.total_taxes_collected).toFixed(2) },
+        { header: 'Gross Revenue (Rs)', accessor: r => toNum(r.gross_revenue).toFixed(2) },
       ]
     );
   };

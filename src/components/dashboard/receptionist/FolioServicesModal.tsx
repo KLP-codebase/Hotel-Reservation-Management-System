@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { X, Receipt, Trash2, Utensils, Sparkles, Plus, AlertTriangle, CheckCircle2, Clock, Calendar } from "lucide-react";
 import { apiFetch, toNum } from "@/lib/api-client";
+import { formatLKR } from '@/lib/currency';
 
 interface FolioServiceItem {
   usage_id:         string;
@@ -153,7 +154,7 @@ export function FolioServicesModal({
               Folio Services Subtotal
             </span>
             <span className="font-cinzel text-sm font-bold text-skynest-accent">
-              ${totalServicesAmount.toFixed(2)}
+              {formatLKR(totalServicesAmount)}
             </span>
           </div>
         </div>
@@ -213,7 +214,7 @@ export function FolioServicesModal({
 
                     <div className="mt-1.5 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-ink/60 font-jakarta">
                       <span>
-                        Rate: <strong className="text-ink">${toNum(item.price_at_usage).toFixed(2)}</strong> × {item.quantity}
+                        Rate: <strong className="text-ink">{formatLKR(toNum(item.price_at_usage))}</strong> × {item.quantity}
                       </span>
                       {item.appointment_time && (
                         <span className="flex items-center gap-1 text-skynest-accent font-medium">
@@ -234,7 +235,7 @@ export function FolioServicesModal({
 
                   <div className="flex items-center justify-between sm:justify-end gap-4 shrink-0 pt-2 sm:pt-0 border-t sm:border-t-0 border-skynest-hairline">
                     <span className="font-cinzel text-base font-bold text-ink">
-                      ${toNum(item.total_price).toFixed(2)}
+                      {formatLKR(toNum(item.total_price))}
                     </span>
 
                     {showVoidPrompt === item.usage_id ? (

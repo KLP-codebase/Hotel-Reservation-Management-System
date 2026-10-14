@@ -8,6 +8,7 @@
 import Image from "next/image";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Search, X, Loader2, RefreshCw, ChevronDown, CheckCircle2, AlertCircle } from "lucide-react";
+import { formatLKR, formatLKRCompact } from "@/lib/currency";
 
 // ── Formatting ────────────────────────────────────────────────────────────────
 
@@ -59,18 +60,18 @@ export function fmtStayRange(inVal?: string | null, outVal?: string | null): { f
   return { from: a.getFullYear() === b.getFullYear() ? dm(a) : dmy(a), to: dmy(b) };
 }
 
-/** "LKR 25,000.00" */
+/** "Rs 25,000.00" */
 export function fmtLKR(n: number | string | null | undefined, decimals = 2): string {
-  return `$${Number(n ?? 0).toLocaleString("en-US", { minimumFractionDigits: decimals, maximumFractionDigits: decimals })}`;
+  return formatLKR(n, decimals);
 }
 
-/** "LKR 1.2M" — for headline figures where the full amount would not fit. */
+/** "Rs 1.2M" — for headline figures where the full amount would not fit. */
 export function fmtLKRCompact(n: number | string | null | undefined): string {
-  return `$${new Intl.NumberFormat("en-US", { notation: "compact", maximumFractionDigits: 1 }).format(Number(n ?? 0))}`;
+  return formatLKRCompact(n);
 }
 
 export function fmtMoney(n: number | string | null | undefined, decimals = 0): string {
-  return `$${Number(n ?? 0).toLocaleString("en-US", { minimumFractionDigits: decimals, maximumFractionDigits: decimals })}`;
+  return formatLKR(n, decimals);
 }
 
 export function titleCase(s?: string | null): string {

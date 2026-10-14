@@ -9,6 +9,7 @@ import gsap from 'gsap';
 import { ShaderBackground } from '@/components/ui/adisyon-shader';
 import { useBranches } from '@/hooks/useBranches';
 import { apiFetch, ApiError } from '@/lib/api-client';
+import { formatLKR } from '@/lib/currency';
 
 function generateReferenceNumber(): string {
   return `ONLINE-${Date.now().toString(36).toUpperCase()}`;
@@ -16,10 +17,10 @@ function generateReferenceNumber(): string {
 
 // ── Static Reference Data ───────────────────────────────────────────────────
 const ROOM_TYPES = [
-  { id: 'STANDARD', name: 'Standard Room', rate: 120, capacity: 2 },
-  { id: 'DELUXE', name: 'Deluxe Room', rate: 180, capacity: 3 },
-  { id: 'SUITE', name: 'Suite', rate: 280, capacity: 4 },
-  { id: 'PRESIDENTIAL', name: 'Presidential Suite', rate: 500, capacity: 6 },
+  { id: 'STANDARD', name: 'Standard Room', rate: 37200, capacity: 2 },
+  { id: 'DELUXE', name: 'Deluxe Room', rate: 55800, capacity: 3 },
+  { id: 'SUITE', name: 'Suite', rate: 86800, capacity: 4 },
+  { id: 'PRESIDENTIAL', name: 'Presidential Suite', rate: 155000, capacity: 6 },
 ];
 
 const DEFAULT_AMENITIES_BY_TYPE: Record<string, string[]> = {
@@ -74,9 +75,9 @@ const DEFAULT_AMENITIES_BY_TYPE: Record<string, string[]> = {
 
 const MEAL_PLANS = [
   { id: 1, name: 'Room Only', description: 'Room only. Meals available à la carte.', price: 0 },
-  { id: 2, name: 'Bed & Breakfast', description: 'Daily breakfast included.', price: 25 },
-  { id: 3, name: 'Half Board', description: 'Daily breakfast and dinner included.', price: 55 },
-  { id: 4, name: 'Full Board', description: 'Daily breakfast, lunch, and dinner included.', price: 80 },
+  { id: 2, name: 'Bed & Breakfast', description: 'Daily breakfast included.', price: 7800 },
+  { id: 3, name: 'Half Board', description: 'Daily breakfast and dinner included.', price: 17100 },
+  { id: 4, name: 'Full Board', description: 'Daily breakfast, lunch, and dinner included.', price: 24800 },
 ];
 
 // ── Mountain Glyph Emblem ───────────────────────────────────────────────────
@@ -236,7 +237,7 @@ function buildInitialRooms(
     const rType = rawTypes[i] || roomTypeIdStr || 'STANDARD';
     const rTypeObj = ROOM_TYPES.find(r => r.id === rType);
     const rTypeName = rTypeObj?.name || (rType.charAt(0).toUpperCase() + rType.slice(1).toLowerCase() + ' Room');
-    const rRate = rawRates[i] !== undefined ? rawRates[i] : (rTypeObj?.rate || 120);
+    const rRate = rawRates[i] !== undefined ? rawRates[i] : (rTypeObj?.rate || 37200);
     const rCapacity = rawCapacities[i] !== undefined ? rawCapacities[i] : (rTypeObj?.capacity || 2);
     const rAmenities = (rawAmenitiesList[i] && rawAmenitiesList[i].length > 0)
       ? rawAmenitiesList[i]
@@ -658,7 +659,7 @@ function BookingConfirmContent() {
     confirmed.rooms.forEach((r) => {
       line_items.push({
         description: `Room Accommodation — Room ${r.roomNumber} (${r.roomTypeName})`,
-        details: `${confirmed.nights} Night(s) (${confirmed.checkIn} to ${confirmed.checkOut}) @ $${r.baseRate.toFixed(2)}/nt`,
+        details: `${confirmed.nights} Night(s) (${confirmed.checkIn} to ${confirmed.checkOut}) @ ${formatLKR(r.baseRate)}/nt`,
         category: 'Accommodation',
         quantity: confirmed.nights,
         unitRate: r.baseRate,
@@ -668,7 +669,7 @@ function BookingConfirmContent() {
       if (r.mealCost > 0) {
         line_items.push({
           description: `Meal Plan: ${r.planName} — Room ${r.roomNumber}`,
-          details: `${r.adults} Guest(s) × ${confirmed.nights} nt @ $${r.planPrice.toFixed(2)}/nt`,
+          details: `${r.adults} Guest(s) × ${confirmed.nights} nt @ ${formatLKR(r.planPrice)}/nt`,
           category: 'Dining',
           quantity: confirmed.nights,
           unitRate: r.planPrice,
@@ -1154,17 +1155,17 @@ function BookingConfirmContent() {
                       <div className="flex items-center gap-2">
                         <span className="font-cinzel font-bold text-ink">Room {rm.roomNumber}</span>
                         <span className="text-[10px] px-2 py-0.5 bg-ink/5 border border-skynest-hairline text-ink/70 uppercase">
-                          {rm.roomTypeName} (${rm.baseRate}/nt)
+                          {rm.roomTypeName} ({formatLKR(rm.baseRate, 0)}/nt)
                         </span>
                       </div>
                       <p className="font-jakarta text-[11px] text-ink/60 mt-1">
-                        Guests: <strong className="text-ink">{rm.adults} Adult{rm.adults > 1 ? 's' : ''}</strong>{rm.children > 0 ? `, ${rm.children} Child${rm.children > 1 ? 'ren' : ''}` : ''}{rm.childAges && rm.childAges.length > 0 ? ` (Child Ages: ${rm.childAges.join(', ')})` : ''} • Meal Plan: <strong className="text-ink">{rm.planName}</strong> ({rm.planPrice === 0 ? 'Included' : `+$${rm.planPrice}/nt`})
+                        Guests: <strong className="text-ink">{rm.adults} Adult{rm.adults > 1 ? 's' : ''}</strong>{rm.children > 0 ? `, ${rm.children} Child${rm.children > 1 ? 'ren' : ''}` : ''}{rm.childAges && rm.childAges.length > 0 ? ` (Child Ages: ${rm.childAges.join(', ')})` : ''} • Meal Plan: <strong className="text-ink">{rm.planName}</strong> ({rm.planPrice === 0 ? 'Included' : `+${formatLKR(rm.planPrice, 0)}/nt`})
                       </p>
                     </div>
                     <div className="text-right sm:border-l sm:pl-4 border-skynest-hairline">
                       <span className="text-[10px] uppercase tracking-wider text-ink/40 block">Room Subtotal</span>
                       <span className="font-cinzel text-sm font-semibold text-ink">
-                        ${rm.subtotal.toFixed(2)}
+                        {formatLKR(rm.subtotal)}
                       </span>
                     </div>
                   </div>
@@ -1177,7 +1178,7 @@ function BookingConfirmContent() {
               <div className="space-y-2 pt-2 border-t border-skynest-hairline/60">
                 <div className="flex justify-between items-center text-ink/80 font-semibold">
                   <span className="font-cinzel text-xs uppercase tracking-wider">Booked Services &amp; Add-Ons ({confirmed.bookedServices.length})</span>
-                  <span className="font-mono text-ink">${(confirmed.serviceCost ?? 0).toFixed(2)}</span>
+                  <span className="font-mono text-ink">{formatLKR((confirmed.serviceCost ?? 0))}</span>
                 </div>
                 {confirmed.bookedServices.map((svc) => {
                   const isSpa = svc.category?.toUpperCase() === 'SPA';
@@ -1191,14 +1192,14 @@ function BookingConfirmContent() {
                           </span>
                         </div>
                         <div className="text-[11px] text-ink/60 mt-1 space-x-2">
-                          <span>Quantity: <strong className="text-ink">{svc.quantity}</strong> × ${svc.base_price.toFixed(2)}</span>
+                          <span>Quantity: <strong className="text-ink">{svc.quantity}</strong> × {formatLKR(svc.base_price)}</span>
                           {svc.date && <span className="text-skynest-accent font-medium">· {isSpa ? 'Spa Session Date' : 'Date'}: {svc.date}</span>}
                           {svc.appointment_time && <span className="font-medium text-ink">· Slot: {svc.appointment_time}</span>}
                           {svc.notes && <span className="italic text-ink/40">({svc.notes})</span>}
                         </div>
                       </div>
                       <div className="text-right sm:border-l sm:pl-3 border-skynest-hairline">
-                        <span className="font-mono font-bold text-ink">${(svc.base_price * svc.quantity).toFixed(2)}</span>
+                        <span className="font-mono font-bold text-ink">{formatLKR((svc.base_price * svc.quantity))}</span>
                       </div>
                     </div>
                   );
@@ -1210,40 +1211,40 @@ function BookingConfirmContent() {
             <div className="py-4 border-b border-skynest-hairline space-y-2 text-xs font-jakarta">
               <div className="flex justify-between items-center text-ink/70">
                 <span>Total Accommodation ({confirmed.rooms.length} Rooms × {confirmed.nights} Nights)</span>
-                <span className="font-medium text-ink">${confirmed.rooms.reduce((s, r) => s + r.roomCost, 0).toFixed(2)}</span>
+                <span className="font-medium text-ink">{formatLKR(confirmed.rooms.reduce((s, r) => s + r.roomCost, 0))}</span>
               </div>
               <div className="flex justify-between items-center text-ink/70">
                 <span>Total Meal Plans</span>
-                <span className="font-medium text-ink">${confirmed.rooms.reduce((s, r) => s + r.mealCost, 0).toFixed(2)}</span>
+                <span className="font-medium text-ink">{formatLKR(confirmed.rooms.reduce((s, r) => s + r.mealCost, 0))}</span>
               </div>
               {confirmed.bookedServices && confirmed.bookedServices.length > 0 && (
                 <div className="flex justify-between items-center text-ink/70">
                   <span>Total Booked Services ({confirmed.bookedServices.length} items)</span>
-                  <span className="font-medium text-ink">${(confirmed.serviceCost ?? 0).toFixed(2)}</span>
+                  <span className="font-medium text-ink">{formatLKR((confirmed.serviceCost ?? 0))}</span>
                 </div>
               )}
               <div className="flex justify-between items-center text-ink font-semibold pt-1 border-t border-skynest-hairline">
                 <span>Base Subtotal (Net of Taxes)</span>
-                <span>${confirmed.baseAmount.toFixed(2)}</span>
+                <span>{formatLKR(confirmed.baseAmount)}</span>
               </div>
               
               {/* Sri Lanka Statutory Levies */}
               <div className="pt-2 space-y-1.5 text-ink/60 text-[11px]">
                 <div className="flex justify-between items-center">
                   <span>+ Service Charge (SC 10%)</span>
-                  <span>${confirmed.taxes.scTax.toFixed(2)}</span>
+                  <span>{formatLKR(confirmed.taxes.scTax)}</span>
                 </div>
                 <div className="flex justify-between items-center">
                   <span>+ Tourism Development Levy (TDL 1%)</span>
-                  <span>${confirmed.taxes.tdlTax.toFixed(2)}</span>
+                  <span>{formatLKR(confirmed.taxes.tdlTax)}</span>
                 </div>
                 <div className="flex justify-between items-center">
                   <span>+ Social Security Contribution Levy (SSCL 2.5%)</span>
-                  <span>${confirmed.taxes.sscTax.toFixed(2)}</span>
+                  <span>{formatLKR(confirmed.taxes.sscTax)}</span>
                 </div>
                 <div className="flex justify-between items-center">
                   <span>+ Value Added Tax (VAT 18%)</span>
-                  <span>${confirmed.taxes.vatTax.toFixed(2)}</span>
+                  <span>{formatLKR(confirmed.taxes.vatTax)}</span>
                 </div>
               </div>
             </div>
@@ -1257,7 +1258,7 @@ function BookingConfirmContent() {
                 <p className="text-[10px] font-jakarta text-ink/40">Includes all accommodation, selected meal plans, services &amp; statutory taxes</p>
               </div>
               <span className="font-cinzel text-2xl md:text-3xl font-normal text-skynest-accent">
-                ${confirmed.grandTotal.toFixed(2)}
+                {formatLKR(confirmed.grandTotal)}
               </span>
             </div>
 
@@ -1289,12 +1290,12 @@ function BookingConfirmContent() {
                       ? 'Deposit Paid Online (20%)'
                       : 'Amount Paid Online (Full Prepayment)'}
                   </span>
-                  <span className="font-mono text-sm">&#8722; ${confirmed.amountPaid.toFixed(2)}</span>
+                  <span className="font-mono text-sm">&#8722; {formatLKR(confirmed.amountPaid)}</span>
                 </div>
               ) : (
                 <div className="flex justify-between items-center text-ink/60 pt-1">
                   <span>Amount Paid Online (Hold Reservation)</span>
-                  <span className="font-mono">$0.00</span>
+                  <span className="font-mono">Rs 0.00</span>
                 </div>
               )}
 
@@ -1305,7 +1306,7 @@ function BookingConfirmContent() {
               }`}>
                 <span>Balance Due on Arrival:</span>
                 <span className="font-mono">
-                  ${Math.max(0, confirmed.grandTotal - (confirmed.amountPaid ?? 0)).toFixed(2)}
+                  {formatLKR(Math.max(0, confirmed.grandTotal - (confirmed.amountPaid ?? 0)))}
                 </span>
               </div>
             </div>
@@ -1518,7 +1519,7 @@ function BookingConfirmContent() {
                             Room {room.roomNumber}
                           </h3>
                           <span className="text-[10px] font-jakarta px-2 py-0.5 border border-skynest-hairline bg-white text-ink font-semibold uppercase">
-                            {room.roomTypeName} • ${room.baseRate}/nt
+                            {room.roomTypeName} • {formatLKR(room.baseRate, 0)}/nt
                           </span>
                           <span className={`text-[10px] font-jakarta px-2 py-0.5 font-semibold uppercase tracking-wider border ${
                             room.adults + room.children >= room.maxGuests
@@ -1530,7 +1531,7 @@ function BookingConfirmContent() {
                         </div>
                         <div className="text-right">
                           <span className="font-cinzel text-xs font-semibold text-skynest-accent block">
-                            ${roomSubtotal.toFixed(2)}
+                            {formatLKR(roomSubtotal)}
                           </span>
                           <span className="text-[9px] font-jakarta text-ink/40">
                             ({nights} nt{nights > 1 ? 's' : ''})
@@ -1601,7 +1602,7 @@ function BookingConfirmContent() {
                             Meal Plan for Room {room.roomNumber}
                           </label>
                           <span className="text-[10px] font-jakarta text-ink/70 font-semibold">
-                            {currentPlan.name} ({currentPlan.price === 0 ? 'Included' : `+$${currentPlan.price}/nt per guest ($${roomMealCost.toFixed(2)} total)`})
+                            {currentPlan.name} ({currentPlan.price === 0 ? 'Included' : `+${formatLKR(currentPlan.price, 0)}/nt per guest (${formatLKR(roomMealCost)} total)`})
                           </span>
                         </div>
 
@@ -1632,7 +1633,7 @@ function BookingConfirmContent() {
                                 <span className={`text-[11px] font-jakarta font-bold mt-2 text-right ${
                                   isSel ? 'text-ink font-bold' : 'text-ink/70'
                                 }`}>
-                                  {plan.price === 0 ? 'Included' : `+$${plan.price}/nt`}
+                                  {plan.price === 0 ? 'Included' : `+${formatLKR(plan.price, 0)}/nt`}
                                 </span>
                               </div>
                             );
@@ -1746,7 +1747,7 @@ function BookingConfirmContent() {
                 </div>
                 {totalServiceCost > 0 && (
                   <span className="font-cinzel text-xs font-bold text-ink uppercase tracking-wider bg-ink/[0.05] px-3 py-1 border border-skynest-hairline">
-                    Add-ons: +${totalServiceCost.toFixed(2)}
+                    Add-ons: +{formatLKR(totalServiceCost)}
                   </span>
                 )}
               </div>
@@ -1775,7 +1776,7 @@ function BookingConfirmContent() {
                               {svc.category}
                             </span>
                             <span className="font-cinzel text-xs font-bold text-ink">
-                              ${Number(svc.base_price).toFixed(2)}
+                              {formatLKR(Number(svc.base_price))}
                             </span>
                           </div>
                           <h4 className="font-cinzel text-sm font-semibold text-ink line-clamp-2">
@@ -1846,7 +1847,7 @@ function BookingConfirmContent() {
                             </button>
                           )}
                           <span className="font-jakarta text-[11px] text-ink font-semibold">
-                            {isSelected ? `$${(svc.base_price * qty).toFixed(2)}` : ''}
+                            {isSelected ? `${formatLKR((svc.base_price * qty))}` : ''}
                           </span>
                         </div>
 
@@ -1995,7 +1996,7 @@ function BookingConfirmContent() {
                   </div>
                   <div className="mt-4 pt-3 border-t border-skynest-hairline flex items-baseline justify-between">
                     <span className="font-jakarta text-[10px] text-ink/40 uppercase font-semibold">Charge Now</span>
-                    <span className="font-cinzel text-base font-bold text-ink">${depositAmount.toFixed(2)}</span>
+                    <span className="font-cinzel text-base font-bold text-ink">{formatLKR(depositAmount)}</span>
                   </div>
                 </div>
 
@@ -2025,7 +2026,7 @@ function BookingConfirmContent() {
                   </div>
                   <div className="mt-4 pt-3 border-t border-skynest-hairline flex items-baseline justify-between">
                     <span className="font-jakarta text-[10px] text-ink/40 uppercase font-semibold">Charge Now</span>
-                    <span className="font-cinzel text-base font-bold text-ink">${grandTotal.toFixed(2)}</span>
+                    <span className="font-cinzel text-base font-bold text-ink">{formatLKR(grandTotal)}</span>
                   </div>
                 </div>
 
@@ -2055,7 +2056,7 @@ function BookingConfirmContent() {
                   </div>
                   <div className="mt-4 pt-3 border-t border-skynest-hairline flex items-baseline justify-between">
                     <span className="font-jakarta text-[10px] text-ink/40 uppercase font-semibold">Charge Now</span>
-                    <span className="font-cinzel text-base font-bold text-ink/70">$0.00</span>
+                    <span className="font-cinzel text-base font-bold text-ink/70">Rs 0.00</span>
                   </div>
                 </div>
               </div>
@@ -2179,12 +2180,12 @@ function BookingConfirmContent() {
                   <div className="space-y-1.5 text-xs font-jakarta">
                     <div className="flex justify-between items-center text-ink font-semibold border-b border-skynest-hairline pb-1">
                       <span>Room Accommodation ({rooms.length} Room{rooms.length > 1 ? 's' : ''} × {nights} Night{nights > 1 ? 's' : ''})</span>
-                      <span>${totalRoomCost.toFixed(2)}</span>
+                      <span>{formatLKR(totalRoomCost)}</span>
                     </div>
                     {rooms.map((rm) => (
                       <div key={rm.index} className="flex justify-between items-center text-ink/60 text-[11px] pl-3">
-                        <span>Room {rm.roomNumber} ({rm.roomTypeName}): {nights} nt × ${rm.baseRate}/nt</span>
-                        <span>${(rm.baseRate * nights).toFixed(2)}</span>
+                        <span>Room {rm.roomNumber} ({rm.roomTypeName}): {nights} nt × {formatLKR(rm.baseRate, 0)}/nt</span>
+                        <span>{formatLKR((rm.baseRate * nights))}</span>
                       </div>
                     ))}
                   </div>
@@ -2193,7 +2194,7 @@ function BookingConfirmContent() {
                   <div className="space-y-1.5 text-xs font-jakarta pt-2">
                     <div className="flex justify-between items-center text-ink font-semibold border-b border-skynest-hairline pb-1">
                       <span>Meal Plans ({rooms.length} Room{rooms.length > 1 ? 's' : ''})</span>
-                      <span>${totalMealCost.toFixed(2)}</span>
+                      <span>{formatLKR(totalMealCost)}</span>
                     </div>
                     {roomCalculations.map((rm) => {
                       const guestCount = Math.max(1, (rm.adults || 1) + (rm.children || 0));
@@ -2202,10 +2203,10 @@ function BookingConfirmContent() {
                           <span>
                             Room {rm.roomNumber}: {rm.planName}{' '}
                             {rm.planPrice > 0
-                              ? `(${guestCount} guest${guestCount > 1 ? 's' : ''} × ${nights} nt × $${rm.planPrice}/guest/nt)`
+                              ? `(${guestCount} guest${guestCount > 1 ? 's' : ''} × ${nights} nt × ${formatLKR(rm.planPrice, 0)}/guest/nt)`
                               : '(Included)'}
                           </span>
-                          <span className="font-semibold text-ink">${rm.mealCost.toFixed(2)}</span>
+                          <span className="font-semibold text-ink">{formatLKR(rm.mealCost)}</span>
                         </div>
                       );
                     })}
@@ -2216,7 +2217,7 @@ function BookingConfirmContent() {
                     <div className="space-y-1.5 text-xs font-jakarta pt-2">
                       <div className="flex justify-between items-center text-ink font-semibold border-b border-skynest-hairline pb-1">
                         <span>Curated Services & Add-Ons ({selectedServiceList.length} Selected)</span>
-                        <span>${totalServiceCost.toFixed(2)}</span>
+                        <span>{formatLKR(totalServiceCost)}</span>
                       </div>
                       {selectedServiceList.map((svc) => {
                         const isSpa = svc.category?.toUpperCase() === 'SPA';
@@ -2230,13 +2231,13 @@ function BookingConfirmContent() {
                                 </span>
                               </div>
                               <div className="text-[10px] text-ink/50 mt-0.5 space-x-1.5">
-                                <span>Quantity: <strong className="text-ink">{svc.quantity}</strong> × ${svc.base_price.toFixed(2)}</span>
+                                <span>Quantity: <strong className="text-ink">{svc.quantity}</strong> × {formatLKR(svc.base_price)}</span>
                                 {svc.date && <span className="text-skynest-accent font-medium">· {isSpa ? 'Spa Session Date' : 'Date'}: {svc.date}</span>}
                                 {svc.appointment_time && <span className="font-medium text-ink">· Slot: {svc.appointment_time}</span>}
                                 {svc.notes && <span className="italic text-ink/40">({svc.notes})</span>}
                               </div>
                             </div>
-                            <span className="font-semibold text-ink font-mono">${(svc.base_price * svc.quantity).toFixed(2)}</span>
+                            <span className="font-semibold text-ink font-mono">{formatLKR((svc.base_price * svc.quantity))}</span>
                           </div>
                         );
                       })}
@@ -2246,30 +2247,30 @@ function BookingConfirmContent() {
                   {/* Base Subtotal */}
                   <div className="flex justify-between items-center text-ink font-bold text-xs pt-2 border-t border-skynest-hairline">
                     <span>Base Subtotal (Net of Taxes)</span>
-                    <span>${baseAmount.toFixed(2)}</span>
+                    <span>{formatLKR(baseAmount)}</span>
                   </div>
 
                   {/* 4-Tier Tax Cascade itemized */}
                   <div className="space-y-1 text-[11px] font-jakarta text-ink/60 pt-2 border-t border-skynest-hairline">
                     <div className="flex justify-between items-center">
                       <span>Service Charge (SC 10%)</span>
-                      <span>+${taxes.scTax.toFixed(2)}</span>
+                      <span>+{formatLKR(taxes.scTax)}</span>
                     </div>
                     <div className="flex justify-between items-center">
                       <span>Tourism Development Levy (TDL 1%)</span>
-                      <span>+${taxes.tdlTax.toFixed(2)}</span>
+                      <span>+{formatLKR(taxes.tdlTax)}</span>
                     </div>
                     <div className="flex justify-between items-center">
                       <span>Social Security Contribution Levy (SSCL 2.5%)</span>
-                      <span>+${taxes.sscTax.toFixed(2)}</span>
+                      <span>+{formatLKR(taxes.sscTax)}</span>
                     </div>
                     <div className="flex justify-between items-center">
                       <span>Value Added Tax (VAT 18%)</span>
-                      <span>+${taxes.vatTax.toFixed(2)}</span>
+                      <span>+{formatLKR(taxes.vatTax)}</span>
                     </div>
                     <div className="flex justify-between items-center text-ink/80 font-medium pt-1 border-t border-dashed border-skynest-hairline">
                       <span>Total Statutory Levies & Taxes</span>
-                      <span>+${taxes.totalTaxes.toFixed(2)}</span>
+                      <span>+{formatLKR(taxes.totalTaxes)}</span>
                     </div>
                   </div>
                 </div>
@@ -2283,7 +2284,7 @@ function BookingConfirmContent() {
                       </span>
                       <div className="flex items-baseline justify-between">
                         <span className="font-cinzel text-3xl font-normal text-skynest-accent">
-                          ${grandTotal.toFixed(2)}
+                          {formatLKR(grandTotal)}
                         </span>
                         <span className="text-[10px] font-jakarta text-ink/50 uppercase font-semibold">
                           All Taxes Included
@@ -2312,10 +2313,10 @@ function BookingConfirmContent() {
                         </span>
                         <span className="font-mono text-sm">
                           {paymentOption === 'DEPOSIT'
-                            ? `$${depositAmount.toFixed(2)}`
+                            ? `${formatLKR(depositAmount)}`
                             : paymentOption === 'FULL'
-                            ? `$${grandTotal.toFixed(2)}`
-                            : '$0.00'}
+                            ? `${formatLKR(grandTotal)}`
+                            : 'Rs 0.00'}
                         </span>
                       </div>
                       <div className={`flex justify-between items-center font-semibold p-2.5 border ${
@@ -2326,10 +2327,10 @@ function BookingConfirmContent() {
                         <span>Balance Due on Arrival:</span>
                         <span className="font-mono text-sm">
                           {paymentOption === 'DEPOSIT'
-                            ? `$${(grandTotal - depositAmount).toFixed(2)}`
+                            ? `${formatLKR((grandTotal - depositAmount))}`
                             : paymentOption === 'FULL'
-                            ? '$0.00 (Fully Settled)'
-                            : `$${grandTotal.toFixed(2)}`}
+                            ? 'Rs 0.00 (Fully Settled)'
+                            : `${formatLKR(grandTotal)}`}
                         </span>
                       </div>
                     </div>
@@ -2341,10 +2342,10 @@ function BookingConfirmContent() {
                     className="w-full py-4 rounded-none font-jakarta font-semibold text-xs tracking-wider uppercase transition-all duration-200 flex items-center justify-center gap-2 border border-ink bg-ink text-paper hover:bg-skynest-accent hover:border-skynest-accent cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
                   >
                     {loading ? 'Processing Reservation…' : paymentOption === 'DEPOSIT'
-                      ? `Confirm & Pay 20% Deposit ($${depositAmount.toFixed(2)})`
+                      ? `Confirm & Pay 20% Deposit (${formatLKR(depositAmount)})`
                       : paymentOption === 'FULL'
-                      ? `Confirm & Pay Full Amount ($${grandTotal.toFixed(2)})`
-                      : `Submit Reservation ($0.00 today · Pay on Arrival)`}
+                      ? `Confirm & Pay Full Amount (${formatLKR(grandTotal)})`
+                      : `Submit Reservation (Rs 0.00 today · Pay on Arrival)`}
                   </button>
                 </div>
               </div>

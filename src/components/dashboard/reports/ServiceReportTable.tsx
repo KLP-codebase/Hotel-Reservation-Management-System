@@ -3,6 +3,7 @@
 import React from 'react';
 import { ServiceUsageReportRow } from '../../../lib/api/reports/service-report.api';
 import { toNum } from '../../../lib/api-client';
+import { formatLKR } from '@/lib/currency';
 
 interface ServiceReportTableProps {
   data: ServiceUsageReportRow[];
@@ -65,10 +66,10 @@ export const ServiceReportTable: React.FC<ServiceReportTableProps> = ({
                 <td className="px-6 py-4 text-right">{toNum(row.orders_count).toLocaleString()}</td>
                 <td className="px-6 py-4 text-right">{toNum(row.total_quantity).toLocaleString()}</td>
                 <td className="px-6 py-4 text-right font-mono text-slate-300">
-                  ${toNum(row.avg_unit_price).toFixed(2)}
+                  {formatLKR(toNum(row.avg_unit_price))}
                 </td>
                 <td className="px-6 py-4 text-right font-mono font-semibold text-amber-400">
-                  ${toNum(row.total_service_revenue).toFixed(2)}
+                  {formatLKR(toNum(row.total_service_revenue))}
                 </td>
               </tr>
             ))}
@@ -80,7 +81,7 @@ export const ServiceReportTable: React.FC<ServiceReportTableProps> = ({
               <td className="px-6 py-4 text-right text-slate-100">{grandTotalQty.toLocaleString()}</td>
               <td className="px-6 py-4 text-right text-slate-400">—</td>
               <td className="px-6 py-4 text-right font-mono text-amber-400 text-base">
-                ${grandTotalRevenue.toFixed(2)}
+                {formatLKR(grandTotalRevenue)}
               </td>
             </tr>
           </tfoot>

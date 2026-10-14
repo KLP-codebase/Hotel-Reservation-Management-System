@@ -11,6 +11,7 @@ import {
   DashboardMasthead, Btn, Loading, Empty, StatusDot,
   fmtStayRange, fmtMoney, fmtDay, fmtDate, titleCase, useFlash, parseStayDate, toLocalYMD,
 } from '@/components/dashboard/ui';
+import { formatLKR } from '@/lib/currency';
 
 // ── Types ────────────────────────────────────────────────────────────────────
 interface AccompanyingGuest {
@@ -486,7 +487,7 @@ export default function BookingDetailPage() {
                   <option value="">-- Choose from active catalogue --</option>
                   {catalogue.map((c) => (
                     <option key={c.service_id} value={c.service_id}>
-                      {c.service_name} ({c.category}) — ${Number(c.base_price).toFixed(2)}
+                      {c.service_name} ({c.category}) — {formatLKR(Number(c.base_price))}
                     </option>
                   ))}
                 </select>

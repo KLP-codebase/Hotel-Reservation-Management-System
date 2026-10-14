@@ -11,6 +11,7 @@ import { BookingRepository } from '../repositories/booking.repository';
 import { InvoiceRepository } from '../repositories/invoice.repository';
 import { AppError, Errors } from '../lib/errors';
 import { buildDbInvoice } from './invoices.routes';
+import { formatLKR } from '../lib/currency';
 
 // ── GoF: Chain of Responsibility ──────────────────────────────────────────────
 // Route pipeline: authenticate → authorize(ADMINISTRATOR, MANAGER, DBA) → handler
@@ -321,8 +322,8 @@ router.post('/check-out', validate(CheckOutSchema), async (req: Request, res: Re
   const { settlement, departure } = outcome;
   const parts = ['Guest checked out.'];
   if (departure.early) parts.push(`Early departure: billed ${departure.nights_billed} of ${departure.nights_booked} night(s).`);
-  if (settlement.settledNow > 0) parts.push(`Balance of $${settlement.settledNow.toFixed(2)} settled.`);
-  if (settlement.refundedNow > 0) parts.push(`Refund of $${settlement.refundedNow.toFixed(2)} recorded.`);
+  if (settlement.settledNow > 0) parts.push(`Balance of ${formatLKR(settlement.settledNow)} settled.`);
+  if (settlement.refundedNow > 0) parts.push(`Refund of ${formatLKR(settlement.refundedNow)} recorded.`);
   if (settlement.settledNow === 0 && settlement.refundedNow === 0) parts.push('Folio settled.');
 
   res.json({

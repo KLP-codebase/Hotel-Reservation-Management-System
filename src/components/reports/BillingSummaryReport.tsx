@@ -40,7 +40,7 @@ interface Props {
 
 function fmt(v: string | number): string {
   const n = typeof v === 'string' ? toNum(v) : v;
-  return '$' + n.toLocaleString('en-LK', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  return 'Rs ' + n.toLocaleString('en-LK', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
 const STATUS_OPTIONS = [
@@ -136,10 +136,10 @@ export function BillingSummaryReport({ selectedBranch: propBranch }: Props = {})
         { header: 'Guest Phone', accessor: r => r.guest_phone || '' },
         { header: 'Branch Name', accessor: r => r.branch_name },
         { header: 'Rooms', accessor: r => r.room_numbers || '' },
-        { header: 'Base Amount ($)', accessor: r => toNum(r.base_amount).toFixed(2) },
-        { header: 'Total Invoiced ($)', accessor: r => toNum(r.total_amount).toFixed(2) },
-        { header: 'Total Paid ($)', accessor: r => toNum(r.total_paid).toFixed(2) },
-        { header: 'Balance Due ($)', accessor: r => toNum(r.balance_due).toFixed(2) },
+        { header: 'Base Amount (Rs)', accessor: r => toNum(r.base_amount).toFixed(2) },
+        { header: 'Total Invoiced (Rs)', accessor: r => toNum(r.total_amount).toFixed(2) },
+        { header: 'Total Paid (Rs)', accessor: r => toNum(r.total_paid).toFixed(2) },
+        { header: 'Balance Due (Rs)', accessor: r => toNum(r.balance_due).toFixed(2) },
         { header: 'Invoice Date', accessor: r => r.invoice_date?.split('T')[0] || '' },
         { header: 'Debtor Aging (Days)', accessor: r => r.aging_days },
         { header: 'Status', accessor: r => r.computed_status },
