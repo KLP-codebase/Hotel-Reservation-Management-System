@@ -70,7 +70,7 @@ const PAY_METHODS = [
 
 export default function BillingPage() {
     const { user } = useAuth();
-    const isAdminOrDba = user?.role === 'ADMINISTRATOR' || user?.role === 'DATABASE_ADMINISTRATOR';
+    const isAdminOrDba = user?.role === 'ADMINISTRATOR' || user?.role === 'DBA';
     const isManager = user?.role === 'MANAGER';
 
     // ── State ──────────────────────────────────────────────────────────────────

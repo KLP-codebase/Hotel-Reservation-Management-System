@@ -2,9 +2,10 @@ import { emailService } from '../services/email.service';
 import { Router, Request, Response } from 'express';
 import { PoolClient } from 'pg';
 import { z } from 'zod';
-import { authenticate } from '../middleware/auth.middleware';
+import { authenticate, optionalAuthenticate } from '../middleware/auth.middleware';
 import { authorize } from '../middleware/rbac.middleware';
 import { db } from '../config/db';
+import { managerBranch, assertManagerOwns } from '../lib/branch-scope';
 import { syncAliveBookingDates } from '../services/alive-dates.service';
 import { ServiceRepository } from '../repositories/service.repository';
 import { AppError, Errors } from '../lib/errors';
@@ -16,11 +17,13 @@ const serviceRepo = new ServiceRepository(db);
 /**
  * GET /api/v1/services/catalogue
  * Returns all catalogue services with branch join and optional filtering.
+ * Public; a signed-in manager sees only their branch plus chain-wide services.
  */
-router.get('/catalogue', async (req: Request, res: Response) => {
-  const branchId = typeof req.query.branch_id === 'string' && req.query.branch_id !== 'ALL' && req.query.branch_id.trim() !== ''
+router.get('/catalogue', optionalAuthenticate, async (req: Request, res: Response) => {
+  const own = managerBranch(req);
+  const branchId = own ?? (typeof req.query.branch_id === 'string' && req.query.branch_id !== 'ALL' && req.query.branch_id.trim() !== ''
     ? req.query.branch_id
-    : undefined;
+    : undefined);
   const category = typeof req.query.category === 'string' && req.query.category !== 'ALL' && req.query.category.trim() !== ''
     ? req.query.category
     : undefined;
@@ -28,7 +31,7 @@ router.get('/catalogue', async (req: Request, res: Response) => {
     ? req.query.is_active === 'true'
     : undefined;
 
-  const services = await serviceRepo.findAllCatalogue({ branch_id: branchId, category, is_active: isActive });
+  const services = await serviceRepo.findAllCatalogue({ branch_id: branchId, include_shared: !!own, category, is_active: isActive });
   res.json({ success: true, data: services });
 });
 
@@ -226,8 +229,8 @@ router.use(authenticate);
 router.use(authorize('RECEPTIONIST', 'MANAGER', 'ADMINISTRATOR', 'DBA', 'GUEST'));
 
 const CreateCatalogueSchema = z.object({
-  branchId:     z.coerce.number().int().positive().optional(),
-  branch_id:    z.coerce.number().int().positive().optional(),
+  branchId:     z.string().uuid().optional(),
+  branch_id:    z.string().uuid().optional(),
   serviceName:  z.string().min(1).max(100).optional(),
   service_name: z.string().min(1).max(100).optional(),
   category:     z.string().min(1).max(50),
@@ -247,8 +250,8 @@ const CreateCatalogueSchema = z.object({
 });
 
 const UpdateCatalogueSchema = z.object({
-  branchId:     z.coerce.number().int().positive().optional(),
-  branch_id:    z.coerce.number().int().positive().optional(),
+  branchId:     z.string().uuid().optional(),
+  branch_id:    z.string().uuid().optional(),
   serviceName:  z.string().min(1).max(100).optional(),
   service_name: z.string().min(1).max(100).optional(),
   category:     z.string().min(1).max(50).optional(),
@@ -260,6 +263,14 @@ const UpdateCatalogueSchema = z.object({
 
 
 
+// A manager may only change services of their own branch (404 when it does not exist).
+async function assertManagerOwnsService(req: Request, serviceId: number): Promise<void> {
+  if (!managerBranch(req)) return;
+  const existing = await serviceRepo.findCatalogueById(serviceId);
+  if (!existing) throw Errors.notFound('Service');
+  assertManagerOwns(req, existing.branch_id);
+}
+
 /**
  * POST /api/v1/services/catalogue
  * Registers a new service in the catalogue.
@@ -270,6 +281,7 @@ router.post('/catalogue', authorize('MANAGER', 'ADMINISTRATOR', 'DBA'), async (r
   const serviceName = (parsed.serviceName ?? parsed.service_name)!;
   const basePrice = (parsed.basePrice ?? parsed.base_price)!;
   const isActive = parsed.isActive ?? parsed.is_active ?? true;
+  assertManagerOwns(req, branchId);
 
   const service = await serviceRepo.createCatalogue({
     branch_id: branchId,
@@ -292,6 +304,8 @@ router.patch('/catalogue/:id', authorize('MANAGER', 'ADMINISTRATOR', 'DBA'), asy
   }
   const parsed = UpdateCatalogueSchema.parse(req.body);
   const branchId = parsed.branchId ?? parsed.branch_id;
+  await assertManagerOwnsService(req, serviceId);
+  if (branchId !== undefined) assertManagerOwns(req, branchId);
   const serviceName = parsed.serviceName ?? parsed.service_name;
   const basePrice = parsed.basePrice ?? parsed.base_price;
   const isActive = parsed.isActive ?? parsed.is_active;
@@ -319,6 +333,7 @@ router.delete('/catalogue/:id', authorize('MANAGER', 'ADMINISTRATOR', 'DBA'), as
   if (isNaN(serviceId)) {
     return res.status(400).json({ success: false, message: 'Invalid service ID' });
   }
+  await assertManagerOwnsService(req, serviceId);
   const ok = await serviceRepo.deleteCatalogue(serviceId);
   if (!ok) {
     return res.status(404).json({ success: false, message: 'Service not found' });

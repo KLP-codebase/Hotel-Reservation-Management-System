@@ -2,6 +2,7 @@
 
 import React, { ChangeEvent } from 'react';
 import { ServiceReportQueryParams } from '../../../lib/api/reports/service-report.api';
+import { HideForManager } from '@/components/reports/report-ui';
 
 interface BranchOption {
   branch_id: string;
@@ -41,24 +42,26 @@ export const ServiceReportFilters: React.FC<ServiceReportFiltersProps> = ({
   return (
     <div className="bg-slate-900/50 border border-slate-800 rounded-xl p-4 mb-6">
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
-        {/* Branch Filter */}
-        <div>
-          <label className="block text-xs font-medium text-slate-400 mb-1">
-            Branch
-          </label>
-          <select
-            value={filters.branchId || ''}
-            onChange={(e: ChangeEvent<HTMLSelectElement>) => handleChange('branchId', e.target.value)}
-            className="w-full bg-slate-800 border border-slate-700 text-slate-200 text-sm rounded-lg p-2.5 focus:ring-amber-500 focus:border-amber-500"
-          >
-            <option value="">All Branches</option>
-            {branches.map((b) => (
-              <option key={b.branch_id} value={b.branch_id}>
-                {b.name}
-              </option>
-            ))}
-          </select>
-        </div>
+        <HideForManager>
+          {/* Branch Filter */}
+          <div>
+            <label className="block text-xs font-medium text-slate-400 mb-1">
+              Branch
+            </label>
+            <select
+              value={filters.branchId || ''}
+              onChange={(e: ChangeEvent<HTMLSelectElement>) => handleChange('branchId', e.target.value)}
+              className="w-full bg-slate-800 border border-slate-700 text-slate-200 text-sm rounded-lg p-2.5 focus:ring-amber-500 focus:border-amber-500"
+            >
+              <option value="">All Branches</option>
+              {branches.map((b) => (
+                <option key={b.branch_id} value={b.branch_id}>
+                  {b.name}
+                </option>
+              ))}
+            </select>
+          </div>
+        </HideForManager>
 
         {/* Category Filter */}
         <div>

@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Download, ChevronDown, ChevronUp, Save, RefreshCw } from 'lucide-react';
 import { Btn, Empty, IconBtn, Loading, tbl } from '@/components/dashboard/ui';
-import { LabeledSelect, Notice, StatStrip } from './report-ui';
+import { LabeledSelect, Notice, StatStrip, HideForManager } from './report-ui';
 import { apiFetch, toNum } from '@/lib/api-client';
 import { exportToCsv } from '@/lib/export-csv';
 
@@ -209,14 +209,16 @@ export function MonthlyRevenueReport({ selectedBranch: propBranch, year: propYea
       {/* Filters and actions */}
       <div className="no-print flex flex-col lg:flex-row lg:items-center gap-6">
         <div className="flex flex-wrap items-center gap-6">
-          <LabeledSelect label="Branch" value={selectedBranch} onChange={setSelectedBranch}>
-            <option value="">All branches</option>
-            {branches.map(b => (
-              <option key={b.branch_id} value={b.branch_id}>
-                {b.branch_name} · {b.city}
-              </option>
-            ))}
-          </LabeledSelect>
+          <HideForManager>
+            <LabeledSelect label="Branch" value={selectedBranch} onChange={setSelectedBranch}>
+              <option value="">All branches</option>
+              {branches.map(b => (
+                <option key={b.branch_id} value={b.branch_id}>
+                  {b.branch_name} · {b.city}
+                </option>
+              ))}
+            </LabeledSelect>
+          </HideForManager>
 
           <LabeledSelect label="Year" value={String(year)} onChange={v => setYear(Number(v))}>
             {years.map(y => (

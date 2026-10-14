@@ -8,8 +8,9 @@ import { emailService } from './email.service';
 export class StaffService {
   constructor(private readonly repo: StaffRepository) {}
 
-  async list() {
-    const staff = await this.repo.findAll();
+  // branchId narrows the list to one branch (a manager's view).
+  async list(branchId?: string) {
+    const staff = branchId ? await this.repo.findAllInBranch(branchId) : await this.repo.findAll();
     return ResponseFactory.ok(staff);
   }
 

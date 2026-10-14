@@ -5,14 +5,15 @@ import { authorize } from '../middleware/rbac.middleware';
 import { AuditRepository } from '../repositories/audit.repository';
 
 // ── GoF: Chain of Responsibility ──────────────────────────────────────────────
-// authenticate → authorize(ADMINISTRATOR, MANAGER, DBA) → handler
+// authenticate → authorize(ADMINISTRATOR, DBA) → handler
+// The log spans every branch, so managers (one branch) are not given access.
 // All audit data is restricted — no unauthenticated or RECEPTIONIST access.
 
 const router = Router();
 const repo   = new AuditRepository(db);
 
 router.use(authenticate);
-router.use(authorize('ADMINISTRATOR', 'MANAGER', 'DBA'));
+router.use(authorize('ADMINISTRATOR', 'DBA'));
 
 /**
  * GET /api/v1/audit-logs

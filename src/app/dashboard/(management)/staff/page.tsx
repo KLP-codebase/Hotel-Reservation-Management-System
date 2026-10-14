@@ -91,25 +91,21 @@ export default function StaffPage() {
     try {
       const [sr, br] = await Promise.all([
         apiFetch<{ data: Staff[] }>('/api/v1/staff').catch(() => ({ data: [] })),
-        apiFetch<{ data: Branch[] }>('/api/v1/branches').catch(() => ({ data: [] })),
+        // A manager's list is already limited to their branch by the API.
+        isAdminOrDba
+          ? apiFetch<{ data: Branch[] }>('/api/v1/branches').catch(() => ({ data: [] }))
+          : Promise.resolve({ data: [] as Branch[] }),
       ]);
       setStaff(sr.data ?? []);
       setBranches(br.data ?? []);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [isAdminOrDba]);
 
   useEffect(() => {
     fetchData();
   }, [fetchData]);
-
-  // Pre-filter to manager's branch if manager is logged in
-  useEffect(() => {
-    if (isManager && user?.branchId) {
-      setSelectedBranch(user.branchId);
-    }
-  }, [isManager, user]);
 
   const openCreate = () => {
     setEditing(null);
@@ -251,7 +247,7 @@ export default function StaffPage() {
           </div>
         }
         kpis={[
-          { label: 'Total staff', value: String(staff.length), sub: `Across ${branches.length} locations` },
+          { label: 'Total staff', value: String(staff.length), sub: isAdminOrDba ? `Across ${branches.length} locations` : 'At this location' },
           { label: 'Active', value: String(activeCount), sub: 'Ready on schedule', bar: (activeCount / (staff.length || 1)) * 100 },
           { label: 'Front desk & ops', value: String(opsCount), sub: 'Reception & guest services' },
           { label: 'Leadership', value: String(mgmtCount), sub: 'Managers & administrators' },
@@ -273,7 +269,7 @@ export default function StaffPage() {
                   { value: 'RECEPTIONIST',  label: 'Front Desk',    count: countByRole('RECEPTIONIST') },
                   { value: 'SERVICE_STAFF', label: 'Service Staff', count: countByRole('SERVICE_STAFF') },
                   { value: 'MANAGER',       label: 'Managers',      count: countByRole('MANAGER') },
-                  { value: 'ADMINISTRATOR', label: 'Admin',         count: countByRole('ADMINISTRATOR') },
+                  ...(isAdminOrDba ? [{ value: 'ADMINISTRATOR' as const, label: 'Admin', count: countByRole('ADMINISTRATOR') }] : []),
                 ]}
               />
               <SearchField
@@ -307,7 +303,7 @@ export default function StaffPage() {
                   <tr className={tbl.headRow}>
                     <th className={tbl.th}>Staff Member</th>
                     <th className={tbl.th}>Role</th>
-                    <th className={tbl.th}>Property</th>
+                    {isAdminOrDba && <th className={tbl.th}>Property</th>}
                     <th className={tbl.th}>Contact</th>
                     <th className={tbl.th}>Status</th>
                     <th className={tbl.th}><span className="sr-only">Actions</span></th>
@@ -338,10 +334,12 @@ export default function StaffPage() {
                           </span>
                         </td>
 
-                        <td className={`${tbl.td} whitespace-nowrap`}>
-                          <p className="text-[13px] text-ink">{s.branch_name ?? 'Corporate / Headquarters'}</p>
-                          {s.branch_city && <p className={tbl.sub}>{s.branch_city}</p>}
-                        </td>
+                        {isAdminOrDba && (
+                          <td className={`${tbl.td} whitespace-nowrap`}>
+                            <p className="text-[13px] text-ink">{s.branch_name ?? 'Corporate / Headquarters'}</p>
+                            {s.branch_city && <p className={tbl.sub}>{s.branch_city}</p>}
+                          </td>
+                        )}
 
                         <td className={`${tbl.td} whitespace-nowrap text-[13px]`}>
                           {s.phone ? (

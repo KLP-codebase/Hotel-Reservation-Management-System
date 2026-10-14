@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React from "react";
 
 /** Mountain Glyph emblem matching the SkyNest brand identity */
 function MountainGlyph({
@@ -68,15 +68,6 @@ const SOCIAL_ITEMS = [
 // Component
 // ---------------------------------------------------------------------------
 export function SkyNestFooter() {
-  const [email, setEmail] = useState("");
-  const [subscribed, setSubscribed] = useState(false);
-
-  const handleSubscribe = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!email.includes("@")) return;
-    setSubscribed(true);
-  };
-
   const scrollToTop = () => {
     if (typeof window !== "undefined") {
       if (window.__lenis) {
@@ -93,27 +84,27 @@ export function SkyNestFooter() {
       aria-label="SkyNest Hotels footer"
       className="relative bg-paper text-ink overflow-hidden border-t border-ink/[0.08]"
     >
-      <div className="relative z-10 max-w-[1520px] mx-auto px-4 sm:px-8 lg:px-12 pt-12 md:pt-16">
+      <div className="relative z-10 max-w-[1520px] mx-auto px-4 sm:px-8 lg:px-12 pt-8 md:pt-10">
 
         {/* ── TOP ARCHITECTURAL GRID ROW ── */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 border-t border-b border-ink/[0.12]">
 
           {/* Column 1: Mountain Brand Mark (lg:col-span-4) */}
-          <div className="md:col-span-2 lg:col-span-4 py-10 px-6 sm:px-8 border-b lg:border-b-0 lg:border-r border-ink/[0.12] flex flex-col justify-start items-start">
+          <div className="md:col-span-2 lg:col-span-4 py-8 sm:py-9 px-6 sm:px-8 border-b lg:border-b-0 lg:border-r border-ink/[0.12] flex flex-col justify-start items-start">
             <div className="flex items-center gap-3">
               <MountainGlyph className="w-10 h-auto text-ink/90" />
             </div>
             <span className="font-jakarta font-bold text-[11px] tracking-[0.3em] uppercase text-ink/75 mt-3">
               SKYNEST
             </span>
-            <div className="w-full h-px bg-ink/[0.12] mt-6 mb-4" />
+            <div className="w-full h-px bg-ink/[0.12] mt-5 mb-3.5" />
             <p className="font-cinzel italic text-[11px] text-ink/50 leading-relaxed max-w-[260px]">
               Three coastal sanctuaries. One uncompromising standard.
             </p>
           </div>
 
           {/* Column 2: About (lg:col-span-2) */}
-          <div className="md:col-span-1 lg:col-span-2 py-10 px-6 sm:px-8 border-b md:border-b-0 lg:border-r border-ink/[0.12] space-y-3">
+          <div className="md:col-span-1 lg:col-span-2 py-8 sm:py-9 px-6 sm:px-8 border-b md:border-b-0 lg:border-r border-ink/[0.12] space-y-3">
             <h3
               className="font-cinzel text-[13px] md:text-[14px] text-ink/80 tracking-[0.02em]"
               style={{ fontStyle: "italic" }}
@@ -135,7 +126,7 @@ export function SkyNestFooter() {
           </div>
 
           {/* Column 3: Social (lg:col-span-2) */}
-          <div className="md:col-span-1 lg:col-span-2 py-10 px-6 sm:px-8 border-b md:border-b-0 lg:border-r border-ink/[0.12] space-y-3">
+          <div className="md:col-span-1 lg:col-span-2 py-8 sm:py-9 px-6 sm:px-8 border-b md:border-b-0 lg:border-r border-ink/[0.12] space-y-3">
             <h3
               className="font-cinzel text-[13px] md:text-[14px] text-ink/80 tracking-[0.02em]"
               style={{ fontStyle: "italic" }}
@@ -159,14 +150,14 @@ export function SkyNestFooter() {
           </div>
 
           {/* Column 4: Right Action Column (lg:col-span-4) */}
-          <div className="md:col-span-2 lg:col-span-4 p-6 sm:p-7 flex flex-col justify-start gap-3.5 bg-ink/[0.03]">
+          <div className="md:col-span-2 lg:col-span-4 p-5 sm:p-7 flex flex-col justify-center bg-ink/[0.03]">
 
-            {/* Top Row: Two Clean Pill Cards [ Dates & Rates ] [ Enquire now ] */}
+            {/* Clean Pill Cards [ Dates & Rates ] [ Book now ] */}
             <div className="grid grid-cols-2 gap-3">
               <a
                 href="/rates"
                 id="footer-dates-rates"
-                className="h-24 sm:h-28 flex items-center justify-center text-center p-3 rounded-sm bg-white/80 hover:bg-white border border-ink/[0.08] hover:border-ink/25 transition-all duration-200 shadow-sm group"
+                className="h-24 sm:h-28 flex items-center justify-center text-center p-3 rounded-sm bg-white/80 hover:bg-white border border-ink/[0.08] hover:border-ink/25 hover:shadow-md transition-all duration-300 shadow-sm group"
               >
                 <span
                   className="font-cinzel text-[13px] sm:text-[14px] text-ink/80 group-hover:text-ink leading-snug"
@@ -176,53 +167,17 @@ export function SkyNestFooter() {
                 </span>
               </a>
               <a
-                href="#booking"
-                id="footer-enquire-now"
-                className="h-24 sm:h-28 flex items-center justify-center text-center p-3 rounded-sm bg-white/80 hover:bg-white border border-ink/[0.08] hover:border-ink/25 transition-all duration-200 shadow-sm group"
+                href="/book"
+                id="footer-book-now"
+                className="h-24 sm:h-28 flex items-center justify-center text-center p-3 rounded-sm bg-white/80 hover:bg-white border border-ink/[0.08] hover:border-ink/25 hover:shadow-md transition-all duration-300 shadow-sm group"
               >
                 <span
                   className="font-cinzel text-[13px] sm:text-[14px] text-ink/80 group-hover:text-ink leading-snug"
                   style={{ fontStyle: "italic" }}
                 >
-                  Enquire now
+                  Book now
                 </span>
               </a>
-            </div>
-
-            {/* Bottom Card: Newsletter Signup */}
-            <div className="p-6 rounded-sm bg-white/80 border border-ink/[0.08] shadow-sm flex flex-col justify-center text-center">
-              {subscribed ? (
-                <p className="font-cinzel text-[13px] text-emerald-700 py-4" style={{ fontStyle: "italic" }}>
-                  Welcome to the SkyNest Gazette.
-                </p>
-              ) : (
-                <form onSubmit={handleSubscribe} className="space-y-3.5">
-                  <h4
-                    className="font-cinzel text-[13px] md:text-[14px] text-ink/85 tracking-[0.02em]"
-                    style={{ fontStyle: "italic" }}
-                  >
-                    Newsletter Signup
-                  </h4>
-                  <input
-                    type="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    placeholder="Your email address"
-                    required
-                    aria-label="Email address for newsletter"
-                    className="w-full h-10 px-3.5 text-[11px] font-jakarta bg-white border border-ink/20 focus:border-ink/60 outline-none text-ink placeholder:text-ink/35 transition-colors"
-                  />
-                  <button
-                    type="submit"
-                    className="w-full h-10 bg-transparent hover:bg-ink hover:text-white border border-ink/30 text-ink text-[10px] font-jakarta font-semibold tracking-[0.2em] uppercase transition-all duration-200"
-                  >
-                    Subscribe
-                  </button>
-                  <p className="text-[9px] text-ink/40 font-jakarta">
-                    Unsubscribe anytime.
-                  </p>
-                </form>
-              )}
             </div>
 
           </div>
@@ -231,7 +186,7 @@ export function SkyNestFooter() {
         {/* ── GIANT MONUMENTAL WORDMARK ── */}
         <div
           aria-hidden="true"
-          className="relative select-none pointer-events-none overflow-hidden py-4 sm:py-6 text-center"
+          className="relative select-none pointer-events-none overflow-hidden py-2 sm:py-3 text-center"
         >
           <span
             className="font-jakarta font-black text-ink leading-[0.8] uppercase block w-full text-center select-none"
@@ -245,7 +200,7 @@ export function SkyNestFooter() {
         </div>
 
         {/* ── BOTTOM LUXURY SEAL & LEGAL STRIP ── */}
-        <div className="border-t border-ink/[0.12] py-5 flex flex-col xl:flex-row items-center justify-between gap-5 text-ink/60 font-jakarta text-center xl:text-left">
+        <div className="border-t border-ink/[0.12] py-4 flex flex-col xl:flex-row items-center justify-between gap-4 text-ink/60 font-jakarta text-center xl:text-left">
 
           {/* Left: Badges */}
           <div className="flex flex-wrap items-center justify-center gap-2 sm:gap-3">

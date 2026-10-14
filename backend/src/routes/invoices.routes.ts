@@ -4,12 +4,26 @@ import { authenticate } from "../middleware/auth.middleware";
 import { authorize } from "../middleware/rbac.middleware";
 import { db } from "../config/db";
 import { Errors } from "../lib/errors";
+import { managerBranch, assertManagerOwns, lockManagerBranchQuery } from "../lib/branch-scope";
 
 const router = Router();
 
 // RBAC: Operations and management staff
 router.use(authenticate);
 router.use(authorize("RECEPTIONIST", "MANAGER", "ADMINISTRATOR", "DBA"));
+
+// A manager may only open invoices of bookings in their own branch.
+async function assertManagerOwnsBooking(req: Request, bookingIdOrRoomId: string): Promise<void> {
+  if (!managerBranch(req)) return;
+  const { rows: [booking] } = await db.query<{ branch_id: string }>(
+    `SELECT b.branch_id FROM bookings b
+     WHERE b.booking_id::text = $1
+        OR b.booking_id IN (SELECT booking_id FROM booking_rooms WHERE booking_room_id::text = $1)
+     LIMIT 1`,
+    [bookingIdOrRoomId],
+  );
+  if (booking) assertManagerOwns(req, booking.branch_id);
+}
 
 const RecordPaymentSchema = z.object({
   amount: z.number().positive("Payment amount must be greater than zero"),
@@ -394,7 +408,7 @@ export async function buildDbInvoice(bookingIdOrRoomId: string, specificBookingR
  * GET /api/v1/invoices
  * Returns all invoices and bookings with 4-tier statutory tax cascade and payment ledger status.
  */
-router.get('/', async (req: Request, res: Response) => {
+router.get('/', lockManagerBranchQuery, async (req: Request, res: Response) => {
   try {
     const { branchId, status, search } = req.query;
     let query = `
@@ -509,6 +523,7 @@ router.get('/', async (req: Request, res: Response) => {
 router.get("/:bookingId", async (req: Request, res: Response) => {
   const { bookingId } = req.params;
   const specificRoomId = typeof req.query.booking_room_id === "string" ? req.query.booking_room_id.trim() : undefined;
+  await assertManagerOwnsBooking(req, bookingId);
 
   const dbInvoice = await buildDbInvoice(bookingId, specificRoomId);
   if (!dbInvoice) throw Errors.notFound("Invoice for booking " + bookingId);
@@ -524,6 +539,7 @@ router.get("/:bookingId", async (req: Request, res: Response) => {
 router.post("/:bookingId/generate", async (req: Request, res: Response) => {
   const { bookingId } = req.params;
   const specificRoomId = typeof req.query.booking_room_id === "string" ? req.query.booking_room_id.trim() : undefined;
+  await assertManagerOwnsBooking(req, bookingId);
 
   const dbInvoice = await buildDbInvoice(bookingId, specificRoomId);
   if (!dbInvoice) throw Errors.notFound("Booking " + bookingId);
@@ -558,6 +574,7 @@ router.post("/:bookingId/payments", async (req: Request, res: Response) => {
   }
 
   const specificRoomId = parsed.data.booking_room_id ?? undefined;
+  await assertManagerOwnsBooking(req, bookingId);
   const dbInvoice = await buildDbInvoice(bookingId, specificRoomId);
   if (!dbInvoice || !dbInvoice.invoice_id) throw Errors.notFound("Invoice for booking " + bookingId);
 
