@@ -183,7 +183,7 @@ router.get('/spa-slots', async (req: Request, res: Response) => {
     `SELECT su.appointment_time,
             COALESCE(SUM(su.quantity), 0)::int AS booked_count
      FROM service_usage su
-     JOIN service_catalogue sc ON sc.service_id::text = su.service_id
+     JOIN service_catalogue sc ON sc.service_id::text = su.service_id::text
      JOIN booking_rooms br     ON br.booking_room_id = su.booking_room_id
      JOIN bookings b           ON b.booking_id = br.booking_id
      WHERE (sc.category = 'Wellness' OR sc.service_name ILIKE '%spa%')
@@ -354,7 +354,7 @@ router.get('/folio/:bookingId', async (req: Request, res: Response) => {
             su.used_at, su.notes, su.appointment_time, su.meal_time
      FROM service_usage su
      JOIN booking_rooms br ON br.booking_room_id = su.booking_room_id
-     LEFT JOIN service_catalogue sc ON su.service_id = sc.service_id::text
+     LEFT JOIN service_catalogue sc ON su.service_id::text = sc.service_id::text
      WHERE br.booking_id = $1 OR br.booking_room_id = $1
      ORDER BY su.used_at DESC`,
     [bookingId]

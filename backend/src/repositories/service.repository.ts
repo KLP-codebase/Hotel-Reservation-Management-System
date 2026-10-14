@@ -248,7 +248,7 @@ export class ServiceRepository {
         su.used_at
       FROM service_usage su
       JOIN booking_rooms br ON br.booking_room_id = su.booking_room_id
-      JOIN service_catalogue sc ON sc.service_id::text = su.service_id
+      JOIN service_catalogue sc ON sc.service_id::text = su.service_id::text
       WHERE br.booking_id = $1 OR su.booking_room_id = $1
       ORDER BY su.used_at DESC
     `;
