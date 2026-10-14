@@ -40,6 +40,23 @@ export interface AddAccompanyingGuestInput {
 }
 
 
+// A failed statement aborts the whole Postgres transaction (25P02 for every later
+// statement), so a "try X, fall back to Y" inside a transaction must isolate X in a
+// savepoint. Without it the fallback can only ever fail with 25P02.
+async function withSavepoint<T>(client: PoolClient, fn: () => Promise<T>): Promise<T> {
+    await client.query('SAVEPOINT fallback_attempt');
+    try {
+        const result = await fn();
+        await client.query('RELEASE SAVEPOINT fallback_attempt');
+        return result;
+    } catch (err) {
+        await client.query('ROLLBACK TO SAVEPOINT fallback_attempt');
+        throw err;
+    }
+}
+
+const isIdentityMismatch = (err: any) => err?.code === '23503' || err?.code === '22P02';
+
 export class BookingRepository {
     constructor(private db: DbAdapter) { }
 
@@ -71,24 +88,34 @@ export class BookingRepository {
             const bookerIdVal = resolvedBooker?.id ?? input.booked_by_guest_id;
             const bookerUuidVal = resolvedBooker?.guest_id ?? null;
 
-            let header;
-            try {
-                header = await client.query<{ booking_id: string; branch_id: string }>(`
-                    INSERT INTO bookings (branch_id, booked_by_guest_id, guest_id, notes, special_requests, adults, children)
-                    VALUES ($1, $2, $3, $4, $4, $5, $6)
-                    RETURNING booking_id, branch_id
-                `, [input.branch_id, bookerIdVal, bookerUuidVal ?? bookerIdVal, input.notes ?? null, input.adults ?? null, input.children ?? null]);
-            } catch (err: any) {
-                if ((err?.code === '23503' || err?.code === '22P02') && bookerUuidVal && bookerUuidVal !== bookerIdVal) {
-                    header = await client.query<{ booking_id: string; branch_id: string }>(`
+            // The bookings identity columns differ between databases (guests.id vs guests.guest_id,
+            // FK vs no FK), so try each plausible (booked_by_guest_id, guest_id) pair in turn.
+            const pairs: Array<[string, string]> = [
+                [bookerIdVal, bookerUuidVal ?? bookerIdVal],
+                [bookerIdVal, bookerIdVal],
+                ...(bookerUuidVal ? [[bookerUuidVal, bookerUuidVal] as [string, string]] : []),
+            ];
+            const seen = new Set<string>();
+            let header: { rows: Array<{ booking_id: string; branch_id: string }> } | undefined;
+            let firstError: any;
+            for (const [bookedBy, guestCol] of pairs) {
+                const key = `${bookedBy}|${guestCol}`;
+                if (seen.has(key)) continue;
+                seen.add(key);
+                try {
+                    header = await withSavepoint(client, () => client.query<{ booking_id: string; branch_id: string }>(`
                         INSERT INTO bookings (branch_id, booked_by_guest_id, guest_id, notes, special_requests, adults, children)
                         VALUES ($1, $2, $3, $4, $4, $5, $6)
                         RETURNING booking_id, branch_id
-                    `, [input.branch_id, bookerUuidVal, bookerUuidVal, input.notes ?? null, input.adults ?? null, input.children ?? null]);
-                } else {
-                    throw err;
+                    `, [input.branch_id, bookedBy, guestCol, input.notes ?? null, input.adults ?? null, input.children ?? null]));
+                    break;
+                } catch (err: any) {
+                    firstError ??= err;
+                    console.error('[createBooking] bookings insert failed:', err.code, err.message, err.constraint ?? '');
+                    if (!isIdentityMismatch(err)) throw err;
                 }
             }
+            if (!header) throw firstError;
 
             const created = header.rows[0];
             if (!created) throw Errors.internal();
@@ -172,54 +199,41 @@ export class BookingRepository {
         const primaryGuestIdVal = resolvedLineGuest?.id ?? line.primary_guest_id;
         const primaryGuestUuidVal = resolvedLineGuest?.guest_id ?? line.primary_guest_id;
 
-        // 3. Insert into booking_rooms with automatic fallback if UUID foreign key is enforced
-        try {
-            const inserted = await client.query<{ booking_room_id: string; rate_at_booking: string }>(`
-                INSERT INTO booking_rooms
-                    (booking_id, primary_guest_id, room_type_id, room_id, plan_id,
-                     check_in_date, check_out_date, rate_at_booking)
-                VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-                RETURNING booking_room_id, rate_at_booking
-            `, [
-                bookingId, primaryGuestIdVal, roomTypeId,
-                room.id, line.plan_id ?? 1, line.check_in_date,
-                line.check_out_date, room.price_per_night,
-            ]);
-
-            return {
-                booking_room_id: inserted.rows[0].booking_room_id,
-                room_id: room.id,
-                room_number: room.number,
-                rate_at_booking: inserted.rows[0].rate_at_booking,
-            };
-        } catch (err: any) {
-            // 23P01 = exclusion_violation from the no_double_booking constraint (DB backstop)
-            if (err?.code === '23P01') {
-                throw new AppError(409, 'ROOM_UNAVAILABLE', 'Room is already booked for the selected dates');
-            }
-            // 23503 / 22P02 = foreign key or uuid violation on primary_guest_id -> retry with canonical guest_id UUID
-            if ((err?.code === '23503' || err?.code === '22P02') && primaryGuestUuidVal && primaryGuestUuidVal !== primaryGuestIdVal) {
-                const retryInserted = await client.query<{ booking_room_id: string; rate_at_booking: string }>(`
+        // 3. Insert into booking_rooms; primary_guest_id may need guests.id or guests.guest_id
+        // depending on the database, so retry with the other identity (in a savepoint).
+        const guestCandidates = [...new Set([primaryGuestIdVal, primaryGuestUuidVal])];
+        let firstError: any;
+        for (const guestVal of guestCandidates) {
+            try {
+                const inserted = await withSavepoint(client, () => client.query<{ booking_room_id: string; rate_at_booking: string }>(`
                     INSERT INTO booking_rooms
                         (booking_id, primary_guest_id, room_type_id, room_id, plan_id,
                          check_in_date, check_out_date, rate_at_booking)
                     VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
                     RETURNING booking_room_id, rate_at_booking
                 `, [
-                    bookingId, primaryGuestUuidVal, roomTypeId,
+                    bookingId, guestVal, roomTypeId,
                     room.id, line.plan_id ?? 1, line.check_in_date,
                     line.check_out_date, room.price_per_night,
-                ]);
+                ]));
+
                 return {
-                    booking_room_id: retryInserted.rows[0].booking_room_id,
+                    booking_room_id: inserted.rows[0].booking_room_id,
                     room_id: room.id,
                     room_number: room.number,
-                    rate_at_booking: retryInserted.rows[0].rate_at_booking,
+                    rate_at_booking: inserted.rows[0].rate_at_booking,
                 };
+            } catch (err: any) {
+                // 23P01 = exclusion_violation from the no_double_booking constraint (DB backstop)
+                if (err?.code === '23P01') {
+                    throw new AppError(409, 'ROOM_UNAVAILABLE', 'Room is already booked for the selected dates');
+                }
+                firstError ??= err;
+                console.error('[insertRoomLine] Insert failed:', err.message, err.code, err.constraint ?? '');
+                if (!isIdentityMismatch(err)) throw err;
             }
-            console.error('[insertRoomLine] Insert failed:', err.message, err.code);
-            throw err;
         }
+        throw firstError;
     }
 
     async findHeaderById(bookingId: string) {
