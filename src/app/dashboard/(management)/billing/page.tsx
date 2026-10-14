@@ -159,7 +159,7 @@ export default function BillingPage() {
                 body: JSON.stringify({
                     amount: parseFloat(payAmount),
                     payment_method: payMethod,
-                    booking_room_id: selectedInvoice.booking_room_id,
+                    booking_room_id: selectedInvoice.booking_room_id || undefined,
                 }),
             });
             setShowPayModal(false);
