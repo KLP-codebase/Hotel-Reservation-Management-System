@@ -47,7 +47,7 @@ export default function ReportsManagementPage() {
           kpis={[
             { label: 'Module Focus', value: 'Person 3', sub: 'Occupancy & Trends' },
             { label: 'Snapshot Ledger', value: 'Rule B17', sub: 'Audited Datasets' },
-            { label: 'Multi-Branch', value: 'Live', sub: 'Railway PostgreSQL' },
+            { label: 'Multi-Branch', value: 'Live', sub: 'PostgreSQL 18' },
             { label: 'Statutory Taxes', value: '4 Tiers', sub: 'SC, TDL, SSCL, VAT' },
           ]}
         />
