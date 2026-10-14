@@ -16,7 +16,8 @@ const RecordPaymentSchema = z.object({
   payment_method: z.enum(["CASH", "CREDIT_CARD", "BANK_TRANSFER", "ONLINE"]),
   reference_number: z.string().optional(),
   notes: z.string().optional(),
-  booking_room_id: z.string().optional(),
+  // Billing rows for a booking without a room line carry null here
+  booking_room_id: z.string().nullish(),
 });
 
 interface RoomSummaryItem {
@@ -108,6 +109,12 @@ async function buildDbInvoice(bookingIdOrRoomId: string, specificBookingRoomId?:
   const rows = bRes.rows;
   const primaryRow = rows[0];
   const actualBookingId = primaryRow.booking_id;
+
+  // Invoices hang off a room line (invoices.booking_room_id → booking_rooms), so a
+  // booking without one (legacy single-room data) cannot be invoiced or paid.
+  if (!rows.some((r: any) => r.booking_room_id)) {
+    throw Errors.conflict('This booking has no room assigned, so it cannot be invoiced or paid. Assign a room to the booking first.');
+  }
 
   // Resolve bookings.id for foreign key compatibility
   const bkRes = await db.query(
@@ -545,11 +552,18 @@ router.post("/:bookingId/payments", async (req: Request, res: Response) => {
   const { bookingId } = req.params;
   const parsed = RecordPaymentSchema.safeParse(req.body);
   if (!parsed.success) {
-    res.status(422).json({ success: false, errors: parsed.error.flatten().fieldErrors });
+    const errors = parsed.error.flatten().fieldErrors;
+    const first = Object.values(errors).flat()[0];
+    res.status(422).json({
+      success: false,
+      code: 'VALIDATION_ERROR',
+      message: first ? `Invalid payment: ${first}` : 'Invalid payment details',
+      errors,
+    });
     return;
   }
 
-  const specificRoomId = parsed.data.booking_room_id;
+  const specificRoomId = parsed.data.booking_room_id ?? undefined;
   const dbInvoice = await buildDbInvoice(bookingId, specificRoomId);
   if (!dbInvoice || !dbInvoice.invoice_id) throw Errors.notFound("Invoice for booking " + bookingId);
 
