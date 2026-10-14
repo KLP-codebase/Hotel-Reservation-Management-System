@@ -177,14 +177,21 @@ router.post('/check-in', validate(CheckInSchema), async (req: Request, res: Resp
 /**
  * POST /api/v1/dashboard/check-out
  * Front desk check-out: CHECKED_IN → CHECKED_OUT for the booking and all its rooms.
- * The trigger regenerates each room's final invoice; any balance left is either
- * settled here (settleBalance) or blocks the check-out — one transaction.
+ * Each room's final invoice is regenerated (so charges added during the stay are
+ * billed); any balance left is either settled here (settleBalance) or blocks the
+ * check-out — one transaction.
  */
 router.post('/check-out', validate(CheckOutSchema), async (req: Request, res: Response) => {
   const { bookingId, paymentMethod, settleBalance } = req.body as z.infer<typeof CheckOutSchema>;
 
   const outcome = await db.transaction(async (client) => {
     await lockForTransition(client, req, bookingId, 'CHECKED_IN', 'checked out');
+
+    // Before the status change: the CHECKED_OUT trigger archives the stay with
+    // its invoice total, so the invoices must already include the stay's charges.
+    for (const line of await bookingRepo.findLiveRoomLines(client, bookingId)) {
+      await client.query('SELECT sp_generate_final_bill($1::uuid)', [line.booking_room_id]);
+    }
 
     const result = await bookingRepo.transitionStatus(client, bookingId, 'CHECKED_IN', 'CHECKED_OUT');
     if (!result) throw Errors.conflict('Booking status was changed by someone else. Reload and try again.');
