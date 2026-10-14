@@ -8,6 +8,7 @@ import { isUuid } from '../lib/uuid';
 import { managerBranch, assertManagerOwns } from '../lib/branch-scope';
 import { authenticate } from '../middleware/auth.middleware';
 import { authorize } from '../middleware/rbac.middleware';
+import { formatLKR } from '../lib/currency';
 
 const router = Router();
 const repo = new BookingRepository(db);
@@ -262,7 +263,7 @@ router.post('/', async (req: Request, res: Response) => {
                 repo.findById(booking.booking_id).then((detail: any) => {
                     if (detail && detail.guest_email) {
                         const room0 = detail.rooms[0];
-                        const paidAmt = payment?.amount ? `$${Number(payment.amount).toFixed(2)}` : undefined;
+                        const paidAmt = payment?.amount ? `${formatLKR(Number(payment.amount))}` : undefined;
                         const isDeposit = payment?.is_deposit === true;
                         emailService.sendBookingConfirmationEmail({
                             to: detail.guest_email,
@@ -272,9 +273,9 @@ router.post('/', async (req: Request, res: Response) => {
                             stayDates: room0 ? `${room0.check_in_date} to ${room0.check_out_date}` : 'Upcoming Stay',
                             duration: `${detail.rooms.length} room(s)`,
                             roomName: room0?.room_number ? `Room ${room0.room_number} (${room0.room_type_name || 'Standard'})` : (room0?.room_type_name || 'Standard Room'),
-                            roomRate: room0?.rate_at_booking ? `$${Number(room0.rate_at_booking).toFixed(2)} / night` : undefined,
-                            roomSubtotal: detail.total_amount ? `$${Number(detail.total_amount).toFixed(2)}` : undefined,
-                            grandTotal: detail.total_amount ? `$${Number(detail.total_amount).toFixed(2)}` : undefined,
+                            roomRate: room0?.rate_at_booking ? `${formatLKR(Number(room0.rate_at_booking))} / night` : undefined,
+                            roomSubtotal: detail.total_amount ? `${formatLKR(Number(detail.total_amount))}` : undefined,
+                            grandTotal: detail.total_amount ? `${formatLKR(Number(detail.total_amount))}` : undefined,
                             services: detail.services?.map((s: any) => ({
                                 service_name: s.service_name,
                                 category: s.category,
@@ -407,9 +408,9 @@ router.patch('/:id/status', ...staffOnly, async (req: Request, res: Response) =>
                     stayDates: room0 ? `${room0.check_in_date} to ${room0.check_out_date}` : 'Upcoming Stay',
                     duration: `${detail.rooms.length} room(s)`,
                     roomName: room0?.room_number ? `Room ${room0.room_number} (${room0.room_type_name || 'Standard'})` : (room0?.room_type_name || 'Standard Room'),
-                    roomRate: room0?.rate_at_booking ? `$${Number(room0.rate_at_booking).toFixed(2)} / night` : undefined,
-                    roomSubtotal: detail.total_amount ? `$${Number(detail.total_amount).toFixed(2)}` : undefined,
-                    grandTotal: detail.total_amount ? `$${Number(detail.total_amount).toFixed(2)}` : undefined,
+                    roomRate: room0?.rate_at_booking ? `${formatLKR(Number(room0.rate_at_booking))} / night` : undefined,
+                    roomSubtotal: detail.total_amount ? `${formatLKR(Number(detail.total_amount))}` : undefined,
+                    grandTotal: detail.total_amount ? `${formatLKR(Number(detail.total_amount))}` : undefined,
                     services: detail.services?.map((s: any) => ({
                         service_name: s.service_name,
                         category: s.category,

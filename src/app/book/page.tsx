@@ -8,6 +8,7 @@ import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import { ChevronDown } from 'lucide-react';
 import { ShaderBackground } from '@/components/ui/adisyon-shader';
 import { useBranches } from '@/hooks/useBranches';
+import { formatLKR } from '@/lib/currency';
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -38,10 +39,10 @@ interface SearchParams {
 // ── Static data (ENUM room types; branches are loaded from the API) ─────────
 const ROOM_TYPES = [
   { id: 'ALL',          name: 'All Categories (Mixed Room Selection)' },
-  { id: 'STANDARD',     name: 'Standard Room ($120/night)' },
-  { id: 'DELUXE',       name: 'Deluxe Room ($180/night)' },
-  { id: 'SUITE',        name: 'Suite ($280/night)' },
-  { id: 'PRESIDENTIAL', name: 'Presidential Suite ($500/night)' },
+  { id: 'STANDARD',     name: 'Standard Room (Rs 37,200/night)' },
+  { id: 'DELUXE',       name: 'Deluxe Room (Rs 55,800/night)' },
+  { id: 'SUITE',        name: 'Suite (Rs 86,800/night)' },
+  { id: 'PRESIDENTIAL', name: 'Presidential Suite (Rs 155,000/night)' },
 ];
 
 // ── Mountain Glyph Emblem (Matching Landing Page) ────────────────────────────
@@ -1074,7 +1075,7 @@ export default function BookPage() {
                             ({sr.type})
                           </span>
                           <span className="font-mono text-ink/60">
-                            ${Number(sr.price_per_night)}/nt
+                            {formatLKR(Number(sr.price_per_night), 0)}/nt
                           </span>
                           <button
                             type="button"
@@ -1164,7 +1165,7 @@ export default function BookPage() {
                             {room.type} ROOM
                           </span>
                           <span className="font-cinzel text-sm font-semibold text-ink">
-                            ${Number(room.price_per_night)}/night
+                            {formatLKR(Number(room.price_per_night), 0)}/night
                           </span>
                         </div>
 

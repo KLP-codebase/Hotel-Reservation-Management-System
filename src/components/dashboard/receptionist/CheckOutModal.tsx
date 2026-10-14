@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { X, LogOut, CheckCircle2, AlertTriangle, Printer, CalendarClock } from "lucide-react";
 import { apiFetch, toNum } from "@/lib/api-client";
+import { formatLKR } from '@/lib/currency';
 
 interface CheckOutModalProps {
   isOpen:          boolean;
@@ -26,7 +27,7 @@ interface CheckOutPreview {
   refund_due: number;
 }
 
-const money = (n: number | string | null | undefined) => `$${toNum(n).toFixed(2)}`;
+const money = (n: number | string | null | undefined) => `${formatLKR(toNum(n))}`;
 
 export function CheckOutModal({
   isOpen,

@@ -101,7 +101,7 @@ export function ServiceTrendsReport() {
         { header: 'Category', accessor: s => s.category },
         { header: 'Orders Placed', accessor: s => s.total_orders },
         { header: 'Units Consumed', accessor: s => s.units_consumed },
-        { header: 'Revenue ($)', accessor: s => toNum(s.total_revenue).toFixed(2) },
+        { header: 'Revenue (Rs)', accessor: s => toNum(s.total_revenue).toFixed(2) },
       ]
     );
   };
