@@ -48,7 +48,7 @@ export default function ReportsManagementPage() {
         />
       </div>
 
-      <main className="max-w-[1440px] mx-auto px-6 md:px-12 py-12 md:py-16">
+      <main className="report-print max-w-[1440px] mx-auto px-6 md:px-12 py-12 md:py-16">
         {/* Letterhead, shown only when printing / saving as PDF */}
         <div className="hidden print:block mb-8 pb-4 border-b border-ink font-jakarta text-ink">
           <div className="flex justify-between items-start">

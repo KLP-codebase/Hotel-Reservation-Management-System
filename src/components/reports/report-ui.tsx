@@ -23,13 +23,13 @@ export interface ReportStat {
 /** Headline figures in hairline-divided cells, the light twin of the masthead KPIs. */
 export function StatStrip({ stats }: { stats: ReportStat[] }) {
   return (
-    <div className="grid grid-cols-2 lg:grid-cols-4 border-y border-skynest-hairline">
+    <div className="print-card grid grid-cols-2 lg:grid-cols-4 print:grid-cols-4 border-y border-skynest-hairline">
       {stats.map((s, i) => (
         <div
           key={s.label}
           className={`py-6 pr-6 ${i % 2 === 1 ? 'pl-6 border-l border-skynest-hairline' : ''} ${
-            i > 0 ? 'lg:pl-8 lg:border-l lg:border-skynest-hairline' : ''
-          } ${i > 1 ? 'border-t border-skynest-hairline lg:border-t-0' : ''}`}
+            i > 0 ? 'lg:pl-8 lg:border-l lg:border-skynest-hairline print:pl-6 print:border-l print:border-skynest-hairline' : ''
+          } ${i > 1 ? 'border-t border-skynest-hairline lg:border-t-0 print:border-t-0' : ''}`}
         >
           <p className="font-jakarta text-[11px] font-medium tracking-[0.16em] uppercase text-ink/70">{s.label}</p>
           <p
@@ -54,7 +54,7 @@ export function ReportPanel({
 }: { title: string; sub?: string; aside?: React.ReactNode; children: React.ReactNode }) {
   return (
     <section className="space-y-4">
-      <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
+      <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 print:block break-inside-avoid break-after-avoid">
         <div>
           <h3 className="font-cinzel text-[20px] md:text-[24px] leading-tight text-ink">{title}</h3>
           {sub && <p className="mt-1 font-jakarta text-[13px] text-ink/70">{sub}</p>}

@@ -333,7 +333,7 @@ export function ServiceUsageReport() {
         )}
       </div>
 
-      <div className="print-card">
+      <div>
         <StatStrip
           stats={[
             { label: 'Service revenue', value: fmt(totals.totalRevenue), sub: 'Ancillary folio total' },
@@ -364,7 +364,7 @@ export function ServiceUsageReport() {
                 </p>
               }
             >
-              <div className={`${tbl.wrap} print-card`}>
+              <div className={tbl.wrap}>
                 <table className={`${tbl.table} min-w-[640px]`}>
                   <thead>
                     <tr className={tbl.headRow}>
@@ -395,7 +395,7 @@ export function ServiceUsageReport() {
         </div>
       ) : (
         /* Full ledger */
-        <div className={`${tbl.wrap} print-card`}>
+        <div className={tbl.wrap}>
           <table className={`${tbl.table} min-w-[960px]`}>
             <thead>
               <tr className={tbl.headRow}>

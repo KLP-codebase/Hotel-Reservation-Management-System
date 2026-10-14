@@ -302,7 +302,7 @@ export function MonthlyRevenueReport({ selectedBranch: propBranch, year: propYea
               type="button"
               onClick={() => toggleBranch(branchId)}
               aria-expanded={isOpen}
-              className="group w-full flex items-end justify-between gap-4 pb-4 border-b border-skynest-hairline text-left"
+              className="print-keep group w-full flex items-end justify-between gap-4 pb-4 border-b border-skynest-hairline text-left"
             >
               <span className="font-cinzel text-[20px] md:text-[24px] leading-tight text-ink group-hover:text-skynest-accent transition-colors duration-300">
                 {branchName}
@@ -311,7 +311,7 @@ export function MonthlyRevenueReport({ selectedBranch: propBranch, year: propYea
                 <span>
                   {month ? 'Month gross' : 'Annual gross'} <span className="text-ink font-medium">{fmt(branchGross)}</span>
                 </span>
-                {isOpen ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                {isOpen ? <ChevronUp className="w-4 h-4 print:hidden" /> : <ChevronDown className="w-4 h-4 print:hidden" />}
               </span>
             </button>
 
