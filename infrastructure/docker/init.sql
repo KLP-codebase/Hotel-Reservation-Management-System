@@ -297,7 +297,7 @@ CREATE TABLE IF NOT EXISTS invoices (
 CREATE TABLE IF NOT EXISTS payments (
     payment_id       UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     invoice_id       UUID NOT NULL REFERENCES invoices(invoice_id) ON DELETE RESTRICT,
-    amount           NUMERIC(12,2) NOT NULL CHECK (amount > 0),
+    amount           NUMERIC(12,2) NOT NULL CONSTRAINT payments_amount_nonzero CHECK (amount <> 0),  -- negative = refund (025)
     payment_date     TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     payment_method   VARCHAR(50) NOT NULL,
     reference_number VARCHAR(100)
@@ -376,87 +376,93 @@ CREATE TABLE IF NOT EXISTS change_log (
 \echo '>>> [4/10] Creating Stored Functions & Procedures...'
 -- ══════════════════════════════════════════════════════════════════════════════
 
--- sp_generate_final_bill (GoF Template Method Pattern: 4-tier Sri Lankan Tax Cascade)
+-- sp_generate_final_bill (GoF Template Method Pattern: 4-tier Sri Lankan Tax Cascade, ARCHITECTURE.md §5.1; same as migration 025)
 CREATE OR REPLACE FUNCTION sp_generate_final_bill(p_booking_room_id UUID)
 RETURNS UUID
 LANGUAGE plpgsql
 AS $$
 DECLARE
-  v_nights           INT;
-  v_rate             NUMERIC(10,2);
-  v_room_charges     NUMERIC(12,2);
-  v_service_charges  NUMERIC(12,2);
-  v_base             NUMERIC(12,2);
-  v_sc_pct           NUMERIC(5,4);
-  v_tdl_pct          NUMERIC(5,4);
-  v_sscl_pct         NUMERIC(5,4);
-  v_vat_pct          NUMERIC(5,4);
-  v_sc_amt           NUMERIC(12,2);
-  v_tdl_amt          NUMERIC(12,2);
-  v_sscl_amt         NUMERIC(12,2);
-  v_vat_amt          NUMERIC(12,2);
-  v_total            NUMERIC(12,2);
-  v_invoice_id       UUID;
+  v_nights          INT;
+  v_room_tariff     NUMERIC(12,2);
+  v_meal_charges    NUMERIC(12,2);
+  v_room_charges    NUMERIC(12,2);
+  v_service_charges NUMERIC(12,2);
+  v_base            NUMERIC(12,2);
+  v_sc_pct          NUMERIC(6,4);
+  v_tdl_pct         NUMERIC(6,4);
+  v_sscl_pct        NUMERIC(6,4);
+  v_vat_pct         NUMERIC(6,4);
+  v_sc_amt          NUMERIC(12,2);
+  v_tdl_amt         NUMERIC(12,2);
+  v_sscl_amt        NUMERIC(12,2);
+  v_vat_amt         NUMERIC(12,2);
+  v_invoice_id      UUID;
 BEGIN
-  SELECT (check_out_date - check_in_date), rate_at_booking
-    INTO v_nights, v_rate
-  FROM booking_rooms
-  WHERE booking_room_id = p_booking_room_id;
+  -- 1. Room tariff and meal plan (frozen rate_at_booking, B8)
+  SELECT GREATEST(1, br.check_out_date - br.check_in_date),
+         ROUND(GREATEST(1, br.check_out_date - br.check_in_date) * COALESCE(br.rate_at_booking, 0), 2),
+         ROUND(GREATEST(1, br.check_out_date - br.check_in_date) * COALESCE(mp.price_per_night, 0), 2)
+    INTO v_nights, v_room_tariff, v_meal_charges
+    FROM booking_rooms br
+    LEFT JOIN meal_plans mp ON mp.plan_id = br.plan_id
+   WHERE br.booking_room_id = p_booking_room_id;
 
   IF NOT FOUND THEN
-    RAISE EXCEPTION 'booking_room % not found', p_booking_room_id;
+    RETURN NULL;
   END IF;
 
-  v_room_charges := v_nights * v_rate;
+  v_room_charges := v_room_tariff + v_meal_charges;
 
-  SELECT COALESCE(SUM(quantity * price_at_usage), 0)
+  -- 2. Services (frozen price_at_usage, B10)
+  SELECT ROUND(COALESCE(SUM(quantity * price_at_usage), 0), 2)
     INTO v_service_charges
-  FROM service_usage
-  WHERE booking_room_id = p_booking_room_id;
+    FROM service_usage
+   WHERE booking_room_id = p_booking_room_id;
 
   v_base := v_room_charges + v_service_charges;
 
-  SELECT tax_percentage INTO v_sc_pct   FROM tax_configurations WHERE tax_name = 'Service Charge' AND is_active = true LIMIT 1;
-  SELECT tax_percentage INTO v_tdl_pct  FROM tax_configurations WHERE tax_name = 'TDL'            AND is_active = true LIMIT 1;
-  SELECT tax_percentage INTO v_sscl_pct FROM tax_configurations WHERE tax_name = 'SSCL'           AND is_active = true LIMIT 1;
-  SELECT tax_percentage INTO v_vat_pct  FROM tax_configurations WHERE tax_name = 'VAT'            AND is_active = true LIMIT 1;
+  -- 3. Currently effective statutory rates (B13), with the statutory fallbacks
+  SELECT tax_percentage INTO v_sc_pct FROM tax_configurations
+   WHERE UPPER(tax_name) IN ('SERVICE CHARGE', 'SERVICE_CHARGE') AND is_active
+     AND CURRENT_DATE >= effective_from AND (effective_to IS NULL OR CURRENT_DATE <= effective_to)
+   ORDER BY effective_from DESC LIMIT 1;
+  SELECT tax_percentage INTO v_tdl_pct FROM tax_configurations
+   WHERE UPPER(tax_name) IN ('TDL', 'TOURISM DEVELOPMENT LEVY') AND is_active
+     AND CURRENT_DATE >= effective_from AND (effective_to IS NULL OR CURRENT_DATE <= effective_to)
+   ORDER BY effective_from DESC LIMIT 1;
+  SELECT tax_percentage INTO v_sscl_pct FROM tax_configurations
+   WHERE UPPER(tax_name) IN ('SSCL', 'SSC LEVY', 'SOCIAL SECURITY CONTRIBUTION LEVY') AND is_active
+     AND CURRENT_DATE >= effective_from AND (effective_to IS NULL OR CURRENT_DATE <= effective_to)
+   ORDER BY effective_from DESC LIMIT 1;
+  SELECT tax_percentage INTO v_vat_pct FROM tax_configurations
+   WHERE UPPER(tax_name) IN ('VAT', 'VALUE ADDED TAX') AND is_active
+     AND CURRENT_DATE >= effective_from AND (effective_to IS NULL OR CURRENT_DATE <= effective_to)
+   ORDER BY effective_from DESC LIMIT 1;
 
-  v_sc_pct   := COALESCE(v_sc_pct,   0.1000);
-  v_tdl_pct  := COALESCE(v_tdl_pct,  0.0100);
-  v_sscl_pct := COALESCE(v_sscl_pct, 0.0250);
-  v_vat_pct  := COALESCE(v_vat_pct,  0.1800);
+  v_sc_pct   := COALESCE(v_sc_pct, 0.10);
+  v_tdl_pct  := COALESCE(v_tdl_pct, 0.01);
+  v_sscl_pct := COALESCE(v_sscl_pct, 0.025);
+  v_vat_pct  := COALESCE(v_vat_pct, 0.18);
+  IF v_sc_pct   > 1 THEN v_sc_pct   := v_sc_pct / 100;   END IF;
+  IF v_tdl_pct  > 1 THEN v_tdl_pct  := v_tdl_pct / 100;  END IF;
+  IF v_sscl_pct > 1 THEN v_sscl_pct := v_sscl_pct / 100; END IF;
+  IF v_vat_pct  > 1 THEN v_vat_pct  := v_vat_pct / 100;  END IF;
 
+  -- 4. Cascade (§5.1): SC exempt from VAT
   v_sc_amt   := ROUND(v_base * v_sc_pct, 2);
-  v_tdl_amt  := ROUND((v_base + v_sc_amt) * v_tdl_pct, 2);
-  v_sscl_amt := ROUND((v_base + v_sc_amt + v_tdl_amt) * v_sscl_pct, 2);
-  v_vat_amt  := ROUND((v_base + v_sc_amt + v_tdl_amt + v_sscl_amt) * v_vat_pct, 2);
+  v_tdl_amt  := ROUND(v_base * v_tdl_pct, 2);
+  v_sscl_amt := ROUND(v_base * v_sscl_pct, 2);
+  v_vat_amt  := ROUND((v_base + v_tdl_amt + v_sscl_amt) * v_vat_pct, 2);
 
-  v_total    := v_base + v_sc_amt + v_tdl_amt + v_sscl_amt + v_vat_amt;
-
+  -- 5. One invoice per room line (B11)
   INSERT INTO invoices (
-    booking_room_id,
-    room_charges,
-    service_charges,
-    discount_amount,
-    service_charge_tax,
-    tdl_amount,
-    ssc_amount,
-    vat_amount,
-    total_amount,
-    status,
-    generated_at
+    booking_room_id, room_charges, service_charges,
+    service_charge_tax, tdl_amount, ssc_amount, vat_amount,
+    total_amount, status, generated_at
   ) VALUES (
-    p_booking_room_id,
-    v_room_charges,
-    v_service_charges,
-    0,
-    v_sc_amt,
-    v_tdl_amt,
-    v_sscl_amt,
-    v_vat_amt,
-    v_total,
-    'OPEN',
-    CURRENT_TIMESTAMP
+    p_booking_room_id, v_room_charges, v_service_charges,
+    v_sc_amt, v_tdl_amt, v_sscl_amt, v_vat_amt,
+    v_base + v_sc_amt + v_tdl_amt + v_sscl_amt + v_vat_amt, 'OPEN', CURRENT_TIMESTAMP
   )
   ON CONFLICT (booking_room_id) DO UPDATE SET
     room_charges       = EXCLUDED.room_charges,

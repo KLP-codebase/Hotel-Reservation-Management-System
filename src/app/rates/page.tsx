@@ -452,11 +452,12 @@ export default function RatesPage() {
   const currentPlan = MEAL_PLANS.find((p) => p.id === selectedPlanId) || MEAL_PLANS[2];
 
   const subtotalUsd = currentRoom.usdRate + currentPlan.usdRate;
-  // Sri Lankan Tax Cascade (Rule B13: 10% SC, 1% TDL, 2.5% SSCL, 18% VAT)
+  // Sri Lankan Tax Cascade (Rule B13, ARCHITECTURE.md §5.1): SC, TDL and SSCL on the
+  // subtotal; VAT on subtotal + TDL + SSCL (service charge is VAT-exempt)
   const serviceChargeUsd = subtotalUsd * 0.10;
-  const tdlUsd = (subtotalUsd + serviceChargeUsd) * 0.01;
-  const ssclUsd = (subtotalUsd + serviceChargeUsd + tdlUsd) * 0.025;
-  const vatUsd = (subtotalUsd + serviceChargeUsd + tdlUsd + ssclUsd) * 0.18;
+  const tdlUsd = subtotalUsd * 0.01;
+  const ssclUsd = subtotalUsd * 0.025;
+  const vatUsd = (subtotalUsd + tdlUsd + ssclUsd) * 0.18;
   const totalWithTaxesUsd = subtotalUsd + serviceChargeUsd + tdlUsd + ssclUsd + vatUsd;
 
   // Staggered reveal for cards

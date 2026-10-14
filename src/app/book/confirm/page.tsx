@@ -75,7 +75,7 @@ interface ConfiguredRoom {
 }
 
 // ── Sri Lanka 4-Tier Statutory Tax Cascade ──────────────────────────────────
-// SC (10%) -> TDL (1% on Base + SC) -> SSCL (2.5% on Base + SC + TDL) -> VAT (18% on Base + SC + TDL + SSCL)
+// SC (10% of base) · TDL (1% of base) · SSCL (2.5% of base) · VAT (18% of base + TDL + SSCL)
 interface TaxCascadeBreakdown {
   baseAmount: number;
   scTax: number;
@@ -88,10 +88,12 @@ interface TaxCascadeBreakdown {
 
 function computeTaxCascade(baseAmount: number): TaxCascadeBreakdown {
   const roundedBase = Math.round(baseAmount * 100) / 100;
+  // ARCHITECTURE.md §5.1 — same as the API and sp_generate_final_bill.
+  // SC, TDL and SSCL are on the base; VAT is on base + TDL + SSCL (SC is exempt).
   const scTax       = Math.round(roundedBase * 0.10 * 100) / 100;
-  const tdlTax      = Math.round((roundedBase + scTax) * 0.01 * 100) / 100;
-  const sscTax      = Math.round((roundedBase + scTax + tdlTax) * 0.025 * 100) / 100;
-  const vatTax      = Math.round((roundedBase + scTax + tdlTax + sscTax) * 0.18 * 100) / 100;
+  const tdlTax      = Math.round(roundedBase * 0.01 * 100) / 100;
+  const sscTax      = Math.round(roundedBase * 0.025 * 100) / 100;
+  const vatTax      = Math.round((roundedBase + tdlTax + sscTax) * 0.18 * 100) / 100;
   const totalTaxes  = Math.round((scTax + tdlTax + sscTax + vatTax) * 100) / 100;
   const grandTotal  = Math.round((roundedBase + totalTaxes) * 100) / 100;
 
