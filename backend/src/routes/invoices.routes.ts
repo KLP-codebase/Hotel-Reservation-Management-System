@@ -124,7 +124,7 @@ async function buildDbInvoice(bookingIdOrRoomId: string, specificBookingRoomId?:
     `SELECT su.usage_id, su.booking_room_id, sc.service_name, sc.category, su.quantity, su.price_at_usage,
             (su.quantity * su.price_at_usage) AS total_price, su.used_at
      FROM service_usage su
-     LEFT JOIN service_catalogue sc ON su.service_id = sc.service_id
+     LEFT JOIN service_catalogue sc ON su.service_id = sc.service_id::text
      WHERE su.booking_room_id::text IN (
        SELECT unnest($1::text[])
        UNION SELECT $2::text
