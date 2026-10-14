@@ -4,7 +4,7 @@ import React, { useEffect, useState, useMemo } from 'react';
 import { apiFetch } from '@/lib/api-client';
 import { RefreshCw, Download, Printer } from 'lucide-react';
 import { Btn, IconBtn } from '@/components/dashboard/ui';
-import { DateFilter, LabeledSelect, Notice } from './report-ui';
+import { DateFilter, LabeledSelect, Notice, HideForManager } from './report-ui';
 
 export interface BranchOption {
   branch_id: string;
@@ -105,14 +105,16 @@ export function ReportFilterBar({
     <div className="no-print space-y-4">
       <div className="flex flex-col lg:flex-row lg:items-center gap-6">
         <div className="flex flex-wrap items-center gap-6">
-          <LabeledSelect label="Branch" value={selectedBranch} onChange={onBranchChange}>
-            <option value="">All branches</option>
-            {branches.map(b => (
-              <option key={b.branch_id} value={b.branch_id}>
-                {b.branch_name} · {b.city}
-              </option>
-            ))}
-          </LabeledSelect>
+          <HideForManager>
+            <LabeledSelect label="Branch" value={selectedBranch} onChange={onBranchChange}>
+              <option value="">All branches</option>
+              {branches.map(b => (
+                <option key={b.branch_id} value={b.branch_id}>
+                  {b.branch_name} · {b.city}
+                </option>
+              ))}
+            </LabeledSelect>
+          </HideForManager>
 
           {/* Start date: capped at today and at endDate */}
           <DateFilter

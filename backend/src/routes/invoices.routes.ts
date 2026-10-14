@@ -4,12 +4,26 @@ import { authenticate } from "../middleware/auth.middleware";
 import { authorize } from "../middleware/rbac.middleware";
 import { db } from "../config/db";
 import { Errors } from "../lib/errors";
+import { managerBranch, assertManagerOwns, lockManagerBranchQuery } from "../lib/branch-scope";
 
 const router = Router();
 
 // RBAC: Operations and management staff
 router.use(authenticate);
 router.use(authorize("RECEPTIONIST", "MANAGER", "ADMINISTRATOR", "DBA"));
+
+// A manager may only open invoices of bookings in their own branch.
+async function assertManagerOwnsBooking(req: Request, bookingIdOrRoomId: string): Promise<void> {
+  if (!managerBranch(req)) return;
+  const { rows: [booking] } = await db.query<{ branch_id: string }>(
+    `SELECT b.branch_id FROM bookings b
+     WHERE b.booking_id::text = $1
+        OR b.booking_id IN (SELECT booking_id FROM booking_rooms WHERE booking_room_id::text = $1)
+     LIMIT 1`,
+    [bookingIdOrRoomId],
+  );
+  if (booking) assertManagerOwns(req, booking.branch_id);
+}
 
 const RecordPaymentSchema = z.object({
   amount: z.number().positive("Payment amount must be greater than zero"),
@@ -41,30 +55,55 @@ interface RoomSummaryItem {
   total_amount: number;
 }
 
+const round2 = (n: number) => Math.round(n * 100) / 100;
+
 /**
- * Calculates 4-tier Sri Lankan statutory tax cascade:
- * SC (10%) -> TDL (1% on Base + SC) -> SSCL (2.5% on Base + SC + TDL) -> VAT (18% on Base + SC + TDL + SSCL)
+ * 4-tier Sri Lankan statutory tax cascade (ARCHITECTURE.md §5.1). The base is
+ * room tariff + meal plan + services. Same formula and rounding as
+ * sp_generate_final_bill and the website's booking summary.
+ *   SC 10% of base (exempt from VAT) · TDL 1% of base · SSCL 2.5% of base
+ *   VAT 18% of (base + TDL + SSCL)
  */
-function computeTaxCascade(baseAmount: number) {
-  const roundedBase = Math.round(baseAmount * 100) / 100;
-  const scTax = Math.round(roundedBase * 0.10 * 100) / 100;
-  const tdlTax = Math.round((roundedBase + scTax) * 0.01 * 100) / 100;
-  const sscTax = Math.round((roundedBase + scTax + tdlTax) * 0.025 * 100) / 100;
-  const vatTax = Math.round((roundedBase + scTax + tdlTax + sscTax) * 0.18 * 100) / 100;
-  const grandTotal = Math.round((roundedBase + scTax + tdlTax + sscTax + vatTax) * 100) / 100;
+export function computeTaxCascade(baseAmount: number) {
+  const roundedBase = round2(baseAmount);
+  const scTax = round2(roundedBase * 0.10);
+  const tdlTax = round2(roundedBase * 0.01);
+  const sscTax = round2(roundedBase * 0.025);
+  const vatTax = round2((roundedBase + tdlTax + sscTax) * 0.18);
+  const grandTotal = round2(roundedBase + scTax + tdlTax + sscTax + vatTax);
 
   return { baseAmount: roundedBase, scTax, tdlTax, sscTax, vatTax, grandTotal };
+}
+
+/** Anything with pg's query(): the pool adapter, or a client inside a transaction. */
+type Queryable = { query: (sql: string, params?: unknown[]) => Promise<{ rows: any[] }> };
+
+// One invoice per room line (invoices.booking_room_id is unique); keeps its totals current.
+async function upsertRoomInvoice(q: Queryable, s: RoomSummaryItem): Promise<string> {
+  const { rows } = await q.query(
+    `INSERT INTO invoices (booking_room_id, room_charges, service_charges, service_charge_tax, tdl_amount, ssc_amount, vat_amount, total_amount, status, generated_at)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'OPEN', NOW())
+     ON CONFLICT (booking_room_id) DO UPDATE SET
+       room_charges = EXCLUDED.room_charges, service_charges = EXCLUDED.service_charges,
+       service_charge_tax = EXCLUDED.service_charge_tax, tdl_amount = EXCLUDED.tdl_amount,
+       ssc_amount = EXCLUDED.ssc_amount, vat_amount = EXCLUDED.vat_amount,
+       total_amount = EXCLUDED.total_amount
+     RETURNING invoice_id`,
+    [s.booking_room_id, s.room_charges, s.service_charges, s.sc_tax, s.tdl_tax, s.ssc_tax, s.vat_tax, s.total_amount]
+  );
+  return rows[0].invoice_id;
 }
 
 /**
  * Helper to build an invoice payload from PostgreSQL DB records.
  * Supports:
- * 1. Single Booking-wise consolidated bill (aggregating all rooms, services, and taxes)
+ * 1. Single Booking-wise consolidated bill (the sum of its rooms' invoices)
  * 2. Single Room-wise bill (when specificBookingRoomId is provided, or queried by booking_room_id)
+ * Pass a transaction client as `q` to build the bill inside that transaction.
  */
-async function buildDbInvoice(bookingIdOrRoomId: string, specificBookingRoomId?: string) {
+export async function buildDbInvoice(bookingIdOrRoomId: string, specificBookingRoomId?: string, q: Queryable = db) {
   // 1. Fetch room details from view (or fallback to bookings + booking_rooms)
-  let bRes = await db.query(
+  let bRes = await q.query(
     `SELECT * FROM v_booking_details
      WHERE booking_id::text = $1 OR booking_room_id::text = $1
      ORDER BY room_number ASC`,
@@ -72,7 +111,7 @@ async function buildDbInvoice(bookingIdOrRoomId: string, specificBookingRoomId?:
   );
 
   if (bRes.rows.length === 0) {
-    bRes = await db.query(
+    bRes = await q.query(
       `SELECT b.booking_id, b.status AS booking_status, b.notes,
               b.created_at AS booked_at, b.created_at AS booking_created_at,
               b.branch_id, br.branch_name, br.city AS branch_city,
@@ -106,18 +145,20 @@ async function buildDbInvoice(bookingIdOrRoomId: string, specificBookingRoomId?:
 
   if (bRes.rows.length === 0) return null;
 
-  const rows = bRes.rows;
+  // Invoices hang off a room line (invoices.booking_room_id → booking_rooms), so a
+  // booking without one (legacy single-room data) cannot be invoiced or paid.
+  const withRoom = bRes.rows.filter((r: any) => r.booking_room_id);
+  if (withRoom.length === 0) {
+    throw Errors.conflict('This booking has no room assigned, so it cannot be invoiced or paid. Assign a room to the booking first.');
+  }
+  // Cancelled room lines are not billed (unless the whole booking was cancelled).
+  const live = withRoom.filter((r: any) => r.room_status !== 'CANCELLED');
+  const rows = live.length > 0 ? live : withRoom;
   const primaryRow = rows[0];
   const actualBookingId = primaryRow.booking_id;
 
-  // Invoices hang off a room line (invoices.booking_room_id → booking_rooms), so a
-  // booking without one (legacy single-room data) cannot be invoiced or paid.
-  if (!rows.some((r: any) => r.booking_room_id)) {
-    throw Errors.conflict('This booking has no room assigned, so it cannot be invoiced or paid. Assign a room to the booking first.');
-  }
-
   // Resolve bookings.id for foreign key compatibility
-  const bkRes = await db.query(
+  const bkRes = await q.query(
     `SELECT id, booking_id FROM bookings WHERE booking_id::text = $1 OR id = $1 LIMIT 1`,
     [actualBookingId]
   );
@@ -127,7 +168,7 @@ async function buildDbInvoice(bookingIdOrRoomId: string, specificBookingRoomId?:
   const allBookingRoomIds = rows.map((r: any) => r.booking_room_id).filter(Boolean);
 
   // 2. Fetch active services for all rooms in this booking
-  const servicesRes = await db.query(
+  const servicesRes = await q.query(
     `SELECT su.usage_id, su.booking_room_id, sc.service_name, sc.category, su.quantity, su.price_at_usage,
             (su.quantity * su.price_at_usage) AS total_price, su.used_at
      FROM service_usage su
@@ -163,7 +204,8 @@ async function buildDbInvoice(bookingIdOrRoomId: string, specificBookingRoomId?:
   const roomSummaries: RoomSummaryItem[] = rows.map((r: any) => {
     const nights = Math.max(1, Number(r.nights) || 1);
     const baseRate = Number(r.rate_at_booking) || 150;
-    const mealRate = Number(r.meal_price_per_night) || 0;
+    // v_booking_details names it meal_plan_price; the fallback query meal_price_per_night
+    const mealRate = Number(r.meal_price_per_night ?? r.meal_plan_price) || 0;
     const roomTariff = Math.round(nights * baseRate * 100) / 100;
     const mealCharges = Math.round(nights * mealRate * 100) / 100;
     const roomCharges = Math.round((roomTariff + mealCharges) * 100) / 100;
@@ -179,7 +221,7 @@ async function buildDbInvoice(bookingIdOrRoomId: string, specificBookingRoomId?:
       room_id: r.room_id || "",
       room_number: r.room_number || "101",
       room_type_name: r.room_type_name || r.room_type || "Deluxe Suite",
-      meal_plan: r.meal_plan || "Room Only",
+      meal_plan: r.meal_plan || r.meal_plan_name || "Room Only",
       meal_price_per_night: mealRate,
       nights,
       rate_at_booking: baseRate,
@@ -210,32 +252,10 @@ async function buildDbInvoice(bookingIdOrRoomId: string, specificBookingRoomId?:
     const rSummary = roomSummaries.find(rs => rs.booking_room_id === selectedRoom.booking_room_id) || roomSummaries[0];
     const roomServices = allServices.filter(s => s.booking_room_id === selectedRoom.booking_room_id);
 
-    // Look up or generate room invoice in `invoices` table
-    let invRes = await db.query(
-      `SELECT * FROM invoices WHERE booking_room_id::text = $1 OR booking_room_id::text = $2 ORDER BY generated_at DESC LIMIT 1`,
-      [selectedRoom.booking_room_id, bookingFkId]
-    );
-
-    let invoiceId = invRes.rows[0]?.invoice_id;
-    if (!invoiceId) {
-      const newInv = await db.query(
-        `INSERT INTO invoices (booking_room_id, room_charges, service_charges, service_charge_tax, tdl_amount, ssc_amount, vat_amount, total_amount, status, generated_at)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'OPEN', NOW())
-         RETURNING invoice_id`,
-        [selectedRoom.booking_room_id, rSummary.room_charges, rSummary.service_charges, rSummary.sc_tax, rSummary.tdl_tax, rSummary.ssc_tax, rSummary.vat_tax, rSummary.total_amount]
-      );
-      invoiceId = newInv.rows[0]?.invoice_id;
-    } else {
-      // Update with current totals
-      await db.query(
-        `UPDATE invoices SET room_charges = $1, service_charges = $2, service_charge_tax = $3, tdl_amount = $4, ssc_amount = $5, vat_amount = $6, total_amount = $7
-         WHERE invoice_id = $8`,
-        [rSummary.room_charges, rSummary.service_charges, rSummary.sc_tax, rSummary.tdl_tax, rSummary.ssc_tax, rSummary.vat_tax, rSummary.total_amount, invoiceId]
-      );
-    }
+    const invoiceId = await upsertRoomInvoice(q, rSummary);
 
     // Fetch payments for this invoice
-    const payRes = await db.query(
+    const payRes = await q.query(
       `SELECT payment_id, invoice_id, amount, payment_date, payment_method
        FROM payments
        WHERE invoice_id = $1
@@ -266,7 +286,7 @@ async function buildDbInvoice(bookingIdOrRoomId: string, specificBookingRoomId?:
       guest_phone: selectedRoom.guest_phone || selectedRoom.booker_phone || null,
       room_number: selectedRoom.room_number || "101",
       room_type_name: selectedRoom.room_type_name || selectedRoom.room_type || "Deluxe Suite",
-      meal_plan: selectedRoom.meal_plan || "Room Only",
+      meal_plan: rSummary.meal_plan,
       check_in_date: selectedRoom.check_in_date,
       check_out_date: selectedRoom.check_out_date,
       nights: rSummary.nights,
@@ -298,47 +318,34 @@ async function buildDbInvoice(bookingIdOrRoomId: string, specificBookingRoomId?:
   }
 
   // ── BRANCH B: Single Booking-Wise Consolidated Invoice ─────────────────────
-  const consolidatedRoomCharges = Math.round(roomSummaries.reduce((sum, r) => sum + r.room_charges, 0) * 100) / 100;
-  const consolidatedServiceCharges = Math.round(allServices.reduce((sum, s) => sum + s.total_price, 0) * 100) / 100;
-  const consolidatedBase = Math.round((consolidatedRoomCharges + consolidatedServiceCharges) * 100) / 100;
-  const consolidatedTaxes = computeTaxCascade(consolidatedBase);
+  // Every room keeps its own invoice; the booking's bill is their sum. Payments
+  // recorded against the whole booking go on the first room's invoice.
+  const roomInvoiceIds: string[] = [];
+  for (const rs of roomSummaries) roomInvoiceIds.push(await upsertRoomInvoice(q, rs));
+  const invoiceId = roomInvoiceIds[0];
 
-  // Look up or auto-generate booking-level invoice. It is stored on the first
-  // room line (invoices.booking_room_id is a NOT NULL FK), so look it up there.
-  const invRes = await db.query(
-    `SELECT * FROM invoices WHERE booking_room_id::text = $1 OR booking_room_id::text = $2 ORDER BY generated_at DESC LIMIT 1`,
-    [primaryRow.booking_room_id, bookingFkId]
-  );
-
-  let invoiceId = invRes.rows[0]?.invoice_id;
-
-  if (!invoiceId) {
-    const newInv = await db.query(
-      `INSERT INTO invoices (booking_room_id, room_charges, service_charges, service_charge_tax, tdl_amount, ssc_amount, vat_amount, total_amount, status, generated_at)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'OPEN', NOW())
-       RETURNING invoice_id`,
-      [primaryRow.booking_room_id || bookingFkId, consolidatedRoomCharges, consolidatedServiceCharges, consolidatedTaxes.scTax, consolidatedTaxes.tdlTax, consolidatedTaxes.sscTax, consolidatedTaxes.vatTax, consolidatedTaxes.grandTotal]
-    );
-    invoiceId = newInv.rows[0]?.invoice_id;
-  } else {
-    // Update invoice with latest consolidated calculation
-    await db.query(
-      `UPDATE invoices SET room_charges = $1, service_charges = $2, service_charge_tax = $3, tdl_amount = $4, ssc_amount = $5, vat_amount = $6, total_amount = $7
-       WHERE invoice_id = $8`,
-      [consolidatedRoomCharges, consolidatedServiceCharges, consolidatedTaxes.scTax, consolidatedTaxes.tdlTax, consolidatedTaxes.sscTax, consolidatedTaxes.vatTax, consolidatedTaxes.grandTotal, invoiceId]
-    );
-  }
+  const sumOf = (k: keyof RoomSummaryItem) => round2(roomSummaries.reduce((acc, r) => acc + Number(r[k]), 0));
+  const consolidatedRoomCharges = sumOf('room_charges');
+  const consolidatedServiceCharges = sumOf('service_charges');
+  const consolidatedBase = sumOf('base_amount');
+  const consolidatedTaxes = {
+    scTax: sumOf('sc_tax'),
+    tdlTax: sumOf('tdl_tax'),
+    sscTax: sumOf('ssc_tax'),
+    vatTax: sumOf('vat_tax'),
+    grandTotal: sumOf('total_amount'),
+  };
 
   // Fetch all payments for this booking, on any of its rooms' invoices
-  // (check-out settles per room, so payments can sit on every room line)
-  const payRes = await db.query(
+  // (including a cancelled room's, so earlier deposits still count)
+  const payRes = await q.query(
     `SELECT payment_id, invoice_id, amount, payment_date, payment_method
      FROM payments
      WHERE invoice_id IN (
-       SELECT invoice_id FROM invoices WHERE booking_room_id::text = ANY($1::text[]) OR invoice_id = $2
+       SELECT invoice_id FROM invoices WHERE booking_room_id::text = ANY($1::text[])
      )
      ORDER BY payment_date ASC`,
-    [allBookingRoomIds, invoiceId]
+    [withRoom.map((r: any) => r.booking_room_id)]
   );
 
   const payments = payRes.rows.map((p: any) => ({
@@ -401,7 +408,7 @@ async function buildDbInvoice(bookingIdOrRoomId: string, specificBookingRoomId?:
  * GET /api/v1/invoices
  * Returns all invoices and bookings with 4-tier statutory tax cascade and payment ledger status.
  */
-router.get('/', async (req: Request, res: Response) => {
+router.get('/', lockManagerBranchQuery, async (req: Request, res: Response) => {
   try {
     const { branchId, status, search } = req.query;
     let query = `
@@ -450,12 +457,13 @@ router.get('/', async (req: Request, res: Response) => {
       const nights = Math.max(1, Number(r.nights) || 1);
       const rateAtBooking = Number(r.rate_at_booking) || (Number(r.booking_total) / nights) || 150;
       const baseAmount = Number(r.subtotal) || Number(r.booking_total) || (nights * rateAtBooking);
-      // 4-Tier Sri Lankan Statutory Tax Cascade
-      const sc = Number(r.sc_amount) || Math.round(baseAmount * 0.10 * 100) / 100;
-      const tdl = Number(r.tdl_amount) || Math.round((baseAmount + sc) * 0.01 * 100) / 100;
-      const sscl = Number(r.sscl_amount) || Math.round((baseAmount + sc + tdl) * 0.025 * 100) / 100;
-      const vat = Number(r.vat_amount) || Math.round((baseAmount + sc + tdl + sscl) * 0.18 * 100) / 100;
-      const grandTotal = Number(r.invoice_total) || Math.round((baseAmount + sc + tdl + sscl + vat) * 100) / 100;
+      // Stored invoice amounts win; the cascade only fills in a room not invoiced yet
+      const est = computeTaxCascade(baseAmount);
+      const sc = Number(r.sc_amount) || est.scTax;
+      const tdl = Number(r.tdl_amount) || est.tdlTax;
+      const sscl = Number(r.sscl_amount) || est.sscTax;
+      const vat = Number(r.vat_amount) || est.vatTax;
+      const grandTotal = Number(r.invoice_total) || est.grandTotal;
       const totalPaid = Math.round(Number(r.total_paid) * 100) / 100;
       const balanceDue = Math.max(0, Math.round((grandTotal - totalPaid) * 100) / 100);
       const computedStatus: 'SETTLED' | 'PARTIALLY_PAID' | 'OPEN' =
@@ -515,6 +523,7 @@ router.get('/', async (req: Request, res: Response) => {
 router.get("/:bookingId", async (req: Request, res: Response) => {
   const { bookingId } = req.params;
   const specificRoomId = typeof req.query.booking_room_id === "string" ? req.query.booking_room_id.trim() : undefined;
+  await assertManagerOwnsBooking(req, bookingId);
 
   const dbInvoice = await buildDbInvoice(bookingId, specificRoomId);
   if (!dbInvoice) throw Errors.notFound("Invoice for booking " + bookingId);
@@ -530,6 +539,7 @@ router.get("/:bookingId", async (req: Request, res: Response) => {
 router.post("/:bookingId/generate", async (req: Request, res: Response) => {
   const { bookingId } = req.params;
   const specificRoomId = typeof req.query.booking_room_id === "string" ? req.query.booking_room_id.trim() : undefined;
+  await assertManagerOwnsBooking(req, bookingId);
 
   const dbInvoice = await buildDbInvoice(bookingId, specificRoomId);
   if (!dbInvoice) throw Errors.notFound("Booking " + bookingId);
@@ -564,6 +574,7 @@ router.post("/:bookingId/payments", async (req: Request, res: Response) => {
   }
 
   const specificRoomId = parsed.data.booking_room_id ?? undefined;
+  await assertManagerOwnsBooking(req, bookingId);
   const dbInvoice = await buildDbInvoice(bookingId, specificRoomId);
   if (!dbInvoice || !dbInvoice.invoice_id) throw Errors.notFound("Invoice for booking " + bookingId);
 
@@ -576,11 +587,14 @@ router.post("/:bookingId/payments", async (req: Request, res: Response) => {
 
   const updatedInvoice = await buildDbInvoice(bookingId, specificRoomId);
 
-  // If fully paid or settling, update invoice status
+  // Fully paid: settle the room's invoice, or every room's for a booking-wide bill
   if (updatedInvoice && updatedInvoice.breakdown.balance_due <= 0) {
+    const settledRooms = updatedInvoice.is_consolidated
+      ? updatedInvoice.all_rooms.map(r => r.booking_room_id)
+      : [updatedInvoice.booking_room_id];
     await db.query(
-      `UPDATE invoices SET status = 'SETTLED' WHERE invoice_id = $1`,
-      [dbInvoice.invoice_id]
+      `UPDATE invoices SET status = 'SETTLED' WHERE booking_room_id::text = ANY($1::text[])`,
+      [settledRooms]
     );
   }
 

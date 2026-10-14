@@ -6,10 +6,18 @@ import { authorize } from '../middleware/rbac.middleware';
 import { db } from '../config/db';
 import { StaffRepository } from '../repositories/staff.repository';
 import { StaffService } from '../services/staff.service';
+import { managerBranch, assertManagerOwns } from '../lib/branch-scope';
 
 const router  = Router();
 const repo    = new StaffRepository(db);
 const service = new StaffService(repo);
+
+// A manager may only look at or invite staff of their own branch.
+async function assertManagerOwnsStaff(req: Request, staffId: string): Promise<void> {
+  if (!managerBranch(req)) return;
+  const staff = await repo.findById(staffId);
+  if (staff) assertManagerOwns(req, staff.branch_id);
+}
 
 // ── Zod schemas ───────────────────────────────────────────────────────────────
 const CreateStaffSchema = z.object({
@@ -37,7 +45,7 @@ router.get(
   authenticate,
   authorize('MANAGER', 'ADMINISTRATOR', 'DBA'),
   async (req: Request, res: Response) => {
-    const result = await service.list();
+    const result = await service.list(managerBranch(req));
     res.status(200).json(result);
   },
 );
@@ -47,6 +55,7 @@ router.get(
   authenticate,
   authorize('MANAGER', 'ADMINISTRATOR', 'DBA'),
   async (req: Request, res: Response) => {
+    await assertManagerOwnsStaff(req, req.params.id);
     const result = await service.getById(req.params.id);
     res.status(200).json(result);
   },
@@ -98,6 +107,7 @@ router.post(
   authenticate,
   authorize("ADMINISTRATOR", "MANAGER", "DBA"),
   async (req: Request, res: Response) => {
+    await assertManagerOwnsStaff(req, req.params.id);
     const result = await service.invite(req.params.id, req.user?.sub);
     res.status(200).json(result);
   },

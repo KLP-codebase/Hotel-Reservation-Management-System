@@ -354,7 +354,8 @@ export class BookingRepository {
         };
     }
 
-    async findAll() {
+    // branchId limits the list to one branch; omitted, it lists every branch.
+    async findAll(branchId?: string) {
         const result = await this.db.query(`
 SELECT
   b.booking_id,
@@ -377,9 +378,10 @@ LEFT JOIN LATERAL (
   FROM booking_rooms
   WHERE booking_rooms.booking_id = b.booking_id
 ) agg ON true
+WHERE ($1::uuid IS NULL OR b.branch_id = $1::uuid)
 ORDER BY b.created_at DESC
 
-        `, []);
+        `, [branchId ?? null]);
 
         return result.rows;
     }
@@ -401,12 +403,15 @@ ORDER BY b.created_at DESC
     //   CHECKED_OUT → rooms.status = MAINTENANCE, and the
     //                 room's invoice is (re)generated     (fn_auto_bill_on_checkout)
     //   CANCELLED   → the dates are freed for new bookings (no_double_booking ignores CANCELLED)
+    // Check-in is refused outside the stay window (see assertCheckInOpen).
     async transitionStatus(
         client: PoolClient,
         bookingId: string,
         fromStatus: string,
         toStatus: string,
     ): Promise<{ booking_id: string; status: string } | null> {
+        if (toStatus === 'CHECKED_IN') await this.assertCheckInOpen(client, bookingId);
+
         const result = await client.query<{ booking_id: string; status: string }>(`
             UPDATE bookings
             SET status = $1, updated_at = CURRENT_TIMESTAMP
@@ -425,6 +430,28 @@ ORDER BY b.created_at DESC
         }
 
         return result.rows[0];
+    }
+
+    // Check-in is allowed from the arrival day until the day before check-out,
+    // on the hotel's calendar (Sri Lanka), not the server's UTC clock: never
+    // early; a late arrival still checks in (and pays the full booked stay).
+    async assertCheckInOpen(client: PoolClient, bookingId: string): Promise<void> {
+        const { rows: [stay] } = await client.query<{ opens: string | null; ends: string | null; too_early: boolean; ended: boolean }>(`
+            SELECT to_char(MIN(check_in_date), 'DD Mon YYYY')  AS opens,
+                   to_char(MAX(check_out_date), 'DD Mon YYYY') AS ends,
+                   MIN(check_in_date)  >  (now() AT TIME ZONE 'Asia/Colombo')::date AS too_early,
+                   MAX(check_out_date) <= (now() AT TIME ZONE 'Asia/Colombo')::date AS ended
+            FROM booking_rooms
+            WHERE booking_id = $1 AND status <> 'CANCELLED'
+        `, [bookingId]);
+
+        if (!stay?.opens) throw Errors.badRequest('This booking has no room to check in to');
+        if (stay.too_early) {
+            throw new AppError(409, 'CHECK_IN_NOT_OPEN', `Check-in opens on ${stay.opens}, the booking's arrival day.`);
+        }
+        if (stay.ended) {
+            throw new AppError(409, 'STAY_ENDED', `This stay ended on ${stay.ends}, so the guest can no longer be checked in.`);
+        }
     }
 
     // Reads the booking header and locks it until the transaction ends, so a

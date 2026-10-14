@@ -81,7 +81,7 @@ router.get('/:id', async (req: Request, res: Response) => {
 router.put(
     '/:id',
     authenticate, //whether the user is authenticated
-    authorize('ADMINISTRATOR', 'MANAGER', 'DBA'),//checking if the authenticated user has permission to update the tax
+    authorize('ADMINISTRATOR', 'DBA'),//tax rates apply to every branch, so a single-branch manager cannot change them
     validate(UpdateTaxSchema), //validating the input data
     async (req: Request, res: Response) => {
         const taxId = req.params.id;

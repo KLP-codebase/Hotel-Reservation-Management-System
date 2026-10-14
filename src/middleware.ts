@@ -85,6 +85,14 @@ export async function middleware(req: NextRequest) {
     return res;
   }
 
+  // 2c. Managers run a single branch, so the multi-branch Branches page is not theirs
+  if (isAuthenticated && role.toUpperCase() === 'MANAGER' && (path === '/dashboard/branches' || path === '/branches')) {
+    const dashUrl = new URL('/dashboard', req.url);
+    const res = NextResponse.redirect(dashUrl);
+    res.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+    return res;
+  }
+
   // 3. Authenticated users hitting /login or /register -> redirect to appropriate portal
   if (isAuthenticated && isAuthPage) {
     const targetUrl = isGuest ? new URL('/', req.url) : new URL('/dashboard', req.url);

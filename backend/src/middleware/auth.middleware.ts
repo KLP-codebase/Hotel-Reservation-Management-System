@@ -30,3 +30,17 @@ export function authenticate(req: Request, res: Response, next: NextFunction): v
     next(Errors.unauthorized());
   }
 }
+
+// For public routes whose answer depends on who is asking (e.g. a manager sees
+// only their branch): attaches req.user when a valid token is sent, never rejects.
+export function optionalAuthenticate(req: Request, _res: Response, next: NextFunction): void {
+  const token = authStrategy.extractFromRequest(req);
+  if (token) {
+    try {
+      req.user = authStrategy.verify(token);
+    } catch {
+      // Treat a bad token as anonymous on a public route.
+    }
+  }
+  next();
+}
