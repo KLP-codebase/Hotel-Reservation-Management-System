@@ -323,7 +323,7 @@ export class BookingRepository {
                 su.notes
             FROM service_usage su
             JOIN booking_rooms br ON br.booking_room_id = su.booking_room_id
-            LEFT JOIN service_catalogue sc ON sc.service_id = su.service_id
+            LEFT JOIN service_catalogue sc ON sc.service_id::text = su.service_id
             WHERE br.booking_id = $1
             ORDER BY su.used_at ASC
         `, [bookingId]);
