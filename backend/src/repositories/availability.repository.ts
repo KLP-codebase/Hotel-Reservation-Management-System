@@ -41,9 +41,12 @@ export class AvailabilityRepository {
               -- check-out), so OCCUPIED and MAINTENANCE only block a stay starting
               -- today; later dates are decided by the booking overlap checks below.
               -- OUT_OF_SERVICE has no end date, so it blocks every date.
-              AND r.is_active = true
-              AND r.status <> 'OUT_OF_SERVICE'
-              AND NOT (r.status IN ('OCCUPIED', 'MAINTENANCE')
+              -- status is compared as text and is_active read via to_jsonb because the
+              -- Azure schema keeps status as the room_status enum (no OUT_OF_SERVICE
+              -- label, so a plain comparison errors) and may not have is_active at all.
+              AND COALESCE((to_jsonb(r) ->> 'is_active')::boolean, true)
+              AND r.status::text <> 'OUT_OF_SERVICE'
+              AND NOT (r.status::text IN ('OCCUPIED', 'MAINTENANCE')
                        AND $2::date <= (now() AT TIME ZONE 'Asia/Colombo')::date)
               -- Real reservations live in booking_rooms (one row per room line)
               AND NOT EXISTS (
