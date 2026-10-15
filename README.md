@@ -392,12 +392,12 @@ gh workflow run deploy.yml
 
 | Name | Role |
 |---|---|
-| **Kenul Perera** | Auth System & Staff Management |
+| **Kenul Perera** | Auth System & Staff Management, service catalogue |
 | **Nimeth Sandive** | Tax Engine, Billing & Invoicing Subsystem |
-| **Ashinthya** | Frontend design, Booking Flow & Room Management |
+| **Ashinthya** | Landing page , Booking Flow & Room Management |
 | **Harivishnu** | Reports, pdf creation |
-| **Manodya Teshan** | Reports, Analytics & Dashboard |
-
+| **Manodya Teshan** | Reports, services |
+ - everybody participated in designing front end components and database components
 ---
 
 ## 📚 Documentation
