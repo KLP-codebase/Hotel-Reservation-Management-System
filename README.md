@@ -11,7 +11,7 @@ A production-grade, multi-branch hotel management platform built for **SkyNest H
 [![Express](https://img.shields.io/badge/Express-4.19-green?logo=express)](https://expressjs.com)
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-15-336791?logo=postgresql)](https://postgresql.org)
 [![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-v4-38B2AC?logo=tailwind-css)](https://tailwindcss.com)
-[![Railway](https://img.shields.io/badge/Deployed_on-Railway-7B2BFF?logo=railway)](https://railway.app)
+[![Azure](https://img.shields.io/badge/Deployed_on-Azure_VM-0078D4?logo=microsoftazure)](https://azure.microsoft.com)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6?logo=typescript)](https://typescriptlang.org)
 
 > 📖 **Definitive Reference:** [`Resources/ARCHITECTURE.md`](Resources/ARCHITECTURE.md) — complete engineering specification, 17-relation relational model, two-tier concurrency control, 4-tier Sri Lankan statutory tax engine, and full REST contract.
@@ -36,27 +36,28 @@ Sky Nest HRGSMS replaces legacy fragmented software and manual ledgers across th
 │                         CLIENT / CONSUMER TIER                           │
 │   Guest (Public)       Registered Guest (Portal)     Receptionist / Mgr  │
 └─────────────────────────────────┬────────────────────────────────────────┘
-                                  │ HTTPS
+                                  │ HTTPS  (skynest.me via Cloudflare DNS)
                                   ▼
 ┌──────────────────────────────────────────────────────────────────────────┐
-│              PRESENTATION TIER — Next.js 16 (React 19)  :3000            │
-│  App Router · Tailwind CSS v4 · GSAP 3 + ScrollTrigger · Lenis scroll    │
-│  Cinzel display font · Plus Jakarta Sans UI · #D9722C accent             │
-└─────────────────────────────────┬────────────────────────────────────────┘
-                                  │ REST  /api/v1/*
-                                  ▼
-┌──────────────────────────────────────────────────────────────────────────┐
-│           APPLICATION TIER — Express 4 (Node 20)  :4000                  │
-│  JWT Auth · Zod Validation · RBAC Middleware · Repository Pattern        │
-│  GoF: Strategy (tax), Observer (triggers), Singleton (DB pool)           │
-└─────────────────────────────────┬────────────────────────────────────────┘
-                                  │ pg Pool (raw SQL)
-                                  ▼
-┌──────────────────────────────────────────────────────────────────────────┐
-│              PERSISTENCE TIER — PostgreSQL 15 (Railway Managed)           │
-│  18 live tables · 26 migrations · PL/pgSQL functions & triggers          │
-│  BCNF normalization · Date-exclusion concurrency · Versioned taxes        │
-└──────────────────────────────────────────────────────────────────────────┘
+│       REVERSE PROXY — Caddy 2 (Azure VM, India South Central)            │
+│  TLS termination · /api/v1/* → backend · /* → frontend                  │
+└──────────┬──────────────────────────────────────────┬────────────────────┘
+           │ :3000                                    │ :4000
+           ▼                                          ▼
+┌──────────────────────────┐             ┌────────────────────────────────┐
+│  PRESENTATION TIER       │             │  APPLICATION TIER              │
+│  Next.js 16 (React 19)   │             │  Express 4 (Node 20)           │
+│  Tailwind CSS v4         │             │  JWT · Zod · RBAC              │
+│  GSAP 3 + ScrollTrigger  │◄────REST────│  Repository Pattern            │
+└──────────────────────────┘             └──────────────┬─────────────────┘
+                                                        │ pg Pool (raw SQL)
+                                                        ▼
+                                         ┌──────────────────────────────────┐
+                                         │  PERSISTENCE TIER                │
+                                         │  PostgreSQL 15 (Docker, Azure VM)│
+                                         │  18 tables · 26 migrations        │
+                                         │  PL/pgSQL triggers & procedures   │
+                                         └──────────────────────────────────┘
 ```
 
 ### Five Architectural Tenets
@@ -75,6 +76,7 @@ Sky Nest HRGSMS replaces legacy fragmented software and manual ledgers across th
 |---|---|
 | **Public Website & Booking** | [https://skynest.me](https://skynest.me) |
 | **Staff Dashboard** | [https://skynest.me/dashboard](https://skynest.me/dashboard) |
+| **API Health Check** | `GET https://skynest.me/health` |
 
 ---
 
@@ -334,18 +336,32 @@ npm run docker:reset   # Wipe volume and restart fresh
 
 ---
 
-## 🌐 Deployment (Railway)
+## 🌐 Deployment (Azure VM)
 
-Frontend, Backend, and PostgreSQL are all hosted on **Railway**:
+The production stack runs on a **Microsoft Azure VM** (India South Central region) using **Docker Compose** with **Caddy** as the reverse proxy:
+
+| Component | Host |
+|---|---|
+| **Frontend** (Next.js) | Docker container on Azure VM |
+| **Backend** (Express) | Docker container on Azure VM |
+| **Database** (PostgreSQL 15) | Docker container on Azure VM |
+| **Reverse Proxy** | Caddy 2 (auto TLS, port 80/443) |
+| **DNS / CDN** | Cloudflare (pointing to Azure VM IP) |
+| **Container Registry** | GitHub Container Registry (GHCR) |
+
+The CI/CD pipeline (`.github/workflows/deploy.yml`) on every push to `main`:
+1. Builds Docker images for frontend and backend → pushes to GHCR
+2. SSH into the Azure VM at `/opt/skynest/`
+3. Runs pending SQL migrations automatically
+4. Pulls new images and does a zero-downtime `docker compose up -d`
+5. Reloads Caddy config and runs a smoke test against `https://skynest.me/health`
 
 ```bash
-railway link
-railway up
+# Trigger a manual deploy (GitHub Actions)
+gh workflow run deploy.yml
 ```
 
-The CI/CD pipeline (`.github/workflows/`) handles automated linting, type-checking, and deployment on every push to `main`.
-
-> ⚠️ **Database Note:** The live Railway schema has drifted from `init.sql`. Always query the live DB to verify column types before writing joins. See [`Resources/RAILWAY_SETUP_GUIDE.md`](Resources/RAILWAY_SETUP_GUIDE.md).
+> ⚠️ **Database Note:** The live schema has drifted from `init.sql`. Always query the live DB to verify column types before writing joins. See [`Resources/RAILWAY_SETUP_GUIDE.md`](Resources/RAILWAY_SETUP_GUIDE.md).
 
 ---
 
@@ -367,7 +383,7 @@ The CI/CD pipeline (`.github/workflows/`) handles automated linting, type-checki
 | **AI** | Google Gemini API |
 | **Email** | Nodemailer |
 | **Validation** | Zod (shared schema) |
-| **Deployment** | Railway (managed cloud) |
+| **Deployment** | Azure VM (Docker Compose + Caddy) |
 | **CI/CD** | GitHub Actions |
 
 ---
