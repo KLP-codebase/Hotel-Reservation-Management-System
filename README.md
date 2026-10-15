@@ -381,7 +381,7 @@ gh workflow run deploy.yml
 | **Database** | PostgreSQL 15 via `pg` (raw SQL, Zero ORM) |
 | **Auth** | Stateless JWT (`jsonwebtoken` + `bcryptjs`) |
 | **AI** | Google Gemini API |
-| **Email** | Nodemailer |
+| **Email** | Resend |
 | **Validation** | Zod (shared schema) |
 | **Deployment** | Azure VM (Docker Compose + Caddy) |
 | **CI/CD** | GitHub Actions |
