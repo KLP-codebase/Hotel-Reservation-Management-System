@@ -1,6 +1,6 @@
 <div align="center">
 
-# ✦ Sky Nest HRGSMS
+# Sky Nest HRGSMS
 
 **Hotel Reservation & Guest Services Management System**
 
@@ -235,7 +235,6 @@ Implemented in:
 | Type | Name | Purpose |
 |---|---|---|
 | **Stored Procedure** | `sp_Generate_Final_Bill` | 4-tier tax cascade + invoice upsert |
-| **Stored Procedure** | `sp_CreateBooking` | Atomic booking creation with advisory lock |
 | **Function** | `fn_check_room_availability` | Date-exclusion constraint check |
 | **Function** | `fn_auto_bill_on_checkout` | Trigger function for auto-billing |
 | **Trigger** | `trg_auto_bill_on_checkout` | GoF Observer — fires `sp_Generate_Final_Bill` on checkout status change |
