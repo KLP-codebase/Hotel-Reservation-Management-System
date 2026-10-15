@@ -113,10 +113,10 @@ export default function RoomsPage() {
         apiFetch<{ data: Room[] }>('/api/v1/rooms?is_active=true').catch(() => ({ data: [] })),
         apiFetch<{ data: Record<number, number> }>('/api/v1/rooms/stats/counts-by-type').catch(() => ({ data: {} })),
       ]);
-      setRoomTypes(rtRes.data);
-      setBranches(bRes.data);
-      setRooms(rRes.data);
-      setRoomCounts(cRes.data);
+      setRoomTypes(rtRes?.data ?? []);
+      setBranches(bRes?.data ?? []);
+      setRooms(rRes?.data ?? []);
+      setRoomCounts(cRes?.data ?? {});
     } finally {
       setLoading(false);
     }
@@ -384,7 +384,11 @@ export default function RoomsPage() {
                     </thead>
                     <tbody className={tbl.body}>
                       {roomTypes.map(rt => {
-                        const count = roomCounts[rt.room_type_id] ?? 0;
+                        const countFromStats = roomCounts[rt.room_type_id] ?? (roomCounts as Record<string, number>)[String(rt.room_type_id)];
+                        const countFromRooms = rooms.filter(
+                          (rm) => String(rm.room_type_id) === String(rt.room_type_id) && rm.is_active !== false
+                        ).length;
+                        const count = countFromStats !== undefined ? countFromStats : countFromRooms;
                         return (
                           <tr key={rt.room_type_id} className={tbl.row}>
                             <td className={`${tbl.td} max-w-[360px]`}>
